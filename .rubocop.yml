@@ -11,6 +11,7 @@ AllCops:
     - "db/migrate/20190730153555_recreate_structure.rb"
     - "bin/*"
     - "node_modules/**/*"
+    - "cache/**/*"
 
 Bundler/DuplicatedGem:
   Enabled: true

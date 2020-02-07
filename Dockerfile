@@ -1,25 +1,26 @@
 FROM ruby:2.6.5-alpine AS base
 
 #------------ intermediate container with specific dev tools
-FROM base AS builder
+# FROM base AS builder
 # RUN ping -c 2 dl-cdn.alpinelinux.org
 # RUN wget  --debug --verbose  http://dl-cdn.alpinelinux.org/alpine/v3.8/main/x86_64/APKINDEX.tar.gz
-RUN apk add --update --virtual build-dependencies \
-        build-base \
-        gcc \
-        git \
-        libcurl \
-        curl-dev \
-        postgresql-dev \
-        yarn \
-        python
-ENV INSTALL_PATH /app
-RUN mkdir -p ${INSTALL_PATH}
-COPY Gemfile Gemfile.lock package.json yarn.lock  ${INSTALL_PATH}/
-WORKDIR ${INSTALL_PATH}
-RUN bundle config --global frozen 1 &&\
-    bundle install --deployment --without development test&&\
-    yarn install --production
+# RUN apk add --update --virtual build-dependencies \
+#        build-base \
+#        gcc \
+#        git \
+#        libcurl \
+#        curl-dev \
+#        postgresql-dev \
+#        yarn \
+#        python
+# ENV INSTALL_PATH /app
+# RUN mkdir -p ${INSTALL_PATH}
+# COPY Gemfile Gemfile.lock package.json yarn.lock ${INSTALL_PATH}/
+    # COPY cache ${INSTALL_PATH}/cache
+# WORKDIR ${INSTALL_PATH}
+# RUN bundle config --global frozen 1 && \
+#     bundle install --deployment --without development test --path cache/bundle &&\
+#     yarn install --production --cache-folder cache/yarn
 
 #----------- final tps
 FROM base
@@ -33,10 +34,10 @@ RUN adduser -Dh ${APP_PATH} userapp
 #----- copy from previous container the dependency gems plus the current application files
 USER userapp
 
-COPY --chown=userapp:userapp --from=builder /app ${APP_PATH}/
-RUN bundle install --deployment --without development test && \
+COPY --chown=userapp:userapp . ${APP_PATH}/
+RUN bundle install --deployment --without development test --path cache/bundle && \
     rm -fr .git && \
-    yarn install --production
+    yarn install --production --cache-folder cache/yarn
 
 ENV \
     API_ADRESSE_URL="https://api-adresse.data.gouv.fr"\
@@ -123,8 +124,7 @@ ENV \
     YAHOO_CLIENT_ID=""\
     YAHOO_CLIENT_SECRET=""
 
-COPY --chown=userapp:userapp . ${APP_PATH}
-RUN RAILS_ENV=production bundle exec rails assets:precompile
+RUN RAILS_ENV=production bin/webpack
 
 RUN chmod a+x $APP_PATH/app/lib/docker-entry-point.sh
 
