@@ -5,7 +5,7 @@ class AdministrationMailer < ApplicationMailer
   def new_admin_email(admin, administration)
     @admin = admin
     @administration = administration
-    subject = "Création d'un compte admininistrateur"
+    subject = "Création d'un compte administrateur"
 
     mail(to: TECH_EMAIL,
       subject: subject)
@@ -43,5 +43,15 @@ class AdministrationMailer < ApplicationMailer
     @champs = procedure.types_de_champ
     subject = "Une nouvelle démarche vient d'être publiée"
     mail(to: EQUIPE_EMAIL, subject: subject)
+  end
+
+  def post_ticket(from, subject, body, files = [], phone)
+    puts "Fichiers transmis: #{files}"
+    if files.present?
+      files.each { |file| attachments[file[:fileName]] = file }
+    end
+    @body = body
+    @phone = phone
+    mail(to: CONTACT_EMAIL, reply_to: from, subject: subject)
   end
 end
