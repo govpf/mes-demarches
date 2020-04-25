@@ -34,6 +34,10 @@ class AdministrationMailerPreview < ActionMailer::Preview
     AdministrationMailer.procedure_published(published_procedure)
   end
 
+  def post_ticket
+    AdministrationMailer.post_ticket("user@gmail.com", "Demande de support", "Bonjour, \nPouvez-vous m'aider ?'", "40506070")
+  end
+
   private
 
   def published_procedure

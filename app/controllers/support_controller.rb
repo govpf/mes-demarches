@@ -47,7 +47,7 @@ class SupportController < ApplicationController
   end
 
   def create_conversation
-    Helpscout::FormAdapter.new(
+    Freescout::FormAdapter.new(
       subject: params[:subject],
       email: email,
       phone: params[:phone],
