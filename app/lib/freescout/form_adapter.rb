@@ -43,7 +43,7 @@ class Freescout::FormAdapter
   private
 
   def create_conversation
-    response = @api.create_conversation(
+    @api.create_conversation(
       params[:email],
       params[:subject],
       params[:text],

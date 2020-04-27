@@ -7,7 +7,7 @@ class Freescout::API
     Rails.logger.warn("[FreeScout API] add phone number not available")
   end
 
-  def create_conversation(email, subject, text, file, phone="")
+  def create_conversation(email, subject, text, file, phone = "")
     AdministrationMailer.post_ticket(email, subject, text, attachments(file), phone).deliver_later
   end
 
@@ -41,5 +41,4 @@ class Freescout::API
       email: email
     }
   end
-
 end

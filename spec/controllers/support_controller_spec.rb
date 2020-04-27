@@ -54,8 +54,8 @@ describe SupportController, type: :controller do
         post :create, params: { subject: 'bonjour', text: 'un message' }
       end
 
-      it 'creates a conversation on HelpScout' do
-        expect_any_instance_of(Helpscout::FormAdapter).to receive(:send_form).and_return(true)
+      it 'creates a conversation on Freescout' do
+        expect_any_instance_of(Freescout::FormAdapter).to receive(:send_form).and_return(true)
 
         expect { subject }.to change(Commentaire, :count).by(0)
 
@@ -70,14 +70,14 @@ describe SupportController, type: :controller do
         subject do
           post :create, params: {
             dossier_id: dossier.id,
-            type: Helpscout::FormAdapter::TYPE_INSTRUCTION,
+            type: Freescout::FormAdapter::TYPE_INSTRUCTION,
             subject: 'bonjour',
             text: 'un message'
           }
         end
 
-        it 'creates a conversation on HelpScout' do
-          expect_any_instance_of(Helpscout::FormAdapter).to receive(:send_form).and_return(true)
+        it 'creates a conversation on Freescout' do
+          expect_any_instance_of(Freescout::FormAdapter).to receive(:send_form).and_return(true)
 
           expect { subject }.to change(Commentaire, :count).by(0)
 
@@ -93,14 +93,14 @@ describe SupportController, type: :controller do
         subject do
           post :create, params: {
             dossier_id: dossier.id,
-            type: Helpscout::FormAdapter::TYPE_INSTRUCTION,
+            type: Freescout::FormAdapter::TYPE_INSTRUCTION,
             subject: 'bonjour',
             text: 'un message'
           }
         end
 
         it 'posts the message to the dossier messagerie' do
-          expect_any_instance_of(Helpscout::FormAdapter).not_to receive(:send_form)
+          expect_any_instance_of(Freescout::FormAdapter).not_to receive(:send_form)
 
           expect { subject }.to change(Commentaire, :count).by(1)
 
