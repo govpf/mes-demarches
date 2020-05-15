@@ -18,6 +18,7 @@ class ApiEntreprise::Adapter
     if data_source.present?
       process_params
     else
+      Rails.logger.debug "Siret: #{@siret}\tNon trouvé"
       {}
     end
   end

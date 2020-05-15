@@ -15,13 +15,24 @@ class ApiEntreprise::PfEtablissementAdapter < ApiEntreprise::Adapter
   end
 
   def process_params
-    etablissements = data_source.sort_by { |a| a[:numEtablissement] }.filter { |h| h[:dateRadiation].nil? }
-    etablissements = etablissements.map { |e| translate(e) }
-    fields = Set.new(etablissements.map(&:keys).flatten)
-    etablissement = {}
-    # for each field, concatenate the value of each etablissement (remove duplicates)
-    fields.each { |k| etablissement[k] = Set.new(etablissements.map { |e| e[k] }.compact).to_a.join(' | ') }
-    etablissement
+    begin
+      etablissements = data_source.sort_by { |a| a[:numEtablissement] }.filter { |h| h[:dateRadiation].nil? }
+      if (etablissements.present?)
+        Rails.logger.debug "Siret: #{data_source[0][:entreprise][:numeroTahiti]}\tOK"
+      else
+        radie = data_source.find { |a| a[:dateRadiation].present? }
+        Rails.logger.debug "Siret: #{radie[:entreprise][:numeroTahiti]}\tRadié le #{radie[:dateRadiation]}"
+      end
+      # pp data_source
+      etablissements = etablissements.map { |e| translate(e) }
+      fields = Set.new(etablissements.map(&:keys).flatten)
+      etablissement = {}
+      # for each field, concatenate the value of each etablissement (remove duplicates)
+      fields.each { |k| etablissement[k] = Set.new(etablissements.map { |e| e[k] }.compact).to_a.join(' | ') }
+      etablissement
+    rescue StandardError => e
+      Rails.logger.error e
+    end
   end
 
   def translation_map
