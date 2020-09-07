@@ -10,7 +10,7 @@ module StringToHtmlHelper
     html_formatted&.gsub!(/[\r\n]/, ' ')
     with_links = Anchored::Linker.auto_link(html_formatted, target: '_blank', rel: 'noopener')
     tags = ['a', 'abbr', 'acronym', 'address', 'b', 'big', 'blockquote', 'br', 'cite', 'code', 'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'ol', 'p', 'pre', 'samp', 'small', 'span', 'sub', 'sup', 'table', 'td', 'th', 'tr', 'tt', 'u', 'ul', 'var', 'strong']
-    atts = ['target', 'rel', 'href', 'class', 'src', 'alt', 'width', 'height']
+    atts = ['target', 'style', 'rel', 'href', 'class', 'src', 'alt', 'width', 'height']
     sanitize(with_links, tags: tags, attributes: atts)
   end
 end
