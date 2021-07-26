@@ -29,15 +29,15 @@ jobs:
     -
       name: Build and push (master)
       uses: docker/build-push-action@v2
-      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/masterpf'
       with:
         context: .
-        file: ./docker/Dockerfile
+        file: ./Dockerfile
         platforms: linux/amd64
         pull: true
         push: true
         tags: |
-          ${{ env.repo }}:latest
+          ${{ env.repo }}:masterpf
     -
       name: Extract tag name
       if: github.event_name == 'push' && github.ref != 'refs/heads/master'
