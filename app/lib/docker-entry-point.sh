@@ -15,7 +15,7 @@ file_env() {
   if [ "${!fileVar:-}" ]; then
     echo "${fileVar} was defined"
     val="$(< "${!fileVar}")"
-    echo "${var} was replaced with the contents of ${fileVar} (the value was: ${val})"
+    echo "${var} was replaced with the contents of ${fileVar}"
     export "$var"="$val"
   fi
 
