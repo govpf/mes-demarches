@@ -157,15 +157,9 @@ ENV \
 COPY --chown=userapp:userapp . ${APP_PATH}
 RUN RAILS_ENV=production bundle exec rails assets:precompile
 
-RUN chmod a+x $APP_PATH/app/lib/docker-entry-point.sh
-
 EXPOSE 3000
 ENTRYPOINT ["/app/app/lib/docker-entry-point.sh"]
 CMD ["rails", "server", "-b", "0.0.0.0"]
-
-
-
-
 
 # git clone https://github.com/sipf/tps.git
 # cd tps/
