@@ -73,8 +73,8 @@ ENV \
     DB_DATABASE="tps"\
     DB_HOST="localhost"\
     DB_PASSWORD="tps"\
-    DB_POOL="20"\
     DB_USERNAME="tps"\
+    DB_POOL="20"\
     DEMANDE_INSCRIPTION_ADMIN_PAGE_URL="https://www.mes-demarches.gov.pf/commencer/dmra-devenir-administrateur-de-demarches-en-ligne"\
     DOC_URL="https://mes-demarches.gitbook.io/documentation"\
     DS_PROXY_URL=""\
@@ -156,10 +156,11 @@ ENV \
 
 COPY --chown=userapp:userapp . ${APP_PATH}
 RUN RAILS_ENV=production bundle exec rails assets:precompile
+COPY --chown=userapp:userapp ./script /usr/bin/
 
 EXPOSE 3000
-ENTRYPOINT ["/app/app/lib/docker-entry-point.sh"]
-CMD ["rails", "server", "-b", "0.0.0.0"]
+ENTRYPOINT ["entrypoint"]
+CMD ["run-app"]
 
 # git clone https://github.com/sipf/tps.git
 # cd tps/
