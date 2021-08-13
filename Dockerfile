@@ -1,9 +1,7 @@
 FROM ruby:2.7.1-alpine AS base
 
-#------------ intermediate container with specific dev tools
 FROM base AS builder
-# RUN ping -c 2 dl-cdn.alpinelinux.org
-# RUN wget  --debug --verbose  http://dl-cdn.alpinelinux.org/alpine/v3.8/main/x86_64/APKINDEX.tar.gz
+
 RUN apk add --update --virtual build-dependencies \
         build-base \
         imagemagick \
@@ -15,30 +13,41 @@ RUN apk add --update --virtual build-dependencies \
         postgresql-dev \
         yarn \
         python3
+
 ENV INSTALL_PATH /app
 RUN mkdir -p ${INSTALL_PATH}
 COPY Gemfile Gemfile.lock package.json yarn.lock  ${INSTALL_PATH}/
 WORKDIR ${INSTALL_PATH}
 
 # sassc https://github.com/sass/sassc-ruby/issues/146#issuecomment-608489863
-RUN bundle config specific_platform x86_64-linux \
-  && bundle config --local build.sassc --disable-march-tune-native
+RUN bundle config specific_platform x86_64-linux && \
+    bundle config --local build.sassc --disable-march-tune-native
 
-RUN bundle config --global frozen 1 &&\
-    bundle install --deployment --without development test&&\
+RUN bundle config --global frozen 1 && \
+    bundle install --deployment --without development test && \
     yarn install --production
 
-#----------- final tps
 FROM base
-ENV APP_PATH /app
-#----- minimum set of packages including PostgreSQL client, yarn
-RUN apk add --no-cache --update bash tzdata libcurl postgresql-libs yarn imagemagick
 
-WORKDIR ${APP_PATH}
+#----- Dependencies
+RUN apk add --no-cache --update bash tzdata libcurl postgresql-libs yarn imagemagick && \
+    rm -rf /var/cache/apk/*
+
+# Clamav
+RUN apk add --no-cache bash clamav clamav-daemon clamav-libunrar tini
+
+COPY docker/clamav/conf /etc/clamav
+
+ENV APP_PATH /app
+
 RUN adduser -Dh ${APP_PATH} userapp
 
-#----- copy from previous container the dependency gems plus the current application files
+RUN mkdir /var/run/clamav && \
+    chmod 750 /var/lib/clamav /var/run/clamav && \
+    chown -R userapp:userapp /var/lib/clamav /var/run/clamav /etc/clamav
+
 USER userapp
+WORKDIR ${APP_PATH}
 
 COPY --chown=userapp:userapp --from=builder /app ${APP_PATH}/
 RUN bundle install --deployment --without development test && \
@@ -159,32 +168,6 @@ RUN RAILS_ENV=production bundle exec rails assets:precompile
 COPY --chown=userapp:userapp ./script /usr/bin/
 
 EXPOSE 3000
-ENTRYPOINT ["entrypoint"]
+
+ENTRYPOINT ["tini", "-g", "--", "entrypoint"]
 CMD ["run-app"]
-
-# git clone https://github.com/sipf/tps.git
-# cd tps/
-# Modify config/environments/production.rb with this parameters :
-# config.force_ssl = false
-# protocol: :http # everywhere
-# config.active_storage.service = :local
-
-# Add Dockerfile in this repository and build
-# docker build -t sipf/tps:0.1.0 .
-
-# docker run -p 5432:5432 -e POSTGRES_USER=tps -e POSTGRES_PASSWORD=tps -d postgres:9.6-alpine
-# docker run --rm -e DB_HOST="192.168.1.45" sipf/tps:0.1.0 rails db:setup
-
-# docker run -e DB_HOST="192.168.1.45" -e MAILTRAP_ENABLED="enabled" -e MAILTRAP_USERNAME="xxxxxxxx" -e MAILTRAP_PASSWORD="yyyyyyyy" -e APP_HOST="beta.mes-demarches.gov.pf" -d sipf/tps:0.1.0 rails jobs:work
-# docker run -e DB_HOST="192.168.1.45" -e MAILTRAP_ENABLED="enabled" -e MAILTRAP_USERNAME="xxxxxxxx" -e MAILTRAP_PASSWORD="yyyyyyyy" -e APP_HOST="beta.mes-demarches.gov.pf" -d -p 80:3000 sipf/tps:0.1.0
-
-# Modify your /etc/hosts file so beta.demarches-simplifiees.gov.pf match your host.
-# Log to http://beta.demarches-simplifiees.gov.pf with your browser, it must works.
-# login : test@exemple.fr
-# password : "this is a very complicated password !"
-
-# Add aditionnal administrator
-# docker run --rm -e DB_HOST="192.168.1.45" sipf/tps:0.1.0 rake admin:list
-# docker run --rm -e DB_HOST="192.168.1.45" sipf/tps:0.1.0 "rake admin:create_admin[leonard.tavae@informatique.gov.pf]"
-# docker run --rm -e DB_HOST="192.168.1.45" sipf/tps:0.1.0 "rake admin:delete_admin[leonard.tavae@informatique.gov.pf]"
-

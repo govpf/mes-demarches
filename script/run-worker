@@ -1,6 +1,16 @@
-#!/bin/bash
+#!/bin/bash -e
 
-# https://stackoverflow.com/a/38732187/1935918
-set -e
+if [ -n "$CLAMAV_ENABLED" ]
+then
+  if [ ! -f "/var/lib/clamav/main.cvd" ]
+  then
+    freshclam
+  fi
 
-exec bundle exec rails jobs:work
+  freshclam -d &
+  clamd &
+fi
+
+bundle exec rails jobs:work &
+
+wait -n
