@@ -5,9 +5,9 @@ describe ClamavService do
     subject { ClamavService.safe_file?(path_file) }
 
     before do
-      client = double("ClamAV::Client", execute: [response])
+      client = double("ClamAV::Client", execute: response)
       allow(ClamAV::Client).to receive(:new).and_return(client)
-      allow(FileUtils).to receive(:chmod).with(0666, path_file).and_return(true)
+      allow(File).to receive(:open).with(path_file, 'rb').and_return(StringIO.new('coucou'))
     end
 
     context 'When response type is ClamAV::SuccessResponse' do

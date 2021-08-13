@@ -4,10 +4,8 @@ class ClamavService
       return true
     end
 
-    FileUtils.chmod(0666, file_path)
-
     client = ClamAV::Client.new
-    response = client.execute(ClamAV::Commands::ScanCommand.new(file_path)).first
+    response = client.execute(ClamAV::Commands::InstreamCommand.new(File.open(file_path, 'rb')))
     if response.class == ClamAV::SuccessResponse
       true
     elsif response.class == ClamAV::VirusResponse
