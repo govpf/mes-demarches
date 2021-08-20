@@ -68,6 +68,8 @@ ENV \
     BASIC_AUTH_PASSWORD=""\
     BASIC_AUTH_USERNAME=""\
     CARRIERWAVE_CACHE_DIR="$APP_PATH/tmp/carrierwave"\
+    CLAMD_TCP_HOST=clamav\
+    CLAMD_TCP_PORT=3310\
     CRISP_CLIENT_KEY=""\
     CRISP_ENABLED="disabled"\
     DB_DATABASE="tps"\
