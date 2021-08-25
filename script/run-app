@@ -7,8 +7,5 @@ if [ -f /app/tmp/pids/server.pid ]; then
   rm /app/tmp/pids/server.pid
 fi
 
-bundle exec rake db:migrate || bundle exec rake db:setup
-bundle exec rake after_party:run || true
-bundle exec rake jobs:schedule
-
+bundle exec rails swarm:migrate
 exec bundle exec rails server -b "0.0.0.0"
