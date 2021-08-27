@@ -14,7 +14,7 @@ namespace :swarm do
     rescue => e
       puts e
       e.backtrace.each { |m| puts m }
-      sleep(5 + i)
+      break
     end
     exit(result)
   end
