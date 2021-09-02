@@ -61,6 +61,7 @@ gem 'prawn-rails' # PDF Generation
 gem 'prawn-svg'
 gem 'prawn-table'
 gem 'premailer-rails'
+gem "prometheus-client"
 gem 'puma' # Use Puma as the app server
 gem 'pundit'
 gem 'rack-attack'
@@ -83,6 +84,10 @@ gem 'spreadsheet_architect'
 gem 'typhoeus'
 gem 'warden'
 gem 'webpacker'
+gem 'yabeda-graphql'
+gem "yabeda-prometheus"
+gem "yabeda-puma-plugin"
+gem "yabeda-rails"
 gem 'zipline'
 gem 'zxcvbn-ruby', require: 'zxcvbn'
 
@@ -102,7 +107,7 @@ group :test do
   gem 'webmock'
 end
 
-group :development, :production do
+group :development do
   gem 'annotate'
   gem 'brakeman', require: false
   gem 'haml-lint'
