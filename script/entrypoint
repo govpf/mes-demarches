@@ -3,12 +3,16 @@
 set -e
 
 load_secret_variables() {
-  local prefix="$1"
+  local prefix="/run/secrets/${1}_"
+
   for i in /run/secrets/*; do
-    var=${i#/run/secrets/${prefix}_};
-    echo "Defining secret $var";
-    export ${var}=$(< $i);
-    #echo "$var=${!var}"
+    if [[ "$i" =~ ${prefix}.* ]]
+    then
+      var=${i#${prefix}};
+      echo "Defining secret $var";
+      export ${var}=$(< $i);
+      #echo "$var=${!var}"
+    fi
   done
 }
 
