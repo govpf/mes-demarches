@@ -671,6 +671,10 @@ class TypeDeChamp < ApplicationRecord
     accredited_users.presence || []
   end
 
+  def available_tables
+    TableRowSelector::API.available_tables.map { [_1[:name], _1[:id]] }
+  end
+
   def to_typed_id
     GraphQL::Schema::UniqueWithinType.encode('Champ', stable_id)
   end
