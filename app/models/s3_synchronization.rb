@@ -30,21 +30,21 @@ class S3Synchronization < ApplicationRecord
     def perform_step(step, until_time)
       case step
       when '-1' # cancel
-        upload(:s3, :local, false, until_time)
-        S3Synchronization.switch_service(:s3, :local, until_time)
-        S3Synchronization.switch_service(:s3_mirror, :local, until_time)
-        S3Synchronization.switch_service(:local_mirror, :local, until_time)
+        upload(:ns3, :s3, false, until_time)
+        S3Synchronization.switch_service(:ns3, :s3, until_time)
+        S3Synchronization.switch_service(:ns3_mirror, :s3, until_time)
+        S3Synchronization.switch_service(:s3_mirror, :s3, until_time)
       when '0' # init
         S3Synchronization.reset
       when '1', '2' # upload blobs
-        upload(:local, :s3, false, until_time)
-      when '3' # switch to s3_mirror : cancel possible
-        S3Synchronization.switch_service(:local, :s3_mirror, until_time)
-        S3Synchronization.switch_service(:local_mirror, :s3_mirror, until_time)
-      when '4' # switch to s3, cancel not possible
-        S3Synchronization.switch_service(:s3_mirror, :s3, until_time)
-      when '5' # delete local file stored on s3
-        S3Synchronization.move_mirrored_files(:s3, :local, until_time)
+        upload(:s3, :ns3, false, until_time)
+      when '3' # switch to ns3_mirror : cancel possible
+        S3Synchronization.switch_service(:s3, :ns3_mirror, until_time)
+        S3Synchronization.switch_service(:s3_mirror, :ns3_mirror, until_time)
+      when '4' # switch to ns3, cancel not possible
+        S3Synchronization.switch_service(:ns3_mirror, :ns3, until_time)
+      when '5' # delete s3 files as they are stored on ns3
+        S3Synchronization.move_mirrored_files(:ns3, :s3, until_time)
       else
       end
     end
