@@ -4,7 +4,9 @@ namespace :after_party do
     puts "Running deploy task 'unify_flipper_values'"
 
     Flipper::Adapters::ActiveRecord::Gate.all.each do |flipper_gate|
-      flipper_gate.update(value: flipper_gate.value.sub(':', ';'))
+      if flipper_gate.value != flipper_gate.value.sub(':', ';')
+        flipper_gate.destroy
+      end
     end
 
     # Update task as completed.  If you remove the line below, the task will
