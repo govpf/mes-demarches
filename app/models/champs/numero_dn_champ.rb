@@ -1,22 +1,8 @@
 class Champs::NumeroDnChamp < Champ
   store_accessor :value_json, :numero_dn, :date_de_naissance
+  store_accessor :data, :numero_dn_success
 
-  validates_with NumeroDnValidator, if: :validate_champ_value?
-
-  def numero_dn=(value)
-    value = value.to_s.rjust(7, "0") if value.present?
-    super(value)
-  end
-
-  def date_de_naissance=(value)
-    value = begin
-      Time.zone.parse(value).to_date.iso8601
-            rescue
-              nil
-    end
-    pack_value(numero_dn, value)
-    super(value)
-  end
+  after_validation :update_external_id
 
   def displayed_date_de_naissance
     ddn = date_de_naissance
@@ -27,8 +13,40 @@ class Champs::NumeroDnChamp < Champ
     blank? ? "" : "#{for_tag(:value)} né(e) le #{for_tag(:date_de_naissance)}"
   end
 
+  def numero_dn_input_id
+    "#{input_id}-numero_dn"
+  end
+
+  def date_de_naissance_input_id
+    "#{input_id}-date_de_naissance"
+  end
+
+  def focusable_input_id
+    numero_dn_input_id
+  end
+
+  def numero_dn_success?
+    numero_dn_success == true
+  end
+
+  def numero_dn_error?
+    numero_dn_success == false
+  end
+
   def blank?
-    value.blank?
+    numero_dn_success != true
+  end
+
+  def fetch_external_data?
+    true
+  end
+
+  def poll_external_data?
+    true
+  end
+
+  def fetch_external_data
+    NumeroDnService.new.(numero_dn:, date_de_naissance:)
   end
 
   def search_terms
@@ -37,7 +55,13 @@ class Champs::NumeroDnChamp < Champ
 
   private
 
-  def pack_value(numero_dn, date_de_naissance)
-    self.value = numero_dn.blank? || date_de_naissance.blank? ? nil : JSON.generate([numero_dn, date_de_naissance])
+  def update_external_id
+    if numero_dn_changed? || date_de_naissance_changed?
+      if numero_dn.present? && date_de_naissance.present? && /\d{6,7}/.match?(numero_dn)
+        self.external_id = { numero_dn:, date_de_naissance: }.to_json
+      else
+        self.external_id = nil
+      end
+    end
   end
 end

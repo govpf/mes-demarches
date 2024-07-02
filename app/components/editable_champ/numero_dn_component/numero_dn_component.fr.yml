@@ -1,4 +1,7 @@
 ---
 fr:
-  placeholder: "003970"
-  date: "Date de naissance"
+  numero_dn_label: Numéro DN
+  date_de_naissance_label: Date de naissance
+  numero_dn_error: Le numéro DN est incorrect
+  numero_dn_verification_pending: Vérification du numéro DN en cours
+
