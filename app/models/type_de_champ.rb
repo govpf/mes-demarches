@@ -718,7 +718,6 @@ class TypeDeChamp < ApplicationRecord
       type_champs.fetch(:titre_identite),
       type_champs.fetch(:rna),
       type_champs.fetch(:siret),
-      type_champs.fetch(:numero_dn),
       type_champs.fetch(:te_fenua)
       false
     else

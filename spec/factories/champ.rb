@@ -120,6 +120,7 @@ FactoryBot.define do
       # value { '["1234567", "2000-01-01"]' }
       numero_dn { "1234567" }
       date_de_naissance { "2000-01-01" }
+      numero_dn_success { true }
     end
 
     factory :champ_multiple_drop_down_list, class: 'Champs::MultipleDropDownListChamp' do

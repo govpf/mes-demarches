@@ -1,5 +1,6 @@
 ---
 en:
-  placeholder: "003970"
-  date: "Date of birth"
-
+  numero_dn_label: DN number
+  date_de_naissance_label: Date of birth
+  numero_dn_error: Invalid DN number
+  numero_dn_verification_pending: DN number verification in progress

@@ -220,7 +220,6 @@ Rails.application.routes.draw do
     # TODO: remove after migration is ower
     get ':champ_id/siret', to: 'siret#show', as: :siret
     get ':champ_id/rna', to: 'rna#show', as: :rna
-    get ':champ_id/dn', to: 'numero_dn#show', as: :dn
     delete ':champ_id/options', to: 'options#remove', as: :options
 
     get ':champ_id/carte/features', to: 'carte#index', as: :carte_features
