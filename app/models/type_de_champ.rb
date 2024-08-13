@@ -19,6 +19,7 @@ class TypeDeChamp < ApplicationRecord
     code_postal_de_polynesie: 'code_postal_de_polynesie',
     numero_dn: 'numero_dn',
     te_fenua: 'te_fenua',
+    table_row_selector: 'table_row_selector',
     visa: 'visa'
   }
 
@@ -39,6 +40,7 @@ class TypeDeChamp < ApplicationRecord
     code_postal_de_polynesie: LOCALISATION,
     numero_dn: REFERENTIEL_EXTERNE,
     te_fenua: REFERENTIEL_EXTERNE,
+    table_row_selector: REFERENTIEL_EXTERNE,
     visa: STRUCTURE
   }
 
@@ -130,7 +132,7 @@ class TypeDeChamp < ApplicationRecord
     expression_reguliere: 'expression_reguliere'
   }.merge(INSTANCE_TYPE_CHAMPS)
 
-  INSTANCE_OPTIONS = [:parcelles, :batiments, :zones_manuelles, :min, :max, :level, :accredited_users]
+  INSTANCE_OPTIONS = [:parcelles, :batiments, :zones_manuelles, :min, :max, :level, :accredited_users, :table_id]
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
 
   ROUTABLE_TYPES = [
@@ -463,6 +465,10 @@ class TypeDeChamp < ApplicationRecord
     type_champ == TypeDeChamp.type_champs.fetch(:te_fenua)
   end
 
+  def table_row_selector?
+    type_champ == TypeDeChamp.type_champs.fetch(:table_row_selector)
+  end
+
   def cnaf?
     type_champ == TypeDeChamp.type_champs.fetch(:cnaf)
   end
@@ -661,6 +667,10 @@ class TypeDeChamp < ApplicationRecord
     accredited_users.presence || []
   end
 
+  def available_tables
+    TableRowSelector::API.available_tables.map { [_1[:name], _1[:id]] }
+  end
+
   def to_typed_id
     GraphQL::Schema::UniqueWithinType.encode('Champ', stable_id)
   end
@@ -719,7 +729,8 @@ class TypeDeChamp < ApplicationRecord
       type_champs.fetch(:rna),
       type_champs.fetch(:siret),
       type_champs.fetch(:numero_dn),
-      type_champs.fetch(:te_fenua)
+      type_champs.fetch(:te_fenua),
+      type_champs.fetch(:table_row_selector)
       false
     else
       true

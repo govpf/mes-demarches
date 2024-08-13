@@ -217,6 +217,8 @@ Rails.application.routes.draw do
     put ':dossier_id/:stable_id/piece_justificative', to: 'piece_justificative#update'
     get ':dossier_id/:stable_id/piece_justificative/template', to: 'piece_justificative#template'
 
+    get 'table_row_selector/search', to: 'table_row_selector#search'
+
     # TODO: remove after migration is ower
     get ':champ_id/siret', to: 'siret#show', as: :siret
     get ':champ_id/rna', to: 'rna#show', as: :rna
