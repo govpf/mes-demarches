@@ -281,6 +281,7 @@ module Instructeurs
       end
 
       dossier.save(context: :champs_private_value)
+      dossier.index_search_terms_later
 
       ChampRevision.create_or_update_revision_if_needed(dossier, champs_private_attributes_params, current_instructeur.id)
 
@@ -298,11 +299,12 @@ module Instructeurs
 
     def annotation
       @dossier = dossier_with_champs(pj_template: false)
+      annotation_id_or_stable_id = params[:stable_id]
       annotation = if params[:with_public_id].present?
-        type_de_champ = @dossier.find_type_de_champ_by_stable_id(params[:annotation_id], :private)
+        type_de_champ = @dossier.find_type_de_champ_by_stable_id(annotation_id_or_stable_id, :private)
         @dossier.project_champ(type_de_champ, params[:row_id])
       else
-        @dossier.champs_private_all.find(params[:annotation_id])
+        @dossier.champs_private_all.find(annotation_id_or_stable_id)
       end
 
       respond_to do |format|
@@ -449,6 +451,7 @@ module Instructeurs
         .and(checked_visa_champ.or(header_champ)).select(:id, :type_de_champ_id, :position).order(:position)
 
       # auto-save send small sets of fields to update so for speed, we look for brothers containing visa or headers
+      Rails.logger.info("Changes to check against visa: #{params}")
       params[:dossier][:champs_private_attributes]&.reject! do |_k, v|
         champ = Champ.joins(type_de_champ: :revision_types_de_champ).select(:dossier_id, :row_id, :position).find(v[:id])
         # look for position of next visa in the same first level title.
@@ -456,7 +459,9 @@ module Instructeurs
           .where(row_id: champ.row_id, dossier: champ.dossier_id)
           .where('position > ?', champ[:position])
         following_champ = champs.find { |c| c.visa? || (c.header_section? && c.header_section_level_value == 1) }
-        following_champ.present? && following_champ.visa?
+        to_reject = following_champ.present? && following_champ.visa?
+        Rails.logger.warn("Annulation sauvegarde de l'annotation #{champ.label} sur dossier #{champ.dossier_id} car le visa #{following_champ.label} a la valeur #{following_champ.value}") if to_reject
+        to_reject
       end
       champs_private_attributes_params
     end

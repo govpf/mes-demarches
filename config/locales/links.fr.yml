@@ -8,14 +8,13 @@ fr:
       faq:
         label: "FAQ"
         title: "Foire aux Questions"
-        url: "https://faq.demarches-simplifiees.fr"
-        autosave_url: "https://faq.demarches-simplifiees.fr/article/77-enregistrer-mon-formulaire-pour-le-reprendre-plus-tard?preview=5ec28ca1042863474d1aee00"
-        comment_trouver_ma_demarche_url: "https://www.service-public.pf/demarches-en-ligne"
-        confirmer_compte_chaque_connexion_url: "https://faq.demarches-simplifiees.fr/article/34-je-dois-confirmer-mon-compte-a-chaque-connexion"
-        contacter_service_en_charge_url: "https://faq.demarches-simplifiees.fr/article/12-contacter-le-service-en-charge-de-ma-demarche"
-        email_non_recu_url: "https://faq.demarches-simplifiees.fr/article/79-je-ne-recois-pas-demail"
-        erreur_siret_url: "https://doc.projet.gov.pf/pages/viewpage.action?pageId=19764340"
-        ou_en_est_mon_dossier_url: "https://faq.demarches-simplifiees.fr/article/11-je-veux-savoir-ou-en-est-linstruction-de-ma-demarche"
+        url: "/faq"
+        autosave_url: "/faq/usager/je-veux-enregistrer-mon-formulaire-pour-le-reprendre-plus-tard"
+        comment_trouver_ma_demarche_url: "/faq/usager/comment-trouver-ma-demarche"
+        confirmer_compte_chaque_connexion_url: "/faq/instructeur/je-dois-confirmer-mon-compte-a-chaque-connexion"
+        contacter_service_en_charge_url: "/faq/usager/je-veux-contacter-le-service-en-charge-de-ma-demarche"
+        erreur_siret_url: "/faq/usager/erreur-siret-lors-d-un-depot-de-dossier"
+        ou_en_est_mon_dossier_url: "/faq/usager/je-veux-savoir-ou-en-est-l-instruction-de-ma-demarche"
     footer:
       top_labels:
         hidden_title: Liens pratiques
@@ -24,7 +23,7 @@ fr:
         resources: Ressources
         diagnostic: Diagnostic
       description_1: Démarches simplifiées est un service propulsé par
-      link_1_label: la direction interministérielle du numérique (DINUM)
+      link_1_label: la direction de la modernisation et des réformes de l'administration (DMRA)
       link_1_url: "https://www.numerique.gouv.fr/dinum/"
       link_2_label: Le code source
       description_2: est disponible en licence libre.
@@ -51,7 +50,7 @@ fr:
         url: "https://mes-demarches.gitbook.io/documentation/cgu#rgpd"
       code:
         label: "Code source"
-        title: "Le code ouvert de Mes-Démarches basé sur démarches-simplifiées"
+        title: "Le code ouvert de Mes-Démarches basé sur démarches-simplifiées" #DS
         url: "https://github.com/govpf/mes-demarches"
       contact_technique:
         label: "Contact technique"
