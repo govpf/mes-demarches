@@ -126,6 +126,7 @@ group :test do
   gem 'capybara-screenshot' # Save a dump of the page when an integration test fails
   gem 'factory_bot'
   gem 'launchy'
+  gem 'pry'
   gem 'rack_session_access'
   gem 'rails-controller-testing'
   gem 'rspec_junit_formatter'
