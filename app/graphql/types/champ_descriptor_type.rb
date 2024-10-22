@@ -35,6 +35,8 @@ module Types
           Types::Champs::Descriptor::TeFenuaChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:visa)
           Types::Champs::Descriptor::VisaChampDescriptorType
+        when TypeDeChamp.type_champs.fetch(:table_row_selector)
+          Types::Champs::Descriptor::TableRowSelectorChampDescriptorType
 
           # ----- DS champs
         when TypeDeChamp.type_champs.fetch(:engagement_juridique)

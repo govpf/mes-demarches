@@ -4774,6 +4774,11 @@ enum TypeDeChamp {
   siret
 
   """
+  Translation missing: fr.activerecord.attributes.type_de_champ.type_champs.table_row_selector
+  """
+  table_row_selector
+
+  """
   Carte de Polynésie
   """
   te_fenua
