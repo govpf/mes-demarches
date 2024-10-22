@@ -206,6 +206,26 @@ describe 'As an administrateur I can edit types de champ', js: true do
     end
   end
 
+  context 'referentiel_de_polynesie enabled' do
+    before { Flipper.enable(:referentiel_de_polynesie, administrateur.user) }
+
+    it "add referentiel_de_polynesie champ" do
+      VCR.use_cassette('baserow_api_available_tables', record: :new_episodes) do
+        add_champ
+
+        select('Referentiel De Polynesie', from: 'Type de champ')
+        fill_in 'Libellé du champ', with: 'Libellé de champ Référentiel de Polynésie', fill_options: { clear: :backspace }
+
+        expect(page).to have_content('Formulaire enregistré')
+
+        wait_until { procedure.draft_types_de_champ_public.first.libelle == 'Libellé de champ Référentiel de Polynésie' }
+
+        page.refresh
+        expect(page).to have_content('Libellé de champ Référentiel de Polynésie')
+      end
+    end
+  end
+
   context "estimated duration visible" do
     scenario "displaying the estimated fill duration" do
       # It doesn't display anything when there are no champs
