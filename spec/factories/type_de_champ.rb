@@ -199,6 +199,9 @@ FactoryBot.define do
     factory :type_de_champ_visa do
       type_champ { TypeDeChamp.type_champs.fetch(:visa) }
     end
+    factory :type_de_champ_table_row_selector do
+      type_champ { TypeDeChamp.type_champs.fetch(:table_row_selector) }
+    end
     factory :type_de_champ_epci do
       type_champ { TypeDeChamp.type_champs.fetch(:epci) }
     end

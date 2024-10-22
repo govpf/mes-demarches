@@ -249,6 +249,10 @@ FactoryBot.define do
       type_de_champ { association :type_de_champ_visa, procedure: dossier.procedure }
     end
 
+    factory :champ_table_row_selector, class: 'Champs::TableRowSelectorChamp' do
+      type_de_champ { association :type_de_champ_table_row_selector, procedure: dossier.procedure }
+    end
+
     factory :champ_cnaf, class: 'Champs::CnafChamp' do
       type_de_champ { association :type_de_champ_cnaf, procedure: dossier.procedure }
     end
