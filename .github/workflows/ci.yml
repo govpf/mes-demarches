@@ -62,6 +62,10 @@ jobs:
     timeout-minutes: 20
     env:
       RUBY_YJIT_ENABLE: "1"
+      API_BASEROW_URL: "https://api.baserow.io"
+      API_BASEROW_TOKEN: ${{ secrets.API_BASEROW_TOKEN }}
+      API_BASEROW_USER: ${{ secrets.API_BASEROW_USER }}
+      API_BASEROW_CONFIG_TABLE: "202600"
     services:
       postgres:
         image: postgis/postgis:14-3.3
@@ -124,6 +128,10 @@ jobs:
     timeout-minutes: 20
     env:
       RUBY_YJIT_ENABLE: "1"
+      API_BASEROW_URL: "https://api.baserow.io"
+      API_BASEROW_TOKEN: ${{ secrets.API_BASEROW_TOKEN }}
+      API_BASEROW_USER: ${{ secrets.API_BASEROW_USER }}
+      API_BASEROW_CONFIG_TABLE: "202600"
     services:
       postgres:
         image: postgis/postgis:14-3.3

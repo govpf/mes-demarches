@@ -4142,6 +4142,61 @@ type RNFChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type ReferentielDePolynesieChamp implements Champ {
+  """
+  L'identifiant du champDescriptor de ce champ
+  """
+  champDescriptorId: String!
+  id: ID!
+
+  """
+  Libellé du champ.
+  """
+  label: String!
+  prefilled: Boolean!
+  searchField: String
+  selectedValue: String
+
+  """
+  La valeur du champ sous forme texte.
+  """
+  stringValue: String
+  tableId: ID
+
+  """
+  Date de dernière modification du champ.
+  """
+  updatedAt: ISO8601DateTime!
+}
+
+type ReferentielDePolynesieChampDescriptor implements ChampDescriptor {
+  """
+  Description des champs d’un bloc répétable.
+  """
+  champDescriptors: [ChampDescriptor!] @deprecated(reason: "Utilisez le champ `RepetitionChampDescriptor.champ_descriptors` à la place.")
+
+  """
+  Description du champ.
+  """
+  description: String
+  id: ID!
+
+  """
+  Libellé du champ.
+  """
+  label: String!
+
+  """
+  Est-ce que le champ est obligatoire ?
+  """
+  required: Boolean!
+
+  """
+  Type de la valeur du champ.
+  """
+  type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
+}
+
 type Region {
   code: String!
   name: String!
@@ -4747,6 +4802,11 @@ enum TypeDeChamp {
   Situation Pôle emploi
   """
   pole_emploi
+
+  """
+  Référentiel de Polynésie
+  """
+  referentiel_de_polynesie
 
   """
   Régions
