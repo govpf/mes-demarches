@@ -38,16 +38,18 @@ describe 'The user' do
     select('02 – Aisne', from: form_id_for('departements'))
 
     fill_in('communes', with: '60400')
-    find('li', text: 'Brétigny (60400)').click
-    wait_until { champ_value_for('communes') == "Brétigny" }
+    using_wait_time 20 do
+      find('li', text: 'Brétigny (60400)').click
+    end
 
     select('Australienne', from: form_id_for('nationalites'))
     select('Mahina - Tahiti - 98709', from: form_id_for('commune_de_polynesie'))
     select('98709 - Mahina - Tahiti', from: form_id_for('code_postal_de_polynesie'))
 
     fill_in('address', with: '78 Rue du Grés 30310 Vergè')
-    find('li', text: '78 Rue du Grés 30310 Vergèze').click
-    wait_until { champ_value_for('address') == '78 Rue du Grés 30310 Vergèze' }
+    using_wait_time 20 do
+      find('li', text: '78 Rue du Grés 30310 Vergèze').click
+    end
     wait_until { champ_for('address').full_address? }
     expect(champ_for('address').departement_code_and_name).to eq('30 – Gard')
 

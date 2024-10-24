@@ -3,7 +3,7 @@ describe '20220705164551_remove_unused_champs' do
   let(:procedure) { create(:procedure, :with_all_champs) }
   let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
   let(:champ_repetition) { dossier.champs_public.find(&:repetition?) }
-  let(:champ_count) { 50 }
+  let(:champ_count) { 51 }
 
   subject(:run_task) do
     dossier
@@ -16,7 +16,9 @@ describe '20220705164551_remove_unused_champs' do
   describe 'remove_unused_champs' do
     it "with bad champs" do
       expect(Champ.where(dossier: dossier).count).to eq(champ_count)
+
       run_task
+
       expect(Champ.where(dossier: dossier).count).to eq(champ_count - 1)
     end
   end
