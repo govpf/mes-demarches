@@ -1,5 +1,5 @@
 = render NestedForms::FormOwnerComponent.new
-= form_for(commentaire, url: form_url, html: { multipart: local_assigns.has_key?(:dossier), data: { controller: 'persisted-form', persisted_form_key_value: dom_id(local_assigns.fetch(:dossier, local_assigns.fetch(:last_commentaire, current_user))) } }) do |f|
+= form_for(commentaire, url: form_url, html: { multipart: local_assigns.has_key?(:dossier), data: { controller: 'persisted-form', persisted_form_key_value: dom_id(local_assigns.fetch(:dossier, local_assigns.fetch(:last_commentaire, current_user))), turbo: true } }) do |f|
   - placeholder = t('views.shared.dossiers.messages.form.write_message_to_administration_placeholder')
   - if local_assigns.has_key?(:last_commentaire)
     = f.hidden_field :last_commentaire, value: last_commentaire.id, name: :id
