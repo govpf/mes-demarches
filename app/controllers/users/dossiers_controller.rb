@@ -375,7 +375,6 @@ module Users
           @to_show, @to_hide, @to_update = champs_to_turbo_update(champs_public_attributes_params, dossier.champs.filter(&:public?))
           render :update, layout: false
         end
-        format.html { redirect_to dossier_path(@dossier) }
       end
     end
 

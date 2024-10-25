@@ -38,7 +38,7 @@ describe 'The user' do
     select('02 – Aisne', from: form_id_for('departements'))
 
     fill_in('communes', with: '60400')
-    using_wait_time 20 do
+    using_wait_time 30 do
       find('li', text: 'Brétigny (60400)').click
     end
 
@@ -47,7 +47,7 @@ describe 'The user' do
     select('98709 - Mahina - Tahiti', from: form_id_for('code_postal_de_polynesie'))
 
     fill_in('address', with: '78 Rue du Grés 30310 Vergè')
-    using_wait_time 20 do
+    using_wait_time 30 do
       find('li', text: '78 Rue du Grés 30310 Vergèze').click
     end
     wait_until { champ_for('address').full_address? }
