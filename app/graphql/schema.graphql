@@ -4155,7 +4155,6 @@ type ReferentielDePolynesieChamp implements Champ {
   label: String!
   prefilled: Boolean!
   searchField: String
-  selectedValue: String
 
   """
   La valeur du champ sous forme texte.
