@@ -203,7 +203,9 @@ ENV \
     WATERMARK_FILE="watermark_pf.png"\
     WEASYPRINT_URL="http://weasyprint:5000/pdf"\
     YAHOO_CLIENT_ID=""\
-    YAHOO_CLIENT_SECRET=""
+    YAHOO_CLIENT_SECRET=""\
+    API_BASEROW_URL="https://api.baserow.io"\
+    API_BASEROW_CONFIG_TABLE="202600"
 
 COPY --chown=userapp:userapp . ${APP_PATH}
 RUN rm -fr .git

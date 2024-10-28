@@ -6,15 +6,24 @@ class ReferentielDePolynesie::BaserowAPI
 
     def search(domain_id, term)
       config = config(domain_id)
+      return [] unless config
       search_field = config['Champ de recherche']
       params = { "filter__field_#{search_field}__contains" => term }
       url = rows_url(config['Table'])
-      response = Typhoeus.get(url, headers: database_headers(config['Token']), params: params)
-      pp response
-      if response.success?
-        JSON.parse(response.body, symbolize_names: true)[:results].map do
-          { name: _1[:"field_#{search_field}"], id: _1[:id], domain: domain_id }
-        end + [{ name: 'Autre', id: 0, domain: domain_id }]
+      begin
+        response = Typhoeus.get(url, headers: database_headers(config['Token']), params: params)
+        pp response
+        if response.success?
+          JSON.parse(response.body, symbolize_names: true)[:results].map do |result|
+            { name: result[:"field_#{search_field}"], id: result[:id], domain: domain_id }
+          end + [{ name: 'Autre', id: 0, domain: domain_id }]
+        else
+          Rails.logger.error("Baserow API error: #{response.code} - #{response.body}")
+          []
+        end
+      rescue Typhoeus::Errors::TyphoeusError => e
+        Rails.logger.error("Baserow API error: #{e.message}")
+        []
       end
     end
 
