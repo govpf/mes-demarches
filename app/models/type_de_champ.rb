@@ -8,7 +8,8 @@ class TypeDeChamp < ApplicationRecord
     engagement_juridique: :engagement_juridique_type_de_champ,
 
     cojo: :cojo_type_de_champ,
-    expression_reguliere: :expression_reguliere_type_de_champ
+    expression_reguliere: :expression_reguliere_type_de_champ,
+    lexpol: :lexpol
   }
 
   MINIMUM_TEXTAREA_CHARACTER_LIMIT_LENGTH = 400
@@ -19,7 +20,8 @@ class TypeDeChamp < ApplicationRecord
     code_postal_de_polynesie: 'code_postal_de_polynesie',
     numero_dn: 'numero_dn',
     te_fenua: 'te_fenua',
-    visa: 'visa'
+    visa: 'visa',
+    lexpol: 'lexpol'
   }
 
   STRUCTURE = :structure
@@ -39,7 +41,8 @@ class TypeDeChamp < ApplicationRecord
     code_postal_de_polynesie: LOCALISATION,
     numero_dn: REFERENTIEL_EXTERNE,
     te_fenua: REFERENTIEL_EXTERNE,
-    visa: STRUCTURE
+    visa: STRUCTURE,
+    lexpol: REFERENTIEL_EXTERNE
   }
 
   TYPE_DE_CHAMP_TO_CATEGORIE = {
@@ -83,7 +86,8 @@ class TypeDeChamp < ApplicationRecord
     pole_emploi: REFERENTIEL_EXTERNE,
     mesri: REFERENTIEL_EXTERNE,
     cojo: REFERENTIEL_EXTERNE,
-    expression_reguliere: STANDARD
+    expression_reguliere: STANDARD,
+    lexpol: REFERENTIEL_EXTERNE
   }.merge(INSTANCE_TYPE_DE_CHAMP_TO_CATEGORIE)
 
   enum type_champs: {
@@ -127,7 +131,8 @@ class TypeDeChamp < ApplicationRecord
     mesri: 'mesri',
     epci: 'epci',
     cojo: 'cojo',
-    expression_reguliere: 'expression_reguliere'
+    expression_reguliere: 'expression_reguliere',
+    lexpol: 'lexpol'
   }.merge(INSTANCE_TYPE_CHAMPS)
 
   INSTANCE_OPTIONS = [:parcelles, :batiments, :zones_manuelles, :min, :max, :level, :accredited_users]
@@ -163,7 +168,9 @@ class TypeDeChamp < ApplicationRecord
                  :expression_reguliere_error_message,
                  :collapsible_explanation_enabled,
                  :collapsible_explanation_text,
-                 :header_section_level
+                 :header_section_level,
+                 :lexpol_modele,
+                 :lexpol_mapping
 
   has_many :revision_types_de_champ, -> { revision_ordered }, class_name: 'ProcedureRevisionTypeDeChamp', dependent: :destroy, inverse_of: :type_de_champ
   has_one :revision_type_de_champ, -> { revision_ordered }, class_name: 'ProcedureRevisionTypeDeChamp', inverse_of: false
@@ -461,6 +468,10 @@ class TypeDeChamp < ApplicationRecord
     type_champ == TypeDeChamp.type_champs.fetch(:visa)
   end
 
+  def lexpol?
+    type_champ == TypeDeChamp.type_champs.fetch(:lexpol)
+  end
+
   def te_fenua?
     type_champ == TypeDeChamp.type_champs.fetch(:te_fenua)
   end
@@ -721,7 +732,8 @@ class TypeDeChamp < ApplicationRecord
       type_champs.fetch(:rna),
       type_champs.fetch(:siret),
       type_champs.fetch(:numero_dn),
-      type_champs.fetch(:te_fenua)
+      type_champs.fetch(:te_fenua),
+      type_champs.fetch(:lexpol)
       false
     else
       true
