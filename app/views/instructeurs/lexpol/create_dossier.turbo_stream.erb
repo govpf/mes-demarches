@@ -1,0 +1,3 @@
+<%= turbo_stream.replace dom_id(@champ) do %>
+  <%= render EditableChamp::LexpolComponent.new(form: nil, champ: @champ) %>
+<% end %>

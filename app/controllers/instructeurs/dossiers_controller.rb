@@ -371,6 +371,51 @@ module Instructeurs
         .filter { _1.class.in?([Champs::PieceJustificativeChamp, Champs::TitreIdentiteChamp]) }
     end
 
+    def create_lexpol_dossier
+      begin
+        api_lexpol = APILexpol.new
+
+        nor = api_lexpol.create_dossier(598706)
+
+        if nor.nil?
+          raise "Le numéro NOR n'a pas été trouvé dans la réponse de l'API."
+        end
+
+        champ = Champ.find(params[:champ_id])
+        champ.update!(value: nor)
+        flash[:notice] = "Dossier créé avec succès dans LexPol. Numéro NOR : #{nor}"
+      rescue => e
+        Rails.logger.error("Erreur lors de la création du dossier dans LexPol : #{e.message}")
+        flash[:alert] = "Erreur lors de la création du dossier dans LexPol : #{e.message}"
+        redirect_to request.referer || root_path
+      end
+    end
+
+    def update_lexpol_dossier
+      dossier = Dossier.find(params[:dossier_id])
+      champ = dossier.champs.find_by(id: params[:champ_id])
+
+      mapping = (champ.type_de_champ.lexpol_mapping || "")
+        .split(',')
+        .map { |pair| pair.split('=').map(&:strip) }
+        .to_h
+
+      variables = dossier.champs.each_with_object({}) do |champ, hash|
+        next unless champ.value.present? && champ.type_de_champ&.libelle.present?
+
+        mapped_key = mapping[champ.type_de_champ.libelle] || champ.type_de_champ.libelle
+        hash[mapped_key] = champ.value
+      end
+
+      if champ&.lexpol_update_dossier(variables)
+        flash[:notice] = "Dossier LexPol mis à jour avec succès."
+      else
+        flash[:alert] = champ&.errors&.full_messages&.join(', ') || "Erreur lors de la mise à jour."
+      end
+
+      redirect_to annotations_privees_instructeur_dossier_path(dossier.procedure, dossier.id)
+    end
+
     private
 
     def checked_visa?(c)
@@ -391,6 +436,10 @@ module Instructeurs
       @dossier ||= DossierPreloader.load_one(dossier_scope.find(params[:dossier_id])).tap do
         set_sentry_dossier(_1)
       end
+    end
+
+    def procedure
+      @procedure ||= dossier.procedure
     end
 
     def dossier_with_champs
@@ -419,6 +468,7 @@ module Instructeurs
         :code_departement,
         :accreditation_number,
         :accreditation_birthdate,
+        :lexpol,
         :feature,
         value: []
       ] + TypeDeChamp::INSTANCE_CHAMPS_PARAMS

@@ -75,8 +75,8 @@
     "@esbuild/darwin-arm64": "=0.19.9",
     "@esbuild/linux-x64": "=0.19.9",
     "@esbuild/win32-x64": "=0.19.9",
-    "@rollup/rollup-linux-x64-gnu": "=4.9.1",
     "@rollup/rollup-darwin-arm64": "=4.9.1",
+    "@rollup/rollup-linux-x64-gnu": "=4.9.1",
     "@rollup/rollup-win32-x64-msvc": "=4.9.1",
     "@types/debounce": "^1.2.4",
     "@types/geojson": "^7946.0.14",
@@ -102,9 +102,9 @@
     "postcss": "^8.4.38",
     "prettier": "^3.3.0",
     "typescript": "^5.4.5",
-    "vite": "^5.2.12",
+    "vite": "^5.0.0",
     "vite-plugin-full-reload": "^1.1.0",
-    "vite-plugin-ruby": "^5.0.0",
+    "vite-plugin-ruby": "^5.1.0",
     "vitest": "^1.6.0"
   },
   "scripts": {

@@ -116,6 +116,8 @@ module Types
           Types::Champs::Descriptor::EpciChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:cojo)
           Types::Champs::Descriptor::COJOChampDescriptorType
+        when TypeDeChamp.type_champs.fetch(:lexpol)
+          Types::Champs::Descriptor::LexpolChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:expression_reguliere)
           Types::Champs::Descriptor::ExpressionReguliereChampDescriptorType
         end
