@@ -191,7 +191,7 @@ class Procedure < ApplicationRecord
   scope :publiques,              -> do
     publiees_ou_closes
       .opendata
-      .where('estimated_dossiers_count >= ?', 4)
+      .where(estimated_dossiers_count: 4..)
       .where.not('lien_site_web LIKE ?', '%mail%')
       .where.not('lien_site_web LIKE ?', '%intra%')
   end
@@ -204,7 +204,7 @@ class Procedure < ApplicationRecord
   scope :discarded_expired, -> do
     with_discarded
       .discarded
-      .where('hidden_at < ?', 1.month.ago)
+      .where(hidden_at: ...1.month.ago)
   end
 
   scope :for_api, -> {
@@ -222,15 +222,15 @@ class Procedure < ApplicationRecord
     )
   }
 
-  enum declarative_with_state: {
+  enum :declarative_with_state, {
     en_instruction:  'en_instruction',
     accepte:         'accepte'
   }
 
-  enum closing_reason: {
+  enum :closing_reason, {
     internal_procedure: 'internal_procedure',
     other: 'other'
-  }, _prefix: true
+  }, prefix: true
 
   scope :for_api_v2, -> {
     includes(:draft_revision, :published_revision, administrateurs: :user)

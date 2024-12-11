@@ -30,7 +30,7 @@ class GeoArea < ApplicationRecord
     properties['filename']
   end
 
-  enum source: {
+  enum :source, {
     cadastre: 'cadastre',
     selection_utilisateur: 'selection_utilisateur'
   }

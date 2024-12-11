@@ -12,7 +12,7 @@ class Dossier < ApplicationRecord
   include DossierStateConcern
   include DossierChampsConcern
 
-  enum state: {
+  enum :state, {
     brouillon:       'brouillon',
     en_construction: 'en_construction',
     en_instruction:  'en_instruction',
@@ -237,8 +237,8 @@ class Dossier < ApplicationRecord
   scope :for_groupe_instructeur, -> (groupe_instructeurs) { where(groupe_instructeur: groupe_instructeurs) }
   scope :order_by_updated_at,            -> (order = :desc) { order(updated_at: order, id: order) }
   scope :order_by_created_at,            -> (order = :asc) { order(depose_at: order, id: order) }
-  scope :updated_since,                  -> (since) { where('dossiers.updated_at >= ?', since) }
-  scope :created_since,                  -> (since) { where('dossiers.depose_at >= ?', since) }
+  scope :updated_since,                  -> (since) { where(dossiers: { updated_at: since.. }) }
+  scope :created_since,                  -> (since) { where(dossiers: { depose_at: since.. }) }
   scope :hidden_by_user_since,           -> (since) { where('dossiers.hidden_by_user_at IS NOT NULL AND dossiers.hidden_by_user_at >= ?', since) }
   scope :hidden_by_administration_since, -> (since) { where('dossiers.hidden_by_administration_at IS NOT NULL AND dossiers.hidden_by_administration_at >= ?', since) }
   scope :hidden_since,                   -> (since) { hidden_by_user_since(since).or(hidden_by_administration_since(since)) }
@@ -370,8 +370,8 @@ class Dossier < ApplicationRecord
   scope :without_en_construction_expiration_notice_sent, -> { where(en_construction_close_to_expiration_notice_sent_at: nil) }
   scope :without_termine_expiration_notice_sent, -> { where(termine_close_to_expiration_notice_sent_at: nil) }
 
-  scope :deleted_by_user_expired, -> { where('dossiers.hidden_by_user_at < ?', 1.week.ago) }
-  scope :deleted_by_administration_expired, -> { where('dossiers.hidden_by_administration_at < ?', 1.week.ago) }
+  scope :deleted_by_user_expired, -> { where(dossiers: { hidden_by_user_at: ...1.week.ago }) }
+  scope :deleted_by_administration_expired, -> { where(dossiers: { hidden_by_administration_at: ...1.week.ago }) }
   scope :en_brouillon_expired_to_delete, -> { state_brouillon.deleted_by_user_expired }
   scope :en_construction_expired_to_delete, -> { state_en_construction.deleted_by_user_expired }
   scope :termine_expired_to_delete, -> { state_termine.deleted_by_user_expired.deleted_by_administration_expired }

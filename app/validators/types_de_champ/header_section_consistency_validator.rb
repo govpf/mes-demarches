@@ -17,7 +17,7 @@ class TypesDeChamp::HeaderSectionConsistencyValidator < ActiveModel::EachValidat
       .map.with_index
       .filter_map { |tdc, i| tdc.header_section? ? [tdc, i] : nil }
       .map { |tdc, i| [tdc, tdc.check_coherent_header_level(types_de_champ.take(i))] }
-      .filter { |_tdc, errors| errors.present? }
+      .compact_blank
       .each do |tdc, message|
         procedure.errors.add(
           attribute,

@@ -43,7 +43,7 @@ class ProcedureRevision < ApplicationRecord
     if tdc.save
       # moving all the impacted tdc down
       position = next_position_for(after_coordinate:, siblings:)
-      siblings.where("position >= ?", position).update_all("position = position + 1")
+      siblings.where(position: position..).update_all("position = position + 1")
 
       # insertion of the new tdc
       h = { type_de_champ: tdc, parent_id: parent_id, position: position }
@@ -107,7 +107,7 @@ class ProcedureRevision < ApplicationRecord
     children.each(&:destroy_if_orphan)
     tdc.destroy_if_orphan
 
-    coordinate.siblings.where("position >= ?", coordinate.position).update_all("position = position - 1")
+    coordinate.siblings.where(position: coordinate.position..).update_all("position = position - 1")
 
     coordinate
   end

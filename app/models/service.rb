@@ -4,7 +4,7 @@ class Service < ApplicationRecord
 
   scope :ordered, -> { order(nom: :asc) }
 
-  enum type_organisme: {
+  enum :type_organisme, {
     administration_centrale: 'administration_centrale',
     association: 'association',
     collectivite_territoriale: 'collectivite_territoriale',

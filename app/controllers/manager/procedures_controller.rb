@@ -1,6 +1,6 @@
 module Manager
   class ProceduresController < Manager::ApplicationController
-    CSV_MAX_SIZE = 1.megabytes
+    CSV_MAX_SIZE = 1.megabyte
     CSV_ACCEPTED_CONTENT_TYPES = [
       "text/csv",
       "application/vnd.ms-excel"

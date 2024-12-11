@@ -36,4 +36,4 @@ describe '20241215115134_feature_flag_lexpol_champs' do
       expect(Flipper.enabled?(:lexpol, procedure_with_lexpol_without_admin_featured)).to eq(false)
     end
   end
-end 
+end

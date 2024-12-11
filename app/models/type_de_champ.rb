@@ -90,7 +90,7 @@ class TypeDeChamp < ApplicationRecord
     lexpol: REFERENTIEL_EXTERNE
   }.merge(INSTANCE_TYPE_DE_CHAMP_TO_CATEGORIE)
 
-  enum type_champs: {
+  enum :type_champs, {
     engagement_juridique: 'engagement_juridique',
 
     header_section: 'header_section',
