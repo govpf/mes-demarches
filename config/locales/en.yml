@@ -119,7 +119,6 @@ en:
       line_two_html: "This accessibility statement applies to <a href=\"%{host}\">%{app_name}</a> website."
       compliance:
         title: "Compliance status"
-        line_one_html: "The Mes-Démarches website is <strong>partially compliant</strong> with the General Accessibility Guidelines (RGAA) version 4."
       results:
         title: "Test results"
         content: "The internal audit performed in June 2023 revealed an overall compliance rate of 81.36% on the sample of pages analyzed."

@@ -39,7 +39,6 @@ en:
         alt: "Direction interministérielle du numérique"
       code:
         label: "Source code"
-        title: "Our Source code is open source"
         url: "https://github.com/govpf/mes-demarches"
       cgu:
         label: "ToS"

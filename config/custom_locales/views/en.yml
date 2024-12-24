@@ -27,8 +27,6 @@ en:
     accessibility_statement:
       line_one: "DINUM is committed to making this service accessible in accordance with Article 47 of Law No. 2005-102 of 11 February 2005."
       line_two: "This accessibility statement applies to %{app_name} (%{host}), which is based on Démarches-Simplifiées.fr site."
-      compliance:
-        line_one_html: "The Mes-Démarches website is <strong>partially compliant</strong> with the General Accessibility Guidelines (RGAA) version 4."
       results:
         title: "Test results"
         line_one: "As of 1 April 2023, the site's average compliance rate is 75%."
