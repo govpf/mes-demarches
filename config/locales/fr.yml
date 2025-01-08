@@ -448,6 +448,7 @@ fr:
           dossier_edit_l2: le modifier
           dossier_edit_l3: et
           dossier_edit_l4: échanger avec un instructeur.
+          download_dossier: Télécharger mon dossier
           acces_dossier: Accéder à votre dossier
           submit_dossier: Déposer un autre dossier
         show:
@@ -618,6 +619,7 @@ fr:
         otp_attempt: 'Code OTP (uniquement si vous avez déjà activé 2FA)'
       procedure:
         zone: La démarche est mise en œuvre par
+        ineligibilite_rules: "Les règles d’inéligibilité"
       champ:
         value: Valeur du champ
       champs/numero_dn_champ:

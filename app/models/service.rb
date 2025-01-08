@@ -4,6 +4,8 @@ class Service < ApplicationRecord
 
   scope :ordered, -> { order(nom: :asc) }
 
+  SIRET_TEST = '35600082800018'
+
   enum type_organisme: {
     administration_centrale: 'administration_centrale',
     association: 'association',
@@ -18,6 +20,7 @@ class Service < ApplicationRecord
   validates :nom, uniqueness: { scope: :administrateur, message: 'existe déjà' }
   validates :organisme, presence: { message: 'doit être renseigné' }, allow_nil: false
   validates :siret, siret_format: true
+  validates :siret, comparison: { other_than: SIRET_TEST, message: "n'est pas valide" }, on: :update
   validates :type_organisme, presence: { message: 'doit être renseigné' }, allow_nil: false
   validates :email, presence: { message: 'doit être renseigné' }, allow_nil: false
   validates :telephone, phone: { possible: true, allow_blank: true }

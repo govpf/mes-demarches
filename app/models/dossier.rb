@@ -157,7 +157,7 @@ class Dossier < ApplicationRecord
     state :sans_suite
 
     event :passer_en_construction, after: :after_passer_en_construction, after_commit: :after_commit_passer_en_construction do
-      transitions from: :brouillon, to: :en_construction
+      transitions from: :brouillon, to: :en_construction, guard: :can_passer_en_construction?
     end
 
     event :passer_en_instruction, after: :after_passer_en_instruction, after_commit: :after_commit_passer_en_instruction do
@@ -563,6 +563,12 @@ class Dossier < ApplicationRecord
     procedure.feature_enabled?(:blocking_pending_correction) && pending_correction?
   end
 
+  def can_passer_en_construction?
+    return true if !revision.ineligibilite_enabled
+
+    !revision.ineligibilite_rules.compute(champs_for_revision(scope: :public))
+  end
+
   def can_passer_en_instruction?
     return false if blocked_with_pending_correction?
 
@@ -945,6 +951,7 @@ class Dossier < ApplicationRecord
       .map do |champ|
         champ.errors.add(:value, :missing)
       end
+      .each { errors.import(_1) }
   end
 
   def demander_un_avis!(avis)

@@ -445,6 +445,7 @@ en:
           dossier_edit_l2: edit it
           dossier_edit_l3: and
           dossier_edit_l4: talk with an instructor.
+          download_dossier: Download your file
           acces_dossier: Access your file
           submit_dossier: Submit an other file
         show:
@@ -614,6 +615,7 @@ en:
         otp_attempt: 'OTP code (only if you have already activated 2FA)'
       procedure:
         zone: This procedure is run by
+        ineligibilite_rules: "Eligibility rules"
       champ:
         value: Value
       champs/numero_dn_champ:
