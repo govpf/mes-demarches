@@ -10,7 +10,7 @@
       .fr-radio-group
         = @form.radio_button :value, '', checked: @champ.value.blank? && !@champ.other?, id: dom_id(@champ, "radio_option_blank")
         %label.fr-label{ for: dom_id(@champ, "radio_option_blank") }
-          Non renseigné
+          = t('shared.champs.drop_down_list.not_filled')
 
     - if @champ.drop_down_other?
       .fr-radio-group
