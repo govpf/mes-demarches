@@ -28,8 +28,10 @@ module DossierFilteringConcern
 
     scope :filter_ilike, lambda { |table, column, values|
       table_column = ProcedurePresentation.sanitized_column(table, column)
-      q = Array.new(values.count, "(#{table_column} ILIKE ?)").join(' OR ')
-      where(q, *(values.map { |value| "%#{value}%" }))
+      non_empty_values = values.filter(&:present?)
+      q = Array.new(non_empty_values.count, "(#{table_column} ILIKE ?)")
+      q << "(#{table_column} IS NULL OR #{table_column} = '')" if non_empty_values.count != values.count
+      where(q.join(' OR '), *(non_empty_values.map { |value| "%#{value}%" }))
     }
   end
 end

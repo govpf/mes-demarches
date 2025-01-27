@@ -290,7 +290,7 @@ class ProcedurePresentation < ApplicationRecord
         return parsed_date.present? ? I18n.l(parsed_date) : nil
       end
 
-      filter['value']
+      filter['value'].presence || I18n.t('shared.champs.drop_down_list.not_filled')
     end
   end
 
@@ -301,26 +301,24 @@ class ProcedurePresentation < ApplicationRecord
   end
 
   def add_filter(statut, field, value)
-    if value.present?
-      table, column = field.split(SLASH)
-      label, value_column = find_field(table, column).values_at('label', 'value_column')
+    table, column = field.split(SLASH)
+    label, value_column = find_field(table, column).values_at('label', 'value_column')
 
-      case table
-      when TYPE_DE_CHAMP, TYPE_DE_CHAMP_PRIVATE
-        value = find_type_de_champ(column).dynamic_type.human_to_filter(value)
-      end
-
-      updated_filters = filters.dup
-      updated_filters[statut] << {
-        'label' => label,
-        TABLE => table,
-        COLUMN => column,
-        'value_column' => value_column,
-        'value' => value
-      }
-
-      update(filters: updated_filters)
+    case table
+    when TYPE_DE_CHAMP, TYPE_DE_CHAMP_PRIVATE
+      value = find_type_de_champ(column).dynamic_type.human_to_filter(value)
     end
+
+    updated_filters = filters.dup
+    updated_filters[statut] << {
+      'label' => label,
+      TABLE => table,
+      COLUMN => column,
+      'value_column' => value_column,
+      'value' => value
+    }
+
+    update(filters: updated_filters)
   end
 
   def remove_filter(statut, field, value)
@@ -385,7 +383,10 @@ class ProcedurePresentation < ApplicationRecord
         end
       end
     else
-      find_type_de_champ(field['column']).options_for_select
+      tdc = find_type_de_champ(field['column'])
+      options = tdc.options_for_select
+      options.unshift([I18n.t('shared.champs.drop_down_list.not_filled'), nil]) unless tdc.mandatory?
+      options
     end
   end
 

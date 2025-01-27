@@ -59,11 +59,11 @@ class TypesDeChamp::TypeDeChampBase
   end
 
   def filter_to_human(filter_value)
-    filter_value
-  end
+    filter_value.presence || I18n.t('shared.champs.drop_down_list.not_filled')
+end
 
   def human_to_filter(human_value)
-    human_value
+    human_value == I18n.t('shared.champs.drop_down_list.not_filled') ? nil : human_value
   end
 
   class << self

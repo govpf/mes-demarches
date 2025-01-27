@@ -8,13 +8,13 @@ describe ProcedurePresentation do
   let(:first_type_de_champ_id) { first_type_de_champ.stable_id.to_s }
   let(:procedure_presentation) {
     create(:procedure_presentation,
-      assign_to: assign_to,
-      displayed_fields: [
-        { "label" => "test1", "table" => "user", "column" => "email" },
-        { "label" => "test2", "table" => "type_de_champ", "column" => first_type_de_champ_id }
-      ],
-      sort: { "table" => "user", "column" => "email", "order" => "asc" },
-      filters: filters)
+           assign_to: assign_to,
+           displayed_fields: [
+             { "label" => "test1", "table" => "user", "column" => "email" },
+             { "label" => "test2", "table" => "type_de_champ", "column" => first_type_de_champ_id }
+           ],
+           sort: { "table" => "user", "column" => "email", "order" => "asc" },
+           filters: filters)
   }
   let(:procedure_presentation_id) { procedure_presentation.id }
   let(:filters) { { "a-suivre" => [], "suivis" => [{ "label" => "label1", "table" => "self", "column" => "created_at" }] } }
@@ -422,8 +422,8 @@ describe ProcedurePresentation do
 
       before do
         create_list(:avis, 2, dossier: dossier_yes, question_answer: true)
-        create(:avis,  dossier: dossier_no, question_answer: true)
-        create(:avis,  dossier: dossier_no, question_answer: false)
+        create(:avis, dossier: dossier_no, question_answer: true)
+        create(:avis, dossier: dossier_no, question_answer: false)
       end
 
       it { is_expected.to eq([dossier_no, dossier_yes].map(&:id)) }
@@ -630,6 +630,30 @@ describe ProcedurePresentation do
         before do
           kept_dossier.champs_public.find_by(type_de_champ: type_de_champ).update(value: 'true')
           discarded_dossier.champs_public.find_by(type_de_champ: type_de_champ).update(value: 'false')
+        end
+
+        it { is_expected.to contain_exactly(kept_dossier.id) }
+      end
+
+      context 'with drop_down type_de_champ and empty value' do
+        let(:filter) { [{ 'table' => 'type_de_champ', 'column' => type_de_champ.stable_id.to_s, 'value' => nil }] }
+        let(:types_de_champ_public) { [{ type: :drop_down_list }] }
+
+        before do
+          kept_dossier.champs_public.find_by(type_de_champ: type_de_champ).update(value: '')
+          discarded_dossier.champs_public.find_by(type_de_champ: type_de_champ).update(value: 'val1')
+        end
+
+        it { is_expected.to contain_exactly(kept_dossier.id) }
+      end
+
+      context 'with text type_de_champ and empty value' do
+        let(:filter) { [{ 'table' => 'type_de_champ', 'column' => type_de_champ.stable_id.to_s, 'value' => nil }] }
+        let(:types_de_champ_public) { [{ type: :text }] }
+
+        before do
+          kept_dossier.champs_public.find_by(type_de_champ: type_de_champ).update(value: '')
+          discarded_dossier.champs_public.find_by(type_de_champ: type_de_champ).update(value: 'val1')
         end
 
         it { is_expected.to contain_exactly(kept_dossier.id) }
@@ -905,9 +929,9 @@ describe ProcedurePresentation do
 
         expect(procedure_presentation.filters).to eq({
           "suivis" =>
-                    [
-                      { "label" => first_type_de_champ.libelle, "table" => "type_de_champ", "column" => first_type_de_champ_id, "value" => "true", "value_column" => "value" }
-                    ]
+            [
+              { "label" => first_type_de_champ.libelle, "table" => "type_de_champ", "column" => first_type_de_champ_id, "value" => "true", "value_column" => "value" }
+            ]
         })
       end
     end
@@ -1000,7 +1024,7 @@ describe ProcedurePresentation do
     end
 
     context 'when field is dropdown' do
-      let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :text }], types_de_champ_private: [{}]) }
+      let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :text, mandatory: mandatory }], types_de_champ_private: [{}]) }
       let(:tdc) { procedure.published_revision.types_de_champ_public.first }
       before do
         procedure.draft_revision
@@ -1010,8 +1034,17 @@ describe ProcedurePresentation do
         procedure.publish_revision!
       end
       subject { procedure_presentation.field_enum("type_de_champ/#{tdc.id}") }
-      it 'find most recent tdc' do
-        expect(subject).to eq(["Paris", "Lyon", "Marseille"])
+      context "when field is mandatory" do
+        let(:mandatory) { true }
+        it 'find most recent tdc' do
+          expect(subject).to eq(["Paris", "Lyon", "Marseille"])
+        end
+      end
+      context "when field is optional" do
+        let(:mandatory) { false }
+        it 'find most recent tdc' do
+          expect(subject).to eq([["Non renseigné", nil], "Paris", "Lyon", "Marseille"])
+        end
       end
     end
   end
