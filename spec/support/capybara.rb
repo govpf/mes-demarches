@@ -63,7 +63,7 @@ Capybara.register_driver :headless_chrome do |app|
   # Different versions of Chrome/selenium-webdriver require setting differently - just set them all
   options.add_preference('download.default_directory', download_path)
   options.add_preference(:download, default_directory: download_path)
-
+  puts "headless_chrome: #{options}"
   setup_driver(app, download_path, options)
 end
 
