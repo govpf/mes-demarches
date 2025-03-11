@@ -95,7 +95,7 @@ RSpec.configure do |config|
   end
 
   config.before(:each, type: :system, chrome: true) do
-    driven_by :chrome
+    driven_by :headless_chrome
   end
 
   # Examples tagged with :capybara_ignore_server_errors will allow Capybara
