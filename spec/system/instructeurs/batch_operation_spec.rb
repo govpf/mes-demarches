@@ -8,7 +8,7 @@ describe 'BatchOperation a dossier:', js: true do
 
   context 'with an instructeur' do
     scenario 'create a BatchOperation', chrome: true do
-      puts "LANGUE : #{page.evaluate_script("navigator.language")},\nchemin: #{Selenium::WebDriver::Chrome.path}\nchrome driver: #{Selenium::WebDriver::Service.chrome.path}"
+      puts "LANGUE : #{page.evaluate_script("navigator.language")},\nchemin: #{Selenium::WebDriver::Chrome.path}"
       dossier_1 = create(:dossier, :accepte, procedure: procedure)
       dossier_2 = create(:dossier, :accepte, procedure: procedure)
       dossier_3 = create(:dossier, :accepte, procedure: procedure)
