@@ -170,6 +170,10 @@ describe ProcedurePathConcern do
     context 'when the path has been changed twice' do
       before do
         procedure.claim_path!(procedure.administrateurs.first, 'custom_path')
+        procedure.save!
+        procedure.reload
+
+        travel(2.minutes)
         procedure.claim_path!(procedure.administrateurs.first, 'custom_path_2')
       end
 
