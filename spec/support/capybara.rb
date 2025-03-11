@@ -54,6 +54,9 @@ Capybara.register_driver :headless_chrome do |app|
   options.add_argument('--disable-dev-shm-usage')
   options.add_argument('--disable-software-rasterizer')
   options.add_argument('--mute-audio')
+  options.add_argument('--lang=fr-FR') # 🔹 Force la langue de Chrome en français
+  options.add_argument('--disable-features=TranslateUI') # Désactive la traduction automatique
+  options.add_argument('Accept-Language=fr-FR,fr')
 
   download_path = Capybara.save_path
   # Chromedriver 77 requires setting this for headless mode on linux
