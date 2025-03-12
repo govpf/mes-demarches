@@ -56,7 +56,7 @@ Capybara.register_driver :headless_chrome do |app|
   options.add_argument('--mute-audio')
   # 🔹 Force la langue via les préférences utilisateur Chrome
   options.add_preference('intl.accept_languages', 'fr-FR,fr')
-  options.add_preference('translate.enabled' , false)
+  options.add_preference('translate.enabled', false)
 
   # 🔹 Vérification en ajoutant un log
   puts "headless_chrome: #{options.inspect}"
