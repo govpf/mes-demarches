@@ -5,12 +5,14 @@ class ApplicationController < ActionController::Base
   include NavBarProfileConcern
   include Pundit::Authorization
   include Devise::StoreLocationExtension
-  include ApplicationController::LongLivedAuthenticityToken
+  include MigrateCsrfToken
   include ApplicationController::ErrorHandling
   # pf: ajout du concern pour la navigation contextuelle entre personas
   include ContextualNavigationConcern
 
   MAINTENANCE_MESSAGE = 'Le site est actuellement en maintenance. Il sera à nouveau disponible dans un court instant.'
+
+  protect_from_forgery with: :exception, store: :cookie
 
   before_action :set_sentry_user
   before_action :redirect_if_untrusted
