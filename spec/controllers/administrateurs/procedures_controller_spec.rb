@@ -1219,15 +1219,12 @@ describe Administrateurs::ProceduresController, type: :controller do
           end
         end
 
-        it 'publish the given procedure' do
+        it 'publish the given procedure and redirects to the confirmation page' do
           expect(procedure.publiee?).to be_truthy
           expect(procedure.path).to eq(path)
           expect(procedure.lien_site_web).to eq(lien_site_web)
-        end
 
-        it 'redirects to the confirmation page' do
-          expect(response.status).to eq 302
-          expect(response.body).to include(admin_procedure_confirmation_path(procedure.id))
+          expect(response).to redirect_to(admin_procedure_confirmation_path(procedure))
         end
         #----- PF
         it 'sends a published email to team' do
@@ -1247,19 +1244,14 @@ describe Administrateurs::ProceduresController, type: :controller do
         let(:path) { procedure2.path }
         let(:lien_site_web) { 'http://mon-site.gouv.fr' }
 
-        it 'publish the given procedure' do
+        it 'publishes the procedure, unpublishes the old one and redirects to confirmation page' do
           expect(procedure.publiee?).to be_truthy
           expect(procedure.path).to eq(path)
           expect(procedure.lien_site_web).to eq(lien_site_web)
-        end
 
-        it 'depubliee previous procedure' do
           expect(procedure2.depubliee?).to be_truthy
-        end
 
-        it 'redirects to the confirmation page' do
-          expect(response.status).to eq 302
-          expect(response.body).to include(admin_procedure_confirmation_path(procedure.id))
+          expect(response).to redirect_to(admin_procedure_confirmation_path(procedure))
         end
       end
 
@@ -1364,8 +1356,7 @@ describe Administrateurs::ProceduresController, type: :controller do
       let(:email_admin) { 'plop' }
 
       it do
-        expect(subject.status).to eq 302
-        expect(response.body).to include(admin_procedure_transfert_path(procedure.id))
+        expect(response).to redirect_to(admin_procedure_transfert_path(procedure.id))
         expect(flash[:alert]).to be_present
         expect(flash[:alert]).to eq("Envoi vers #{email_admin} impossible : cet administrateur n’existe pas")
       end
@@ -1379,7 +1370,7 @@ describe Administrateurs::ProceduresController, type: :controller do
 
         it do
           expect { subject }.to change(new_admin.procedures, :count).by(1)
-          expect(subject.status).to eq 302
+          expect(subject).to be_redirection
         end
 
         it "should create a new service" do
@@ -1393,7 +1384,7 @@ describe Administrateurs::ProceduresController, type: :controller do
 
         it do
           expect { subject }.to change(Procedure, :count).by(1)
-          expect(subject.status).to eq 302
+          expect(subject).to be_redirection
         end
       end
 
