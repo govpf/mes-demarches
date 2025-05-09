@@ -78,11 +78,10 @@ describe Logic::ChampValue do
         it { expect(champ_value(champ.stable_id).options([champ.type_de_champ])).to match_array([["val1", "val1"], ["val2", "val2"], ["val3", "val3"], [I18n.t('shared.champs.drop_down_list.other'), "__other__"]]) }
       end
 
-        context 'with other filled' do
-          let(:other) { true }
+      context 'with other filled' do
+        let(:other) { true }
 
-          it { is_expected.to eq(Champs::DropDownListChamp::OTHER) }
-        end
+        it { is_expected.to eq(Champs::DropDownListChamp::OTHER) }
       end
     end
 

@@ -104,6 +104,16 @@ FactoryBot.define do
       value { create(:dossier, :en_construction).id }
     end
 
+    factory :champ_commune_de_polynesie, class: 'Champs::CommuneDePolynesieChamp' do
+      type_de_champ { association :type_de_champ_commune_de_polynesie, procedure: dossier.procedure }
+      value { 'Arue - Tahiti - 98701' }
+    end
+
+    factory :champ_code_postal_de_polynesie, class: 'Champs::CodePostalDePolynesieChamp' do
+      type_de_champ { association :type_de_champ_code_postal_de_polynesie, procedure: dossier.procedure }
+      value { '98701 - Arue - Tahiti' }
+    end
+
     factory :champ_do_not_use_piece_justificative, class: 'Champs::PieceJustificativeChamp' do
       transient do
         size { 4 }
