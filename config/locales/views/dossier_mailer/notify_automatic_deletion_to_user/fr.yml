@@ -13,3 +13,6 @@ fr:
       footer_en_construction:
         one: 'Le dossier ne sera pas traité, nous nous excusons de la gêne occasionnée.'
         other: 'Les dossiers ne seront pas traités, nous nous excusons de la gêne occasionnée.'
+      footer:
+        one: Vous pouvez retrouver ce dossier pendant encore une semaine depuis l’onglet « Supprimé » sur la page
+        other: Vous pouvez retrouver ces dossiers pendant encore une semaine depuis l’onglet « Supprimés » sur la page
