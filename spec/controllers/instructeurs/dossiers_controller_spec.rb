@@ -4,7 +4,8 @@ describe Instructeurs::DossiersController, type: :controller do
   let(:instructeur) { create(:instructeur) }
   let(:administration) { create(:administration) }
   let(:instructeurs) { [instructeur] }
-  let(:procedure) { create(:procedure, :published, :for_individual, instructeurs: instructeurs) }
+  let(:types_de_champ_public) { [] }
+  let(:procedure) { create(:procedure, :published, :for_individual, instructeurs: instructeurs, types_de_champ_public:) }
   let(:procedure_accuse_lecture) { create(:procedure, :published, :for_individual, :accuse_lecture, :new_administrateur, instructeurs: instructeurs) }
   let(:dossier) { create(:dossier, :en_construction, :with_individual, procedure: procedure) }
   let(:dossier_accuse_lecture) { create(:dossier, :en_construction, :with_individual, procedure: procedure_accuse_lecture) }
@@ -854,7 +855,8 @@ describe Instructeurs::DossiersController, type: :controller do
       context 'with linked dossiers' do
         let(:asked_confidentiel) { false }
         let(:previous_avis_confidentiel) { false }
-        let(:dossier) { create(:dossier, :en_construction, :with_dossier_link, procedure: procedure) }
+        let(:types_de_champ_public) { [{ type: :dossier_link }] }
+        let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
         before { subject }
         context 'when the expert doesn’t share linked dossiers' do
           let(:invite_linked_dossiers) { false }
@@ -873,7 +875,7 @@ describe Instructeurs::DossiersController, type: :controller do
           context 'and the expert can access the linked dossiers' do
             let(:saved_avis) { Avis.last(2).first }
             let(:linked_avis) { Avis.last }
-            let(:linked_dossier) { Dossier.find_by(id: dossier.reload.champs_public.filter(&:dossier_link?).filter_map(&:value)) }
+            let(:linked_dossier) { Dossier.find_by(id: dossier.champs.first.value) }
             let(:invite_linked_dossiers) do
               instructeur.assign_to_procedure(linked_dossier.procedure)
               true
@@ -1310,6 +1312,71 @@ describe Instructeurs::DossiersController, type: :controller do
       it { expect(dossier.hidden_by_administration_at).not_to eq(nil) }
       it { expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
       it { expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.") }
+    end
+  end
+
+  describe '#extend_conservation and restore' do
+    subject { post :extend_conservation_and_restore, params: { procedure_id: procedure.id, dossier_id: dossier.id } }
+
+    before do
+      dossier.update(hidden_by_expired_at: 1.hour.ago, hidden_by_reason: 'expired')
+    end
+
+    context 'when dossier has expired but was not hidden by anyone' do
+      it 'works' do
+        expect(subject).to redirect_to(instructeur_dossier_path(procedure, dossier))
+      end
+
+      it 'extends conservation_extension by 1 month and let dossier not hidden' do
+        subject
+        expect(dossier.reload.conservation_extension).to eq(1.month)
+        expect(dossier.reload.hidden_by_reason).to eq(nil)
+        expect(dossier.reload.hidden_by_expired_at).to eq(nil)
+        expect(dossier.reload.hidden_by_administration_at).to eq(nil)
+        expect(dossier.reload.hidden_by_user_at).to eq(nil)
+      end
+
+      it 'flashed notice success' do
+        subject
+        expect(flash[:notice]).to eq(I18n.t('views.instructeurs.dossiers.archived_dossier'))
+      end
+    end
+
+    context 'when dossier has expired and was hidden by instructeur' do
+      let!(:dossier) { create(:dossier, :hidden_by_administration, :accepte, :with_individual, procedure: procedure) }
+
+      it 'extends conservation_extension by 1 month and restore dossier for instructeur' do
+        subject
+        expect(dossier.reload.conservation_extension).to eq(1.month)
+        expect(dossier.reload.hidden_by_reason).to eq(nil)
+        expect(dossier.reload.hidden_by_expired_at).to eq(nil)
+        expect(dossier.reload.hidden_by_administration_at).to eq(nil)
+        expect(dossier.reload.hidden_by_user_at).to eq(nil)
+      end
+    end
+
+    context 'when dossier has expired and was hidden by user' do
+      let!(:dossier) { create(:dossier, :hidden_by_user, :accepte, :with_individual, procedure: procedure) }
+      it 'extends conservation_extension by 1 month and let dossier hidden for user' do
+        subject
+        expect(dossier.reload.conservation_extension).to eq(1.month)
+        expect(dossier.reload.hidden_by_reason).to eq("user_request")
+        expect(dossier.reload.hidden_by_expired_at).to eq(nil)
+        expect(dossier.reload.hidden_by_administration_at).to eq(nil)
+        expect(dossier.reload.hidden_by_user_at).not_to eq(nil)
+      end
+    end
+
+    context 'when dossier has expired and was hidden by user and instructeur' do
+      let!(:dossier) { create(:dossier, :hidden_by_user, :hidden_by_administration, :accepte, :with_individual, procedure: procedure) }
+      it 'extends conservation_extension by 1 month and let dossier hidden for user' do
+        subject
+        expect(dossier.reload.conservation_extension).to eq(1.month)
+        expect(dossier.reload.hidden_by_reason).to eq("user_request")
+        expect(dossier.reload.hidden_by_expired_at).to eq(nil)
+        expect(dossier.reload.hidden_by_administration_at).to eq(nil)
+        expect(dossier.reload.hidden_by_user_at).not_to eq(nil)
+      end
     end
   end
 

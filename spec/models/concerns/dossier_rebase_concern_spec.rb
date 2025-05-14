@@ -87,7 +87,7 @@ describe DossierRebaseConcern do
 
         context 'with a value' do
           before do
-            dossier.champs.find_by(type_de_champ: type_de_champ).update(value: 'a value')
+            dossier.champs.find_by(stable_id: type_de_champ.stable_id).update(value: 'a value')
           end
 
           it 'should be true' do
@@ -312,6 +312,10 @@ describe DossierRebaseConcern do
           type_champ: TypeDeChamp.type_champs.fetch(:text),
           libelle: "Un champ text"
         })
+        procedure.draft_revision.add_type_de_champ({
+          type_champ: TypeDeChamp.type_champs.fetch(:piece_justificative),
+          libelle: "Un champ pj"
+        })
         procedure.draft_revision.find_and_ensure_exclusive_use(text_type_de_champ.stable_id).update(mandatory: false, libelle: "nouveau libelle")
         procedure.draft_revision.find_and_ensure_exclusive_use(datetime_type_de_champ.stable_id).update(type_champ: TypeDeChamp.type_champs.fetch(:date))
         procedure.draft_revision.find_and_ensure_exclusive_use(repetition_text_type_de_champ.stable_id).update(libelle: "nouveau libelle dans une repetition")
@@ -361,10 +365,10 @@ describe DossierRebaseConcern do
 
         expect(procedure.revisions.size).to eq(3)
         expect(dossier.revision).to eq(procedure.published_revision)
-        expect(dossier.champs_public.size).to eq(6)
-        expect(dossier.champs.count(&:public?)).to eq(12)
+        expect(dossier.champs_public.size).to eq(7)
+        expect(dossier.champs.count(&:public?)).to eq(13)
         expect(rebased_text_champ.value).to eq(text_champ.value)
-        expect(rebased_text_champ.type_de_champ_id).not_to eq(text_champ.type_de_champ_id)
+        expect(rebased_text_champ.type_de_champ).not_to eq(text_champ.type_de_champ)
         expect(rebased_datetime_champ.type_champ).to eq(TypeDeChamp.type_champs.fetch(:date))
         expect(rebased_datetime_champ.value).to be_nil
         expect(rebased_repetition_champ.rows.size).to eq(2)
@@ -562,7 +566,7 @@ describe DossierRebaseConcern do
 
       context 'and the cadastre are removed' do
         before do
-          dossier.champs_public.first.update(value: 'v1', geo_areas: [create(:geo_area, :cadastre)])
+          dossier.champs_public.first.update(value: 'v1', geo_areas: [build(:geo_area, :cadastre)])
 
           stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
@@ -623,7 +627,7 @@ describe DossierRebaseConcern do
         def first_champ = dossier.champs_public.first
 
         before do
-          first_champ.update(value: 'v1', external_id: '123', geo_areas: [create(:geo_area)])
+          first_champ.update(value: 'v1', external_id: '123', geo_areas: [build(:geo_area)])
           first_champ.update(data: { a: 1 })
 
           first_champ.piece_justificative_file.attach(

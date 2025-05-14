@@ -114,40 +114,19 @@ FactoryBot.define do
       hidden_at { Time.zone.now }
     end
 
+    trait :hidden_by_expired do
+      hidden_by_expired_at { 1.day.ago }
+      hidden_by_reason { DeletedDossier.reasons.fetch(:expired) }
+    end
+
+    trait :hidden_by_user do
+      hidden_by_user_at { 1.day.ago }
+      hidden_by_reason { DeletedDossier.reasons.fetch(:user_request) }
+    end
+
     trait :hidden_by_administration do
       hidden_by_administration_at { 1.day.ago }
       hidden_by_reason { DeletedDossier.reasons.fetch(:instructeur_request) }
-    end
-
-    trait :with_dossier_link do
-      after(:create) do |dossier, _evaluator|
-        # create linked dossier
-        linked_dossier = create(:dossier, :en_construction)
-
-        # find first type de champ dossier_link
-        type_de_champ = dossier.types_de_champ.find do |t|
-          t.type_champ == TypeDeChamp.type_champs.fetch(:dossier_link)
-        end
-
-        # if type de champ does not exist create it
-        if !type_de_champ
-          type_de_champ = create(:type_de_champ_dossier_link, procedure: dossier.procedure)
-        end
-
-        # find champ with the type de champ
-        champ = dossier.reload.champs_public.find do |c|
-          c.type_de_champ == type_de_champ
-        end
-
-        # if champ does not exist create it
-        if !champ
-          champ = create(:champ_dossier_link, dossier: dossier, type_de_champ: type_de_champ)
-        end
-
-        # set champ value with linked dossier
-        champ.value = linked_dossier.id
-        champ.save!
-      end
     end
 
     trait :with_commentaires do
@@ -285,13 +264,13 @@ FactoryBot.define do
       after(:create) do |dossier, _evaluator|
         dossier.champs_to_destroy.where(private: false).destroy_all
         dossier.types_de_champ.each do |type_de_champ|
-          if type_de_champ.simple_drop_down_list?
-            create(:"champ_#{type_de_champ.type_champ}", dossier:, type_de_champ:, value: type_de_champ.drop_down_list_enabled_non_empty_options.first)
+          value = if type_de_champ.simple_drop_down_list?
+            type_de_champ.drop_down_list_enabled_non_empty_options.first
           elsif type_de_champ.multiple_drop_down_list?
-            create(:"champ_#{type_de_champ.type_champ}", dossier:, type_de_champ:, value: type_de_champ.drop_down_list_enabled_non_empty_options.first(2).to_json)
-          else
-            create(:"champ_#{type_de_champ.type_champ}", dossier:, type_de_champ:)
+            type_de_champ.drop_down_list_enabled_non_empty_options.first(2).to_json
           end
+          attrs = { stable_id: type_de_champ.stable_id, dossier:, value: }.compact
+          create(:"champ_do_not_use_#{type_de_champ.type_champ}", **attrs)
         end
         dossier.reload
       end
@@ -301,13 +280,13 @@ FactoryBot.define do
       after(:create) do |dossier, _evaluator|
         dossier.champs_to_destroy.where(private: true).destroy_all
         dossier.types_de_champ_private.each do |type_de_champ|
-          if type_de_champ.simple_drop_down_list?
-            create(:"champ_#{type_de_champ.type_champ}", private: true, dossier:, type_de_champ:, value: type_de_champ.drop_down_list_enabled_non_empty_options.first)
+          value = if type_de_champ.simple_drop_down_list?
+            type_de_champ.drop_down_list_enabled_non_empty_options.first
           elsif type_de_champ.multiple_drop_down_list?
-            create(:"champ_#{type_de_champ.type_champ}", private: true, dossier:, type_de_champ:, value: type_de_champ.drop_down_list_enabled_non_empty_options.first(2).to_json)
-          else
-            create(:"champ_#{type_de_champ.type_champ}", private: true, dossier:, type_de_champ:)
+            type_de_champ.drop_down_list_enabled_non_empty_options.first(2).to_json
           end
+          attrs = { stable_id: type_de_champ.stable_id, dossier:, private: true, value: }.compact
+          create(:"champ_do_not_use_#{type_de_champ.type_champ}", **attrs)
         end
         dossier.reload
       end

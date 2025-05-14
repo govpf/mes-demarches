@@ -314,13 +314,13 @@ describe 'The user', js: true do
     login_as(user, scope: :user)
     visit brouillon_dossier_path(user_old_dossier)
 
-    expect(page).to have_css('.fr-callout__title', text: 'Votre dossier va expirer', visible: true)
+    expect(page).to have_css('.fr-callout__title', text: 'Votre dossier a expiré', visible: true)
     find('#test-user-repousser-expiration').click
     expect(page).to have_no_selector('#test-user-repousser-expiration')
 
     Timecop.freeze(simple_procedure.duree_conservation_dossiers_dans_ds.month.from_now) do
       visit brouillon_dossier_path(user_old_dossier)
-      expect(page).to have_css('.fr-callout__title', text: 'Votre dossier va expirer', visible: true)
+      expect(page).to have_css('.fr-callout__title', text: 'Votre dossier a expiré', visible: true)
       find('#test-user-repousser-expiration').click
       expect(page).to have_no_selector('#test-user-repousser-expiration')
     end
@@ -693,7 +693,8 @@ describe 'The user', js: true do
 
   def champ_for(libelle)
     champs = user_dossier.reload.champs_public
-    champs.find { |c| c.libelle == libelle }
+    champ = champs.find { |c| c.libelle == libelle }
+    champ.reload
   end
 
   def fill_individual

@@ -50,7 +50,7 @@ module DossierRebaseConcern
     # index published types de champ coordinates by stable_id
     target_coordinates_by_stable_id = target_revision
       .revision_types_de_champ
-      .includes(:type_de_champ, :parent)
+      .includes(:parent)
       .index_by(&:stable_id)
 
     changes_by_op = pending_changes
@@ -58,17 +58,9 @@ module DossierRebaseConcern
       .tap { _1.default = [] }
 
     champs_by_stable_id = champs
-      .includes(:type_de_champ)
       .group_by(&:stable_id)
       .transform_values { Champ.where(id: _1) }
       .tap { _1.default = Champ.none }
-
-    # add champ
-    changes_by_op[:add]
-      .map { target_coordinates_by_stable_id[_1.stable_id] }
-      # add parent champs first so we can then add children
-      .sort_by { _1.child? ? 1 : 0 }
-      .each { add_new_champs_for_revision(_1) }
 
     # remove champ
     children_champ, root_champ = changes_by_op[:remove].partition(&:child?)
@@ -78,16 +70,15 @@ module DossierRebaseConcern
     # update champ
     changes_by_op[:update].each { apply(_1, champs_by_stable_id[_1.stable_id]) }
 
-    # due to repetition tdc clone on update or erase
-    # we must reassign tdc to the latest version
-    champs_by_stable_id.each do |stable_id, champs|
-      if target_coordinates_by_stable_id[stable_id].present? && champs.present?
-        champs.update_all(type_de_champ_id: target_coordinates_by_stable_id[stable_id].type_de_champ_id)
-      end
-    end
-
     # update dossier revision
     update_column(:revision_id, target_revision.id)
+
+    # add champ (after changing dossier revision to avoid errors)
+    changes_by_op[:add]
+      .map { target_coordinates_by_stable_id[_1.stable_id] }
+      # add parent champs first so we can then add children
+      .sort_by { _1.child? ? 1 : 0 }
+      .each { add_new_champs_for_revision(_1) }
   end
 
   def apply(change, champs)
@@ -134,7 +125,7 @@ module DossierRebaseConcern
           champ_repetition.champs.map(&:row_id).uniq.each do |row_id|
             champs << create_champ(target_coordinate, champ_repetition, row_id:)
           end
-        elsif champ_repetition.mandatory?
+        elsif target_coordinate.parent.mandatory?
           champs << create_champ(target_coordinate, champ_repetition, row_id: ULID.generate)
         end
       end
