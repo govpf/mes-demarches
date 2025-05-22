@@ -78,7 +78,7 @@ RSpec.describe APILexpol do
       context "and a known TAHITI is provided" do
         let(:numero_tahiti) { "003970" }
         it "uses the corresponding service email" do
-          expect(api_lexpol.instance_variable_get(:@email_agent)).to eq("manager@example.com")
+          expect(api_lexpol.instance_variable_get(:@email_agent)).to eq("instructeur@mes-demarches.gov.pf")
         end
       end
 
