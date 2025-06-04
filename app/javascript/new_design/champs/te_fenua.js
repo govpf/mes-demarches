@@ -348,7 +348,7 @@ function addInteractions(mapElement, map) {
         (feature) => feature,
         {
           layerFilter: (layer) => layer === map.markerLayer,
-          hitTolerance: 8,
+          hitTolerance: 8
         }
       );
 
