@@ -839,7 +839,7 @@ describe ProcedurePresentation do
       let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :yes_no }]) }
 
       it 'should downcase and transform value' do
-        procedure_presentation.add_filter("suivis", "type_de_champ/#{first_type_de_champ_id}", +"Oui")
+        procedure_presentation.add_filter("suivis", Column.make_id("type_de_champ", first_type_de_champ_id), +"Oui")
 
         expect(procedure_presentation.filters).to eq({
           "suivis" =>
@@ -854,7 +854,7 @@ describe ProcedurePresentation do
       let(:filters) { { "suivis" => [] } }
 
       it 'should passthrough value' do
-        procedure_presentation.add_filter("suivis", "type_de_champ/#{first_type_de_champ_id}", "Oui")
+        procedure_presentation.add_filter("suivis", Column.make_id("type_de_champ", first_type_de_champ_id), "Oui")
 
         expect(procedure_presentation.filters).to eq({
           "suivis" => [
@@ -869,7 +869,7 @@ describe ProcedurePresentation do
       let(:filters) { { "suivis" => [] } }
 
       it 'should set value_column' do
-        procedure_presentation.add_filter("suivis", "type_de_champ/#{first_type_de_champ_id}", "13")
+        procedure_presentation.add_filter("suivis", Column.make_id("type_de_champ", first_type_de_champ_id), "13")
 
         expect(procedure_presentation.filters).to eq({
           "suivis" => [

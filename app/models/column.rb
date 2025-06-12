@@ -19,11 +19,11 @@ class Column
   end
 
   def id
-    "#{table}/#{column}"
+    "#{table}__#{column}"
   end
 
   def self.make_id(table, column)
-    "#{table}/#{column}"
+    "#{table}__#{column}"
   end
 
   def ==(other)

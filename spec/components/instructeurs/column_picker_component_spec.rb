@@ -21,6 +21,6 @@ describe Instructeurs::ColumnPickerComponent, type: :component do
       ])
     end
 
-    it { is_expected.to eq([[["email", "user/email"]], ["user/email"]]) }
+    it { is_expected.to eq([[["email", Column.make_id("user", "email")]], [Column.make_id("user", "email")]]) }
   end
 end
