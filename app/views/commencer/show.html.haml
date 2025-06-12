@@ -3,11 +3,8 @@
 .commencer.form
   - if !user_signed_in?
     = render Dsfr::CalloutComponent.new(title: t(".start_procedure"), heading_level: 'h2') do |c|
-      - c.with_body do
-        = render partial: 'shared/social_login', locals: { title: t('.social_title') }
-        %p.fr-hr-or= t('views.shared.france_connect_login.separator')
-        %h2.fr-h5= t('views.shared.account.title', name: APPLICATION_NAME)
-        %br
+      - c.with_html_body do
+        = render partial: 'shared/france_connect_login', locals: { url: commencer_france_connect_path(path: @procedure.path, prefill_token: @prefilled_dossier&.prefill_token), heading_level: :h3 }
         %ul.fr-btns-group.fr-btns-group--inline
           %li
             = link_to commencer_sign_up_path(path: @procedure.path, prefill_token: @prefilled_dossier&.prefill_token), class: 'fr-btn fr-btn--lg fr-my-2w' do

@@ -509,6 +509,14 @@ class TypeDeChamp < ApplicationRecord
     !private?
   end
 
+  def in_revision?(revision)
+    revision.types_de_champ.any? { _1.stable_id == stable_id }
+  end
+
+  def child?(revision)
+    revision.revision_types_de_champ.find { _1.stable_id == stable_id }&.child?
+  end
+
   def filename_for_attachement(attachment_sym)
     attachment = send(attachment_sym)
     if attachment.attached?
@@ -853,7 +861,11 @@ class TypeDeChamp < ApplicationRecord
     end
   end
 
-  private # TODO : Why 2 privates in this file ?
+  def html_id(row_id = nil)
+    "champ-#{public_id(row_id)}"
+  end
+
+  private
 
   def populate_stable_id
     if !stable_id
