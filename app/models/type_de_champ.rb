@@ -24,7 +24,8 @@ class TypeDeChamp < ApplicationRecord
     referentiel_de_polynesie: 'referentiel_de_polynesie',
     te_fenua: 'te_fenua',
     lexpol: 'lexpol',
-    visa: 'visa'
+    visa: 'visa',
+    formule: 'formule'
   }
 
   STRUCTURE = :structure
@@ -47,7 +48,8 @@ class TypeDeChamp < ApplicationRecord
     lexpol: REFERENTIEL_EXTERNE,
     table_row_selector: REFERENTIEL_EXTERNE,
     referentiel_de_polynesie: REFERENTIEL_EXTERNE,
-    visa: STRUCTURE
+    visa: STRUCTURE,
+    formule: STANDARD
   }
 
   TYPE_DE_CHAMP_TO_CATEGORIE = {
@@ -145,7 +147,8 @@ class TypeDeChamp < ApplicationRecord
     referentiel_de_polynesie: [:table_id, :drop_down_other],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
-    visa: [:accredited_users]
+    visa: [:accredited_users],
+    formule: {formule_expression]
   }
   INSTANCE_OPTIONS = INSTANCE_OPTIONS_BY_TYPE.values.reduce(&:+).uniq
 
