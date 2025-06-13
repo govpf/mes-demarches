@@ -6,11 +6,22 @@ class Champs::TableRowSelectorChamp < Champs::TextChamp
   end
 
   def fetch_external_data
-    # APIEducation::AnnuaireEducationAdapter.new(external_id).to_params
     TableRowSelector::API.fetch_row(external_id)
   end
 
   def update_with_external_data!(data:)
     update!(data: data) if data&.is_a?(Hash)
+  end
+
+  def selected
+    external_id
+  end
+
+  def selected_items
+    if external_id.present? && value.present?
+      [{ label: value, value: external_id }]
+    else
+      []
+    end
   end
 end

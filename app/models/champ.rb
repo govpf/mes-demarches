@@ -76,9 +76,9 @@ class Champ < ApplicationRecord
     :expression_reguliere_error_message,
     to: :type_de_champ
 
-  # pf champ
   include DateEncodingConcern
 
+  # pf champ
   delegate :accredited_user_list, :visa?, :table_id, to: :type_de_champ
 
   delegate :to_typed_id, :to_typed_id_for_query, to: :type_de_champ, prefix: true
