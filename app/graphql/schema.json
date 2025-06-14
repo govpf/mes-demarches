@@ -1998,6 +1998,11 @@
             },
             {
               "kind": "OBJECT",
+              "name": "TableRowSelectorChampDescriptor",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "TeFenuaChampDescriptor",
               "ofType": null
             },
@@ -20952,6 +20957,131 @@
         },
         {
           "kind": "OBJECT",
+          "name": "TableRowSelectorChampDescriptor",
+          "description": null,
+          "fields": [
+            {
+              "name": "champDescriptors",
+              "description": "Description des champs d’un bloc répétable.",
+              "args": [
+
+              ],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INTERFACE",
+                    "name": "ChampDescriptor",
+                    "ofType": null
+                  }
+                }
+              },
+              "isDeprecated": true,
+              "deprecationReason": "Utilisez le champ `RepetitionChampDescriptor.champ_descriptors` à la place."
+            },
+            {
+              "name": "description",
+              "description": "Description du champ.",
+              "args": [
+
+              ],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [
+
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "label",
+              "description": "Libellé du champ.",
+              "args": [
+
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "required",
+              "description": "Est-ce que le champ est obligatoire ?",
+              "args": [
+
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "type",
+              "description": "Type de la valeur du champ.",
+              "args": [
+
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "TypeDeChamp",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": true,
+              "deprecationReason": "Utilisez le champ `__typename` à la place."
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "ChampDescriptor",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
           "name": "TeFenuaChamp",
           "description": null,
           "fields": [
@@ -22308,6 +22438,12 @@
             {
               "name": "numero_dn",
               "description": "Numéro DN",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "table_row_selector",
+              "description": "Translation missing: fr.activerecord.attributes.type_de_champ.type_champs.table_row_selector",
               "isDeprecated": false,
               "deprecationReason": null
             },

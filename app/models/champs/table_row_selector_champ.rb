@@ -24,4 +24,8 @@ class Champs::TableRowSelectorChamp < Champs::TextChamp
       []
     end
   end
+
+  def value
+    external_id
+  end
 end
