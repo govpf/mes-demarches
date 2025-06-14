@@ -201,6 +201,9 @@ FactoryBot.define do
     factory :type_de_champ_lexpol do
       type_champ { TypeDeChamp.type_champs.fetch(:lexpol) }
     end
+    factory :type_de_champ_table_row_selector do
+      type_champ { TypeDeChamp.type_champs.fetch(:table_row_selector) }
+    end
     factory :type_de_champ_epci do
       type_champ { TypeDeChamp.type_champs.fetch(:epci) }
     end
