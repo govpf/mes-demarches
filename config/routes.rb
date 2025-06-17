@@ -223,8 +223,6 @@ Rails.application.routes.draw do
     post ':dossier_id/:stable_id/repetition', to: 'repetition#add', as: :repetition
     delete ':dossier_id/:stable_id/repetition', to: 'repetition#remove'
 
-    get 'table_row_selector/search', to: 'table_row_selector#search'
-
     get ':dossier_id/:stable_id/siret', to: 'siret#show', as: :siret
     get ':dossier_id/:stable_id/rna', to: 'rna#show', as: :rna
     delete ':dossier_id/:stable_id/options', to: 'options#remove', as: :options
@@ -278,6 +276,9 @@ Rails.application.routes.draw do
   end
 
   namespace :data_sources do
+    # pf referentiel configurable
+    get 'table_row_selector/:table/search', to: 'table_row_selector#search', as: :trs_search
+
     get :adresse, to: 'adresse#search', as: :data_source_adresse
     get :commune, to: 'commune#search', as: :data_source_commune
     get :education, to: 'education#search', as: :data_source_education

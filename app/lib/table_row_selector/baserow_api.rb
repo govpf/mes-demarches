@@ -10,11 +10,12 @@ class TableRowSelector::BaserowAPI
       params = { "filter__field_#{search_field}__contains" => term }
       url = rows_url(config['Table'])
       response = Typhoeus.get(url, headers: database_headers(config['Token']), params: params)
-      pp response
       if response.success?
         JSON.parse(response.body, symbolize_names: true)[:results].map do
-          { name: _1[:"field_#{search_field}"], id: _1[:id], domain: domain_id }
-        end + [{ name: 'Autre', id: 0, domain: domain_id }]
+          { label: _1[:"field_#{search_field}"], value: "#{domain_id}:#{_1[:id]}" }
+        end.append({ label: 'Autre', value: "#{domain_id}:0" })
+      else
+        [{ label: response.body, value: "#{domain_id}:0" }]
       end
     end
 
@@ -70,17 +71,5 @@ class TableRowSelector::BaserowAPI
     def database_headers(token) = { 'Authorization' => "Token #{token}" }
 
     def default_params = { user_field_names: true }
-
-    JWT_URL = "#{SECRETS[:url]}/api/user/token-auth/"
-    MUTEX = Mutex.new
-
-    def meta_headers
-      credentials = { username: SECRETS[:user], password: SECRETS[:password] }
-      response = Typhoeus.post(JWT_URL, body: credentials)
-      if response.success?
-        jwt = JSON.parse(response.body)['token']
-        { authorization: "JWT #{jwt}" }
-      end
-    end
   end
 end
