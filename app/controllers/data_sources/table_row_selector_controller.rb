@@ -8,7 +8,8 @@ class DataSources::TableRowSelectorController < ApplicationController
     if bad_parameters
       render json: { message: "table & q parameters are required" }, status: 400
     else
-      render json: TableRowSelector::API.search(@params[:table], @params[:q])
+      drop_down_other = ActiveModel::Type::Boolean.new.cast(@params[:drop_down_other])
+      render json: TableRowSelector::API.search(@params[:table], @params[:q], drop_down_other:)
     end
   end
 
@@ -16,5 +17,5 @@ class DataSources::TableRowSelectorController < ApplicationController
     @params[:table].blank? || @params[:q].blank?
   end
 
-  def search_params = params.permit(:table, :q)
+  def search_params = params.permit(:table, :q, :drop_down_other)
 end

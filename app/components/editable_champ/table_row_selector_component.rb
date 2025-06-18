@@ -15,7 +15,7 @@ class EditableChamp::TableRowSelectorComponent < EditableChamp::EditableChampBas
       name: @form.field_name(:external_id),
       selected_key: @champ.selected,
       items: @champ.selected_items,
-      loader: data_sources_trs_search_path(table:),
+      loader: data_sources_trs_search_path(table:, drop_down_other: @champ.drop_down_other?),
       limit: 20,
       minimum_input_length: 2,
       data: { table_id: @champ.table_id })

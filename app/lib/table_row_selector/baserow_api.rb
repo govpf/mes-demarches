@@ -2,25 +2,32 @@
 
 class TableRowSelector::BaserowAPI
   class << self
-    SECRETS = Rails.application.secrets.baserow
+    def secrets = Rails.application.secrets.baserow
 
-    def search(domain_id, term)
+    def search(domain_id, term, drop_down_other: false)
       config = config(domain_id)
       search_field = config['Champ de recherche']
       params = { "filter__field_#{search_field}__contains" => term }
       url = rows_url(config['Table'])
       response = Typhoeus.get(url, headers: database_headers(config['Token']), params: params)
       if response.success?
-        JSON.parse(response.body, symbolize_names: true)[:results].map do
+        results = JSON.parse(response.body, symbolize_names: true)[:results].map do
           { label: _1[:"field_#{search_field}"], value: "#{domain_id}:#{_1[:id]}" }
         end
+
+        # Add OTHER option if drop_down_other is enabled
+        if drop_down_other
+          results << { label: I18n.t('shared.champs.drop_down_list.other'), value: Champs::DropDownListChamp::OTHER }
+        end
+
+        results
       else
-        [{ label: response.body, value: "#{domain_id}:0" }]
+        [{ label: response.body, value: Champs::DropDownListChamp::OTHER }]
       end
     end
 
     def available_tables
-      response = Typhoeus.get(rows_url(SECRETS[:config_table]), headers: config_database_headers, params: default_params)
+      response = Typhoeus.get(rows_url(secrets[:config_table]), headers: config_database_headers, params: default_params)
       if response.success?
         JSON.parse(response.body, symbolize_names: true)[:results]&.filter { _1[:Actif] }&.map do
           { name: _1[:Nom], id: _1[:id] }
@@ -29,7 +36,7 @@ class TableRowSelector::BaserowAPI
     end
 
     def fetch_row(domain_id, row)
-      return {} if row.to_i.zero?
+      return {} if row.to_i <= 0
 
       config = config(domain_id)
       response = Typhoeus.get(row_url(config['Table'], row), headers: database_headers(config['Token']))
@@ -49,7 +56,7 @@ class TableRowSelector::BaserowAPI
     end
 
     def config(row_id)
-      response = Typhoeus.get(row_url(SECRETS[:config_table], row_id), headers: config_database_headers, params: default_params)
+      response = Typhoeus.get(row_url(secrets[:config_table], row_id), headers: config_database_headers, params: default_params)
       response.success? ? JSON.parse(response.body) : nil
     end
 
@@ -60,13 +67,13 @@ class TableRowSelector::BaserowAPI
       end
     end
 
-    def rows_url(table_id) = "#{SECRETS[:url]}/api/database/rows/table/#{table_id}/"
+    def rows_url(table_id) = "#{secrets[:url]}/api/database/rows/table/#{table_id}/"
 
     def row_url(table_id, row_id) = "#{rows_url(table_id)}#{row_id}/"
 
-    def list_database_table_fields(table_id) = "#{SECRETS[:url]}/api/database/fields/table/#{table_id}/"
+    def list_database_table_fields(table_id) = "#{secrets[:url]}/api/database/fields/table/#{table_id}/"
 
-    def config_database_headers = database_headers(SECRETS[:token])
+    def config_database_headers = database_headers(secrets[:token])
 
     def database_headers(token) = { 'Authorization' => "Token #{token}" }
 
