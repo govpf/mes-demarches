@@ -142,7 +142,7 @@ class Logic::ChampValue < Logic::Term
     elsif operator_name.in?([Logic::InArchipelOperator.name, Logic::NotInArchipelOperator.name]) || tdc.type_champ.in?([MANAGED_TYPE_DE_CHAMP.fetch(:commune_de_polynesie), MANAGED_TYPE_DE_CHAMP.fetch(:code_postal_de_polynesie)])
       APIGeo::API.archipels_de_polynesie.map { [_1, _1] }
     else
-      tdc.drop_down_list_enabled_non_empty_options(other: true).map { _1.is_a?(Array) ? _1 : [_1, _1] }
+      tdc.drop_down_options_with_other.map { _1.is_a?(Array) ? _1 : [_1, _1] }
     end
   end
 
