@@ -7,6 +7,7 @@ class TableRowSelector::API
     end
 
     def search(domain_id, term)
+      return [] if domain_id.to_i <= 0
       engine&.search(domain_id, term) || []
     end
 

@@ -663,6 +663,10 @@ class TypeDeChamp < ApplicationRecord
     self.accredited_users = value.blank? ? [] : value.split(/\s*[\r\n]+\s*/).map(&:downcase)
   end
 
+  def table_id
+    options['table_id'] || 0
+  end
+
   def accredited_user_list?
     accredited_user_list.any?
   end

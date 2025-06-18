@@ -13,7 +13,7 @@ class TableRowSelector::BaserowAPI
       if response.success?
         JSON.parse(response.body, symbolize_names: true)[:results].map do
           { label: _1[:"field_#{search_field}"], value: "#{domain_id}:#{_1[:id]}" }
-        end.append({ label: 'Autre', value: "#{domain_id}:0" })
+        end
       else
         [{ label: response.body, value: "#{domain_id}:0" }]
       end

@@ -13,7 +13,7 @@ class DataSources::TableRowSelectorController < ApplicationController
   end
 
   def bad_parameters
-    @params[:table].blank? || @params[:table].to_i == 0 || @params[:q].blank?
+    @params[:table].blank? || @params[:q].blank?
   end
 
   def search_params = params.permit(:table, :q)
