@@ -99,8 +99,6 @@ class NotificationMailer < ApplicationMailer
 
   def set_dossier
     @dossier = params[:dossier]
-    LexpolService.inject_mail_tags(@dossier)
-
     configure_defaults_for_user(@dossier.user)
 
     if @dossier.skip_user_notification_email?
