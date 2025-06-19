@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class TypeDeChamp < ApplicationRecord
-  self.ignored_columns += [:migrated_parent, :revision_id, :parent_id, :order_place]
-
   FILE_MAX_SIZE = 200.megabytes
   FEATURE_FLAGS = {
     visa: :visa,

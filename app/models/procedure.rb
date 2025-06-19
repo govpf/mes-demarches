@@ -12,13 +12,6 @@ class Procedure < ApplicationRecord
 
   include Discard::Model
   self.discard_column = :hidden_at
-  self.ignored_columns += [
-    :direction,
-    :durees_conservation_required,
-    :cerfa_flag,
-    :test_started_at,
-    :lien_demarche
-  ]
 
   default_scope -> { kept }
 
@@ -713,7 +706,7 @@ class Procedure < ApplicationRecord
       result << :service
     end
 
-    if service_test?
+    if service_siret_test?
       result << :service
     end
 
@@ -749,7 +742,7 @@ class Procedure < ApplicationRecord
     end
   end
 
-  def service_test?
+  def service_siret_test?
     service&.siret == Service::SIRET_TEST
   end
 
