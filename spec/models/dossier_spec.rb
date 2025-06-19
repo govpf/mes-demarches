@@ -1691,7 +1691,7 @@ describe Dossier, type: :model do
             dossier.champs.first.update(value: 'true')
             expect(dossier.champs.second.rows).not_to be_empty
             expect(errors).not_to be_empty
-          expect(errors.first.full_message).to eq("Le champ « Value » doit être rempli")
+            expect(errors.first.full_message).to eq("Le champ « Value » doit être rempli")
           end
         end
       end
