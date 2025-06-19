@@ -50,6 +50,18 @@ module MailTemplateConcern
   end
 
   def dossier_tags
-    TagsSubstitutionConcern::DOSSIER_TAGS + TagsSubstitutionConcern::DOSSIER_TAGS_FOR_MAIL
+    base_tags = TagsSubstitutionConcern::DOSSIER_TAGS + TagsSubstitutionConcern::DOSSIER_TAGS_FOR_MAIL
+
+    if procedure_has_lexpol_field?
+      base_tags
+    else
+      base_tags.reject { |tag| tag[:id].to_s.start_with?('lexpol_') }
+    end
+  end
+
+  private
+
+  def procedure_has_lexpol_field?
+    procedure.dossiers.joins(:champs).exists?(champs: { type: 'Champs::LexpolChamp' })
   end
 end

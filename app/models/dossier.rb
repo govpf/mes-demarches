@@ -2,6 +2,7 @@
 
 class Dossier < ApplicationRecord
   self.ignored_columns += [:re_instructed_at, :search_terms, :private_search_terms, :hidden_at]
+  attr_accessor :mail_lexpol_champ
 
   include DossierCloneConcern
   include DossierCorrectableConcern

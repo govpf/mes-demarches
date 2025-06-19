@@ -156,4 +156,33 @@ describe MailTemplateConcern do
 
     it { expect(initiated_mail.rich_body.to_plain_text).to eq(initiated_mail.body) }
   end
+
+  describe 'Lexpol tags filtering' do
+    let(:closed_mail) { create(:closed_mail, procedure: procedure) }
+    
+    context 'when procedure has Lexpol champs' do
+      before do
+        # Créer un dossier avec champ Lexpol
+        dossier_with_lexpol = create(:dossier, procedure: procedure)
+        lexpol_champ = create(:champ_do_not_use_lexpol, dossier: dossier_with_lexpol)
+        dossier_with_lexpol.champs << lexpol_champ
+      end
+      
+      it 'includes Lexpol tags' do
+        tags = closed_mail.tags
+        lexpol_tag_ids = tags.map { |tag| tag[:id] }.select { |id| id.to_s.start_with?('lexpol_') }
+        
+        expect(lexpol_tag_ids).to include('lexpol_nor', 'lexpol_lien_dossier', 'lexpol_statut', 'lexpol_arrete_lien')
+      end
+    end
+    
+    context 'when procedure has no Lexpol champs' do
+      it 'excludes Lexpol tags' do
+        tags = closed_mail.tags
+        lexpol_tag_ids = tags.map { |tag| tag[:id] }.select { |id| id.to_s.start_with?('lexpol_') }
+        
+        expect(lexpol_tag_ids).to be_empty
+      end
+    end
+  end
 end
