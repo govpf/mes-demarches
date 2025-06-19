@@ -402,7 +402,7 @@ describe Dossier, type: :model do
 
       subject { dossier.text_summary }
 
-      it { is_expected.to eq("Dossier déposé le 31/12/2010 sur la démarche Démarche gérée par l’organisme nom du service") }
+      it { is_expected.to eq("Dossier déposé le 31/12/2010 sur la démarche Démarche gérée par l'organisme nom du service") }
     end
 
     context 'when the dossier has not been submitted' do
@@ -410,7 +410,7 @@ describe Dossier, type: :model do
 
       subject { dossier.text_summary }
 
-      it { is_expected.to eq("Dossier en brouillon répondant à la démarche Démarche gérée par l’organisme nom du service") }
+      it { is_expected.to eq("Dossier en brouillon répondant à la démarche Démarche gérée par l'organisme nom du service") }
     end
   end
 
@@ -793,7 +793,7 @@ describe Dossier, type: :model do
       # - with tag correponding to a champ and an annotation privée
       let(:body) {
         [
-          { "type" => "mention", "attrs" => { "id" => "tdc#{procedure.types_de_champ_for_tags.find {  _1.libelle == "unspecified champ-in-body" }.stable_id}", "label" => "unspecified champ-in-body" } }
+          { "type" => "mention", "attrs" => { "id" => "tdc#{procedure.types_de_champ_for_tags.find { _1.libelle == "unspecified champ-in-body" }.stable_id}", "label" => "unspecified champ-in-body" } }
         ]
       }
       let(:attestation_template) { build(:attestation_template, :v2) }
@@ -1639,7 +1639,7 @@ describe Dossier, type: :model do
       end
 
       it 'should not have errors' do
-        expect(champ_siret.errors).to be_empty
+        expect(errors).to be_empty
       end
 
       context "and invalid SIRET" do
@@ -1691,7 +1691,7 @@ describe Dossier, type: :model do
             dossier.champs.first.update(value: 'true')
             expect(dossier.champs.second.rows).not_to be_empty
             expect(errors).not_to be_empty
-            expect(errors.first.full_message).to eq("Le champ « Value » doit être rempli")
+          expect(errors.first.full_message).to eq("Le champ « Value » doit être rempli")
           end
         end
       end
