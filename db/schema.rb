@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_09_19_130351) do
+ActiveRecord::Schema[7.0].define(version: 2024_09_19_151603) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -288,7 +288,6 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_19_130351) do
     t.index ["row_id"], name: "index_champs_on_row_id"
     t.index ["stable_id"], name: "index_champs_on_stable_id"
     t.index ["type"], name: "index_champs_on_type"
-    t.index ["type_de_champ_id"], name: "index_champs_on_type_de_champ_id"
   end
 
   create_table "closed_mails", id: :serial, force: :cascade do |t|
@@ -496,9 +495,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_19_130351) do
     t.boolean "for_tiers", default: false, null: false
     t.boolean "forced_groupe_instructeur", default: false, null: false
     t.bigint "groupe_instructeur_id"
-    t.datetime "groupe_instructeur_updated_at"
-    t.datetime "hidden_at"
-    t.datetime "hidden_by_administration_at"
+    t.datetime "groupe_instructeur_updated_at", precision: nil
+    t.datetime "hidden_by_administration_at", precision: nil
     t.datetime "hidden_by_expired_at"
     t.string "hidden_by_reason"
     t.datetime "hidden_by_user_at"
@@ -1163,7 +1161,6 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_19_130351) do
     t.datetime "processed_at"
     t.string "state"
     t.index ["dossier_id"], name: "index_traitements_on_dossier_id"
-    t.index ["process_expired"], name: "index_traitements_on_process_expired"
   end
 
   create_table "trusted_device_tokens", force: :cascade do |t|

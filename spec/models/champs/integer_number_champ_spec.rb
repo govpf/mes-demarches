@@ -8,7 +8,8 @@ describe Champs::IntegerNumberChamp do
   let(:champ) { Champs::IntegerNumberChamp.new(value:, dossier: build(:dossier)) }
   before do
     allow(champ).to receive(:visible?).and_return(true)
-    allow(champ).to receive(:type_de_champ).and_return(type_de_champ)
+    allow(champ).to receive(:in_dossier_revision?).and_return(true)
+    allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_integer_number))
   end
   subject { champ.validate(:champs_public_value) }
 
@@ -61,6 +62,8 @@ describe Champs::IntegerNumberChamp do
 
     context "when max is specified" do
       let(:max) { 10 }
+      before { champ.type_de_champ.max = max }
+
       context 'when the value is equal to max' do
         let(:value) { '10' }
 
@@ -79,6 +82,8 @@ describe Champs::IntegerNumberChamp do
 
     context "when min is specified" do
       let(:min) { 10 }
+      before { champ.type_de_champ.min = min }
+
       context 'when the value is equal to min' do
         let(:value) { '10' }
 
