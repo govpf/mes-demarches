@@ -387,7 +387,9 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
     context 'of news instructeurs' do
       let!(:user_email_verified) { create(:user, :with_email_verified) }
       let!(:instructeur_email_verified) { create(:instructeur, user: user_email_verified) }
-      let(:new_instructeur_emails) { ['new_i1@gmail.com', 'new_i2@gmail.com', instructeur_email_verified.email] }
+      let!(:instructeur_email_not_verified) { create(:instructeur, user: create(:user, { reset_password_sent_at: 1.day.ago })) }
+      let!(:instructeur_email_not_verified_but_received_invitation_long_time_ago) { create(:instructeur, user: create(:user, { reset_password_sent_at: 10.days.ago })) }
+      let(:new_instructeur_emails) { ['new_i1@gmail.com', 'new_i2@gmail.com', instructeur_email_verified.email, instructeur_email_not_verified.email, instructeur_email_not_verified_but_received_invitation_long_time_ago.email] }
 
       before do
         allow(GroupeInstructeurMailer).to receive(:notify_added_instructeurs)
@@ -397,6 +399,7 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
           .and_return(double(deliver_later: true))
         do_request
       end
+
       it 'validates changes and responses' do
         expect(gi_1_2.instructeurs.pluck(:email)).to include(*new_instructeur_emails)
         expect(flash.notice).to be_present
@@ -418,6 +421,18 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
         expect(InstructeurMailer).to have_received(:confirm_and_notify_added_instructeur).with(
           User.find_by(email: 'new_i2@gmail.com').instructeur,
+          gi_1_2,
+          admin.email
+        )
+
+        expect(InstructeurMailer).not_to have_received(:confirm_and_notify_added_instructeur).with(
+          instructeur_email_not_verified,
+          gi_1_2,
+          admin.email
+        )
+
+        expect(InstructeurMailer).to have_received(:confirm_and_notify_added_instructeur).with(
+          instructeur_email_not_verified_but_received_invitation_long_time_ago,
           gi_1_2,
           admin.email
         )
@@ -601,6 +616,8 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
         before do
           allow(GroupeInstructeurMailer).to receive(:notify_added_instructeurs)
             .and_return(double(deliver_later: true))
+          allow(InstructeurMailer).to receive(:confirm_and_notify_added_instructeur)
+            .and_return(double(deliver_later: true))
           subject
         end
 
@@ -608,7 +625,8 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
           expect(procedure.groupe_instructeurs.pluck(:label)).to match_array(["Auvergne-Rhône-Alpes", "Vendée", "défaut", "deuxième groupe"])
           expect(flash.notice).to be_present
           expect(flash.notice).to eq("La liste des instructeurs a été importée avec succès")
-          expect(GroupeInstructeurMailer).to have_received(:notify_added_instructeurs).twice
+          expect(GroupeInstructeurMailer).not_to have_received(:notify_added_instructeurs)
+          expect(InstructeurMailer).to have_received(:confirm_and_notify_added_instructeur).exactly(4).times
         end
       end
 
@@ -690,6 +708,8 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
         before do
           allow(GroupeInstructeurMailer).to receive(:notify_added_instructeurs)
             .and_return(double(deliver_later: true))
+          allow(InstructeurMailer).to receive(:confirm_and_notify_added_instructeur)
+            .and_return(double(deliver_later: true))
           subject
         end
 
@@ -698,11 +718,8 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
           expect(procedure_non_routee.instructeurs.pluck(:email)).to match_array(["kara@beta-gouv.fr", "philippe@mail.com", "lisa@gouv.fr"])
           expect(flash.alert).to be_present
           expect(flash.alert).to eq("Import terminé. Cependant les emails suivants ne sont pas pris en compte: eric")
-          expect(GroupeInstructeurMailer).to have_received(:notify_added_instructeurs).with(
-            procedure_non_routee.defaut_groupe_instructeur,
-            any_args,
-            admin.email
-          )
+          expect(InstructeurMailer).to have_received(:confirm_and_notify_added_instructeur).exactly(3).times
+          expect(GroupeInstructeurMailer).not_to have_received(:notify_added_instructeurs)
         end
       end
 
@@ -768,6 +785,54 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
         it 'verifies email validity in CSV imports and checks for mailer not being called' do
           expect(flash.alert).to include("Import terminé. Cependant les emails suivants ne sont pas pris en compte:")
           expect(GroupeInstructeurMailer).not_to have_received(:notify_added_instructeurs)
+        end
+      end
+
+      context 'when instructeurs accounts exist' do
+        let(:csv_file) { fixture_file_upload('spec/fixtures/files/two-instructeurs-file.csv', 'text/csv') }
+        let(:user_1) { create(:user, :with_email_verified, email: 'instructeur1@gouv.fr') }
+        let(:user_2) { create(:user, :with_email_verified, email: 'instructeur2@gouv.fr') }
+        let!(:instructeur_1) { create(:instructeur, user: user_1) }
+        let!(:instructeur_2) { create(:instructeur, user: user_2) }
+
+        before do
+          allow(GroupeInstructeurMailer).to receive(:notify_added_instructeurs)
+            .and_return(double(deliver_later: true))
+          allow(InstructeurMailer).to receive(:confirm_and_notify_added_instructeur)
+            .and_return(double(deliver_later: true))
+          subject
+        end
+
+        it 'sends notification without confirmation link' do
+          expect(procedure_non_routee.instructeurs.pluck(:email)).to match_array(["instructeur1@gouv.fr", "instructeur2@gouv.fr"])
+          expect(flash.notice).to be_present
+          expect(flash.notice).to eq("La liste des instructeurs a été importée avec succès")
+          expect(GroupeInstructeurMailer).to have_received(:notify_added_instructeurs)
+          expect(InstructeurMailer).not_to have_received(:confirm_and_notify_added_instructeur)
+        end
+      end
+
+      context 'when instructeurs accounts do not exist' do
+        let(:csv_file) { fixture_file_upload('spec/fixtures/files/two-instructeurs-file.csv', 'text/csv') }
+        let(:user_1) { create(:user, email: 'instructeur1@gouv.fr') }
+        let(:user_2) { create(:user, email: 'instructeur2@gouv.fr') }
+        let!(:instructeur_1) { create(:instructeur, user: user_1) }
+        let!(:instructeur_2) { create(:instructeur, user: user_2) }
+
+        before do
+          allow(GroupeInstructeurMailer).to receive(:notify_added_instructeurs)
+            .and_return(double(deliver_later: true))
+          allow(InstructeurMailer).to receive(:confirm_and_notify_added_instructeur)
+            .and_return(double(deliver_later: true))
+          subject
+        end
+
+        it 'sends notification without confirmation link' do
+          expect(procedure_non_routee.instructeurs.pluck(:email)).to match_array(["instructeur1@gouv.fr", "instructeur2@gouv.fr"])
+          expect(flash.notice).to be_present
+          expect(flash.notice).to eq("La liste des instructeurs a été importée avec succès")
+          expect(GroupeInstructeurMailer).not_to have_received(:notify_added_instructeurs)
+          expect(InstructeurMailer).to have_received(:confirm_and_notify_added_instructeur).twice
         end
       end
     end
@@ -1033,43 +1098,6 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
     it do
       expect(response).to redirect_to(admin_procedure_groupe_instructeur_path(procedure, gi_1_1))
       expect(gi_1_1.signature).to be_attached
-    end
-  end
-
-  describe '#update_hide_instructeurs_email' do
-    let(:administrateur) { administrateurs(:default_admin) }
-    let(:procedure) { create(:procedure, administrateurs: [administrateur]) }
-
-    before do
-      sign_in(administrateur.user)
-    end
-
-    context 'when activating hide_instructeurs_email' do
-      it 'updates the procedure and redirects with correct notice' do
-        patch :update_hide_instructeurs_email, params: {
-          procedure_id: procedure.id,
-          procedure: { hide_instructeurs_email: "1" }
-        }
-
-        expect(procedure.reload.hide_instructeurs_email).to be true
-        expect(response).to redirect_to(options_admin_procedure_groupe_instructeurs_path(procedure))
-        expect(flash[:notice]).to eq("L'anonymisation des instructeurs est activée.")
-      end
-    end
-
-    context 'when deactivating hide_instructeurs_email' do
-      let(:procedure) { create(:procedure, hide_instructeurs_email: true, administrateurs: [administrateur]) }
-
-      it 'updates the procedure and redirects with correct notice' do
-        patch :update_hide_instructeurs_email, params: {
-          procedure_id: procedure.id,
-          procedure: { hide_instructeurs_email: "0" }
-        }
-
-        expect(procedure.reload.hide_instructeurs_email).to be false
-        expect(response).to redirect_to(options_admin_procedure_groupe_instructeurs_path(procedure))
-        expect(flash[:notice]).to eq("L'anonymisation des instructeurs est désactivée.")
-      end
     end
   end
 end

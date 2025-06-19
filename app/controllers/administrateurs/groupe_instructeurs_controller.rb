@@ -5,7 +5,6 @@ module Administrateurs
     include ActiveSupport::NumberHelper
     include EmailSanitizableConcern
     include Logic
-    include UninterlacePngConcern
     include GroupeInstructeursSignatureConcern
 
     before_action :ensure_not_super_admin!, only: [:add_instructeur]
@@ -256,9 +255,11 @@ module Administrateurs
           "Les instructeurs ont bien été affectés à la démarche"
         end
 
-        known_instructeurs, new_instructeurs = instructeurs.partition { |instructeur| instructeur.user.email_verified_at }
+        known_instructeurs, not_verified_instructeurs = instructeurs.partition { |instructeur| instructeur.user.email_verified_at }
 
-        new_instructeurs.each { InstructeurMailer.confirm_and_notify_added_instructeur(_1, groupe_instructeur, current_administrateur.email).deliver_later }
+        not_verified_instructeurs.filter(&:should_receive_email_activation?).each do
+          InstructeurMailer.confirm_and_notify_added_instructeur(_1, groupe_instructeur, current_administrateur.email).deliver_later
+        end
 
         if known_instructeurs.present?
           GroupeInstructeurMailer
@@ -324,13 +325,6 @@ module Administrateurs
       notice: "L’autogestion des instructeurs est #{procedure.instructeurs_self_management_enabled? ? "activée" : "désactivée"}."
     end
 
-    def update_hide_instructeurs_email
-      procedure.update!(hide_instructeurs_email_params)
-
-      redirect_to options_admin_procedure_groupe_instructeurs_path(procedure),
-      notice: "L'anonymisation des instructeurs est #{procedure.hide_instructeurs_email? ? "activée" : "désactivée"}."
-    end
-
     def import
       if procedure.publiee_or_close?
         if !CSV_ACCEPTED_CONTENT_TYPES.include?(csv_file.content_type) && !CSV_ACCEPTED_CONTENT_TYPES.include?(marcel_content_type)
@@ -352,9 +346,7 @@ module Administrateurs
 
             added_instructeurs_by_group.each do |groupe, added_instructeurs|
               if added_instructeurs.present?
-                GroupeInstructeurMailer
-                  .notify_added_instructeurs(groupe, added_instructeurs, current_administrateur.email)
-                  .deliver_later
+                notify_instructeurs(groupe, added_instructeurs)
               end
               flash_message_for_import(invalid_emails)
             end
@@ -364,9 +356,7 @@ module Administrateurs
 
             added_instructeurs, invalid_emails = InstructeursImportService.import_instructeurs(procedure, instructors_emails)
             if added_instructeurs.present?
-              GroupeInstructeurMailer
-                .notify_added_instructeurs(groupe_instructeur, added_instructeurs, current_administrateur.email)
-                .deliver_later
+              notify_instructeurs(groupe_instructeur, added_instructeurs)
             end
             flash_message_for_import(invalid_emails)
           else
@@ -512,6 +502,18 @@ module Administrateurs
           .groupe_instructeurs
           .find_or_create_by(label: label)
           .update(instructeurs: [current_administrateur.instructeur], routing_rule:)
+      end
+    end
+
+    def notify_instructeurs(groupe, added_instructeurs)
+      known_instructeurs, new_instructeurs = added_instructeurs.partition { |instructeur| instructeur.user.email_verified_at }
+
+      new_instructeurs.each { InstructeurMailer.confirm_and_notify_added_instructeur(_1, groupe, current_administrateur.email).deliver_later }
+
+      if known_instructeurs.present?
+        GroupeInstructeurMailer
+          .notify_added_instructeurs(groupe, known_instructeurs, current_administrateur.email)
+          .deliver_later
       end
     end
   end

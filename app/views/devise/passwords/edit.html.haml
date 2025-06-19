@@ -12,23 +12,21 @@
         = f.hidden_field :reset_password_token
 
 
-        %fieldset.fr-mb-0.fr-fieldset{ aria: { labelledby: 'edit-password-legend' } }
-          %legend.fr-fieldset__legend#edit-password-legend
+        %fieldset.fr-mb-0.fr-fieldset
+          %legend.fr-fieldset__legend
             %h1.fr-h2= I18n.t('views.users.passwords.edit.subtitle')
 
           .fr-fieldset__element
-            - data_opts = { controller: populated_resource.validate_password_complexity? ? 'turbo-input' : false, turbo_input_url_value: show_password_complexity_path(populated_resource.min_password_complexity) }
+            %p.fr-text--sm= t('utils.asterisk_html')
+
+          .fr-fieldset__element
             = render Dsfr::InputComponent.new(form: f, attribute: :password, input_type: :password_field,
-              opts: { autofocus: 'true', autocomplete: 'new-password', minlength: PASSWORD_MIN_LENGTH, data: data_opts }) do |c|
-              - c.with_describedby do
-                - if populated_resource.validate_password_complexity?
-                  %div{ id: c.describedby_id }
-                    #password_complexity
-                      = render PasswordComplexityComponent.new
-                - else
-                  = render partial: "devise/password_rules", locals: { id: c.describedby_id }
+              opts: { autofocus: 'true', autocomplete: 'new-password', data: { controller: 'turbo-input', turbo_input_url_value: show_password_complexity_path }, aria: {describedby: 'password_hint'}})
+
+            #password_complexity
+              = render PasswordComplexityComponent.new
 
           .fr-fieldset__element
             = render Dsfr::InputComponent.new(form: f, attribute: :password_confirmation, input_type: :password_field, opts: { autocomplete: 'new-password' })
 
-        = f.submit t('views.users.passwords.edit.submit'), id: 'submit-password', class: "fr-btn fr-btn--lg fr-mt-2w", data: { disable_with: t('views.users.passwords.edit.submit_loading') }
+        = f.submit t('views.users.passwords.edit.submit'), id: 'submit-password', disabled: :disabled, class: "fr-btn fr-btn--lg fr-mt-2w", data: { disable_with: t('views.users.passwords.edit.submit_loading') }

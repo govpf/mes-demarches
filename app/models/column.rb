@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Column
+  TYPE_DE_CHAMP_TABLE = 'type_de_champ'
+
   attr_reader :table, :column, :label, :classname, :type, :scope, :value_column, :filterable, :displayable
 
   def initialize(table:, column:, label: nil, type: :text, value_column: :value, filterable: true, displayable: true, classname: '', scope: '')
@@ -17,11 +19,11 @@ class Column
   end
 
   def id
-    "#{table}/#{column}"
+    "#{table}__#{column}"
   end
 
   def self.make_id(table, column)
-    "#{table}/#{column}"
+    "#{table}__#{column}"
   end
 
   def ==(other)

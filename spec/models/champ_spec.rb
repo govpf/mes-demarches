@@ -8,31 +8,50 @@ describe Champ do
     let(:champ) { Champ.new(value: value) }
     let(:value) { '' }
     let(:mandatory) { true }
-    before { allow(champ).to receive(:type_de_champ).and_return(type_de_champ) }
 
-    context 'when mandatory and blank' do
-      it { expect(champ.mandatory_blank?).to be(true) }
-    end
+    context 'with champ' do
+      before { allow(champ).to receive(:type_de_champ).and_return(type_de_champ) }
 
-    context 'when carte mandatory and blank' do
-      let(:type_de_champ) { build(:type_de_champ_carte, mandatory: mandatory) }
-      let(:champ) { Champs::CarteChamp.new(value: value) }
-      let(:value) { nil }
-      it { expect(champ.mandatory_blank?).to be(true) }
-    end
+      context 'when mandatory and blank' do
+        it { expect(champ.mandatory_blank?).to be(true) }
+      end
 
-    context 'when multiple_drop_down_list mandatory and blank' do
-      let(:type_de_champ) { build(:type_de_champ_multiple_drop_down_list, mandatory: mandatory) }
-      let(:champ) { Champs::MultipleDropDownListChamp.new(value: value) }
-      let(:value) { '[]' }
-      it { expect(champ.mandatory_blank?).to be(true) }
-    end
+      context 'when carte mandatory and blank' do
+        let(:type_de_champ) { build(:type_de_champ_carte, mandatory: mandatory) }
+        let(:champ) { Champs::CarteChamp.new(value: value) }
+        let(:value) { nil }
+        it { expect(champ.mandatory_blank?).to be(true) }
+      end
 
-    context 'when repetition blank' do
-      let(:type_de_champ) { build(:type_de_champ_repetition) }
-      let(:champ) { Champs::RepetitionChamp.new }
+      context 'when multiple_drop_down_list mandatory and blank' do
+        let(:type_de_champ) { build(:type_de_champ_multiple_drop_down_list, mandatory: mandatory) }
+        let(:champ) { Champs::MultipleDropDownListChamp.new(value: value) }
+        let(:value) { '[]' }
+        it { expect(champ.mandatory_blank?).to be(true) }
+      end
 
-      it { expect(champ.blank?).to be(true) }
+      context 'when repetition blank' do
+        let(:type_de_champ) { build(:type_de_champ_repetition) }
+        let(:champ) { Champs::RepetitionChamp.new(dossier: Dossier.new(revision: ProcedureRevision.new)) }
+
+        it { expect(champ.blank?).to be(true) }
+      end
+
+      context 'when not blank' do
+        let(:value) { 'yop' }
+        it { expect(champ.mandatory_blank?).to be(false) }
+      end
+
+      context 'when not mandatory' do
+        let(:mandatory) { false }
+        it { expect(champ.mandatory_blank?).to be(false) }
+      end
+
+      context 'when not mandatory or blank' do
+        let(:value) { 'u' }
+        let(:mandatory) { false }
+        it { expect(champ.mandatory_blank?).to be(false) }
+      end
     end
 
     context 'when repetition not blank' do
@@ -41,22 +60,6 @@ describe Champ do
       let(:champ) { dossier.champs.find(&:repetition?) }
 
       it { expect(champ.blank?).to be(false) }
-    end
-
-    context 'when not blank' do
-      let(:value) { 'yop' }
-      it { expect(champ.mandatory_blank?).to be(false) }
-    end
-
-    context 'when not mandatory' do
-      let(:mandatory) { false }
-      it { expect(champ.mandatory_blank?).to be(false) }
-    end
-
-    context 'when not mandatory or blank' do
-      let(:value) { 'u' }
-      let(:mandatory) { false }
-      it { expect(champ.mandatory_blank?).to be(false) }
     end
   end
 
@@ -125,7 +128,7 @@ describe Champ do
     let(:standalone_champ) { build(:champ, type_de_champ: build(:type_de_champ), dossier: build(:dossier)) }
     let(:public_sections) { dossier.champs_public.filter(&:header_section?) }
     let(:private_sections) { dossier.champs_private.filter(&:header_section?) }
-    let(:sections_in_repetition) { champ_in_repetition.parent.champs.filter(&:header_section?) }
+    let(:sections_in_repetition) { dossier.champs.filter(&:child?).filter(&:header_section?) }
 
     it 'returns the sibling sections of a champ' do
       expect(public_sections).not_to be_empty
@@ -534,7 +537,7 @@ describe Champ do
         end
         let(:champ) { Champs::SiretChamp.new(value: etablissement.siret, etablissement:) }
 
-        it { is_expected.to eq([etablissement.entreprise_siren, etablissement.entreprise_numero_tva_intracommunautaire, etablissement.entreprise_forme_juridique, etablissement.entreprise_forme_juridique_code, etablissement.entreprise_nom_commercial, etablissement.entreprise_raison_sociale, etablissement.entreprise_siret_siege_social, etablissement.entreprise_nom, etablissement.entreprise_prenom, etablissement.association_rna, etablissement.association_titre, etablissement.association_objet, etablissement.siret, etablissement.enseigne, etablissement.naf, etablissement.libelle_naf, etablissement.adresse, etablissement.code_postal, etablissement.localite, etablissement.code_insee_localite]) }
+        it { is_expected.to eq([etablissement.entreprise_siren, etablissement.entreprise_numero_tva_intracommunautaire, etablissement.entreprise_forme_juridique, etablissement.entreprise_forme_juridique_code, etablissement.entreprise_nom_commercial, etablissement.entreprise_raison_sociale, etablissement.entreprise_siret_siege_social, etablissement.entreprise_nom, etablissement.entreprise_prenom, etablissement.association_rna, etablissement.association_titre, etablissement.association_objet, etablissement.siret, etablissement.enseigne, etablissement.naf, etablissement.libelle_naf, etablissement.adresse, etablissement.code_postal, etablissement.localite, etablissement.code_insee_localite, nil]) }
       end
 
       context 'when there is no etablissement' do

@@ -6,6 +6,8 @@ class Champ < ApplicationRecord
 
   self.ignored_columns += [:type_de_champ_id]
 
+  attr_readonly :stable_id
+
   belongs_to :dossier, inverse_of: false, touch: true, optional: false
   belongs_to :parent, class_name: 'Champ', optional: true
   has_many_attached :piece_justificative_file
@@ -28,9 +30,8 @@ class Champ < ApplicationRecord
   delegate :libelle,
     :type_champ,
     :description,
-    :drop_down_list_options,
+    :drop_down_options,
     :drop_down_other?,
-    :drop_down_list_options?,
     :drop_down_list_enabled_non_empty_options,
     :drop_down_secondary_libelle,
     :drop_down_secondary_description,
@@ -102,7 +103,7 @@ class Champ < ApplicationRecord
   end
 
   def child?
-    parent_id.present?
+    row_id.present?
   end
 
   # used for the `required` html attribute
@@ -269,7 +270,7 @@ class Champ < ApplicationRecord
   end
 
   def html_id
-    "champ-#{public_id}"
+    type_de_champ.html_id(row_id)
   end
 
   def needs_dossier_id?

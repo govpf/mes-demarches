@@ -29,6 +29,7 @@ class ProcedureDashboard < Administrate::BaseDashboard
     updated_at: Field::DateTime,
     for_individual: Field::Boolean,
     auto_archive_on: Field::DateTime,
+    api_entreprise_token: JwtField,
     published_at: Field::DateTime,
     unpublished_at: Field::DateTime,
     hidden_at: Field::DateTime,
@@ -51,7 +52,9 @@ class ProcedureDashboard < Administrate::BaseDashboard
     for_tiers_enabled: Field::Boolean,
     replaced_by_procedure_id: Field::String,
     tags: Field::Text,
-    template: Field::Boolean
+    template: Field::Boolean,
+    opendata: Field::Boolean,
+    hide_instructeurs_email: Field::Boolean
   }.freeze
 
   # COLLECTION_ATTRIBUTES
@@ -99,6 +102,7 @@ class ProcedureDashboard < Administrate::BaseDashboard
     :published_types_de_champ_public,
     :published_types_de_champ_private,
     :for_individual,
+    :api_entreprise_token,
     :auto_archive_on,
     :passer_en_construction_email_template,
     :passer_en_instruction_email_template,
@@ -113,6 +117,8 @@ class ProcedureDashboard < Administrate::BaseDashboard
     :estimated_duration_visible,
     :piece_justificative_multiple,
     :for_tiers_enabled,
+    :hide_instructeurs_email,
+    :opendata,
     :replaced_by_procedure_id
   ].freeze
 
@@ -126,6 +132,7 @@ class ProcedureDashboard < Administrate::BaseDashboard
     :estimated_duration_visible,
     :piece_justificative_multiple,
     :for_tiers_enabled,
+    :hide_instructeurs_email,
     :replaced_by_procedure_id
   ].freeze
 

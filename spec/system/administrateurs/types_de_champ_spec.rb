@@ -54,7 +54,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
 
     # Champs can be deleted
     within '.type-de-champ:nth-child(3)' do
-      page.accept_alert do
+      accept_alert do
         click_on 'Supprimer'
       end
     end
@@ -79,7 +79,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
 
     page.refresh
 
-    page.accept_alert do
+    accept_alert do
       click_on 'Supprimer'
     end
     expect(page).to have_content('Formulaire enregistré')
@@ -157,9 +157,9 @@ describe 'As an administrateur I can edit types de champ', js: true do
 
     select('Carte de Polynésie', from: 'Type de champ')
     fill_in 'Libellé du champ', with: 'Libellé de champ Te Fenua', fill_options: { clear: :backspace }
-    choose 'Parcelles du cadastre'
+    choose 'Marqueur'
 
-    wait_until { procedure.active_revision.types_de_champ_public.first.options["te_fenua_layer"] == 'parcelles' }
+    wait_until { procedure.active_revision.types_de_champ_public.first.te_fenua_layer == 'marker' }
     expect(page).to have_content('Formulaire enregistré')
 
     page.refresh
@@ -178,7 +178,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
     fill_in 'Options de la liste', with: 'Un menu', fill_options: { clear: :backspace }
     check "Proposer une option « autre » avec un texte libre"
 
-    wait_until { procedure.active_revision.types_de_champ_public.first.drop_down_list_options == ['', 'Un menu'] }
+    wait_until { procedure.active_revision.types_de_champ_public.first.drop_down_options == ['Un menu'] }
     wait_until { procedure.active_revision.types_de_champ_public.first.drop_down_other == "1" }
     expect(page).to have_content('Formulaire enregistré')
 
@@ -241,7 +241,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
       expect(page).to have_content('Durée de remplissage estimée : 2 min')
 
       # It updates the estimate when removing the champ
-      page.accept_alert do
+      accept_alert do
         click_on 'Supprimer'
       end
       expect(page).not_to have_content('Durée de remplissage estimée')
@@ -281,7 +281,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
       select('Titre de niveau 2', from: dom_id(second_header, :header_section_level))
 
       within(".types-de-champ-block li:first-child") do
-        page.accept_alert do
+        accept_alert do
           click_on 'Supprimer'
         end
       end

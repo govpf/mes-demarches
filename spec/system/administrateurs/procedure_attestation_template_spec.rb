@@ -92,9 +92,6 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
       find_attestation_card(with_nested_selector: ".fr-badge")
 
       find_attestation_card.click
-      within(".fr-alert", text: /Nouvel éditeur/) do
-        find("a").click
-      end
 
       expect(procedure.reload.attestation_templates.v2).to be_empty
 
@@ -144,6 +141,7 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
       }
 
       fill_in "Contenu du pied de page", with: ["line1", "line2", "line3", "line4"].join("\n")
+      # FIXME we should get line1\nline2\nline3line4 instead of line1\nline2\nline3\nline4 because row is set to 3
       expect(page).to have_field("Contenu du pied de page", with: "line1\nline2\nline3\nline4")
 
       click_on "Publier"

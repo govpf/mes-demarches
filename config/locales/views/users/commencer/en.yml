@@ -2,7 +2,6 @@ en:
   commencer:
     show:
       start_procedure: Start the procedure
-      social_title: "Connect safely and quickly using"
       existing_dossiers: You already have files for this procedure
       show_dossiers: View my current files
       prefilled_draft: "You have a prefilled file"

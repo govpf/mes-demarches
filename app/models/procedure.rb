@@ -12,13 +12,6 @@ class Procedure < ApplicationRecord
 
   include Discard::Model
   self.discard_column = :hidden_at
-  self.ignored_columns += [
-    :direction,
-    :durees_conservation_required,
-    :cerfa_flag,
-    :test_started_at,
-    :lien_demarche
-  ]
 
   default_scope -> { kept }
 
@@ -74,6 +67,22 @@ class Procedure < ApplicationRecord
     brouillon? ? draft_revision : published_revision
   end
 
+  def all_revisions_types_de_champ(parent: nil)
+    if brouillon?
+      if parent.nil?
+        TypeDeChamp.fillable
+          .joins(:revision_types_de_champ)
+          .where(revision_types_de_champ: { revision_id: draft_revision_id, parent_id: nil })
+          .order(:private, :position)
+      else
+        draft_revision.children_of(parent)
+      end
+    else
+      cache_key = ['all_revisions_types_de_champ', published_revision, parent].compact
+      Rails.cache.fetch(cache_key, expires_in: 1.month) { published_revisions_types_de_champ(parent) }
+    end
+  end
+
   def types_de_champ_for_procedure_presentation(parent = nil)
     if brouillon?
       if parent.nil?
@@ -122,6 +131,10 @@ class Procedure < ApplicationRecord
           end
         end
     end
+  end
+
+  def types_de_champ_for_procedure_export
+    all_revisions_types_de_champ.not_repetition
   end
 
   def types_de_champ_for_tags
@@ -176,9 +189,7 @@ class Procedure < ApplicationRecord
 
   belongs_to :defaut_groupe_instructeur, class_name: 'GroupeInstructeur', inverse_of: false, optional: true
 
-  has_one_attached :logo do |attachable|
-    attachable.variant :email, resize_to_limit: [450, 450]
-  end
+  has_one_attached :logo
   has_one_attached :notice
   has_one_attached :deliberation
 
@@ -237,20 +248,6 @@ class Procedure < ApplicationRecord
 
   scope :for_api_v2, -> {
     includes(:draft_revision, :published_revision, administrateurs: :user)
-  }
-
-  scope :for_download, -> {
-    includes(
-      :groupe_instructeurs,
-      dossiers: {
-        champs_public: [
-          piece_justificative_file_attachments: :blob,
-          champs: [
-            piece_justificative_file_attachments: :blob
-          ]
-        ]
-      }
-    )
   }
 
   validates :libelle, presence: true, allow_blank: false, allow_nil: false
@@ -709,7 +706,7 @@ class Procedure < ApplicationRecord
       result << :service
     end
 
-    if service_test?
+    if service_siret_test?
       result << :service
     end
 
@@ -726,7 +723,8 @@ class Procedure < ApplicationRecord
 
   def logo_url
     if logo.attached?
-      Rails.application.routes.url_helpers.url_for(logo)
+      logo_variant = logo.variant(resize_to_limit: [400, 400])
+      logo_variant.key.present? ? logo_variant.processed.url : Rails.application.routes.url_helpers.url_for(logo)
     else
       ActionController::Base.helpers.image_url(PROCEDURE_DEFAULT_LOGO_SRC)
     end
@@ -744,7 +742,7 @@ class Procedure < ApplicationRecord
     end
   end
 
-  def service_test?
+  def service_siret_test?
     service&.siret == Service::SIRET_TEST
   end
 
@@ -1090,10 +1088,12 @@ class Procedure < ApplicationRecord
 
   def dossier_for_preview(user)
     # Try to use a preview or a dossier filled by current user
-    dossiers.where(for_procedure_preview: true).or(dossiers.not_brouillon)
+    dossiers.where(for_procedure_preview: true).or(dossiers.visible_by_administration)
       .order(Arel.sql("CASE WHEN user_id = #{user.id} THEN 1 ELSE 0 END DESC,
                        CASE WHEN state = 'accepte' THEN 1 ELSE 0 END DESC,
-                       CASE WHEN for_procedure_preview = True THEN 1 ELSE 0 END DESC")) \
+                       CASE WHEN state = 'brouillon' THEN 0 ELSE 1 END DESC,
+                       CASE WHEN for_procedure_preview = True THEN 1 ELSE 0 END DESC,
+                       id DESC")) \
       .first
   end
 
@@ -1106,6 +1106,45 @@ class Procedure < ApplicationRecord
   end
 
   private
+
+  def published_revisions_types_de_champ(parent = nil)
+    # all published revisions
+    revision_ids = revisions.ids - [draft_revision_id]
+    # fetch all parent types de champ
+    parent_ids = if parent.present?
+      ProcedureRevisionTypeDeChamp
+        .where(revision_id: revision_ids)
+        .joins(:type_de_champ)
+        .where(type_de_champ: { stable_id: parent.stable_id })
+        .ids
+    end
+
+    # fetch all type_de_champ.stable_id for all the revisions expect draft
+    # and for each stable_id take the bigger (more recent) type_de_champ.id
+    recent_ids = TypeDeChamp
+      .fillable
+      .joins(:revision_types_de_champ)
+      .where(revision_types_de_champ: { revision_id: revision_ids, parent_id: parent_ids })
+      .group(:stable_id).select('MAX(types_de_champ.id)')
+
+    # fetch the more recent procedure_revision_types_de_champ
+    # which includes recents_ids
+    recents_prtdc = ProcedureRevisionTypeDeChamp
+      .where(type_de_champ_id: recent_ids)
+      .where.not(revision_id: draft_revision_id)
+      .group(:type_de_champ_id)
+      .select('MAX(id)')
+
+    TypeDeChamp
+      .joins(:revision_types_de_champ)
+      .where(revision_types_de_champ: { id: recents_prtdc }).then do |relation|
+        if feature_enabled?(:export_order_by_revision) # Fonds Verts, en attente d'exports personnalisables
+          relation.order(:private, 'revision_types_de_champ.revision_id': :desc, position: :asc)
+        else
+          relation.order(:private, :position, 'revision_types_de_champ.revision_id': :desc)
+        end
+      end
+  end
 
   def validates_associated_draft_revision_with_context
     return if draft_revision.blank?

@@ -13,6 +13,7 @@ describe Champs::DecimalNumberChamp do
     before do
       allow(champ).to receive(:type_de_champ).and_return(type_de_champ)
       allow(champ).to receive(:visible?).and_return(true)
+      allow(champ).to receive(:in_dossier_revision?).and_return(true)
       champ.run_callbacks(:validation)
     end
     subject { champ.validate(:champs_public_value) }

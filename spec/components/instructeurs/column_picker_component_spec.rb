@@ -15,15 +15,12 @@ describe Instructeurs::ColumnPickerComponent, type: :component do
     subject { component.displayable_columns_for_select }
 
     before do
-      procedure_presentation.displayed_fields.first['virtual'] = true
-      procedure_presentation.save
-
       allow(procedure).to receive(:columns).and_return([
         default_user_email,
         excluded_displayable_field
       ])
     end
 
-    it { is_expected.to eq([[["email", "user/email"]], ["user/email"]]) }
+    it { is_expected.to eq([[["email", Column.make_id("user", "email")]], [Column.make_id("user", "email")]]) }
   end
 end

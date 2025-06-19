@@ -50,7 +50,7 @@ module MailTemplateConcern
   end
 
   def dossier_tags
-    base_tags = TagsSubstitutionConcern::DOSSIER_TAGS + TagsSubstitutionConcern::DOSSIER_TAGS_FOR_MAIL
+    base_tags = super + TagsSubstitutionConcern::DOSSIER_TAGS_FOR_MAIL
 
     if procedure_has_lexpol_field?
       base_tags

@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class TypeDeChamp < ApplicationRecord
-  self.ignored_columns += [:migrated_parent, :revision_id, :parent_id, :order_place]
-
   FILE_MAX_SIZE = 200.megabytes
   FEATURE_FLAGS = {
     visa: :visa,
@@ -135,7 +133,7 @@ class TypeDeChamp < ApplicationRecord
     expression_reguliere: 'expression_reguliere'
   }.merge(INSTANCE_TYPE_CHAMPS)
 
-  INSTANCE_OPTIONS = [:parcelles, :batiments, :zones_manuelles, :min, :max, :level, :accredited_users]
+  INSTANCE_OPTIONS = [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer, :min, :max, :level, :accredited_users, :lexpol_modele, :lexpol_mapping]
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
 
   SIMPLE_ROUTABLE_TYPES = [
@@ -169,8 +167,6 @@ class TypeDeChamp < ApplicationRecord
                  :expression_reguliere_error_message,
                  :collapsible_explanation_enabled,
                  :collapsible_explanation_text,
-                 :lexpol_modele,
-                 :lexpol_mapping,
                  :header_section_level
 
   has_many :revision_types_de_champ, -> { revision_ordered }, class_name: 'ProcedureRevisionTypeDeChamp', dependent: :destroy, inverse_of: :type_de_champ
@@ -179,7 +175,7 @@ class TypeDeChamp < ApplicationRecord
   has_one :revision, through: :revision_type_de_champ
   has_one :procedure, through: :revision
 
-  delegate :estimated_fill_duration, :estimated_read_duration, :tags_for_template, :libelles_for_export, :libelle_for_export, :primary_options, :secondary_options, to: :dynamic_type
+  delegate :estimated_fill_duration, :estimated_read_duration, :tags_for_template, :libelles_for_export, :libelle_for_export, :primary_options, :secondary_options, :columns, to: :dynamic_type
   delegate :used_by_routing_rules?, to: :revision_type_de_champ
 
   class WithIndifferentAccess
@@ -511,6 +507,14 @@ class TypeDeChamp < ApplicationRecord
     !private?
   end
 
+  def in_revision?(revision)
+    revision.types_de_champ.any? { _1.stable_id == stable_id }
+  end
+
+  def child?(revision)
+    revision.revision_types_de_champ.find { _1.stable_id == stable_id }&.child?
+  end
+
   def filename_for_attachement(attachment_sym)
     attachment = send(attachment_sym)
     if attachment.attached?
@@ -525,16 +529,42 @@ class TypeDeChamp < ApplicationRecord
     end
   end
 
+  def drop_down_list_options?
+    drop_down_list_options.any?
+  end
+
+  def drop_down_list_options
+    drop_down_options.presence || []
+  end
+
+  def drop_down_list_disabled_options
+    drop_down_list_options.filter { |v| (v =~ /^--.*--$/).present? }
+  end
+
+  def drop_down_options
+    Array.wrap(super)
+  end
+
+  def drop_down_list_enabled_non_empty_options(other: false)
+    list_options = drop_down_options.reject(&:empty?)
+
+    if other && drop_down_other?
+      list_options + [[I18n.t('shared.champs.drop_down_list.other'), Champs::DropDownListChamp::OTHER]]
+    else
+      list_options
+    end
+  end
+
   def drop_down_list_value
-    if drop_down_list_options.present?
-      drop_down_list_options.reject(&:empty?).join("\r\n")
+    if drop_down_options.present?
+      drop_down_options.reject(&:empty?).join("\r\n")
     else
       ''
     end
   end
 
   def drop_down_list_value=(value)
-    self.drop_down_options = parse_drop_down_list_value(value)
+    self.drop_down_options = value.to_s.lines.map(&:strip).reject(&:empty?)
   end
 
   def header_section_level_value
@@ -615,28 +645,6 @@ class TypeDeChamp < ApplicationRecord
     end
   end
 
-  def drop_down_list_options?
-    drop_down_list_options.any?
-  end
-
-  def drop_down_list_options
-    drop_down_options.presence || []
-  end
-
-  def drop_down_list_disabled_options
-    drop_down_list_options.filter { |v| (v =~ /^--.*--$/).present? }
-  end
-
-  def drop_down_list_enabled_non_empty_options(other: false)
-    list_options = (drop_down_list_options - drop_down_list_disabled_options).reject(&:empty?)
-
-    if other && drop_down_other?
-      list_options + [[I18n.t('shared.champs.drop_down_list.other'), Champs::DropDownListChamp::OTHER]]
-    else
-      list_options
-    end
-  end
-
   def layer_enabled?(layer)
     options && options[layer] && options[layer] != '0'
   end
@@ -656,7 +664,7 @@ class TypeDeChamp < ApplicationRecord
   end
 
   def accredited_user_string=(value)
-    self.accredited_users = parse_accredited_user_string(value)
+    self.accredited_users = value.blank? ? [] : value.split(/\s*[\r\n]+\s*/).map(&:downcase)
   end
 
   def accredited_user_list?
@@ -851,18 +859,11 @@ class TypeDeChamp < ApplicationRecord
     end
   end
 
+  def html_id(row_id = nil)
+    "champ-#{public_id(row_id)}"
+  end
+
   private
-
-  DEFAULT_EMPTY = ['']
-  def parse_drop_down_list_value(value)
-    value = value ? value.split("\r\n").map(&:strip).join("\r\n") : ''
-    result = value.split(/[\r\n]|[\r]|[\n]|[\n\r]/).reject(&:empty?)
-    result.blank? ? [] : DEFAULT_EMPTY + result
-  end
-
-  def parse_accredited_user_string(value)
-    value.blank? ? [] : value.split(/\s*[\r\n]+\s*/).map(&:downcase)
-  end
 
   def populate_stable_id
     if !stable_id

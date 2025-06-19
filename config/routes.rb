@@ -171,7 +171,7 @@ Rails.application.routes.draw do
     get 'logout' => 'users/sessions#logout'
   end
 
-  get 'password_complexity' => 'password_complexity#show', as: 'show_password_complexity'
+  get 'password_complexity/(:complexity)' => 'password_complexity#show', as: 'show_password_complexity'
   get 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
 
   resources :targeted_user_links, only: [:show]
@@ -214,6 +214,9 @@ Rails.application.routes.draw do
     get '' => 'agent#index'
     get 'login' => 'agent#login'
     get 'callback' => 'agent#callback'
+    get 'explanation_2fa' => 'agent#explanation_2fa'
+    get 'relogin_after_2fa_config' => 'agent#relogin_after_2fa_config'
+    get 'logout_from_mcp' => 'agent#logout_from_mcp'
   end
 
   namespace :champs do
@@ -412,7 +415,6 @@ Rails.application.routes.draw do
       end
 
       collection do
-        get 'transferer', to: 'dossiers#transferer_all'
         resources :transfers, only: [:create, :update, :destroy]
       end
     end
@@ -477,7 +479,7 @@ Rails.application.routes.draw do
     resources :procedures, only: [] do
       resources :export_templates, only: [:new, :create, :edit, :update, :destroy] do
         collection do
-          get 'preview'
+          put 'preview'
         end
       end
     end
@@ -697,7 +699,6 @@ Rails.application.routes.draw do
           post 'create_simple_routing'
           delete 'destroy_all_groups_but_defaut'
           patch 'update_instructeurs_self_management_enabled'
-          patch 'update_hide_instructeurs_email'
           post 'import'
           get 'export_groupe_instructeurs'
         end

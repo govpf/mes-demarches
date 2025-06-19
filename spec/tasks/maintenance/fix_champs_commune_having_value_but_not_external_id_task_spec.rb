@@ -8,7 +8,9 @@ module Maintenance
       let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :communes }]) }
       let(:dossier) { create(:dossier, state, :with_populated_champs, procedure:) }
       let(:champ) { dossier.champs.first }
-      subject(:process) { described_class.process(champ) }
+      subject(:process) do
+        described_class.process(champ)
+      end
 
       context 'when search find one result', vcr: { cassette_name: 'fix-champs-commune-with-one-results' } do
         let(:state) { [:en_instruction, :en_construction].sample }
@@ -28,7 +30,7 @@ module Maintenance
         end
 
         context 'en_instruction (go back to en_construction!), send comment' do
-          let(:state) { [:en_instruction, :en_construction].sample }
+          let(:state) { :en_construction }
 
           it 'flags as pending correction' do
             expect { subject }.to change { champ.reload.value }.from('Marseille').to(nil)

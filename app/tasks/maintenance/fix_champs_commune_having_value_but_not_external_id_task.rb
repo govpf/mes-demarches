@@ -7,10 +7,12 @@ module Maintenance
     DEFAULT_INSTRUCTEUR_EMAIL = ENV.fetch('DEFAULT_INSTRUCTEUR_EMAIL') { CONTACT_EMAIL }
 
     def collection
-      Champs::CommuneChamp.where.not(value: nil)
+      Champs::CommuneChamp.select(:id, :value, :external_id)
     end
 
     def process(champ)
+      return if !(champ.value.present? && champ.external_id.blank?)
+      champ.reload
       return if !fixable?(champ)
 
       response = APIGeoService.commune_by_name_or_postal_code(champ.value)
@@ -24,19 +26,21 @@ module Maintenance
           champ.code = formated_results.first[:value]
           champ.save!
         else # otherwise, we can't find the expected departement
-          champ.code_departement = nil
-          champ.code_postal = nil
-          champ.external_id = nil
-          champ.value = nil
-          champ.save(validate: false)
+          if champ.dossier.en_construction?
+            champ.code_departement = nil
+            champ.code_postal = nil
+            champ.external_id = nil
+            champ.value = nil
+            champ.save(validate: false)
 
-          ask_user_correction(champ)
+            ask_user_correction(champ)
+          end
         end
       end
     end
 
     def count
-      # 2.4M champs, count is not an option
+      # osf, count is not an option
     end
 
     private
@@ -61,7 +65,7 @@ module Maintenance
     end
 
     def fixable?(champ)
-      champ.value.present? && [champ.dossier.en_instruction? || champ.dossier.en_construction?]
+      champ.dossier.en_instruction? || champ.dossier.en_construction?
     end
 
     def notify(message, champ) = Sentry.capture_message(message, extra: { champ: })

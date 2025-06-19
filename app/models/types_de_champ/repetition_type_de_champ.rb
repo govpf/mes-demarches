@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 class TypesDeChamp::RepetitionTypeDeChamp < TypesDeChamp::TypeDeChampBase
+  def self.champ_value_for_tag(champ, path = :value)
+    return nil if path != :value
+    return champ_default_value if champ.rows.blank?
+
+    ChampPresentations::RepetitionPresentation.new(champ.libelle, champ.rows)
+  end
+
   def estimated_fill_duration(revision)
     estimated_rows_in_repetition = 2.5
 
@@ -18,5 +25,11 @@ class TypesDeChamp::RepetitionTypeDeChamp < TypesDeChamp::TypeDeChampBase
     str = "(#{stable_id}) #{libelle}"
     # /\*?[] are invalid Excel worksheet characters
     ActiveStorage::Filename.new(str.delete('[]*?')).sanitized
+  end
+
+  def columns(displayable: true, prefix: nil)
+    @type_de_champ.procedure
+      .all_revisions_types_de_champ(parent: @type_de_champ)
+      .flat_map { _1.columns(displayable: false, prefix: libelle) }
   end
 end

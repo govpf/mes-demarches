@@ -87,13 +87,13 @@ class AttestationTemplate < ApplicationRecord
   end
 
   def unspecified_champs_for_dossier(dossier)
-    champs_by_stable_id = dossier.champs_for_revision(root: true).index_by { "tdc#{_1.stable_id}" }
+    types_de_champ_by_tag_id = dossier.revision.types_de_champ.index_by { "tdc#{_1.stable_id}" }
 
     used_tags.filter_map do |used_tag|
-      corresponding_champ = champs_by_stable_id[used_tag]
+      corresponding_type_de_champ = types_de_champ_by_tag_id[used_tag]
 
-      if corresponding_champ && corresponding_champ.blank?
-        corresponding_champ
+      if corresponding_type_de_champ && dossier.project_champ(corresponding_type_de_champ, nil).blank?
+        corresponding_type_de_champ
       end
     end
   end
@@ -106,7 +106,8 @@ class AttestationTemplate < ApplicationRecord
 
   def logo_url
     if logo.attached?
-      Rails.application.routes.url_helpers.url_for(logo)
+      logo_variant = logo.variant(resize_to_limit: [400, 400])
+      logo_variant.key.present? ? logo_variant.processed.url : Rails.application.routes.url_helpers.url_for(logo)
     end
   end
 
