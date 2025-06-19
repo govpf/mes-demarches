@@ -1639,7 +1639,7 @@ describe Dossier, type: :model do
       end
 
       it 'should not have errors' do
-        expect(errors).to be_empty
+        expect(champ_siret.errors).to be_empty
       end
 
       context "and invalid SIRET" do
@@ -1649,8 +1649,8 @@ describe Dossier, type: :model do
         end
 
         it 'should have errors' do
-          expect(errors).not_to be_empty
-          expect(errors.first.full_message).to eq("Le champ « Value » doit être rempli")
+          expect(champ_siret.errors).not_to be_empty
+          expect(champ_siret.errors.first.full_message).to eq("Veuillez selectionner un des établissements")
         end
       end
     end
