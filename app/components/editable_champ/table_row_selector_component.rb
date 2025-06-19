@@ -13,11 +13,11 @@ class EditableChamp::TableRowSelectorComponent < EditableChamp::EditableChampBas
     react_input_opts(id: @champ.input_id,
       class: 'fr-mt-1w',
       name: @form.field_name(:external_id),
-      selected_key: @champ.selected,
+      selectedKey: @champ.selected,
       items: @champ.selected_items,
       loader: data_sources_trs_search_path(table:, drop_down_other: @champ.drop_down_other?),
       limit: 20,
-      minimum_input_length: 2,
+      minimumInputLength: 2,
       data: { table_id: @champ.table_id })
   end
 end
