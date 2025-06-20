@@ -10,11 +10,10 @@ default: &default
 
 development:
   <<: *default
-  database: <%= ENV["DB_DATABASE"] %>
-  host: <%= ENV["DB_HOST"] %>
-  port: <%= ENV["DB_PORT"]&.presence&.to_i || 5432 %>
-  username: <%= ENV["DB_USERNAME"] %>
-  password: <%= ENV["DB_PASSWORD"] %>
+  database: tps_development
+  host: localhost
+  username: nico
+  password:
   port: <%= ENV["DB_PORT"] || 5432 %>
   # Workaround for https://github.com/ged/ruby-pg/issues/311
   gssencmode: disable
@@ -23,8 +22,8 @@ test:
   <<: *default
   database: tps_test
   host: localhost
-  username: tps_test
-  password: tps_test
+  username: nico
+  password:
   port: <%= ENV["DB_PORT"] || 5432 %>
   # Workaround for https://github.com/ged/ruby-pg/issues/311
   gssencmode: disable

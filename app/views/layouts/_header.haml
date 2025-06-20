@@ -6,7 +6,7 @@
 - is_administrateur_context = nav_bar_profile == :administrateur && administrateur_signed_in?
 - is_expert_context = nav_bar_profile == :expert && expert_signed_in?
 - is_user_context = nav_bar_profile == :user
-- is_search_enabled = [params[:controller] == 'recherche', is_instructeur_context, is_expert_context, is_user_context && current_user.dossiers.count].any?
+- is_search_enabled = [params[:controller] == 'recherche', is_instructeur_context, is_expert_context].any?
 %header{ class: ["fr-header", content_for?(:notice_info) && "fr-header__with-notice-info"], role: "banner", "data-controller": "dsfr-header" }
   %nav{ :role => "navigation", "aria-label" => t('layouts.header.main_menu') }
     .fr-header__body
@@ -56,7 +56,7 @@
                   - elsif nav_bar_profile == :instructeur
                     = render partial: 'shared/help/help_dropdown_instructeur'
                   - else
-                    // NB: on mobile in order to have links correctly aligned, we need a left icon
+                    -# NB: on mobile in order to have links correctly aligned, we need a left icon #
                     = link_to t('help'), t("links.common.faq.url"), class: 'fr-btn dropdown-button'
 
 

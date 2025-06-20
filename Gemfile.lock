@@ -190,7 +190,6 @@ GEM
       marcel (~> 1.0)
       nokogiri (~> 1.10, >= 1.10.4)
       rubyzip (>= 1.3.0, < 3)
-    charlock_holmes (0.7.7)
     chartkick (5.0.6)
     choice (0.2.0)
     chunky_png (1.4.0)
@@ -489,8 +488,11 @@ GEM
     net-smtp (0.5.0)
       net-protocol
     nio4r (2.7.3)
-    nokogiri (1.16.7)
-      mini_portile2 (~> 2.8.2)
+    nokogiri (1.16.5-arm64-darwin)
+      racc (~> 1.4)
+    nokogiri (1.16.5-x86_64-darwin)
+      racc (~> 1.4)
+    nokogiri (1.16.5-x86_64-linux)
       racc (~> 1.4)
     openid_connect (2.3.0)
       activemodel
@@ -920,7 +922,9 @@ GEM
     zxcvbn (0.1.11)
 
 PLATFORMS
-  ruby
+  arm64-darwin-23
+  x86_64-darwin-22
+  x86_64-linux
 
 DEPENDENCIES
   aasm
@@ -946,7 +950,6 @@ DEPENDENCIES
   capybara-email
   capybara-playwright-driver
   capybara-screenshot
-  charlock_holmes
   chartkick
   chunky_png
   clamav-client
