@@ -7,20 +7,13 @@ class TableRowSelector::BaserowAPI
     def search(domain_id, term, drop_down_other: false)
       config = config(domain_id)
       search_field = config['Champ de recherche']
-      params = { "filter__field_#{search_field}__contains" => term }
+      params = build_search_filters(search_field, term)
       url = rows_url(config['Table'])
       response = Typhoeus.get(url, headers: database_headers(config['Token']), params: params)
+
       if response.success?
-        results = JSON.parse(response.body, symbolize_names: true)[:results].map do
-          { label: _1[:"field_#{search_field}"], value: "#{domain_id}:#{_1[:id]}" }
-        end
-
-        # Add OTHER option if drop_down_other is enabled
-        if drop_down_other
-          results << { label: I18n.t('shared.champs.drop_down_list.other'), value: Champs::DropDownListChamp::OTHER }
-        end
-
-        results
+        results = parse_search_results(response.body, search_field, domain_id)
+        append_other_option_if_needed(results, drop_down_other)
       else
         [{ label: response.body, value: Champs::DropDownListChamp::OTHER }]
       end
@@ -78,5 +71,67 @@ class TableRowSelector::BaserowAPI
     def database_headers(token) = { 'Authorization' => "Token #{token}" }
 
     def default_params = { user_field_names: true }
+
+    private
+
+    def build_search_filters(search_field, term)
+      words = extract_search_words(term)
+      return {} if words.empty?
+
+      if words.size == 1
+        build_single_word_filter(search_field, words.first)
+      else
+        build_multi_word_filters(search_field, words)
+      end
+    end
+
+    def extract_search_words(term)
+      term.to_s.strip.split(/\s+/).compact_blank
+    end
+
+    def build_single_word_filter(search_field, word)
+      {
+        "filters" => JSON.generate({
+          "filter_type" => "AND",
+          "filters" => [
+            {
+              "field" => search_field.to_i,
+              "type" => "contains",
+              "value" => word
+            }
+          ]
+        })
+      }
+    end
+
+    def build_multi_word_filters(search_field, words)
+      filters = words.map do |word|
+        {
+          "field" => search_field.to_i,
+          "type" => "contains",
+          "value" => word
+        }
+      end
+
+      {
+        "filters" => JSON.generate({
+          "filter_type" => "AND",
+          "filters" => filters
+        })
+      }
+    end
+
+    def parse_search_results(response_body, search_field, domain_id)
+      JSON.parse(response_body, symbolize_names: true)[:results].map do |result|
+        { label: result[:"field_#{search_field}"], value: "#{domain_id}:#{result[:id]}" }
+      end
+    end
+
+    def append_other_option_if_needed(results, drop_down_other)
+      if drop_down_other
+        results << { label: I18n.t('shared.champs.drop_down_list.other'), value: Champs::DropDownListChamp::OTHER }
+      end
+      results
+    end
   end
 end

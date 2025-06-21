@@ -75,6 +75,36 @@ describe TableRowSelector::BaserowAPI do
         end
       end
     end
+
+    context 'when searching with multiple words using new filters API' do
+      let(:multi_word_term) { '1220 chlorure' }
+      subject { VCR.use_cassette(cassette) { described_class.search(domain_id, multi_word_term) } }
+      let(:cassette) { 'baserow_api/search_multi_word_filters' }
+
+      it 'returns search results using decomposed terms with AND filters' do
+        results = subject
+        expect(results).to be_an(Array)
+        results.each do |result|
+          expect(result).to have_key(:label)
+          expect(result).to have_key(:value)
+        end
+      end
+    end
+
+    context 'when searching with single word using new filters API' do
+      let(:single_word_term) { 'yoga' }
+      subject { VCR.use_cassette(cassette) { described_class.search(domain_id, single_word_term) } }
+      let(:cassette) { 'baserow_api/search_single_word_filters' }
+
+      it 'returns search results using single filter' do
+        results = subject
+        expect(results).to be_an(Array)
+        results.each do |result|
+          expect(result).to have_key(:label)
+          expect(result).to have_key(:value)
+        end
+      end
+    end
   end
 
   describe '.fetch_row' do
