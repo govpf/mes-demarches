@@ -59,7 +59,7 @@ class Champs::FormuleChamp < Champ
       # TODO: Implement actual formula computation with Dentaku
       # For now, return a placeholder
       expression = type_de_champ.formule_expression
-      
+
       # Simple placeholder - replace with actual Dentaku evaluation
       if expression.include?('{')
         # Extract field references for future dependency tracking
