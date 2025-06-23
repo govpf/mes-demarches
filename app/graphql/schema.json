@@ -21187,7 +21187,7 @@
             },
             {
               "name": "formule",
-              "description": "Champ formule",
+              "description": "Formule",
               "isDeprecated": false,
               "deprecationReason": null
             }

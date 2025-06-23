@@ -49,7 +49,7 @@ class TypeDeChamp < ApplicationRecord
     table_row_selector: REFERENTIEL_EXTERNE,
     referentiel_de_polynesie: REFERENTIEL_EXTERNE,
     visa: STRUCTURE,
-    formule: STANDARD
+    formule: STRUCTURE
   }
 
   TYPE_DE_CHAMP_TO_CATEGORIE = {
