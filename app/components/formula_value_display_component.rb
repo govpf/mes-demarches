@@ -12,10 +12,10 @@ class FormulaValueDisplayComponent < ApplicationComponent
 
     if url?(@value)
       format_as_url(@value)
-    elsif date?(@value)
-      format_as_date(@value)
     elsif number?(@value)
       format_as_number(@value)
+    elsif date?(@value)
+      format_as_date(@value)
     else
       format_text_value(@value)
     end

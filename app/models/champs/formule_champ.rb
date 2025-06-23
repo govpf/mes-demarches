@@ -1,29 +1,17 @@
 # frozen_string_literal: true
 
 class Champs::FormuleChamp < Champ
-  before_save :compute_value
+  before_validation :store_computed_value
 
-  validates :computed_value, presence: true, if: -> { type_de_champ.formule_expression.present? }
-
-  def computed_value
-    @computed_value
-  end
-
-  def computed_value=(val)
-    @computed_value = val
-  end
+  validates :value, presence: true, if: :validate_champ_value_or_prefill?
 
   def blank?
     value.blank?
   end
 
   def value
-    @computed_value ||= compute_value_from_formula
-  end
-
-  def value=(val)
-    # Formule fields are read-only, but we need this for form compatibility
-    @computed_value = val
+    return '' if type_de_champ.formule_expression.blank?
+    compute_value_from_formula
   end
 
   def for_export(path = :value)
@@ -59,7 +47,9 @@ class Champs::FormuleChamp < Champ
 
   private
 
-  def compute_value
-    @computed_value = compute_value_from_formula
+  def store_computed_value
+    if type_de_champ.formule_expression.present?
+      write_attribute(:value, compute_value_from_formula)
+    end
   end
 end

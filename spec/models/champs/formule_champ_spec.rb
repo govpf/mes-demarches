@@ -23,7 +23,6 @@ describe Champs::FormuleChamp do
 
       before do
         allow(other_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_integer_number, libelle: 'Montant HT'))
-        allow(other_champ).to receive(:libelle).and_return('Montant HT')
         allow(champ.dossier).to receive(:champs).and_return([champ, other_champ])
       end
 
@@ -116,7 +115,7 @@ describe Champs::FormuleChamp do
   end
 
   describe 'validation' do
-    let(:test_champ) { Champs::FormuleChamp.new(dossier: build(:dossier), computed_value: computed_value) }
+    let(:test_champ) { Champs::FormuleChamp.new(dossier: build(:dossier)) }
 
     before do
       allow(test_champ).to receive(:type_de_champ).and_return(type_de_champ)
@@ -124,26 +123,15 @@ describe Champs::FormuleChamp do
 
     context 'with expression and computed value' do
       let(:expression) { '1 + 1' }
-      let(:computed_value) { 'result' }
 
       it 'is valid' do
         expect(test_champ).to be_valid
       end
     end
 
-    context 'with expression but no computed value' do
-      let(:expression) { '1 + 1' }
-      let(:computed_value) { nil }
-
-      it 'is invalid' do
-        expect(test_champ).not_to be_valid
-        expect(test_champ.errors[:computed_value]).to include("doit être rempli")
-      end
-    end
 
     context 'with no expression' do
       let(:expression) { '' }
-      let(:computed_value) { nil }
 
       it 'is valid' do
         expect(test_champ).to be_valid
@@ -151,11 +139,11 @@ describe Champs::FormuleChamp do
     end
   end
 
-  describe 'before_save callback' do
+  describe 'before_validation callback' do
     let(:expression) { '2 + 2' }
 
     it 'has the callback defined' do
-      expect(Champs::FormuleChamp._save_callbacks.map(&:filter)).to include(:compute_value)
+      expect(Champs::FormuleChamp._validation_callbacks.map(&:filter)).to include(:store_computed_value)
     end
   end
 
@@ -181,7 +169,6 @@ describe Champs::FormuleChamp do
 
       before do
         allow(other_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_integer_number, libelle: 'Autre nombre'))
-        allow(other_champ).to receive(:libelle).and_return('Autre nombre')
         allow(dossier).to receive(:champs).and_return([formule_champ, other_champ])
       end
 

@@ -1,14 +1,6 @@
-= render Dsfr::CalloutComponent.new(title: @champ.libelle, extra_class_names: ['fr-mb-2w', 'fr-callout--green-emeraude']) do |c|
-  - c.with_html_body do
-    - if @champ.description.present?
-      .fr-mb-2w
-        = render SimpleFormatComponent.new(@champ.description, allow_a: true)
-    .fr-callout__content
-      %p.fr-text--bold.fr-mb-1w{ role: "status", "aria-live": "polite" }
-        Valeur calculée :
-      .fr-text.fr-text--lg
-        - if @champ.value.present?
-          = formatted_value
-        - else
-          %span.fr-text--mention-grey{ "aria-label": "Aucune valeur calculée disponible" }
-            = t('views.shared.champs.formule.no_value')
+.fr-text.fr-text--lg{ role: "status", "aria-live": "polite", "aria-labelledby": dom_id(@champ, :label) }
+  - if @champ.value.present?
+    = formatted_value
+  - else
+    %span.fr-text--mention-grey{ "aria-label": "Aucune valeur calculée disponible pour #{@champ.libelle}" }
+      = t('views.shared.champs.formule.no_value')
