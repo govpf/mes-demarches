@@ -408,6 +408,10 @@ class TypeDeChamp < ApplicationRecord
     type_champ == TypeDeChamp.type_champs.fetch(:lexpol)
   end
 
+  def formule?
+    type_champ == TypeDeChamp.type_champs.fetch(:formule)
+  end
+
   def public?
     !private?
   end

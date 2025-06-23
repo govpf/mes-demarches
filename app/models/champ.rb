@@ -44,6 +44,7 @@ class Champ < ApplicationRecord
     :fillable?,
     :te_fenua?,
     :lexpol?,
+    :formule?,
     :mandatory?,
     :prefillable?,
     :refresh_after_update?,

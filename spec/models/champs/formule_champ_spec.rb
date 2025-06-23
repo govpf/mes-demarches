@@ -13,23 +13,30 @@ describe Champs::FormuleChamp do
       let(:expression) { '1 + 1' }
 
       it 'returns the computed value' do
-        expect(champ.value).to eq('1 + 1')
+        expect(champ.value).to eq('2')
       end
     end
 
     context 'with field references' do
-      let(:expression) { '{Montant HT} * 1.20' }
+      let(:expression) { '{Montant HT} * 2' }
+      let(:other_champ) { Champs::IntegerNumberChamp.new(dossier: champ.dossier, value: '100') }
 
-      it 'returns information about field references' do
-        expect(champ.value).to include('1 field(s) referenced')
+      before do
+        allow(other_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_integer_number, libelle: 'Montant HT'))
+        allow(other_champ).to receive(:libelle).and_return('Montant HT')
+        allow(champ.dossier).to receive(:champs).and_return([champ, other_champ])
+      end
+
+      it 'resolves field references and computes' do
+        expect(champ.value).to eq('200')
       end
     end
 
-    context 'with text formula' do
+    context 'with unsupported function' do
       let(:expression) { 'CONCAT({Prénom}, " ", {Nom})' }
 
-      it 'returns information about field references' do
-        expect(champ.value).to include('2 field(s) referenced')
+      it 'returns error message for unsupported functions' do
+        expect(champ.value).to include('Erreur')
       end
     end
 

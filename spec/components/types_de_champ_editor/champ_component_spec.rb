@@ -83,5 +83,25 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
         expect(page).to have_css("select##{ActionView::RecordIdentifier.dom_id(coordinate, :move_and_morph)}")
       end
     end
+
+    describe 'tdc formule' do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :formule, libelle: 'Calcul TVA', formule_expression: '{Prix HT} * 1.20' }]) }
+      let(:coordinate) { procedure.draft_revision.revision_types_de_champ_public.first }
+
+      it 'displays formula expression field when champ type is formule' do
+        expect(page).to have_field('Expression de la formule', type: 'textarea', with: '{Prix HT} * 1.20')
+      end
+
+      it 'shows formula help text' do
+        expect(page).to have_text('Utilisez les références aux champs avec la syntaxe {Nom du champ}.')
+        expect(page).to have_text('Fonctions disponibles : SOMME, MOYENNE, SI, MIN, MAX, ABS, ARRONDI.')
+      end
+
+      it 'has proper HTML attributes for accessibility' do
+        expect(page).to have_css('textarea[rows="3"]')
+        expect(page).to have_css('textarea.fr-input')
+        expect(page).to have_css('textarea[placeholder*="Montant HT"]')
+      end
+    end
   end
 end

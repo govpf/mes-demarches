@@ -1,3 +1,4 @@
+
 # frozen_string_literal: true
 
 class FormulaCalculationService
@@ -162,9 +163,14 @@ class FormulaCalculationService
     case result
     when Integer
       result.to_s
-    when Float
-      # Remove unnecessary decimal places
-      result % 1 == 0 ? result.to_i.to_s : result.round(10).to_s.sub(/\.?0+$/, '')
+    when Float, BigDecimal
+      # Si pas de partie décimale, convertir en entier
+      if result % 1 == 0
+        result.to_i.to_s
+      else
+        # Enlever les zéros inutiles à la fin
+        result.to_s.sub(/\.?0+$/, '')
+      end
     when TrueClass, FalseClass
       result ? '1' : '0'
     else

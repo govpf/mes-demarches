@@ -167,6 +167,7 @@ module Administrateurs
         :expression_reguliere,
         :expression_reguliere_exemple_text,
         :expression_reguliere_error_message,
+        :formule_expression,
         :lexpol_modele,
         :lexpol_mapping,
         editable_options: [
