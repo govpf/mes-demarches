@@ -3,7 +3,6 @@
     - if @champ.description.present?
       .fr-mb-2w
         = render SimpleFormatComponent.new(@champ.description, allow_a: true)
-    
     .fr-callout__content
       %p.fr-text--bold.fr-mb-1w{ role: "status", "aria-live": "polite" }
         Valeur calculée :

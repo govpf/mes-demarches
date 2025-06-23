@@ -151,4 +151,56 @@ describe Champs::FormuleChamp do
       expect(Champs::FormuleChamp._save_callbacks.map(&:filter)).to include(:compute_value)
     end
   end
+
+  describe '#compute_value_from_formula' do
+    let(:dossier) { build(:dossier) }
+    let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+    before do
+      allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: expression))
+    end
+
+    context 'with simple arithmetic' do
+      let(:expression) { '2 + 2' }
+
+      it 'computes the result' do
+        expect(formule_champ.compute_value_from_formula).to eq('4')
+      end
+    end
+
+    context 'with field references' do
+      let(:expression) { '{Autre nombre} * 2' }
+      let(:other_champ) { Champs::IntegerNumberChamp.new(dossier: dossier, value: '10') }
+
+      before do
+        allow(other_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_integer_number, libelle: 'Autre nombre'))
+        allow(other_champ).to receive(:libelle).and_return('Autre nombre')
+        allow(dossier).to receive(:champs).and_return([formule_champ, other_champ])
+      end
+
+      it 'resolves field references' do
+        expect(formule_champ.compute_value_from_formula).to eq('20')
+      end
+    end
+
+    context 'when expression is blank' do
+      let(:expression) { '' }
+
+      it 'returns empty string' do
+        expect(formule_champ.compute_value_from_formula).to eq('')
+      end
+    end
+
+    context 'with invalid reference' do
+      let(:expression) { '{Inexistant}' }
+
+      before do
+        allow(dossier).to receive(:champs).and_return([formule_champ])
+      end
+
+      it 'returns error message' do
+        expect(formule_champ.compute_value_from_formula).to include('Erreur')
+      end
+    end
+  end
 end

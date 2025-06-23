@@ -39,8 +39,8 @@ class FormulaValueDisplayComponent < ApplicationComponent
   end
 
   def format_as_url(value)
-    link_to(truncate(value, length: 60), value, 
-            target: '_blank', 
+    link_to(truncate(value, length: 60), value,
+            target: '_blank',
             rel: 'noopener noreferrer',
             class: 'fr-link fr-link--external',
             'aria-label': "Lien externe : #{value} (s'ouvre dans un nouvel onglet)")
@@ -49,7 +49,7 @@ class FormulaValueDisplayComponent < ApplicationComponent
   def format_as_date(value)
     begin
       parsed_date = Date.parse(value)
-      content_tag(:time, 
+      content_tag(:time,
                   l(parsed_date, format: :long),
                   datetime: parsed_date.iso8601,
                   class: 'fr-text')

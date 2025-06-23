@@ -46,30 +46,20 @@ class Champs::FormuleChamp < Champ
     value.to_s
   end
 
-  private
-
-  def compute_value
-    @computed_value = compute_value_from_formula
-  end
-
   def compute_value_from_formula
     return '' if type_de_champ.formule_expression.blank?
 
     begin
-      # TODO: Implement actual formula computation with Dentaku
-      # For now, return a placeholder
-      expression = type_de_champ.formule_expression
-
-      # Simple placeholder - replace with actual Dentaku evaluation
-      if expression.include?('{')
-        # Extract field references for future dependency tracking
-        field_references = expression.scan(/\{([^}]+)\}/)
-        "Computed: #{field_references.length} field(s) referenced"
-      else
-        expression
-      end
+      calculation_service = FormulaCalculationService.new(dossier)
+      calculation_service.compute_value(self)
     rescue StandardError => e
-      "Error: #{e.message}"
+      "Erreur : #{e.message}"
     end
+  end
+
+  private
+
+  def compute_value
+    @computed_value = compute_value_from_formula
   end
 end
