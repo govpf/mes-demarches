@@ -6,8 +6,11 @@ module TurboChampsConcern
   private
 
   def champs_to_turbo_update(params, champs)
-    to_update = champs.filter { _1.public_id.in?(params.keys) }
-      .filter { _1.refresh_after_update? || _1.forked_with_changes? }
+    updated_champs = champs.filter { _1.public_id.in?(params.keys) }
+    to_update = updated_champs.filter { _1.refresh_after_update? || _1.forked_with_changes? }
+
+    # Add dependent formula champs
+    to_update += updated_champs.flat_map(&:dependent_formula_champs).uniq
 
     to_show, to_hide = champs.filter(&:conditional?)
       .partition(&:visible?)

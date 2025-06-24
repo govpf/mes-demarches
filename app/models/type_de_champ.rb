@@ -148,7 +148,7 @@ class TypeDeChamp < ApplicationRecord
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
     visa: [:accredited_users],
-    formule: {formule_expression]
+    formule: {formule_expression, :dependent_stable_ids]
   }
   INSTANCE_OPTIONS = INSTANCE_OPTIONS_BY_TYPE.values.reduce(&:+).uniq
 
@@ -410,6 +410,25 @@ class TypeDeChamp < ApplicationRecord
 
   def formule?
     type_champ == TypeDeChamp.type_champs.fetch(:formule)
+  end
+
+  def formule_user_expression
+    return '' unless formule?
+    @formule_user_expression ||= FormulaExpressionService.convert_to_libelles(formule_expression, revision)
+  end
+
+  def formule_user_expression=(value)
+    return unless formule?
+
+    @formule_user_expression = value
+
+    if value.present?
+      self.formule_expression, self.dependent_stable_ids =
+        FormulaExpressionService.convert_to_stable_ids(value, revision)
+    else
+      self.formule_expression = ''
+      self.dependent_stable_ids = []
+    end
   end
 
   def public?
