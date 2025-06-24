@@ -80,7 +80,7 @@ class FormulaCalculationService
 
     field_references.each do |field_label|
       referenced_champ = find_champ_by_label(field_label)
-      next unless referenced_champ&.type_champ == 'formule'
+      next unless referenced_champ&.formule?
 
       # Recursively check for circular references
       detect_circular_references(

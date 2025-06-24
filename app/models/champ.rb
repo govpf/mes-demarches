@@ -42,9 +42,6 @@ class Champ < ApplicationRecord
     :exclude_from_view?,
     :non_fillable?,
     :fillable?,
-    :te_fenua?,
-    :lexpol?,
-    :formule?,
     :mandatory?,
     :prefillable?,
     :refresh_after_update?,
@@ -58,7 +55,25 @@ class Champ < ApplicationRecord
   include DateEncodingConcern
 
   # pf champ
-  delegate :accredited_user_list, :visa?, :table_id, to: :type_de_champ
+  delegate :accredited_user_list, to: :type_de_champ
+
+  def visa?
+    type_champ == 'visa'
+  end
+
+  def te_fenua?
+    type_champ == 'te_fenua'
+  end
+
+  def lexpol?
+    type_champ == 'lexpol'
+  end
+
+  def formule?
+    type_champ == 'formule'
+  end
+
+  include DateEncodingConcern
 
   delegate(*TypeDeChamp.type_champs.values.map { "#{_1}?".to_sym }, to: :type_de_champ)
   delegate :piece_justificative_or_titre_identite?, :any_drop_down_list?, to: :type_de_champ
@@ -269,6 +284,13 @@ class Champ < ApplicationRecord
     return if value.present? && !value.include?("\u0000")
 
     write_attribute(:value, value.delete("\u0000"))
+  end
+
+  def dependent_formula_champs
+    # Find all formula champs in the dossier that depend on this champ
+    dossier.champs.filter do |champ|
+      champ.formule? && champ.type_de_champ.dependent_stable_ids&.include?(stable_id)
+    end
   end
 
   class NotImplemented < ::StandardError
