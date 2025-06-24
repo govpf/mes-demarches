@@ -1004,7 +1004,7 @@ describe Instructeurs::DossiersController, type: :controller do
     let(:champ_drop_down_list) { dossier.project_champs_private.fifth }
 
     context 'when no invalid champs_public' do
-      context "with new values for champs_private" do
+      context "with new values for project_champs_private" do
         before do
           expect(controller.current_instructeur).to receive(:mark_tab_as_seen).with(dossier, :annotations_privees)
           another_instructeur.follow(dossier)
@@ -1076,7 +1076,7 @@ describe Instructeurs::DossiersController, type: :controller do
         end
       end
 
-      context "without new values for champs_private" do
+      context "without new values for project_champs_private" do
         let(:params) do
           {
             procedure_id: procedure.id,
@@ -1104,7 +1104,7 @@ describe Instructeurs::DossiersController, type: :controller do
       Timecop.return
     end
 
-    context "without new values for champs_private" do
+    context "without new values for project_champs_private" do
       let(:params) do
         {
           procedure_id: procedure.id,
@@ -1149,7 +1149,7 @@ describe Instructeurs::DossiersController, type: :controller do
         }
       end
 
-      it 'update champs_private' do
+      it 'update project_champs_private' do
         too_long_float = '3.1415'
         champ_decimal_number.update_column(:value, too_long_float)
         patch :update_annotations, params: params, format: :turbo_stream

@@ -8,7 +8,7 @@ describe Champs::PieceJustificativeController, type: :controller do
 
   describe '#download' do
     let(:instructeur) { procedure.defaut_groupe_instructeur.instructeurs.first }
-    let(:annotation) { dossier.champs_private.first }
+    let(:annotation) { dossier.project_champs_private.first }
     before do
       sign_in instructeur.user
       put :update, params: {
@@ -180,7 +180,7 @@ describe Champs::PieceJustificativeController, type: :controller do
       end
 
       context 'when the champ is private' do
-        let(:champ) { dossier.champs_private.first }
+        let(:champ) { dossier.project_champs_private.first }
         let(:instructeur) { create(:instructeur) }
         let(:procedure) { create(:procedure, :published, :with_instructeur, types_de_champ_public: [{ type: :piece_justificative }], types_de_champ_private: [{ type: :piece_justificative }], instructeurs: [instructeur]) }
 

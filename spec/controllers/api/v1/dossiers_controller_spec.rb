@@ -181,7 +181,7 @@ describe API::V1::DossiersController do
         let!(:dossier) { Timecop.freeze(date_creation) { create(:dossier, :with_entreprise, :accepte, procedure: procedure, motivation: "Motivation") } }
         let(:dossier_id) { dossier.id }
         let(:body) { JSON.parse(retour.body, symbolize_names: true) }
-        let(:field_list) { [:id, :created_at, :updated_at, :archived, :individual, :entreprise, :etablissement, :cerfa, :types_de_piece_justificative, :pieces_justificatives, :champs, :champs_private, :commentaires, :state, :simplified_state, :initiated_at, :processed_at, :received_at, :motivation, :email, :instructeurs, :attestation, :avis] }
+        let(:field_list) { [:id, :created_at, :updated_at, :archived, :individual, :entreprise, :etablissement, :cerfa, :types_de_piece_justificative, :pieces_justificatives, :champs, :project_champs_private, :commentaires, :state, :simplified_state, :initiated_at, :processed_at, :received_at, :motivation, :email, :instructeurs, :attestation, :avis] }
         subject { body[:dossier] }
 
         it 'return REST code 200', :show_in_doc do
@@ -298,9 +298,9 @@ describe API::V1::DossiersController do
           end
         end
 
-        describe 'champs_private' do
+        describe 'project_champs_private' do
           let(:field_list) { [:url] }
-          subject { super()[:champs_private] }
+          subject { super()[:project_champs_private] }
 
           it { expect(subject.length).to eq 1 }
 
