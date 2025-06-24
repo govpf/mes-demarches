@@ -688,6 +688,8 @@ describe API::V2::GraphqlController do
       context "champs" do
         let(:procedure) { create(:procedure, :published, :for_individual, administrateurs: [admin], types_de_champ_public: [{ type: :date }, { type: :datetime }]) }
         let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+        let(:date) { '2019-07-10' }
+        let(:datetime) { '15/09/1962 15:35' }
         let(:champ_date) { dossier.project_champs_public.first }
         let(:champ_datetime) { dossier.project_champs_public.second }
 
@@ -1326,7 +1328,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationPieceJustificative(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'piece_justificative' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'piece_justificative' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 attachment: \"#{blob_id}\"
               }) {

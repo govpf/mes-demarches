@@ -7,28 +7,28 @@
     - if @dossier.procedure.for_tiers_enabled?
       = form_for @dossier, url: identite_dossier_path(@dossier), method: :patch, html: { class: "form" }, data: {turbo: true, controller: :autosubmit} do |f|
 
-      %p.fr-text--sm= t('utils.asterisk_html')
+        %p.fr-text--sm= t('utils.asterisk_html')
 
-      %fieldset#radio-rich-hint.fr-fieldset
-        %legend.fr-fieldset__legend--regular.fr-fieldset__legend
-          = t('views.users.dossiers.identite.legend')
-          = render EditableChamp::AsteriskMandatoryComponent.new
+        %fieldset#radio-rich-hint.fr-fieldset
+          %legend.fr-fieldset__legend--regular.fr-fieldset__legend
+            = t('views.users.dossiers.identite.legend')
+            = render EditableChamp::AsteriskMandatoryComponent.new
 
-          .fr-fieldset__element
-            .fr-radio-group.fr-radio-rich
-              = f.radio_button :for_tiers, false, required: true, id: "radio-self-manage"
-              %label.fr-label{ for: "radio-self-manage" }
-                = t('activerecord.attributes.dossier.for_tiers.false')
-              .fr-radio-rich__img
-                %span.fr-icon-user-fill
-          .fr-fieldset__element
-            .fr-radio-group.fr-radio-rich
-              = f.radio_button :for_tiers, true, required: true, id: "radio-tiers-manage"
-              %label.fr-label{ for: "radio-tiers-manage" }
-                = t('activerecord.attributes.dossier.for_tiers.true')
-              .fr-radio-rich__img
-                %span.fr-icon-parent-fill
+            .fr-fieldset__element
+              .fr-radio-group.fr-radio-rich
+                = f.radio_button :for_tiers, false, required: true, id: "radio-self-manage"
+                %label.fr-label{ for: "radio-self-manage" }
+                  = t('activerecord.attributes.dossier.for_tiers.false')
+                .fr-radio-rich__img
+                  %span.fr-icon-user-fill
+            .fr-fieldset__element
+              .fr-radio-group.fr-radio-rich
+                = f.radio_button :for_tiers, true, required: true, id: "radio-tiers-manage"
+                %label.fr-label{ for: "radio-tiers-manage" }
+                  = t('activerecord.attributes.dossier.for_tiers.true')
+                .fr-radio-rich__img
+                  %span.fr-icon-parent-fill
 
-        = f.submit t('views.users.dossiers.identite.continue'), class: 'hidden'
+          = f.submit t('views.users.dossiers.identite.continue'), class: 'hidden'
 
     = render Dossiers::IndividualFormComponent.new(dossier: @dossier)
