@@ -10,7 +10,8 @@ class TypeDeChamp < ApplicationRecord
     cojo: :cojo_type_de_champ,
     lexpol: :lexpol,
     expression_reguliere: :expression_reguliere_type_de_champ,
-    referentiel_de_polynesie: :referentiel_de_polynesie
+    referentiel_de_polynesie: :referentiel_de_polynesie,
+    formule: :formule
   }
 
   MINIMUM_TEXTAREA_CHARACTER_LIMIT_LENGTH = 400

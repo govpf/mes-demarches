@@ -104,4 +104,10 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
       end
     end
   end
+
+  describe 'formule feature flag' do
+    it 'has formule in FEATURE_FLAGS' do
+      expect(TypeDeChamp::FEATURE_FLAGS[:formule]).to eq(:formule)
+    end
+  end
 end
