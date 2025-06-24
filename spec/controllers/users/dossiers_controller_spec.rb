@@ -476,7 +476,7 @@ describe Users::DossiersController, type: :controller do
     let(:procedure) { create(:procedure, :published, types_de_champ_public:) }
     let(:types_de_champ_public) { [{ type: :text, mandatory: false }] }
     let!(:dossier) { create(:dossier, user:, procedure:) }
-    let(:first_champ) { dossier.champs_public.first }
+    let(:first_champ) { dossier.project_champs_public.first }
     let(:anchor_to_first_champ) { controller.helpers.link_to first_champ.libelle, brouillon_dossier_path(anchor: first_champ.labelledby_id), class: 'error-anchor' }
     let(:value) { 'beautiful value' }
     let(:now) { Time.zone.parse('01/01/2100') }
@@ -593,7 +593,7 @@ describe Users::DossiersController, type: :controller do
     let(:procedure) { create(:procedure, :published, types_de_champ_public:) }
     let(:types_de_champ_public) { [{ type: :text, mandatory: false }] }
     let(:dossier) { create(:dossier, :en_construction, procedure:, user:) }
-    let(:first_champ) { dossier.owner_editing_fork.champs_public.first }
+    let(:first_champ) { dossier.owner_editing_fork.project_champs_public.first }
     let(:anchor_to_first_champ) { controller.helpers.link_to I18n.t('views.users.dossiers.fix_champ'), modifier_dossier_path(anchor: first_champ.labelledby_id), class: 'error-anchor' }
     let(:value) { 'beautiful value' }
     let(:now) { Time.zone.parse('01/01/2100') }
@@ -741,8 +741,8 @@ describe Users::DossiersController, type: :controller do
     let(:procedure) { create(:procedure, :published, types_de_champ_public:) }
     let(:types_de_champ_public) { [{}, { type: :piece_justificative, mandatory: false }] }
     let(:dossier) { create(:dossier, user:, procedure:) }
-    let(:first_champ) { dossier.champs_public.first }
-    let(:piece_justificative_champ) { dossier.champs_public.last }
+    let(:first_champ) { dossier.project_champs_public.first }
+    let(:piece_justificative_champ) { dossier.project_champs_public.last }
     let(:value) { 'beautiful value' }
     let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
     let(:now) { Time.zone.parse('01/01/2100') }
@@ -837,8 +837,8 @@ describe Users::DossiersController, type: :controller do
       render_views
 
       let(:types_de_champ_public) { [{ type: :text }, { type: :integer_number }] }
-      let(:text_champ) { dossier.champs_public.first }
-      let(:number_champ) { dossier.champs_public.last }
+      let(:text_champ) { dossier.project_champs_public.first }
+      let(:number_champ) { dossier.project_champs_public.last }
       let(:submit_payload) do
         {
           id: dossier.id,
@@ -901,9 +901,9 @@ describe Users::DossiersController, type: :controller do
 
     let(:procedure) { create(:procedure, :published, types_de_champ_public: [{}, { type: :piece_justificative }]) }
     let!(:dossier) { create(:dossier, :en_construction, user:, procedure:) }
-    let(:first_champ) { dossier.champs_public.first }
+    let(:first_champ) { dossier.project_champs_public.first }
     let(:anchor_to_first_champ) { controller.helpers.link_to I18n.t('views.users.dossiers.fix_champ'), brouillon_dossier_path(anchor: first_champ.labelledby_id), class: 'error-anchor' }
-    let(:piece_justificative_champ) { dossier.champs_public.last }
+    let(:piece_justificative_champ) { dossier.project_champs_public.last }
     let(:value) { 'beautiful value' }
     let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
     let(:now) { Time.zone.parse('01/01/2100') }
@@ -1026,7 +1026,7 @@ describe Users::DossiersController, type: :controller do
 
         before do
           first_champ.type_de_champ.update!(type_champ: :iban, mandatory: true, libelle: 'l')
-          dossier.champs_public.first.becomes!(Champs::IbanChamp).save!
+          dossier.project_champs_public.first.becomes!(Champs::IbanChamp).save!
 
           subject
         end
@@ -1064,7 +1064,7 @@ describe Users::DossiersController, type: :controller do
     context 'when the champ is a phone number' do
       let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :phone }]) }
       let!(:dossier) { create(:dossier, :en_construction, user:, procedure:) }
-      let(:first_champ) { dossier.champs_public.first }
+      let(:first_champ) { dossier.project_champs_public.first }
       let(:now) { Time.zone.parse('01/01/2100') }
 
       let(:submit_payload) do

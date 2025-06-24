@@ -146,8 +146,8 @@ describe ProcedurePresentation do
         let(:tartine_dossier) { create(:dossier, procedure: procedure) }
 
         before do
-          beurre_dossier.champs_public.first.update(value: 'beurre')
-          tartine_dossier.champs_public.first.update(value: 'tartine')
+          beurre_dossier.project_champs_public.first.update(value: 'beurre')
+          tartine_dossier.project_champs_public.first.update(value: 'tartine')
         end
 
         context 'asc' do
@@ -176,8 +176,8 @@ describe ProcedurePresentation do
           nothing_dossier
           procedure.draft_revision.add_type_de_champ(tdc)
           procedure.publish_revision!
-          beurre_dossier.champs_public.last.update(value: 'beurre')
-          tartine_dossier.champs_public.last.update(value: 'tartine')
+          beurre_dossier.project_champs_public.last.update(value: 'beurre')
+          tartine_dossier.project_champs_public.last.update(value: 'tartine')
         end
 
         context 'asc' do
@@ -201,8 +201,8 @@ describe ProcedurePresentation do
         let(:vin_dossier) { create(:dossier, procedure: procedure) }
 
         before do
-          biere_dossier.champs_private.first.update(value: 'biere')
-          vin_dossier.champs_private.first.update(value: 'vin')
+          biere_dossier.project_champs_private.first.update(value: 'biere')
+          vin_dossier.project_champs_private.first.update(value: 'vin')
         end
 
         context 'asc' do
@@ -231,8 +231,8 @@ describe ProcedurePresentation do
           nothing_dossier
           procedure.draft_revision.add_type_de_champ(tdc)
           procedure.publish_revision!
-          biere_dossier.champs_private.last.update(value: 'biere')
-          vin_dossier.champs_private.last.update(value: 'vin')
+          biere_dossier.project_champs_private.last.update(value: 'biere')
+          vin_dossier.project_champs_private.last.update(value: 'vin')
         end
 
         context 'asc' do
@@ -530,6 +530,19 @@ describe ProcedurePresentation do
 
         it { is_expected.to contain_exactly(kept_dossier.id) }
       end
+
+      context 'with enum type_de_champ' do
+        let(:filter_value) { 'Favorable' }
+        let(:filter) { [{ 'table' => 'type_de_champ', 'column' => type_de_champ.stable_id.to_s, 'value_column' => :value, 'value' => filter_value }] }
+        let(:types_de_champ_public) { [{ type: :drop_down_list, options: ['Favorable', 'Defavorable'] }] }
+
+        before do
+          kept_dossier.champs.find_by(stable_id: type_de_champ.stable_id).update(value: 'Favorable')
+          discarded_dossier.champs.find_by(stable_id: type_de_champ.stable_id).update(external_id: 'Defavorable')
+        end
+
+        it { is_expected.to contain_exactly(kept_dossier.id) }
+      end
     end
 
     context 'for type_de_champ_private table' do
@@ -569,7 +582,7 @@ describe ProcedurePresentation do
     context 'for type_de_champ using AddressableColumnConcern' do
       let(:types_de_champ_public) { [{ type: :rna, stable_id: 1 }] }
       let(:type_de_champ) { procedure.active_revision.types_de_champ.first }
-      let(:available_columns) { type_de_champ.columns }
+      let(:available_columns) { type_de_champ.columns(procedure_id: procedure.id) }
       let(:column) { available_columns.find { _1.value_column == value_column_searched } }
       let(:filter) { [column.to_json.merge({ "value" => value })] }
       let(:kept_dossier) { create(:dossier, procedure: procedure) }
@@ -579,8 +592,8 @@ describe ProcedurePresentation do
         let(:value_column_searched) { ['postal_code'] }
 
         before do
-          kept_dossier.champs_public.find_by(stable_id: 1).update(value_json: { "postal_code" => value })
-          create(:dossier, procedure: procedure).champs_public.find_by(stable_id: 1).update(value_json: { "postal_code" => "unknown" })
+          kept_dossier.project_champs_public.find { _1.stable_id == 1 }.update(value_json: { "postal_code" => value })
+          create(:dossier, procedure: procedure).project_champs_public.find { _1.stable_id == 1 }.update(value_json: { "postal_code" => "unknown" })
         end
         it { is_expected.to contain_exactly(kept_dossier.id) }
         it 'describes column' do
@@ -594,10 +607,11 @@ describe ProcedurePresentation do
         let(:value_column_searched) { ['departement_code'] }
 
         before do
-          kept_dossier.champs_public.find_by(stable_id: 1).update(value_json: { "departement_code" => value })
-          create(:dossier, procedure: procedure).champs_public.find_by(stable_id: 1).update(value_json: { "departement_code" => "unknown" })
+          kept_dossier.project_champs_public.find { _1.stable_id == 1 }.update(value_json: { "departement_code" => value })
+          create(:dossier, procedure: procedure).project_champs_public.find { _1.stable_id == 1 }.update(value_json: { "departement_code" => "unknown" })
         end
         it { is_expected.to contain_exactly(kept_dossier.id) }
+
         it 'describes column' do
           expect(column.type).to eq(:enum)
           expect(column.options_for_select.first).to eq(["99 – Etranger", "99"])
@@ -609,8 +623,8 @@ describe ProcedurePresentation do
         let(:value_column_searched) { ['region_name'] }
 
         before do
-          kept_dossier.champs_public.find_by(stable_id: 1).update(value_json: { "region_name" => value })
-          create(:dossier, procedure: procedure).champs_public.find_by(stable_id: 1).update(value_json: { "region_name" => "unknown" })
+          kept_dossier.project_champs_public.find { _1.stable_id == 1 }.update(value_json: { "region_name" => value })
+          create(:dossier, procedure: procedure).project_champs_public.find { _1.stable_id == 1 }.update(value_json: { "region_name" => "unknown" })
         end
         it { is_expected.to contain_exactly(kept_dossier.id) }
         it 'describes column' do
@@ -836,10 +850,11 @@ describe ProcedurePresentation do
     let(:filters) { { "suivis" => [] } }
 
     context 'when type_de_champ yes_no' do
-      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :yes_no }]) }
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :yes_no, libelle: 'oui ou non' }]) }
 
       it 'should downcase and transform value' do
-        procedure_presentation.add_filter("suivis", Column.make_id("type_de_champ", first_type_de_champ_id), +"Oui")
+        column_id = procedure.find_column(label: 'oui ou non').id
+        procedure_presentation.add_filter("suivis", column_id, "Oui")
 
         expect(procedure_presentation.filters).to eq({
           "suivis" =>
@@ -847,14 +862,19 @@ describe ProcedurePresentation do
                       { "label" => first_type_de_champ.libelle, "table" => "type_de_champ", "column" => first_type_de_champ_id, "value" => "true", "value_column" => "value" }
                     ]
         })
+
+        suivis = procedure_presentation.suivis_filters.map { [_1['id'], _1['filter']] }
+
+        expect(suivis).to eq([[{ "column_id" => "type_de_champ/#{first_type_de_champ_id}", "procedure_id" => procedure.id }, "true"]])
       end
     end
 
     context 'when type_de_champ text' do
       let(:filters) { { "suivis" => [] } }
+      let(:column_id) { procedure.find_column(label: first_type_de_champ.libelle).id }
 
       it 'should passthrough value' do
-        procedure_presentation.add_filter("suivis", Column.make_id("type_de_champ", first_type_de_champ_id), "Oui")
+        procedure_presentation.add_filter("suivis", column_id, "Oui")
 
         expect(procedure_presentation.filters).to eq({
           "suivis" => [
@@ -866,10 +886,11 @@ describe ProcedurePresentation do
 
     context 'when type_de_champ departements' do
       let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :departements }]) }
+      let(:column_id) { procedure.find_column(label: first_type_de_champ.libelle).id }
       let(:filters) { { "suivis" => [] } }
 
       it 'should set value_column' do
-        procedure_presentation.add_filter("suivis", Column.make_id("type_de_champ", first_type_de_champ_id), "13")
+        procedure_presentation.add_filter("suivis", column_id, "13")
 
         expect(procedure_presentation.filters).to eq({
           "suivis" => [
@@ -877,6 +898,26 @@ describe ProcedurePresentation do
           ]
         })
       end
+    end
+  end
+
+  describe "#remove_filter" do
+    let(:filters) { { "suivis" => [] } }
+    let(:email_column_id) { procedure.find_column(label: 'Demandeur').id }
+
+    before do
+      procedure_presentation.add_filter("suivis", email_column_id, "a@a.com")
+    end
+
+    it 'should remove filter' do
+      expect(procedure_presentation.filters).to eq({ "suivis" => [{ "column" => "email", "label" => "Demandeur", "table" => "user", "value" => "a@a.com", "value_column" => "value" }] })
+      expect(procedure_presentation.suivis_filters).to eq([{ "filter" => "a@a.com", "id" => { "column_id" => "user/email", "procedure_id" => procedure.id } }])
+
+      procedure_presentation.remove_filter("suivis", email_column_id, "a@a.com")
+      procedure_presentation.reload
+
+      expect(procedure_presentation.filters).to eq({ "suivis" => [] })
+      expect(procedure_presentation.suivis_filters).to eq([])
     end
   end
 
@@ -924,6 +965,53 @@ describe ProcedurePresentation do
 
         it { is_expected.to eq(sorted_ids) }
       end
+    end
+  end
+
+  describe '#update_displayed_fields' do
+    let(:procedure_presentation) do
+      create(:procedure_presentation, assign_to:).tap do |pp|
+        pp.update_sort(procedure.find_column(label: 'Demandeur').id, 'desc')
+      end
+    end
+
+    subject do
+      procedure_presentation.update_displayed_fields([
+        procedure.find_column(label: 'En construction le').id,
+        procedure.find_column(label: 'Mis à jour le').id
+      ])
+    end
+
+    it 'should update displayed_fields' do
+      expect(procedure_presentation.displayed_columns).to eq([])
+
+      subject
+
+      expect(procedure_presentation.displayed_columns).to eq([
+        { "column_id" => "self/en_construction_at", "procedure_id" => procedure.id },
+        { "column_id" => "self/updated_at", "procedure_id" => procedure.id }
+      ])
+
+      expect(procedure_presentation.sorted_column['id']).to eq("column_id" => "self/id", "procedure_id" => procedure.id)
+      expect(procedure_presentation.sorted_column['order']).to eq('desc')
+    end
+  end
+
+  describe '#update_sort' do
+    let(:procedure_presentation) { create(:procedure_presentation, assign_to:) }
+
+    subject do
+      column_id = procedure.find_column(label: 'En construction le').id
+      procedure_presentation.update_sort(column_id, 'asc')
+    end
+
+    it 'should update sort and order' do
+      expect(procedure_presentation.sorted_column).to be_nil
+
+      subject
+
+      expect(procedure_presentation.sorted_column['id']).to eq("column_id" => "self/en_construction_at", "procedure_id" => procedure.id)
+      expect(procedure_presentation.sorted_column['order']).to eq('asc')
     end
   end
 end

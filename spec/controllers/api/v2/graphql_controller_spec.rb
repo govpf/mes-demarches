@@ -515,7 +515,7 @@ describe API::V2::GraphqlController do
             avis: []
           )
 
-          expected_champs = dossier.champs_public.map do |champ|
+          expected_champs = dossier.project_champs_public.map do |champ|
             {
               id: champ.to_typed_id,
               label: champ.libelle,
@@ -546,7 +546,7 @@ describe API::V2::GraphqlController do
           end
           expect(gql_data[:dossier][:messages]).to match_array(expected_messages)
 
-          expect(gql_data[:dossier][:champs][0][:id]).to eq(dossier.champs_public[0].type_de_champ.to_typed_id)
+          expect(gql_data[:dossier][:champs][0][:id]).to eq(dossier.project_champs_public[0].type_de_champ.to_typed_id)
         end
       end
 
@@ -688,10 +688,8 @@ describe API::V2::GraphqlController do
       context "champs" do
         let(:procedure) { create(:procedure, :published, :for_individual, administrateurs: [admin], types_de_champ_public: [{ type: :date }, { type: :datetime }]) }
         let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
-        let(:champ_date) { dossier.champs_public.first }
-        let(:champ_datetime) { dossier.champs_public.second }
-        let(:date) { '2019-07-10' }
-        let(:datetime) { '15/09/1962 15:35' }
+        let(:champ_date) { dossier.project_champs_public.first }
+        let(:champ_datetime) { dossier.project_champs_public.second }
 
         before do
           champ_date.update(value: date)
@@ -1294,7 +1292,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationText(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type == 'Champs::TextChamp' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type == 'Champs::TextChamp' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: \"hello\"
               }) {
@@ -1385,7 +1383,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationCheckbox(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'checkbox' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'checkbox' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: #{value}
               }) {
@@ -1436,7 +1434,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationCheckbox(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'yes_no' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'yes_no' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: #{value}
               }) {
@@ -1486,7 +1484,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationDate(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'date' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'date' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: \"#{1.day.from_now.to_date.iso8601}\"
               }) {
@@ -1506,7 +1504,7 @@ describe API::V2::GraphqlController do
 
               expect(gql_data).to eq(dossierModifierAnnotationDate: {
                 annotation: {
-                  stringValue: dossier.reload.champs_private.find { |c| c.type_champ == 'date' }.to_s
+                  stringValue: dossier.reload.project_champs_private.find { |c| c.type_champ == 'date' }.to_s
                 },
                 errors: nil
               })
@@ -1521,7 +1519,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationDatetime(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'datetime' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'datetime' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: \"#{1.day.from_now.iso8601}\"
               }) {
@@ -1541,7 +1539,7 @@ describe API::V2::GraphqlController do
 
               expect(gql_data).to eq(dossierModifierAnnotationDatetime: {
                 annotation: {
-                  stringValue: dossier.reload.champs_private.find { |c| c.type_champ == 'datetime' }.to_s
+                  stringValue: dossier.reload.project_champs_private.find { |c| c.type_champ == 'datetime' }.to_s
                 },
                 errors: nil
               })
@@ -1556,7 +1554,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationDropDownList(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'drop_down_list' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'drop_down_list' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: \"#{value}\"
               }) {
@@ -1577,7 +1575,7 @@ describe API::V2::GraphqlController do
 
               expect(gql_data).to eq(dossierModifierAnnotationDropDownList: {
                 annotation: {
-                  stringValue: dossier.reload.champs_private.find { |c| c.type_champ == 'drop_down_list' }.to_s
+                  stringValue: dossier.reload.project_champs_private.find { |c| c.type_champ == 'drop_down_list' }.to_s
                 },
                 errors: nil
               })
@@ -1602,7 +1600,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationIntegerNumber(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'integer_number' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'integer_number' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: 42
               }) {
