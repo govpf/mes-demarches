@@ -740,4 +740,85 @@ describe Champ do
       end
     end
   end
+
+  describe '#dependent_formula_champs' do
+    let(:dossier) { build(:dossier) }
+    let(:montant_champ) { Champs::IntegerNumberChamp.new(dossier: dossier, stable_id: 123, value: '100') }
+    let(:tva_champ) { Champs::DecimalNumberChamp.new(dossier: dossier, stable_id: 456, value: '20.0') }
+    let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier, stable_id: 789) }
+    let(:autre_formule_champ) { Champs::FormuleChamp.new(dossier: dossier, stable_id: 101) }
+
+    let(:montant_tdc) { build(:type_de_champ_integer_number) }
+    let(:tva_tdc) { build(:type_de_champ_decimal_number) }
+    let(:formule_tdc) { build(:type_de_champ_formule, dependent_stable_ids: [123, 456]) }
+    let(:autre_formule_tdc) { build(:type_de_champ_formule, dependent_stable_ids: [123]) }
+
+    before do
+      allow(montant_champ).to receive(:type_de_champ).and_return(montant_tdc)
+      allow(tva_champ).to receive(:type_de_champ).and_return(tva_tdc)
+      allow(formule_champ).to receive(:type_de_champ).and_return(formule_tdc)
+      allow(autre_formule_champ).to receive(:type_de_champ).and_return(autre_formule_tdc)
+
+      allow(dossier).to receive(:champs).and_return([montant_champ, tva_champ, formule_champ, autre_formule_champ])
+    end
+
+    context 'when champ is referenced by formula champs' do
+      it 'returns all formula champs that depend on this champ' do
+        dependent_champs = montant_champ.dependent_formula_champs
+
+        expect(dependent_champs).to include(formule_champ, autre_formule_champ)
+      end
+
+      it 'returns only relevant formula champs' do
+        dependent_champs = tva_champ.dependent_formula_champs
+
+        expect(dependent_champs).to include(formule_champ)
+        expect(dependent_champs).not_to include(autre_formule_champ)
+      end
+    end
+
+    context 'when champ is not referenced by any formula' do
+      let(:text_champ) { Champs::TextChamp.new(dossier: dossier, stable_id: 999) }
+      let(:text_tdc) { build(:type_de_champ_text) }
+
+      before do
+        allow(text_champ).to receive(:type_de_champ).and_return(text_tdc)
+        allow(dossier).to receive(:champs).and_return([montant_champ, tva_champ, formule_champ, autre_formule_champ, text_champ])
+      end
+
+      it 'returns empty array' do
+        dependent_champs = text_champ.dependent_formula_champs
+
+        expect(dependent_champs).to be_empty
+      end
+    end
+
+    context 'when there are no formula champs in dossier' do
+      before do
+        allow(dossier).to receive(:champs).and_return([montant_champ, tva_champ])
+      end
+
+      it 'returns empty array' do
+        dependent_champs = montant_champ.dependent_formula_champs
+
+        expect(dependent_champs).to be_empty
+      end
+    end
+
+    context 'when dependent_stable_ids is nil' do
+      let(:formule_tdc_without_deps) { build(:type_de_champ_formule, dependent_stable_ids: nil) }
+      let(:formule_champ_without_deps) { Champs::FormuleChamp.new(dossier: dossier, stable_id: 202) }
+
+      before do
+        allow(formule_champ_without_deps).to receive(:type_de_champ).and_return(formule_tdc_without_deps)
+        allow(dossier).to receive(:champs).and_return([montant_champ, formule_champ_without_deps])
+      end
+
+      it 'handles nil gracefully' do
+        dependent_champs = montant_champ.dependent_formula_champs
+
+        expect(dependent_champs).to be_empty
+      end
+    end
+  end
 end

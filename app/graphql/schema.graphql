@@ -5093,7 +5093,7 @@ enum TypeDeChamp {
   expression_reguliere
 
   """
-  Champ formule
+  Formule
   """
   formule
 

@@ -219,7 +219,7 @@ FactoryBot.define do
     end
 
     factory :champ_do_not_use_formule, class: 'Champs::FormuleChamp' do
-      computed_value { 'Résultat calculé' }
+      value { 'Résultat calculé' }
     end
 
     factory :champ_do_not_use_repetition, class: 'Champs::RepetitionChamp' do

@@ -516,4 +516,75 @@ describe TypeDeChamp do
 
     it { is_expected.to eq([["« Référentiel des administrations »"], ["« Oui/Non »", "« Case à cocher seule »", "« Choix simple »", "« Choix multiple »"], ["« Nombre entier »", "« Nombre décimal »"], ["« Adresse en France »", "« Communes »", "« EPCI »", "« Départements »", "« Régions »", "« Pays »", "« Commune de Polynésie »", "« Code Postal de Polynésie »"]]) }
   end
+  
+  describe 'formula expression methods' do
+    let(:procedure) { build(:procedure) }
+    let(:revision) { procedure.active_revision }
+    let(:montant_tdc) { build(:type_de_champ_integer_number, libelle: 'Montant HT', stable_id: 123) }
+    let(:formule_tdc) { build(:type_de_champ_formule, revision: revision) }
+
+    before do
+      allow(revision).to receive(:types_de_champ).and_return([montant_tdc, formule_tdc])
+      allow(formule_tdc).to receive(:revision).and_return(revision)
+    end
+
+    describe '#formule_user_expression' do
+      context 'when formule_expression contains stable_ids' do
+        before do
+          formule_tdc.formule_expression = '{123} * 1.2'
+        end
+
+        it 'converts to user-friendly libelles' do
+          expect(formule_tdc.formule_user_expression).to eq('{Montant HT} * 1.2')
+        end
+
+        it 'caches the result' do
+          expect(FormulaExpressionService).to receive(:convert_to_libelles).once.and_return('{Montant HT} * 1.2')
+
+          2.times { formule_tdc.formule_user_expression }
+        end
+      end
+
+      context 'when not a formule type' do
+        let(:text_tdc) { build(:type_de_champ_text) }
+
+        it 'returns empty string' do
+          expect(text_tdc.formule_user_expression).to eq('')
+        end
+      end
+    end
+
+    describe '#formule_user_expression=' do
+      context 'when setting user expression' do
+        let(:user_expression) { '{Montant HT} * 1.2' }
+
+        it 'stores the user expression in cache' do
+          formule_tdc.formule_user_expression = user_expression
+          expect(formule_tdc.formule_user_expression).to eq(user_expression)
+        end
+
+        it 'converts to stable_ids for storage' do
+          formule_tdc.formule_user_expression = user_expression
+          expect(formule_tdc.formule_expression).to eq('{123} * 1.2')
+          expect(formule_tdc.dependent_stable_ids).to eq([123])
+        end
+      end
+
+      context 'when setting blank expression' do
+        it 'clears both expressions' do
+          formule_tdc.formule_user_expression = ''
+          expect(formule_tdc.formule_expression).to eq('')
+          expect(formule_tdc.dependent_stable_ids).to eq([])
+        end
+      end
+
+      context 'when not a formule type' do
+        let(:text_tdc) { build(:type_de_champ_text) }
+
+        it 'does nothing' do
+          expect { text_tdc.formule_user_expression = '{Test}' }.not_to change { text_tdc.options }
+        end
+      end
+    end
+  end
 end

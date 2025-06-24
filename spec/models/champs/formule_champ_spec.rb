@@ -129,7 +129,6 @@ describe Champs::FormuleChamp do
       end
     end
 
-
     context 'with no expression' do
       let(:expression) { '' }
 
