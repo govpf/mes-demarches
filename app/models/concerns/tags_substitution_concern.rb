@@ -155,38 +155,6 @@ module TagsSubstitutionConcern
       },
       available_for_states: Dossier::TERMINE,
       escapable: false
-    },
-    {
-      id: 'lexpol_nor',
-      libelle: 'nor',
-      description: 'Numéro NOR Lexpol',
-      lambda: -> (d) { d.mail_lexpol_champ&.value || '[NOR Lexpol non disponible]' },
-      available_for_states: Dossier::SOUMIS, escapable: true
-    },
-    {
-      id: 'lexpol_lien_dossier',
-      libelle: 'lien dossier Lexpol',
-      description: 'Lien direct vers le dossier Lexpol',
-      lambda: -> (d) { d.mail_lexpol_champ&.lexpol_dossier_url || '[lien dossier Lexpol non disponible]' },
-      available_for_states: Dossier::SOUMIS, escapable: true
-    },
-    {
-      id: 'lexpol_statut',
-      libelle: 'statut dossier Lexpol',
-      description: 'Statut du dossier Lexpol',
-      lambda: -> (d) { d.mail_lexpol_champ&.lexpol_status || '[statut Lexpol non disponible]' },
-      available_for_states: Dossier::SOUMIS,
-      escapable: true
-    },
-    {
-      id: 'lexpol_arrete_lien',
-      libelle: 'lien arrêté Lexpol',
-      description: 'Lien vers le premier arrêté Lexpol (PDF)',
-      lambda: -> (d) {
-        d.mail_lexpol_champ&.lexpol_arrete_lien || '[lien arrêté Lexpol non disponible]'
-      },
-      available_for_states: Dossier::SOUMIS,
-      escapable: true
     }
   ]
 

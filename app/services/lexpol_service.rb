@@ -76,7 +76,7 @@ class LexpolService
     dossier_info = apilexpol.get_dossier_infos(champ.value)
     champ.lexpol_status = dossier_info['statut_libelle']
     champ.lexpol_dossier_url = dossier_info['lienDossier']
-    champ.lexpol_arrete_lien = dossier_info['elements']&.first&.dig('lienElement')
+    champ.lexpol_arrete_lien = dossier_info['elements']&.first&.dig('lienLexpol')
     champ.save!
   end
 
@@ -102,10 +102,5 @@ class LexpolService
     mapping_raw = lexpol_type_de_champ.lexpol_mapping || ""
     mapping_raw.lines.map(&:strip).compact_blank
       .map { |ligne| ligne.include?('=') ? ligne.split('=').map(&:strip) : [ligne, ligne] }
-  end
-
-  def self.inject_mail_tags(dossier)
-    lexpol_champ = dossier.champs.find { |champ| champ.is_a?(Champs::LexpolChamp) && champ.value.present? }
-    dossier.mail_lexpol_champ = lexpol_champ if lexpol_champ
   end
 end
