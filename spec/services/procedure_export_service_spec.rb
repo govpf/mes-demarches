@@ -27,6 +27,8 @@ describe ProcedureExportService do
         [tdc, "#{tdc} (Adresse)", "#{tdc} (Code INSEE Ville)", "#{tdc} (Département)", "#{tdc} (Nom)"]
       when 'numero_dn'
         [tdc, "#{tdc} (Date de naissance)"]
+      when 'lexpol'
+        [tdc, "#{tdc} (statut)", "#{tdc} (lien dossier)", "#{tdc} (lien arrêté)"]
       else
         tdc
       end
