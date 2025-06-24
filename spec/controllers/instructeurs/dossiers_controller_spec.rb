@@ -1003,7 +1003,7 @@ describe Instructeurs::DossiersController, type: :controller do
     let(:champ_repetition) { dossier.project_champs_private.fourth }
     let(:champ_drop_down_list) { dossier.project_champs_private.fifth }
 
-    context 'when no invalid champs_public' do
+    context 'when no invalid project_champs_public' do
       context "with new values for project_champs_private" do
         before do
           expect(controller.current_instructeur).to receive(:mark_tab_as_seen).with(dossier, :annotations_privees)
@@ -1126,7 +1126,7 @@ describe Instructeurs::DossiersController, type: :controller do
       }
     end
 
-    context "with invalid champs_public (DecimalNumberChamp)" do
+    context "with invalid project_champs_public (DecimalNumberChamp)" do
       let(:types_de_champ_public) do
         [
           { type: :decimal_number }

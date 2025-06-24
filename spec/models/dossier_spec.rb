@@ -2128,7 +2128,7 @@ describe Dossier, type: :model do
       let(:yes_no_tdc) { procedure.active_revision.types_de_champ_public.first }
       let(:text_tdc) { procedure.active_revision.types_de_champ_public.second }
       let(:commune_tdc) { procedure.active_revision.types_de_champ_public[2] }
-      let(:tdcs) { dossier.champs_public.map(&:type_de_champ) }
+      let(:tdcs) { dossier.project_champs_public.map(&:type_de_champ) }
       context 'with no value for commune_de_polynesie' do
         let(:expected) do
           [
@@ -2144,7 +2144,7 @@ describe Dossier, type: :model do
         subject { dossier.champs_for_export(tdcs) }
 
         before do
-          yes_no, text, commune_de_polynesie = dossier.champs_public
+          yes_no, text, commune_de_polynesie = dossier.project_champs_public
           yes_no.update(value: 'true')
           text.update(value: 'text')
         end
@@ -2167,7 +2167,7 @@ describe Dossier, type: :model do
         subject { dossier.champs_for_export(tdcs) }
 
         before do
-          yes_no, text, commune_de_polynesie = dossier.champs_public
+          yes_no, text, commune_de_polynesie = dossier.project_champs_public
           yes_no.update(value: 'true')
           commune_de_polynesie.update(value: 'Avera - Raiatea - 98736')
           text.update(value: 'text')
@@ -2184,7 +2184,7 @@ describe Dossier, type: :model do
       let(:yes_no_tdc) { procedure.active_revision.types_de_champ_public.first }
       let(:text_tdc) { procedure.active_revision.types_de_champ_public.second }
       let(:cp_tdc) { procedure.active_revision.types_de_champ_public[2] }
-      let(:tdcs) { dossier.champs_public.map(&:type_de_champ) }
+      let(:tdcs) { dossier.project_champs_public.map(&:type_de_champ) }
       context 'with no value for code_postal_de_polynesie' do
         let(:expected) do
           [
@@ -2200,7 +2200,7 @@ describe Dossier, type: :model do
         subject { dossier.champs_for_export(tdcs) }
 
         before do
-          yes_no, text, code_postal_de_polynesie = dossier.champs_public
+          yes_no, text, code_postal_de_polynesie = dossier.project_champs_public
           yes_no.update(value: 'true')
           text.update(value: 'text')
         end
@@ -2223,7 +2223,7 @@ describe Dossier, type: :model do
         subject { dossier.champs_for_export(tdcs) }
 
         before do
-          yes_no, text, code_postal_de_polynesie = dossier.champs_public
+          yes_no, text, code_postal_de_polynesie = dossier.project_champs_public
           yes_no.update(value: 'true')
           code_postal_de_polynesie.update(value: '98736 - Avera - Raiatea')
           text.update(value: 'text')
