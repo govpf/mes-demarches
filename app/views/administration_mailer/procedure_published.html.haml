@@ -7,5 +7,28 @@
   Commencer la démarche :
   = link_to @procedure.path, commencer_url(path: @procedure.path)
 
+- if @is_dubious
+  %div{ style: "background: #ffe6e6; border-left: 4px solid #f00; padding: 10px; margin: 15px 0;" }
+    %h3{ style: "color: #c00; margin: 0;" } ⚠️ Procédure suspecte détectée
+    %p
+      %strong Champs suspects :
+      = @dubious_champs.join(', ')
+    %p{ style: "font-size: 0.9em; color: #666;" }
+      Cette procédure contient des champs avec des mots-clés interdits.
+
+%div{ style: "background: #f5f5f5; padding: 15px; margin: 15px 0; border-radius: 5px;" }
+  %h3{ style: "margin: 0; color: #333;" } 📊 Statistiques des champs
+  %p
+    %strong Total des champs :
+    = @champs_info[:total_champs]
+  %p
+    %strong Champs avec description :
+    = @champs_info[:champs_with_description]
+    (#{@champs_info[:percentage_with_description]}%)
+
+  - if @champs_info[:percentage_with_description] < 50
+    %p{ style: "color: #ff8c00; font-weight: bold;" }
+      ⚠️ Moins de 50% des champs ont une description
+
 = render partial: "procedure_description", locals: { procedure: @procedure }
 = render partial: "layouts/mailers/signature"

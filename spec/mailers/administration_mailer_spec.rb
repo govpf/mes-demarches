@@ -35,4 +35,35 @@ RSpec.describe AdministrationMailer, type: :mailer do
       expect(subject['BYPASS_UNVERIFIED_MAIL_PROTECTION']).to be_present
     end
   end
+
+  describe '#procedure_published' do
+    let(:procedure) { create(:procedure, :published, libelle: "Test Procédure") }
+    let!(:type_de_champ) { create(:type_de_champ, libelle: "IBAN", description: "Votre compte bancaire", procedure: procedure) }
+    let!(:type_de_champ_no_desc) { create(:type_de_champ, libelle: "Nom", description: "", procedure: procedure) }
+
+    subject { described_class.procedure_published(procedure) }
+
+    it 'sends email to EQUIPE_EMAIL' do
+      expect(subject.to).to include(EQUIPE_EMAIL)
+    end
+
+    context 'when procedure has suspicious keywords from DubiousProcedure' do
+      let!(:suspicious_champ) { create(:type_de_champ, libelle: "Numéro de sécurité sociale", type_champ: :text, procedure: procedure) }
+
+      it 'shows dubious procedure alert' do
+        expect(subject.body.encoded).to include("Procédure suspecte détectée")
+        expect(subject.body.encoded).to include("sécurité sociale")
+      end
+    end
+
+    context 'when less than 50% of champs have descriptions' do
+      before do
+        create(:type_de_champ, libelle: "Autre champ", description: "", procedure: procedure)
+      end
+
+      it 'shows low description coverage alert' do
+        expect(subject.body.encoded).to include("Moins de 50% des champs ont une description")
+      end
+    end
+  end
 end

@@ -29,6 +29,10 @@ class AdministrationMailer < ApplicationMailer
 
   def procedure_published(procedure)
     @procedure = procedure
+    @champs_info = analyze_champs_info(procedure)
+    @is_dubious = is_dubious_procedure?(procedure)
+    @dubious_champs = get_dubious_champs(procedure) if @is_dubious
+
     subject = "Une nouvelle démarche vient d'être publiée"
     mail(to: EQUIPE_EMAIL, subject: subject)
   end
@@ -82,6 +86,39 @@ class AdministrationMailer < ApplicationMailer
     else
       "#{size.to_int}o"
     end
+  end
+
+  def analyze_champs_info(procedure)
+    all_champs = procedure.active_revision.types_de_champ_public + procedure.active_revision.types_de_champ_private
+    total_champs = all_champs.count
+    champs_with_description = all_champs.count { |champ| champ.description.present? }
+
+    {
+      total_champs: total_champs,
+      champs_with_description: champs_with_description,
+      percentage_with_description: total_champs > 0 ? (champs_with_description * 100.0 / total_champs).round(1) : 0,
+      champs_details: all_champs.map do |champ|
+        {
+          libelle: champ.libelle,
+          type: champ.type_champ,
+          description: champ.description.presence || "[Pas de description]",
+          mandatory: champ.mandatory?
+        }
+      end
+    }
+  end
+
+  def is_dubious_procedure?(procedure)
+    procedure.active_revision.types_de_champ_public
+      .where(type_champ: [TypeDeChamp.type_champs.fetch(:text), TypeDeChamp.type_champs.fetch(:textarea)])
+      .exists?(["unaccent(types_de_champ.libelle) ~* unaccent(?)", DubiousProcedure.forbidden_regexp])
+  end
+
+  def get_dubious_champs(procedure)
+    procedure.active_revision.types_de_champ_public
+      .where(type_champ: [TypeDeChamp.type_champs.fetch(:text), TypeDeChamp.type_champs.fetch(:textarea)])
+      .where("unaccent(types_de_champ.libelle) ~* unaccent(?)", DubiousProcedure.forbidden_regexp)
+      .pluck(:libelle)
   end
 
   def self.critical_email?(action_name)
