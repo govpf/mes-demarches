@@ -134,7 +134,10 @@
                 .flex.column
                   .cell.fr-mt-1w
                     = form.label :table_id, "Table de recherche", for: dom_id(type_de_champ, :table_id)
-                    = form.select :table_id, type_de_champ.available_tables, {}, id: dom_id(type_de_champ, :table_id), prompt: 'Sélectionnez la table', class: 'fr-select'
+                    = form.select :table_id, TypeDeChamp.referentiel_tables,
+                                 { prompt: 'Sélectionnez une table' },
+                                 { id: dom_id(type_de_champ, :table_id),
+                                   class: 'fr-select' }
                 .flex.column
                   .cell.cell.fr-mt-1w
                     = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
