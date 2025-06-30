@@ -57,6 +57,7 @@ en:
           epci: "EPCI"
           cojo: "Accreditation Paris 2024"
           expression_reguliere: 'Regular expression'
+          table_row_selector: "Administrations' referential"
     errors:
       type_de_champ:
         attributes:

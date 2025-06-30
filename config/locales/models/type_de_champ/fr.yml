@@ -64,6 +64,7 @@ fr:
           cojo: "Accréditation Paris 2024"
           lexpol: "Lexpol"
           expression_reguliere: 'Expression régulière'
+          table_row_selector: 'Référentiel des administrations'
     errors:
       type_de_champ:
         attributes:

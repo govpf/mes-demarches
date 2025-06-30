@@ -22443,7 +22443,7 @@
             },
             {
               "name": "table_row_selector",
-              "description": "Translation missing: fr.activerecord.attributes.type_de_champ.type_champs.table_row_selector",
+              "description": "Référentiel des administrations",
               "isDeprecated": false,
               "deprecationReason": null
             },
