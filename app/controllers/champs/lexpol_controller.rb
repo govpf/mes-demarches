@@ -3,7 +3,9 @@
 module Champs
   class LexpolController < Champs::ChampController
     def upsert
-      apilexpol = APILexpol.new(current_user.email, @champ.dossier&.procedure&.service&.siret, super_admin_signed_in?)
+      use_test_mode = @champ.dossier&.revision&.draft? && @champ.dossier&.procedure&.service&.siret.present?
+
+      apilexpol = APILexpol.new(current_user.email, @champ.dossier&.procedure&.service&.siret, use_test_mode)
       service = LexpolService.new(champ: @champ, dossier: @champ.dossier, apilexpol: apilexpol)
 
       force_create = params[:force_create].present?

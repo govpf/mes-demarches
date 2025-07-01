@@ -135,9 +135,21 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
 
   def lexpol_models
     service_siret = type_de_champ.procedure&.service&.siret
-    super_admin = current_super_admin.present?
+    return [] if service_siret.blank?
+
+    use_test_mode = service_siret.present?
     email = current_super_admin&.email || current_user.email
-    APILexpol.new(email, service_siret, super_admin).get_models
+
+    begin
+      APILexpol.new(email, service_siret, use_test_mode).get_models
+    rescue => e
+      Rails.logger.error "Erreur lors de la récupération des modèles Lexpol: #{e.message}"
+      []
+    end
+  end
+
+  def lexpol_service_configured?
+    type_de_champ.procedure&.service&.siret.present?
   end
 
   def options_for_character_limit
