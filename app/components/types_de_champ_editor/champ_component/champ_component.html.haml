@@ -94,107 +94,116 @@
                 %ul
                   - LexpolService.lexpol_variables(type_de_champ).map do |variable|
                     %li= variable
-
-        .flex.justify-start.fr-mt-1w
-          -# ----- Polynesia options
-          - if type_de_champ.integer_number? || type_de_champ.decimal_number?
-            .flex.width-33
-            .flex.column
-              .cell
-                %label bornes
+            -# ----- Polynesia options
+            - if type_de_champ.integer_number? || type_de_champ.decimal_number?
+              .flex.width-33
+              .flex.column
+                .cell
+                  %label bornes
+                .flex.flex-grow.align-center
+                  .cell
+                    = form.label :min, 'Minimum', for: dom_id(type_de_champ, :min)
+                  .cell
+                    = form.number_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min)
+                  .cell
+                    = form.label :max, 'Maximum', for: dom_id(type_de_champ, :max)
+                  .cell
+                    = form.number_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max)
+            - if type_de_champ.date?
+              .flex.width-33
+              .flex.column
+                .cell
+                  %label bornes
+                .flex.flex-grow.align-center
+                  .cell
+                    = form.label :min, 'Début', for: dom_id(type_de_champ, :min)
+                  .cell
+                    = form.date_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min), value: type_de_champ.min
+                  .cell
+                    = form.label :max, 'Fin', for: dom_id(type_de_champ, :max)
+                  .cell
+                    = form.date_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max), value: type_de_champ.max
+            - if type_de_champ.visa?
+              .flex.width-33
               .flex.flex-grow.align-center
-                .cell
-                  = form.label :min, 'Minimum', for: dom_id(type_de_champ, :min)
-                .cell
-                  = form.number_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min)
-                .cell
-                  = form.label :max, 'Maximum', for: dom_id(type_de_champ, :max)
-                .cell
-                  = form.number_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max)
-          - if type_de_champ.date?
-            .flex.width-33
-            .flex.column
-              .cell
-                %label bornes
-              .flex.flex-grow.align-center
-                .cell
-                  = form.label :min, 'Début', for: dom_id(type_de_champ, :min)
-                .cell
-                  = form.date_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min), value: type_de_champ.min
-                .cell
-                  = form.label :max, 'Fin', for: dom_id(type_de_champ, :max)
-                .cell
-                  = form.date_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max), value: type_de_champ.max
-          - if type_de_champ.visa?
-            .flex.width-33
-            .flex.flex-grow.align-center
-              .cell.width-100
-                = form.label :accredited_user_string, "Mails des personnes accréditées", for: dom_id(type_de_champ, :accredited_user_string)
-                = form.text_area :accredited_user_string, class: 'fr-input small-margin small', rows: 7, id: dom_id(type_de_champ, :accredited_user_string), placeholder: 'Ecrire un email par ligne'
-          - if type_de_champ.drop_down_list?
-            .flex.width-33
-            .flex.column.width-33
-              .cell
-                = form.label :drop_down_options_from_text, "Options de la liste", for: dom_id(type_de_champ, :drop_down_options_from_text)
-                = form.text_area :drop_down_options_from_text,
-                  value: type_de_champ.drop_down_options.join("\r\n"),
-                  class: 'fr-input small-margin small width-100',
-                  rows: 7,
-                  id: dom_id(type_de_champ, :drop_down_options_from_text)
-            - if type_de_champ.simple_drop_down_list?
-              .flex.column.width-33
-                .cell
-                  = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
-                    Proposer une option « autre » avec un texte libre
-                  = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
+                .cell.width-100
+                  = form.label :accredited_user_string, "Mails des personnes accréditées", for: dom_id(type_de_champ, :accredited_user_string)
+                  = form.text_area :accredited_user_string, class: 'fr-input small-margin small', rows: 7, id: dom_id(type_de_champ, :accredited_user_string), placeholder: 'Ecrire un email par ligne'
+            - if type_de_champ.table_row_selector?
+              .cell.flex.flex-gap
+                .flex.column
+                  .cell.fr-mt-1w
+                    = form.label :table_id, "Table de recherche", for: dom_id(type_de_champ, :table_id)
+                    = form.select :table_id, TypeDeChamp.referentiel_tables,
+                                 { prompt: 'Sélectionnez une table' },
+                                 { id: dom_id(type_de_champ, :table_id),
+                                   class: 'fr-select' }
+                .flex.column
+                  .cell.cell.fr-mt-1w
+                    = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
+                      Proposer une option pour « autre » utilisable dans les conditions
+                    = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
 
-          - if type_de_champ.linked_drop_down_list?
-            .flex.column.justify-start.flex-grow
-              .cell
+            -# DS options
+            - if type_de_champ.drop_down_list?
+              .cell.flex.flex-gap
+                .flex.column
+                  .cell.fr-mt-1w
+                    = form.label :drop_down_options_from_text, "Options de la liste", for: dom_id(type_de_champ, :drop_down_options_from_text)
+                    = form.text_area :drop_down_options_from_text,
+                      value: type_de_champ.drop_down_options.join("\r\n"),
+                      class: 'fr-input small-margin small width-100',
+                      rows: 7,
+                      id: dom_id(type_de_champ, :drop_down_options_from_text)
+                - if type_de_champ.simple_drop_down_list?
+                  .flex.column
+                    .cell
+                      = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
+                        Proposer une option « autre » avec un texte libre
+                      = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
+
+            - if type_de_champ.linked_drop_down_list?
+              .cell.fr-mt-1w
                 = form.label :drop_down_secondary_libelle, "Libellé du champ secondaire", class: 'flex-grow', for: dom_id(type_de_champ, :drop_down_secondary_libelle)
                 = form.text_field :drop_down_secondary_libelle, class: 'fr-input small-margin small width-100', id: dom_id(type_de_champ, :drop_down_secondary_libelle)
               .cell.fr-mt-1w
                 = form.label :drop_down_secondary_description, "Description du champ secondaire (optionnel)", for: dom_id(type_de_champ, :drop_down_secondary_description)
                 = form.text_area :drop_down_secondary_description, class: 'fr-input small-margin small width-100', rows: 3, id: dom_id(type_de_champ, :drop_down_secondary_description)
-          - if type_de_champ.piece_justificative?
-            .cell
-              = form.label :piece_justificative_template, "Modèle", for: dom_id(type_de_champ, :piece_justificative_template)
-              = render Attachment::EditComponent.new(**piece_justificative_template_options)
+            - if type_de_champ.piece_justificative?
+              .cell
+                = form.label :piece_justificative_template, "Modèle", for: dom_id(type_de_champ, :piece_justificative_template)
+                = render Attachment::EditComponent.new(**piece_justificative_template_options)
 
-              - if type_de_champ.titre_identite?
-                = render Dsfr::AlertComponent.new(state: :info, heading_level: 'p') do |c|
-                  - c.with_body do
-                    Dans le cadre de la RGPD, le titre d’identité sera supprimé lors de l’acceptation, du refus ou du classement sans suite du dossier.<br />
-                    Aussi, pour des raisons de sécurité, un filigrane est automatiquement ajouté aux images.<br />
-                    Finalement, le titre d’identité ne sera ni disponible dans les zip de dossiers, ni téléchargeable par API.
-              - elsif procedure.piece_justificative_multiple?
-                %p Les usagers pourront envoyer plusieurs fichiers si nécessaire.
-          - if type_de_champ.carte?
-            .flex.width-33
-            .flex.flex-grow.align-center.fr-m-3v
-              - type_de_champ.editable_options.each do |slice|
-                .cell
-                  .carte-options
+                - if type_de_champ.titre_identite?
+                  = render Dsfr::AlertComponent.new(state: :info, heading_level: 'p') do |c|
+                    - c.with_body do
+                      Dans le cadre de la RGPD, le titre d’identité sera supprimé lors de l’acceptation, du refus ou du classement sans suite du dossier.<br />
+                      Aussi, pour des raisons de sécurité, un filigrane est automatiquement ajouté aux images.<br />
+                      Finalement, le titre d’identité ne sera ni disponible dans les zip de dossiers, ni téléchargeable par API.
+                - elsif procedure.piece_justificative_multiple?
+                  %p Les usagers pourront envoyer plusieurs fichiers si nécessaire.
+            - if type_de_champ.carte?
+              .cell.flex.fr-m-3v
+                - type_de_champ.editable_options.each do |slice|
+                  .cell.carte-options
                     = form.fields_for :editable_options do |form|
                       - slice.each do |(name, checked)|
                         = form.label name, for: dom_id(type_de_champ, "layer_#{name}") do
                           = form.check_box name, checked: checked, class: 'small-margin small', id: dom_id(type_de_champ, "layer_#{name}")
                           = t(".layers.#{name}")
-          - if type_de_champ.te_fenua?
-            .flex.width-33
-            .flex.column.width-33
-              .cell
-                .carte-options
-                  = form.fields_for :editable_options do |form|
-                    - TypesDeChamp::TeFenuaTypeDeChamp::LAYERS.each do |layer|
+            - if type_de_champ.te_fenua?
+              .cell.flex.flex-gap.fr-mt-1w
+                = form.fields_for :editable_options do |form|
+                  - TypesDeChamp::TeFenuaTypeDeChamp::LAYERS.each do |layer|
+                    .carte-options.cell
                       = form.label :te_fenua_layer, for: dom_id(type_de_champ, "layer_#{layer}") do
                         = form.radio_button :te_fenua_layer, layer, checked: type_de_champ.options["te_fenua_layer"] == layer.to_s, class: 'small-margin small', id: dom_id(type_de_champ, "layer_#{layer}")
                         = t(".layers.#{layer}")
-          - if type_de_champ.textarea?
-            .cell
-              = form.label :character_limit, for: dom_id(type_de_champ, :character_limit) do
-                Spécifier un nombre maximal conseillé de caractères :
-              = form.select :character_limit, options_for_character_limit, {}, { id: dom_id(type_de_champ, :character_limit), class: 'fr-select' }
+            - if type_de_champ.textarea?
+              .cell
+                = form.label :character_limit, for: dom_id(type_de_champ, :character_limit) do
+                  Spécifier un nombre maximal conseillé de caractères :
+                = form.select :character_limit, options_for_character_limit, {}, { id: dom_id(type_de_champ, :character_limit), class: 'fr-select' }
 
     - if type_de_champ.block?
       .flex.justify-start.section.fr-ml-1w

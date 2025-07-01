@@ -494,8 +494,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_23_125619) do
     t.boolean "for_tiers", default: false, null: false
     t.boolean "forced_groupe_instructeur", default: false, null: false
     t.bigint "groupe_instructeur_id"
-    t.datetime "groupe_instructeur_updated_at", precision: nil
-    t.datetime "hidden_by_administration_at", precision: nil
+    t.datetime "groupe_instructeur_updated_at"
+    t.datetime "hidden_by_administration_at"
     t.datetime "hidden_by_expired_at"
     t.string "hidden_by_reason"
     t.datetime "hidden_by_user_at"
@@ -510,8 +510,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_23_125619) do
     t.bigint "parent_dossier_id"
     t.string "prefill_token"
     t.boolean "prefilled"
-    t.string "private_search_terms"
-    t.datetime "processed_at", precision: nil
+    t.text "private_search_terms"
+    t.datetime "processed_at"
     t.bigint "revision_id"
     t.text "search_terms"
     t.string "state"
@@ -940,7 +940,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_23_125619) do
     t.string "description"
     t.string "description_pj"
     t.string "description_target_audience"
-    t.datetime "dossiers_count_computed_at", precision: nil
+    t.datetime "dossiers_count_computed_at"
     t.bigint "draft_revision_id"
     t.integer "duree_conservation_dossiers_dans_ds"
     t.boolean "duree_conservation_etendue_par_ds", default: false, null: false
@@ -978,8 +978,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_23_125619) do
     t.jsonb "sva_svr", default: {}, null: false
     t.text "tags", default: [], array: true
     t.boolean "template", default: false, null: false
-    t.datetime "unpublished_at", precision: nil
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "unpublished_at"
+    t.datetime "updated_at", null: false
     t.string "web_hook_url"
     t.datetime "whitelisted_at"
     t.bigint "zone_id"
@@ -1147,7 +1147,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_23_125619) do
     t.bigint "dossier_id"
     t.string "instructeur_email"
     t.string "motivation"
-    t.datetime "processed_at", precision: nil
+    t.datetime "processed_at"
     t.string "state"
     t.index ["dossier_id"], name: "index_traitements_on_dossier_id"
   end

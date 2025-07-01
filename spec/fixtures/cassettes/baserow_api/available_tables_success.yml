@@ -1,0 +1,54 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://api-baserow.mes-demarches.gov.pf/api/database/rows/table/631/?user_field_names=true
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Mes-Démarches
+      Authorization:
+      - Token kiaE3XVGO4ARiHFaL39H7daI0sWSPSAo
+      Expect:
+      - ''
+  response:
+    status:
+      code: 200
+      message: ''
+    headers:
+      Date:
+      - Wed, 18 Jun 2025 01:32:36 GMT
+      Content-Type:
+      - application/json
+      Content-Length:
+      - '1958'
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      X-Frame-Options:
+      - DENY
+      X-Content-Type-Options:
+      - nosniff
+      Referrer-Policy:
+      - same-origin
+      Cross-Origin-Opener-Policy:
+      - same-origin
+      Vary:
+      - origin
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains
+      Cf-Cache-Status:
+      - DYNAMIC
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 951708a8fbc4262b-LAX
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        eyJjb3VudCI6OCwibmV4dCI6bnVsbCwicHJldmlvdXMiOm51bGwsInJlc3VsdHMiOlt7ImlkIjoxLCJvcmRlciI6IjEuMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJOb20iOiJDb21tdW5lcyBkZSBwb2x5bsOpc2llIiwiQWN0aWYiOmZhbHNlLCJUYWJsZSI6IjIwMjU3OCIsIkNoYW1wIGRlIHJlY2hlcmNoZSI6IjEzOTE3NDciLCJDaGFtcHMgdXNhZ2VyIjoiMTM5MTc0NywxMzkxNzUwLDEzOTE3NTUsMTM5MTc1NiIsIkNoYW1wcyBpbnN0cnVjdGV1ciI6IjEzOTE3NDcsMTM5MTc1MCwxMzkxNzU1LDEzOTE3NTYiLCJUb2tlbiI6IlRxZGxIUGNsd0prRW91TUxqdGlGT2NtS2pnc0RXdGFMIn0seyJpZCI6Miwib3JkZXIiOiIyLjAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiTm9tIjoiTWF0w6lyaWVscyBhZmZlY3TDqXMgYXV4IGFnZW50cyIsIkFjdGlmIjpmYWxzZSwiVGFibGUiOiIyMDI1NjciLCJDaGFtcCBkZSByZWNoZXJjaGUiOiIxMzkxNjQ1IiwiQ2hhbXBzIHVzYWdlciI6IjEzOTE2NDUsMTM5MTY0NiwxMzkxNjU2IiwiQ2hhbXBzIGluc3RydWN0ZXVyIjoiMTM5MTY0NSIsIlRva2VuIjoiVHFkbEhQY2x3SmtFb3VNTGp0aUZPY21LamdzRFd0YUwifSx7ImlkIjozLCJvcmRlciI6IjMuMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJOb20iOiJBcnJpdmFnZSB0cmFuc3BvcnQgbWFyaXRpbWUiLCJBY3RpZiI6ZmFsc2UsIlRhYmxlIjoiMjAyNTUyIiwiQ2hhbXAgZGUgcmVjaGVyY2hlIjoiMTM5MTkwNCIsIkNoYW1wcyB1c2FnZXIiOiIiLCJDaGFtcHMgaW5zdHJ1Y3RldXIiOiIiLCJUb2tlbiI6IlRxZGxIUGNsd0prRW91TUxqdGlGT2NtS2pnc0RXdGFMIn0seyJpZCI6NCwib3JkZXIiOiI0LjAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiTm9tIjoiU2FsbGVzIGRlIHLDqXVuaW9uIC0gREdSSCIsIkFjdGlmIjpmYWxzZSwiVGFibGUiOiIyMDI1NjIiLCJDaGFtcCBkZSByZWNoZXJjaGUiOiIxMzkxOTA1IiwiQ2hhbXBzIHVzYWdlciI6IiIsIkNoYW1wcyBpbnN0cnVjdGV1ciI6IiIsIlRva2VuIjoiVHFkbEhQY2x3SmtFb3VNTGp0aUZPY21LamdzRFd0YUwifSx7ImlkIjo1LCJvcmRlciI6IjUuMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJOb20iOiJTZXNzaW9ucyBkZSBmb3JtYXRpb24gLSBDQ0lTTSIsIkFjdGlmIjpmYWxzZSwiVGFibGUiOiIyMDI1ODQiLCJDaGFtcCBkZSByZWNoZXJjaGUiOiIxMzkxNzc4IiwiQ2hhbXBzIHVzYWdlciI6IiIsIkNoYW1wcyBpbnN0cnVjdGV1ciI6IiIsIlRva2VuIjoiIn0seyJpZCI6Niwib3JkZXIiOiI2LjAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiTm9tIjoiU3Vic3RhbmNlcyBhY3RpdmVzIC0gREJTIiwiQWN0aWYiOmZhbHNlLCJUYWJsZSI6IjIxNjI4NCIsIkNoYW1wIGRlIHJlY2hlcmNoZSI6IjE1MDAwMDAiLCJDaGFtcHMgdXNhZ2VyIjoiIiwiQ2hhbXBzIGluc3RydWN0ZXVyIjoiIiwiVG9rZW4iOiIifSx7ImlkIjo3LCJvcmRlciI6IjcuMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJOb20iOiJDb3VycyAtIFRGVE4iLCJBY3RpZiI6dHJ1ZSwiVGFibGUiOiI2MzMiLCJDaGFtcCBkZSByZWNoZXJjaGUiOiI2MDMzIiwiQ2hhbXBzIHVzYWdlciI6IjYwMTMsNjAxNiw2MDE5LDYwMTgsNjAyMCIsIkNoYW1wcyBpbnN0cnVjdGV1ciI6IjYwMTMsNjAxNiw2MDE5LDYwMTgsNjAyMCIsIlRva2VuIjoic1RhazB6QmVQRUhGTHlzbnp5aWRINGJQT0dNcUVnMzMifSx7ImlkIjo5LCJvcmRlciI6IjguMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJOb20iOiJOb21lbmNsYXR1cmUgSUNQRSAtIERpcmVuIiwiQWN0aWYiOnRydWUsIlRhYmxlIjoiNjQwIiwiQ2hhbXAgZGUgcmVjaGVyY2hlIjoiNjA4NSIsIkNoYW1wcyB1c2FnZXIiOiI2MDgzLDYwODAsNjA3Myw2MDc0LDYwNzUsNjA3NiIsIkNoYW1wcyBpbnN0cnVjdGV1ciI6IjYwODMsNjA4MCw2MDczLDYwNzQsNjA3NSw2MDc2IiwiVG9rZW4iOiJZYmZBN2RPcHdaYW1yRzNEZVE0eXRGMTBSSk1URG56ciJ9XX0=
+  recorded_at: Wed, 18 Jun 2025 01:32:36 GMT
+recorded_with: VCR 6.2.0

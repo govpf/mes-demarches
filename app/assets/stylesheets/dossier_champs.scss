@@ -5,10 +5,23 @@
   th,
   td {
     vertical-align: top;
+
+    .champ-label {
+      margin-bottom: 0;
+      font-size: 0.5rem;
+      font-weight: 300;
+    }
+  }
+
+  td:first-child,
+  th:first-child {
+    width: 1%;
+    white-space: nowrap;
   }
 
   .libelle {
-    width: 325px;
+    width: 125px;
+    font-weight: 300;
   }
 
   td.updated-at {

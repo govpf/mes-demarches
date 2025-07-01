@@ -104,6 +104,8 @@ module Types
           Types::Champs::RNFChampType
         when ::Champs::EngagementJuridiqueChamp
           Types::Champs::EngagementJuridiqueChampType
+        when ::Champs::TableRowSelectorChamp
+          Types::Champs::TableRowSelectorChampType
         else
           Types::Champs::TextChampType
         end
