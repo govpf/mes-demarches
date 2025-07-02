@@ -3,7 +3,7 @@
 require 'rails_helper'
 
 RSpec.describe APILexpol do
-  let(:use_test_user) { nil }
+  let(:use_test_user) { false }
   let(:numero_tahiti) { nil }
   let(:api_lexpol) { described_class.new("instructeur@mes-demarches.gov.pf", numero_tahiti, use_test_user) }
 

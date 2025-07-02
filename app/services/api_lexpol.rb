@@ -13,7 +13,9 @@ class APILexpol
   TOKEN_EXPIRATION_TIME = 290 # less than 5 minutes
   MODEL_EXPIRATION_TIME = 900 # 15 min
 
-  def initialize(email = nil, numero_tahiti = nil, use_test_user = false)
+  def initialize(email, numero_tahiti = nil, use_test_user = false)
+    raise ArgumentError, "Email requis" if email.blank?
+
     @email_agent = determine_email_agent(email, numero_tahiti, use_test_user)
     @use_certificate = ENV.fetch('LEXPOL_CERTIFICATE_ENABLED', '').casecmp('enabled').zero?
   end

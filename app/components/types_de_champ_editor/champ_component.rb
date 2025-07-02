@@ -137,14 +137,18 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     service_siret = type_de_champ.procedure&.service&.siret
     return [] if service_siret.blank?
 
+    # Pour la configuration : seuls les super admins utilisent les comptes de test
     use_test_user = current_super_admin.present?
     email = current_super_admin&.email || current_user.email
 
-    begin
-      APILexpol.new(email, service_siret, use_test_user).get_models
-    rescue => e
-      Rails.logger.error "Erreur lors de la récupération des modèles Lexpol: #{e.message}"
-      []
+    cache_key = "lexpol_models:#{service_siret}:#{use_test_user}"
+    Rails.cache.fetch(cache_key, expires_in: 15.minutes) do
+      begin
+        APILexpol.new(email, service_siret, use_test_user).get_models
+      rescue => e
+        Rails.logger.error "Erreur lors de la récupération des modèles Lexpol: #{e.message}"
+        []
+      end
     end
   end
 
