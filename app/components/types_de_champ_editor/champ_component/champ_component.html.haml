@@ -67,15 +67,24 @@
             - if type_de_champ.lexpol?
               .cell.fr-mt-1w
                 = form.label :lexpol_modele, "Sélectionner un modèle Lexpol", class: 'flex-grow', for: dom_id(type_de_champ, :lexpol_modele)
-                - models = lexpol_models
-                - if models.any?
-                  = form.select :lexpol_modele,
-                                models.map { |k,v| [k.truncate(80), v] },
-                                { prompt: 'Sélectionnez un modèle' },
-                                { class: 'fr-select small-margin small', id: dom_id(type_de_champ, :lexpol_modele) }
+                - if lexpol_service_configured?
+                  - models = lexpol_models
+                  - if models.any?
+                    = form.select :lexpol_modele,
+                                  models.map { |k,v| [k.truncate(80), v] },
+                                  { prompt: 'Sélectionnez un modèle' },
+                                  { class: 'fr-select small-margin small', id: dom_id(type_de_champ, :lexpol_modele) }
+                  - else
+                    .fr-message.fr-message--error
+                      %p Erreur lors de la récupération des modèles Lexpol.
                 - else
-                  .fr-message.fr-message--error
-                    %p Aucun modèle disponible ou erreur lors de la récupération des modèles.
+                  .fr-message.fr-message--info
+                    %p
+                      Pour pouvoir sélectionner un modèle Lexpol, vous devez d'abord configurer le service de cette démarche avec un numéro Tahiti valide.
+                      %br
+                      - service_config_path = procedure.service.present? ? edit_admin_service_path(procedure.service, procedure_id: procedure.id) : admin_services_path(procedure_id: procedure.id)
+                      = link_to "Configurer le service", service_config_path, class: "fr-link", target: "_blank"
+                  = form.hidden_field :lexpol_modele
               .cell.fr-mt-1w
                 = form.label :lexpol_mapping, "Variables Lexpol", class: 'flex-grow', for: dom_id(type_de_champ, :lexpol_mapping)
                 = form.text_area :lexpol_mapping,
