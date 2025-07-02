@@ -67,9 +67,10 @@ module LexpolFieldsService
     return '' if object.value.blank?
 
     values = if object.value.is_a?(String) && object.value.start_with?('[') && object.value.end_with?(']')
-              JSON.parse(object.value)
-             else [object.value]
-            end
+      JSON.parse(object.value)
+    else
+      [object.value]
+    end
 
     if values.length >= 3
       values[0..-2].join(', ') + " et " + values.last
