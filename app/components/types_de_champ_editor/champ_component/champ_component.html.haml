@@ -82,10 +82,8 @@
                     %p
                       Pour pouvoir sélectionner un modèle Lexpol, vous devez d'abord configurer le service de cette démarche avec un numéro Tahiti valide.
                       %br
-                      - if procedure.service.present?
-                        = link_to "Configurer le service", edit_admin_service_path(procedure.service, procedure_id: procedure.id), class: "fr-link", target: "_blank"
-                      - else
-                        = link_to "Configurer le service", admin_services_path(procedure_id: procedure.id), class: "fr-link", target: "_blank"
+                      - service_config_path = procedure.service.present? ? edit_admin_service_path(procedure.service, procedure_id: procedure.id) : admin_services_path(procedure_id: procedure.id)
+                      = link_to "Configurer le service", service_config_path, class: "fr-link", target: "_blank"
                   = form.hidden_field :lexpol_modele
               .cell.fr-mt-1w
                 = form.label :lexpol_mapping, "Variables Lexpol", class: 'flex-grow', for: dom_id(type_de_champ, :lexpol_mapping)

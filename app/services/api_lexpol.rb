@@ -13,8 +13,8 @@ class APILexpol
   TOKEN_EXPIRATION_TIME = 290 # less than 5 minutes
   MODEL_EXPIRATION_TIME = 900 # 15 min
 
-  def initialize(email = nil, numero_tahiti = nil, use_test_mode = false)
-    @email_agent = determine_email_agent(email, numero_tahiti, use_test_mode)
+  def initialize(email = nil, numero_tahiti = nil, use_test_user = false)
+    @email_agent = determine_email_agent(email, numero_tahiti, use_test_user)
     @use_certificate = ENV.fetch('LEXPOL_CERTIFICATE_ENABLED', '').casecmp('enabled').zero?
   end
 
@@ -51,8 +51,8 @@ class APILexpol
 
   LEXPOL_SERVICE_EMAILS = ENV.fetch('LEXPOL_SERVICE_EMAILS', '').scan(/([A-Z0-9][0-9]{5})\(([^)]+)\)/).to_h
 
-  def determine_email_agent(email, numero_tahiti, use_test_mode)
-    return email unless use_test_mode && numero_tahiti
+  def determine_email_agent(email, numero_tahiti, use_test_user)
+    return email unless use_test_user && numero_tahiti
 
     APILexpol.service_emails[numero_tahiti] || email
   end
