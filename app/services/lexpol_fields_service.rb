@@ -40,7 +40,7 @@ module LexpolFieldsService
     when Champs::RepetitionChamp
       format_repetition_champ(object)
     when Champs::MultipleDropDownListChamp
-      format_multiple_drop_down_list(object)
+      object.selected_options.to_sentence(last_word_connector: ' et ')
     when Champs::TextareaChamp
       format_markdown(object.value)
     when Date
@@ -60,22 +60,6 @@ module LexpolFieldsService
       day + I18n.l(parsed, format: ' %B %Y')
     rescue
       date.to_s
-    end
-  end
-
-  def self.format_multiple_drop_down_list(object)
-    return '' if object.value.blank?
-
-    values = if object.value.is_a?(String) && object.value.start_with?('[') && object.value.end_with?(']')
-      JSON.parse(object.value)
-    else
-      [object.value]
-    end
-
-    if values.length >= 3
-      values[0..-2].join(', ') + " et " + values.last
-    else
-      values.join(', ')
     end
   end
 
