@@ -46,7 +46,7 @@ class Dossier < ApplicationRecord
 
   has_one_attached :justificatif_motivation
 
-  has_many :champs, validate: false
+  has_many :champs
   # We have to remove champs in a particular order - champs with a reference to a parent have to be
   # removed first, otherwise we get a foreign key constraint error.
   has_many :champs_to_destroy, -> { order(:parent_id) }, class_name: 'Champ', inverse_of: false, dependent: :destroy
