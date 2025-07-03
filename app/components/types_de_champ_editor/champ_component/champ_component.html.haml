@@ -95,7 +95,7 @@
                   - LexpolService.lexpol_variables(type_de_champ).map do |variable|
                     %li= variable
 
-        .flex.justify-start.fr-mt-1w
+        .flex.justify-start.fr-mt-1w.flex-gap
           -# ----- Polynesia options
           - if type_de_champ.integer_number? || type_de_champ.decimal_number?
             .flex.width-33
