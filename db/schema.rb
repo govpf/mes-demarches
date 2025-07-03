@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
+ActiveRecord::Schema[7.0].define(version: 2025_05_20_080602) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -289,6 +289,20 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.index ["type"], name: "index_champs_on_type"
   end
 
+  create_table "checks", force: :cascade do |t|
+    t.datetime "checked_at", precision: nil
+    t.string "checker"
+    t.datetime "created_at", precision: nil, null: false
+    t.integer "demarche_id"
+    t.integer "dossier"
+    t.boolean "failed", default: false
+    t.boolean "posted", default: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.float "version", default: 1.0
+    t.index ["dossier", "checker"], name: "unicity", unique: true
+    t.index ["dossier"], name: "by_dossier"
+  end
+
   create_table "closed_mails", id: :serial, force: :cascade do |t|
     t.text "body"
     t.datetime "created_at", null: false
@@ -362,19 +376,19 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.index ["zone_id"], name: "index_default_zones_administrateurs_on_zone_id"
   end
 
-  create_table "delayed_jobs", id: :serial, force: :cascade do |t|
+  create_table "delayed_jobs", force: :cascade do |t|
     t.integer "attempts", default: 0, null: false
-    t.datetime "created_at"
+    t.datetime "created_at", precision: nil
     t.string "cron"
-    t.datetime "failed_at"
+    t.datetime "failed_at", precision: nil
     t.text "handler", null: false
     t.text "last_error"
-    t.datetime "locked_at"
+    t.datetime "locked_at", precision: nil
     t.string "locked_by"
     t.integer "priority", default: 0, null: false
     t.string "queue"
-    t.datetime "run_at"
-    t.datetime "updated_at"
+    t.datetime "run_at", precision: nil
+    t.datetime "updated_at", precision: nil
     t.index ["priority", "run_at"], name: "delayed_jobs_priority"
   end
 
@@ -394,6 +408,15 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.index ["dossier_id"], name: "index_deleted_dossiers_on_dossier_id", unique: true
     t.index ["procedure_id"], name: "index_deleted_dossiers_on_procedure_id"
     t.index ["user_id"], name: "index_deleted_dossiers_on_user_id"
+  end
+
+  create_table "demarches", force: :cascade do |t|
+    t.datetime "checked_at", precision: nil
+    t.string "configuration"
+    t.datetime "created_at", precision: nil, null: false
+    t.string "instructeur"
+    t.string "libelle"
+    t.datetime "updated_at", precision: nil, null: false
   end
 
   create_table "dossier_assignments", force: :cascade do |t|
@@ -494,26 +517,24 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.boolean "for_tiers", default: false, null: false
     t.boolean "forced_groupe_instructeur", default: false, null: false
     t.bigint "groupe_instructeur_id"
-    t.datetime "groupe_instructeur_updated_at", precision: nil
-    t.datetime "hidden_by_administration_at", precision: nil
+    t.datetime "groupe_instructeur_updated_at"
+    t.datetime "hidden_by_administration_at"
     t.datetime "hidden_by_expired_at"
     t.string "hidden_by_reason"
-    t.datetime "hidden_by_user_at", precision: nil
-    t.datetime "identity_updated_at", precision: nil
-    t.datetime "last_avis_updated_at", precision: nil
-    t.datetime "last_champ_piece_jointe_updated_at"
-    t.datetime "last_champ_private_updated_at", precision: nil
-    t.datetime "last_champ_updated_at", precision: nil
-    t.datetime "last_commentaire_piece_jointe_updated_at"
-    t.datetime "last_commentaire_updated_at", precision: nil
+    t.datetime "hidden_by_user_at"
+    t.datetime "identity_updated_at"
+    t.datetime "last_avis_updated_at"
+    t.datetime "last_champ_private_updated_at"
+    t.datetime "last_champ_updated_at"
+    t.datetime "last_commentaire_updated_at"
     t.string "mandataire_first_name"
     t.string "mandataire_last_name"
     t.text "motivation"
     t.bigint "parent_dossier_id"
     t.string "prefill_token"
     t.boolean "prefilled"
-    t.string "private_search_terms"
-    t.datetime "processed_at", precision: nil
+    t.text "private_search_terms"
+    t.datetime "processed_at"
     t.bigint "revision_id"
     t.text "search_terms"
     t.string "state"
@@ -522,6 +543,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.datetime "termine_close_to_expiration_notice_sent_at"
     t.datetime "updated_at"
     t.integer "user_id"
+    t.datetime "last_champ_piece_jointe_updated_at"
+    t.datetime "last_commentaire_piece_jointe_updated_at"
     t.index "to_tsvector('french'::regconfig, (search_terms || private_search_terms))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
     t.index "to_tsvector('french'::regconfig, search_terms)", name: "index_dossiers_on_search_terms", using: :gin
     t.index ["archived"], name: "index_dossiers_on_archived"
@@ -705,10 +728,10 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.datetime "demande_seen_at", null: false
     t.integer "dossier_id", null: false
     t.integer "instructeur_id", null: false
-    t.datetime "messagerie_seen_at", precision: nil, null: false
+    t.datetime "messagerie_seen_at", null: false
+    t.datetime "unfollowed_at"
+    t.datetime "updated_at"
     t.datetime "pieces_jointes_seen_at"
-    t.datetime "unfollowed_at", precision: nil
-    t.datetime "updated_at", precision: nil
     t.index ["dossier_id"], name: "index_follows_on_dossier_id"
     t.index ["instructeur_id", "dossier_id", "unfollowed_at"], name: "uniqueness_index", unique: true
     t.index ["instructeur_id"], name: "index_follows_on_instructeur_id"
@@ -864,6 +887,16 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.index ["user_id"], name: "index_merge_logs_on_user_id"
   end
 
+  create_table "messages", force: :cascade do |t|
+    t.bigint "check_id"
+    t.datetime "created_at", precision: nil, null: false
+    t.string "field"
+    t.string "message"
+    t.datetime "updated_at", precision: nil, null: false
+    t.string "value"
+    t.index ["check_id"], name: "index_messages_on_check_id"
+  end
+
   create_table "module_api_cartos", id: :serial, force: :cascade do |t|
     t.boolean "cadastre", default: false
     t.datetime "created_at"
@@ -887,7 +920,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.jsonb "a_suivre_filters", default: [], null: false, array: true
     t.jsonb "archives_filters", default: [], null: false, array: true
     t.integer "assign_to_id"
-    t.datetime "created_at", precision: nil
+    t.datetime "created_at"
     t.jsonb "displayed_columns", default: [], null: false, array: true
     t.jsonb "displayed_fields", default: [{"label"=>"Demandeur", "table"=>"user", "column"=>"email"}], null: false
     t.jsonb "expirant_filters", default: [], null: false, array: true
@@ -899,7 +932,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.jsonb "supprimes_recemment_filters", default: [], null: false, array: true
     t.jsonb "tous_filters", default: [], null: false, array: true
     t.jsonb "traites_filters", default: [], null: false, array: true
-    t.datetime "updated_at", precision: nil
+    t.datetime "updated_at"
     t.index ["assign_to_id"], name: "index_procedure_presentations_on_assign_to_id", unique: true
   end
 
@@ -929,9 +962,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
   end
 
   create_table "procedure_tags", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.text "description"
     t.string "name", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_procedure_tags_on_name", unique: true
   end
@@ -968,7 +1000,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.string "description"
     t.string "description_pj"
     t.string "description_target_audience"
-    t.datetime "dossiers_count_computed_at", precision: nil
+    t.datetime "dossiers_count_computed_at"
     t.bigint "draft_revision_id"
     t.integer "duree_conservation_dossiers_dans_ds"
     t.boolean "duree_conservation_etendue_par_ds", default: false, null: false
@@ -1006,8 +1038,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.jsonb "sva_svr", default: {}, null: false
     t.text "tags", default: [], array: true
     t.boolean "template", default: false, null: false
-    t.datetime "unpublished_at", precision: nil
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "unpublished_at"
+    t.datetime "updated_at", null: false
     t.string "web_hook_url"
     t.datetime "whitelisted_at"
     t.bigint "zone_id"
@@ -1153,6 +1185,12 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.index ["unlock_token"], name: "index_super_admins_on_unlock_token", unique: true
   end
 
+  create_table "syncs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "job"
+    t.datetime "updated_at", null: false
+  end
+
   create_table "targeted_user_links", id: :uuid, default: -> { "public.gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "target_context", null: false
@@ -1175,7 +1213,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
     t.bigint "dossier_id"
     t.string "instructeur_email"
     t.string "motivation"
-    t.datetime "processed_at", precision: nil
+    t.datetime "processed_at"
     t.string "state"
     t.index ["dossier_id"], name: "index_traitements_on_dossier_id"
   end
