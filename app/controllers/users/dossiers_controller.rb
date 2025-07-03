@@ -207,12 +207,12 @@ module Users
       sanitized_siret = siret_model.siret
       etablissement, @other_etablissements = begin
                         APIEntrepriseService.create_etablissement(@dossier, sanitized_siret, current_user.id)
-                                             rescue => error
-                                               if error.try(:network_error?) && !APIEntrepriseService.api_insee_up?
-                                                 # TODO: notify ops
-                                                 APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, sanitized_siret, current_user.id)
-                                               else
-                                                 Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: })
+                      rescue => error
+                        if error.is_a?(APIEntreprise::API::Error::ServiceUnavailable) || (error.try(:network_error?) && !APIEntrepriseService.api_insee_up?)
+                          # TODO: notify ops
+                          APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, sanitized_siret, current_user.id)
+                        else
+                          Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: })
 
                                                  # probably random error, invite user to retry
                                                  return render_siret_error(t('errors.messages.siret_network_error'))
@@ -404,7 +404,10 @@ module Users
       @commentaire = CommentaireService.create(current_user, dossier, commentaire_params)
 
       if @commentaire.errors.empty?
-        @commentaire.dossier.update!(last_commentaire_updated_at: Time.zone.now)
+        timestamps = [:last_commentaire_updated_at, :updated_at]
+        timestamps << :last_commentaire_piece_jointe_updated_at if @commentaire.piece_jointe.attached?
+
+        @commentaire.dossier.touch(*timestamps)
 
         flash.notice = t('.message_send')
         redirect_to messagerie_dossier_path(dossier)

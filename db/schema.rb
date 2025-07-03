@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_09_23_125619) do
+ActiveRecord::Schema[7.0].define(version: 2024_09_29_141825) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -498,12 +498,14 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_23_125619) do
     t.datetime "hidden_by_administration_at", precision: nil
     t.datetime "hidden_by_expired_at"
     t.string "hidden_by_reason"
-    t.datetime "hidden_by_user_at"
-    t.datetime "identity_updated_at"
-    t.datetime "last_avis_updated_at"
-    t.datetime "last_champ_private_updated_at"
-    t.datetime "last_champ_updated_at"
-    t.datetime "last_commentaire_updated_at"
+    t.datetime "hidden_by_user_at", precision: nil
+    t.datetime "identity_updated_at", precision: nil
+    t.datetime "last_avis_updated_at", precision: nil
+    t.datetime "last_champ_piece_jointe_updated_at"
+    t.datetime "last_champ_private_updated_at", precision: nil
+    t.datetime "last_champ_updated_at", precision: nil
+    t.datetime "last_commentaire_piece_jointe_updated_at"
+    t.datetime "last_commentaire_updated_at", precision: nil
     t.string "mandataire_first_name"
     t.string "mandataire_last_name"
     t.text "motivation"
@@ -703,9 +705,10 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_23_125619) do
     t.datetime "demande_seen_at", null: false
     t.integer "dossier_id", null: false
     t.integer "instructeur_id", null: false
-    t.datetime "messagerie_seen_at", null: false
-    t.datetime "unfollowed_at"
-    t.datetime "updated_at"
+    t.datetime "messagerie_seen_at", precision: nil, null: false
+    t.datetime "pieces_jointes_seen_at"
+    t.datetime "unfollowed_at", precision: nil
+    t.datetime "updated_at", precision: nil
     t.index ["dossier_id"], name: "index_follows_on_dossier_id"
     t.index ["instructeur_id", "dossier_id", "unfollowed_at"], name: "uniqueness_index", unique: true
     t.index ["instructeur_id"], name: "index_follows_on_instructeur_id"
@@ -923,6 +926,21 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_23_125619) do
     t.datetime "updated_at", null: false
     t.index ["dossier_submitted_message_id"], name: "index_procedure_revisions_on_dossier_submitted_message_id"
     t.index ["procedure_id"], name: "index_procedure_revisions_on_procedure_id"
+  end
+
+  create_table "procedure_tags", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_procedure_tags_on_name", unique: true
+  end
+
+  create_table "procedure_tags_procedures", id: false, force: :cascade do |t|
+    t.bigint "procedure_id", null: false
+    t.bigint "procedure_tag_id", null: false
+    t.index ["procedure_id", "procedure_tag_id"], name: "index_procedures_tags_on_procedure_id_and_tag_id"
+    t.index ["procedure_tag_id", "procedure_id"], name: "index_procedures_tags_on_tag_id_and_procedure_id"
   end
 
   create_table "procedures", id: :serial, force: :cascade do |t|
