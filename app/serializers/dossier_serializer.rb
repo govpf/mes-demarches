@@ -24,7 +24,7 @@ class DossierSerializer < ActiveModel::Serializer
   has_one :etablissement
   has_many :cerfa
   has_many :commentaires
-  has_many :champs_private
+  has_many :project_champs_private
   has_many :pieces_justificatives
   has_many :types_de_piece_justificative
   has_many :avis
@@ -52,7 +52,7 @@ class DossierSerializer < ActiveModel::Serializer
     champs
   end
 
-  def champs_private
+  def project_champs_private
     object.project_champs_private
   end
 

@@ -480,7 +480,7 @@ module Instructeurs
       end
 
       # Ordonner les champs selon leur position dans la révision
-      champs = dossier_instance.champs_private.to_a
+      champs = dossier_instance.project_champs_private.to_a
       champs.sort_by! do |champ|
         rtdc = rtdc_by_stable_id[champ.stable_id]
         parent_position = rtdc&.parent_id ? parent_positions[rtdc.id] || 0 : 0
@@ -488,12 +488,12 @@ module Instructeurs
       end
     end
 
-    # Vérifie si le dossier contient des champs de type visa validés
+    # pf: Vérifie si le dossier contient des champs de type visa validés
     def has_validated_visa?(dossier_instance)
-      dossier_instance.champs_private
-        .where(type: 'Champs::VisaChamp')
-        .where.not(value: ["", nil])
-        .exists?
+      dossier_instance.project_champs_private
+        .filter { _1.type == 'Champs::VisaChamp' }
+        .reject { ["", nil].include?(_1.value) }
+        .any?
     end
 
     def remove_changes_forbidden_by_visa

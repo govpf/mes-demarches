@@ -1,11 +1,6 @@
 # frozen_string_literal: true
 
 class ProcedurePresentation < ApplicationRecord
-  EXTRA_SORT_COLUMNS = {
-    'notifications' => ['notifications'],
-    'self' => ['id', 'state']
-  }
-
   TABLE = 'table'
   COLUMN = 'column'
   ORDER = 'order'
@@ -23,17 +18,33 @@ class ProcedurePresentation < ApplicationRecord
   delegate :procedure, :instructeur, to: :assign_to
 
   validate :check_allowed_displayed_fields
-  validate :check_allowed_sort_column
-  validate :check_allowed_sort_order
   validate :check_allowed_filter_columns
   validate :check_filters_max_length
   validate :check_filters_max_integer
 
+  attribute :sorted_column, :sorted_column
+  def sorted_column = super || procedure.default_sorted_column # Dummy override to set default value
+
+  attribute :a_suivre_filters, :jsonb, array: true
+  attribute :suivis_filters, :jsonb, array: true
+  attribute :traites_filters, :jsonb, array: true
+  attribute :tous_filters, :jsonb, array: true
+  attribute :supprimes_filters, :jsonb, array: true
+  attribute :supprimes_recemment_filters, :jsonb, array: true
+  attribute :expirant_filters, :jsonb, array: true
+  attribute :archives_filters, :jsonb, array: true
+
+  def filters_for(statut)
+    send(filters_name_for(statut))
+  end
+
+  def filters_name_for(statut) = statut.tr('-', '_').then { "#{_1}_filters" }
+
   def displayed_fields_for_headers
     [
-      Column.new(table: 'self', column: 'id', classname: 'number-col'),
-      *displayed_fields.map { Column.new(**_1.deep_symbolize_keys) },
-      Column.new(table: 'self', column: 'state', classname: 'state-col'),
+      Column.new(procedure_id: procedure.id, table: 'self', column: 'id', classname: 'number-col'),
+      *displayed_fields.map { Column.new(**_1.deep_symbolize_keys.merge(procedure_id: procedure.id)) },
+      Column.new(procedure_id: procedure.id, table: 'self', column: 'state', classname: 'state-col'),
       *procedure.sva_svr_columns
     ]
   end
@@ -81,8 +92,10 @@ class ProcedurePresentation < ApplicationRecord
   end
 
   def add_filter(statut, column_id, value)
+    h_id = JSON.parse(column_id, symbolize_names: true)
+
     if value.present?
-      column = procedure.find_column(id: column_id)
+      column = procedure.find_column(h_id:)
 
       case column.table
       when TYPE_DE_CHAMP
@@ -98,49 +111,37 @@ class ProcedurePresentation < ApplicationRecord
         'value' => value
       }
 
+      filters_for(statut) << { id: h_id, filter: value }
       update(filters: updated_filters)
     end
   end
 
   def remove_filter(statut, column_id, value)
-    column = procedure.find_column(id: column_id)
+    h_id = JSON.parse(column_id, symbolize_names: true)
+    column = procedure.find_column(h_id:)
     updated_filters = filters.dup
 
     updated_filters[statut] = filters[statut].reject do |filter|
       filter.values_at(TABLE, COLUMN, 'value') == [column.table, column.column, value]
     end
 
+    collection = filters_for(statut)
+    collection.delete(collection.find { sym_h = _1.deep_symbolize_keys; sym_h[:id] == h_id && sym_h[:filter] == value })
+
     update!(filters: updated_filters)
   end
 
   def update_displayed_fields(column_ids)
-    column_ids = Array.wrap(column_ids)
-    columns = column_ids.map { |id| procedure.find_column(id:) }
+    h_ids = Array.wrap(column_ids).map { |id| JSON.parse(id, symbolize_names: true) }
+    columns = h_ids.map { |h_id| procedure.find_column(h_id:) }
 
-    update!(displayed_fields: columns)
+    update!(
+      displayed_fields: columns,
+      displayed_columns: columns.map(&:h_id)
+    )
 
-    if !sort_to_column_id(sort).in?(column_ids)
-      update!(sort: Procedure.default_sort)
-    end
-  end
-
-  def update_sort(column_id, order)
-    column = procedure.find_column(id: column_id)
-
-    update!(sort: {
-      TABLE => column.table,
-      COLUMN => column.column,
-      ORDER => order.presence || opposite_order_for(column.table, column.column)
-    })
-  end
-
-  def opposite_order_for(table, column)
-    if sort.values_at(TABLE, COLUMN) == [table, column]
-      sort['order'] == 'asc' ? 'desc' : 'asc'
-    elsif [table, column] == ["notifications", "notifications"]
-      'desc' # default order for notifications
-    else
-      'asc'
+    if !sorted_column.column.in?(columns)
+      update(sorted_column: nil)
     end
   end
 
@@ -151,7 +152,9 @@ class ProcedurePresentation < ApplicationRecord
   private
 
   def sorted_ids(dossiers, count)
-    table, column, order = sort.values_at(TABLE, COLUMN, 'order')
+    table = sorted_column.column.table
+    column = sorted_column.column.column
+    order = sorted_column.order
 
     case table
     when 'notifications'
@@ -201,7 +204,7 @@ class ProcedurePresentation < ApplicationRecord
       .map do |(table, column), filters|
       values = filters.pluck('value')
       value_column = filters.pluck('value_column').compact.first || :value
-      dossier_column = procedure.find_column(id: Column.make_id(table, column)) # hack to find json path columns
+      dossier_column = procedure.find_column(h_id: { procedure_id: procedure.id, column_id: "#{table}/#{column}" }) # hack to find json path columns
       if dossier_column.is_a?(Columns::JSONPathColumn)
         dossier_column.filtered_ids(dossiers, values)
       else
@@ -220,8 +223,13 @@ class ProcedurePresentation < ApplicationRecord
             dossiers.where("dossiers.#{column} IN (?)", values)
           end
         when TYPE_DE_CHAMP
-          dossiers.with_type_de_champ(column)
-            .filter_ilike(:champs, value_column, values)
+          if dossier_column.type == :enum
+            dossiers.with_type_de_champ(column)
+              .filter_enum(:champs, value_column, values)
+          else
+            dossiers.with_type_de_champ(column)
+              .filter_ilike(:champs, value_column, values)
+          end
         when 'etablissement'
           if column == 'entreprise_date_creation'
             dates = values
@@ -240,30 +248,20 @@ class ProcedurePresentation < ApplicationRecord
           dossiers
             .includes(:followers_instructeurs)
             .joins('INNER JOIN users instructeurs_users ON instructeurs_users.id = instructeurs.user_id')
-            .filter_ilike('instructeurs_users', :email, values)
-        when 'user', 'individual', 'avis'
+            .filter_ilike('instructeurs_users', :email, values) # ilike OK, user may want to search by *@domain
+        when 'user', 'individual' # user_columns: [email], individual_columns: ['nom', 'prenom', 'gender']
           dossiers
             .includes(table)
-            .filter_ilike(table, column, values)
+            .filter_ilike(table, column, values) # ilike or where column == 'value' are both valid, we opted for ilike
         when 'groupe_instructeur'
           assert_supported_column(table, column)
-          if column == 'label'
-            dossiers
-              .joins(:groupe_instructeur)
-              .filter_ilike(table, column, values)
-          else
-            dossiers
-              .joins(:groupe_instructeur)
-              .where(groupe_instructeur_id: values)
-          end
+
+          dossiers
+            .joins(:groupe_instructeur)
+            .where(groupe_instructeur_id: values)
         end.pluck(:id)
       end
     end.reduce(:&)
-  end
-
-  # type_de_champ/4373429
-  def sort_to_column_id(sort)
-    [sort[TABLE], sort[COLUMN]].join(SLASH)
   end
 
   def find_type_de_champ(column)
@@ -277,17 +275,6 @@ class ProcedurePresentation < ApplicationRecord
   def check_allowed_displayed_fields
     displayed_fields.each do |field|
       check_allowed_field(:displayed_fields, field)
-    end
-  end
-
-  def check_allowed_sort_column
-    check_allowed_field(:sort, sort, EXTRA_SORT_COLUMNS)
-  end
-
-  def check_allowed_sort_order
-    order = sort['order']
-    if !["asc", "desc"].include?(order)
-      errors.add(:sort, "#{order} n’est pas une ordre permis")
     end
   end
 

@@ -61,40 +61,59 @@ describe Instructeurs::DossiersController, type: :controller do
 
   describe '#follow' do
     let(:batch_operation) {}
-    before do
+
+    subject do
       batch_operation
       patch :follow, params: { procedure_id: procedure.id, dossier_id: dossier.id }
     end
 
-    it { expect(instructeur.followed_dossiers).to match([dossier]) }
-    it { expect(flash.notice).to eq('Dossier suivi') }
-    it { expect(response).to redirect_to(instructeur_procedure_path(dossier.procedure)) }
+    it do
+      subject
+      expect(instructeur.followed_dossiers).to match([dossier])
+      expect(flash.notice).to eq('Dossier suivi')
+      expect(response).to redirect_to(instructeur_procedure_path(dossier.procedure))
+    end
+    it { expect { subject }.to change { dossier.reload.updated_at } }
 
     context 'with dossier in batch_operation' do
       let(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
-      it { expect(instructeur.followed_dossiers).to eq([]) }
-      it { expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
-      it { expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.") }
+
+      it do
+        subject
+        expect(instructeur.followed_dossiers).to eq([])
+        expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+        expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
+      end
     end
   end
 
   describe '#unfollow' do
     let(:batch_operation) {}
-    before do
+    before { instructeur.followed_dossiers << dossier }
+
+    subject do
       batch_operation
-      instructeur.followed_dossiers << dossier
       patch :unfollow, params: { procedure_id: procedure.id, dossier_id: dossier.id }
-      instructeur.reload
     end
 
-    it { expect(instructeur.followed_dossiers).to match([]) }
-    it { expect(flash.notice).to eq("Vous ne suivez plus le dossier nº #{dossier.id}") }
-    it { expect(response).to redirect_to(instructeur_procedure_path(dossier.procedure)) }
+    it do
+      subject
+      expect(instructeur.followed_dossiers).to match([])
+      expect(flash.notice).to eq("Vous ne suivez plus le dossier nº #{dossier.id}")
+      expect(response).to redirect_to(instructeur_procedure_path(dossier.procedure))
+    end
+
+    it { expect { subject }.to change { dossier.reload.updated_at } }
+
     context 'with dossier in batch_operation' do
       let(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
-      it { expect(instructeur.followed_dossiers).to eq([dossier]) }
-      it { expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
-      it { expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.") }
+
+      it do
+        subject
+        expect(instructeur.followed_dossiers).to eq([dossier])
+        expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+        expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
+      end
     end
   end
 
@@ -978,14 +997,14 @@ describe Instructeurs::DossiersController, type: :controller do
     let(:another_instructeur) { create(:instructeur) }
     let(:now) { Time.zone.parse('01/01/2100') }
 
-    let(:champ_multiple_drop_down_list) { dossier.champs_private.first }
-    let(:champ_linked_drop_down_list) { dossier.champs_private.second }
-    let(:champ_datetime) { dossier.champs_private.third }
-    let(:champ_repetition) { dossier.champs_private.fourth }
-    let(:champ_drop_down_list) { dossier.champs_private.fifth }
+    let(:champ_multiple_drop_down_list) { dossier.project_champs_private.first }
+    let(:champ_linked_drop_down_list) { dossier.project_champs_private.second }
+    let(:champ_datetime) { dossier.project_champs_private.third }
+    let(:champ_repetition) { dossier.project_champs_private.fourth }
+    let(:champ_drop_down_list) { dossier.project_champs_private.fifth }
 
-    context 'when no invalid champs_public' do
-      context "with new values for champs_private" do
+    context 'when no invalid project_champs_public' do
+      context "with new values for project_champs_private" do
         before do
           expect(controller.current_instructeur).to receive(:mark_tab_as_seen).with(dossier, :annotations_privees)
           another_instructeur.follow(dossier)
@@ -1057,7 +1076,7 @@ describe Instructeurs::DossiersController, type: :controller do
         end
       end
 
-      context "without new values for champs_private" do
+      context "without new values for project_champs_private" do
         let(:params) do
           {
             procedure_id: procedure.id,
@@ -1085,7 +1104,7 @@ describe Instructeurs::DossiersController, type: :controller do
       Timecop.return
     end
 
-    context "without new values for champs_private" do
+    context "without new values for project_champs_private" do
       let(:params) do
         {
           procedure_id: procedure.id,
@@ -1107,14 +1126,14 @@ describe Instructeurs::DossiersController, type: :controller do
       }
     end
 
-    context "with invalid champs_public (DecimalNumberChamp)" do
+    context "with invalid project_champs_public (DecimalNumberChamp)" do
       let(:types_de_champ_public) do
         [
           { type: :decimal_number }
         ]
       end
 
-      let(:champ_decimal_number) { dossier.champs_public.first }
+      let(:champ_decimal_number) { dossier.project_champs_public.first }
 
       let(:params) do
         {
@@ -1130,7 +1149,7 @@ describe Instructeurs::DossiersController, type: :controller do
         }
       end
 
-      it 'update champs_private' do
+      it 'update project_champs_private' do
         too_long_float = '3.1415'
         champ_decimal_number.update_column(:value, too_long_float)
         patch :update_annotations, params: params, format: :turbo_stream
