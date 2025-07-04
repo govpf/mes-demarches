@@ -22,6 +22,7 @@ class ProcedurePresentation < ApplicationRecord
   validate :check_filters_max_length
   validate :check_filters_max_integer
 
+  attribute :displayed_columns, :jsonb, array: true
   attribute :sorted_column, :sorted_column
   def sorted_column = super || procedure.default_sorted_column # Dummy override to set default value
 
