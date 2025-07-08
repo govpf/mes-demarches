@@ -1,12 +1,17 @@
 :concurrency: 25
 :queues:
+  - critical
   - default
-  - mailers
-  - active_storage_analysis
-  - sva
-  - webhooks_v1
-  - api_entreprise
-  - cron
-  - low_priority
-  - purge
-  - expires
+  - mailers # to remove
+  - active_storage_analysis # to remove
+  - sva # to remove
+  - webhooks_v1 # to remove
+  - api_entreprise # to remove
+  - cron # to remove
+  - low_priority # to remove
+  - low
+  - exports
+  - archive
+  - purge # to remove
+  - expires # to remove
+c
