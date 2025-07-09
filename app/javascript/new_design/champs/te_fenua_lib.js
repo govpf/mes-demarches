@@ -245,7 +245,7 @@ function getFeatureInfo(coordinate, resolution, projection, params) {
 // @param projection
 // @return {Promise<any|never>}
 export function getBatimentFeatureInfo(coordinate, resolution, projection) {
-  const layers = 'TEFENUA:Bati_BatiIndifferencie,TEFENUA:Bati_BatiSpecifique';
+  const layers = 'TEFENUA:BATI';
   return getFeatureInfo(coordinate, resolution, projection, {
     feature_count: 1,
     layers: layers,
