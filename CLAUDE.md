@@ -197,3 +197,15 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 
 - Régénérer le schéma GraphQL : `bin/rails graphql:schema:dump`
 - Lancer les tests GraphQL : `bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb`
+
+## Processus de Release
+
+### Étapes pour créer une release
+* S'assurer d'etre sur la branche masterpf. 
+* regarder les deux dernières releases de Mes-Démarches pour comprendre la structure
+* déterminer tous les commits depuis le dernier tag pf-XXX 
+* identifier dans ces commits les releases upstream qui ont été intégrées
+* les fusionner en gardant exactement le texte, les ids des users stories mais en fusionnant les chapitres pour créer la base de la release
+* déterminer dans ces commits les modifications apportées en Polynésie et enrichir la release avec ces informations
+* Vérifier et ajuster éventuellement le texte de la release pour respecter la philosophie des deux dernière releases Mes-Démarches
+* proposer cette release pour validation.
