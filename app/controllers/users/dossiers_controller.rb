@@ -206,9 +206,9 @@ module Users
 
       sanitized_siret = siret_model.siret
       etablissement, @other_etablissements = begin
-                        APIEntrepriseService.create_etablissement(@dossier, sanitized_siret, current_user.id)
-                                             rescue => error
-                                               if error.is_a?(APIEntreprise::API::Error::ServiceUnavailable) || (error.try(:network_error?) && !APIEntrepriseService.api_insee_up?)
+                                               APIEntrepriseService.create_etablissement(@dossier, sanitized_siret, current_user.id)
+                                             rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
+                                               if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
                                                  # TODO: notify ops
                                                  APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, sanitized_siret, current_user.id)
                                                else
@@ -217,7 +217,7 @@ module Users
                                                  # probably random error, invite user to retry
                                                  return render_siret_error(t('errors.messages.siret_network_error'))
                                                end
-                      end
+                                             end
 
       if etablissement.nil?
         return render_siret_error(t('errors.messages.siret_unknown'))
