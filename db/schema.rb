@@ -240,7 +240,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_05_20_080602) do
     t.string "dossier_state"
     t.bigint "instructeur_id", null: false
     t.bigint "procedure_id"
-    t.datetime "sent_at", null: false
+    t.datetime "sent_at", precision: nil, null: false
     t.datetime "updated_at", null: false
   end
 
@@ -283,7 +283,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_05_20_080602) do
     t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_dossier_id_and_stream_and_stable_id_and_row_id", unique: true
     t.index ["dossier_id"], name: "index_champs_on_dossier_id"
     t.index ["etablissement_id"], name: "index_champs_on_etablissement_id"
-    t.index ["parent_id"], name: "index_champs_on_parent_id"
     t.index ["row_id"], name: "index_champs_on_row_id"
     t.index ["stable_id"], name: "index_champs_on_stable_id"
     t.index ["type"], name: "index_champs_on_type"
@@ -667,12 +666,14 @@ ActiveRecord::Schema[7.0].define(version: 2025_05_20_080602) do
     t.datetime "created_at", null: false
     t.integer "dossiers_count"
     t.bigint "export_template_id"
+    t.jsonb "filtered_columns", default: [], null: false, array: true
     t.string "format", null: false
     t.bigint "instructeur_id"
     t.string "job_status", default: "pending", null: false
     t.text "key", null: false
     t.bigint "procedure_presentation_id"
     t.jsonb "procedure_presentation_snapshot"
+    t.jsonb "sorted_column"
     t.string "statut", default: "tous"
     t.string "time_span_type", default: "everything", null: false
     t.datetime "updated_at", null: false
@@ -981,6 +982,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_05_20_080602) do
     t.boolean "allow_expert_messaging", default: true, null: false
     t.boolean "allow_expert_review", default: true, null: false
     t.string "api_entreprise_token"
+    t.datetime "api_entreprise_token_expires_at", precision: nil
     t.text "api_particulier_scopes", default: [], array: true
     t.jsonb "api_particulier_sources", default: {}
     t.boolean "ask_birthday", default: false, null: false

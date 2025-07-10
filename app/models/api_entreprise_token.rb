@@ -20,6 +20,10 @@ class APIEntrepriseToken
     token.present? && decoded_token.key?("exp") && decoded_token["exp"] <= Time.zone.now.to_i
   end
 
+  def expiration
+    decoded_token.key?("exp") && Time.zone.at(decoded_token["exp"])
+  end
+
   def role?(role)
     # Pf check if token is present
     token.present? && roles.present? && roles.include?(role)
