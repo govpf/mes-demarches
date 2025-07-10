@@ -19,6 +19,7 @@ class TypeDeChamp < ApplicationRecord
     commune_de_polynesie: 'commune_de_polynesie',
     code_postal_de_polynesie: 'code_postal_de_polynesie',
     numero_dn: 'numero_dn',
+    table_row_selector: 'table_row_selector',
     te_fenua: 'te_fenua',
     lexpol: 'lexpol',
     visa: 'visa'
@@ -42,6 +43,7 @@ class TypeDeChamp < ApplicationRecord
     numero_dn: REFERENTIEL_EXTERNE,
     te_fenua: REFERENTIEL_EXTERNE,
     lexpol: REFERENTIEL_EXTERNE,
+    table_row_selector: REFERENTIEL_EXTERNE,
     visa: STRUCTURE
   }
 
@@ -133,7 +135,7 @@ class TypeDeChamp < ApplicationRecord
     expression_reguliere: 'expression_reguliere'
   }.merge(INSTANCE_TYPE_CHAMPS)
 
-  INSTANCE_OPTIONS = [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer, :min, :max, :level, :accredited_users, :lexpol_modele, :lexpol_mapping]
+  INSTANCE_OPTIONS = [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer, :min, :max, :level, :accredited_users, :lexpol_modele, :lexpol_mapping, :table_id]
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
 
   SIMPLE_ROUTABLE_TYPES = [
@@ -449,6 +451,10 @@ class TypeDeChamp < ApplicationRecord
     type_champ == TypeDeChamp.type_champs.fetch(:visa)
   end
 
+  def table_row_selector?
+    type_champ == TypeDeChamp.type_champs.fetch(:table_row_selector)
+  end
+
   def te_fenua?
     type_champ == TypeDeChamp.type_champs.fetch(:te_fenua)
   end
@@ -654,12 +660,22 @@ class TypeDeChamp < ApplicationRecord
     self.accredited_users = value.blank? ? [] : value.split(/\s*[\r\n]+\s*/).map(&:downcase)
   end
 
+  def table_id
+    options['table_id'] || 0
+  end
+
   def accredited_user_list?
     accredited_user_list.any?
   end
 
   def accredited_user_list
     accredited_users.presence || []
+  end
+
+  def self.referentiel_tables
+    Rails.cache.fetch("referentiel_tables:#{Rails.env}", expires_in: 5.minutes) do
+      TableRowSelector::API.available_tables.map { [_1[:name], _1[:id]] }
+    end
   end
 
   def to_typed_id
@@ -719,7 +735,8 @@ class TypeDeChamp < ApplicationRecord
       type_champs.fetch(:rna),
       type_champs.fetch(:siret),
       type_champs.fetch(:numero_dn),
-      type_champs.fetch(:te_fenua)
+      type_champs.fetch(:te_fenua),
+      type_champs.fetch(:table_row_selector)
       false
     else
       true

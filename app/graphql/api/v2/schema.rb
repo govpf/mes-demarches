@@ -99,6 +99,7 @@ class API::V2::Schema < GraphQL::Schema
     Types::Champs::Descriptor::COJOChampDescriptorType,
     Types::Champs::Descriptor::CommuneChampDescriptorType,
     Types::Champs::Descriptor::CommuneDePolynesieChampDescriptorType,
+    Types::Champs::Descriptor::TableRowSelectorChampDescriptorType,
     Types::Champs::Descriptor::DateChampDescriptorType,
     Types::Champs::Descriptor::DatetimeChampDescriptorType,
     Types::Champs::Descriptor::DecimalNumberChampDescriptorType,

@@ -81,6 +81,11 @@ FactoryBot.define do
       date_de_naissance { "2000-01-01" }
     end
 
+    factory :champ_do_not_use_table_row_selector, class: 'Champs::NumeroDnChamp' do
+      value { "98701 - Arue - Tahiti" }
+      data { { 'commune' => 'Arue', 'ile' => 'Tahiti', 'archipel' => 'Ile sous le vent' } }
+    end
+
     factory :champ_do_not_use_multiple_drop_down_list, class: 'Champs::MultipleDropDownListChamp' do
       value { '["val1", "val2"]' }
     end

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'dry/monads/result/fixed'
+
 class ChampFetchExternalDataJob < ApplicationJob
   discard_on ActiveJob::DeserializationError
   queue_as :critical # ui feedback, asap

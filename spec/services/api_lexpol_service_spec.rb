@@ -3,9 +3,9 @@
 require 'rails_helper'
 
 RSpec.describe APILexpol do
-  let(:is_manager) { nil }
+  let(:use_test_user) { false }
   let(:numero_tahiti) { nil }
-  let(:api_lexpol) { described_class.new("instructeur@mes-demarches.gov.pf", numero_tahiti, is_manager) }
+  let(:api_lexpol) { described_class.new("instructeur@mes-demarches.gov.pf", numero_tahiti, use_test_user) }
 
   before do
     allow(ENV).to receive(:fetch).with('LEXPOL_CERTIFICATE_ENABLED', "").and_return('')
@@ -60,8 +60,8 @@ RSpec.describe APILexpol do
       allow(APILexpol).to receive(:service_emails).and_return({ '003970' => 'manager@example.com', '004200' => 'admin@other.gov.pf' })
     end
 
-    context "when is_manager = false" do
-      let(:is_manager) { false }
+    context "when use_test_user = false" do
+      let(:use_test_user) { false }
       it "keeps the provided email if no TAHITI is given" do
         expect(api_lexpol.instance_variable_get(:@email_agent)).to eq("instructeur@mes-demarches.gov.pf")
       end
@@ -72,8 +72,8 @@ RSpec.describe APILexpol do
       end
     end
 
-    context "when is_manager = true" do
-      let(:is_manager) { true }
+    context "when use_test_user = true" do
+      let(:use_test_user) { true }
 
       context "and a known TAHITI is provided" do
         let(:numero_tahiti) { "003970" }

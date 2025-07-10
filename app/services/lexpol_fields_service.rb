@@ -39,6 +39,8 @@ module LexpolFieldsService
       format_date(object.value)
     when Champs::RepetitionChamp
       format_repetition_champ(object)
+    when Champs::MultipleDropDownListChamp
+      object.selected_options.to_sentence(last_word_connector: ' et ')
     when Champs::TextareaChamp
       format_markdown(object.value)
     when Date

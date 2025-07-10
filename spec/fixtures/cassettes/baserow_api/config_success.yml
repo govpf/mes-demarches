@@ -1,0 +1,54 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://api-baserow.mes-demarches.gov.pf/api/database/rows/table/631/7/?user_field_names=true
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Mes-Démarches
+      Authorization:
+      - Token kiaE3XVGO4ARiHFaL39H7daI0sWSPSAo
+      Expect:
+      - ''
+  response:
+    status:
+      code: 200
+      message: ''
+    headers:
+      Date:
+      - Wed, 18 Jun 2025 01:32:34 GMT
+      Content-Type:
+      - application/json
+      Content-Length:
+      - '251'
+      Allow:
+      - GET, PATCH, DELETE, HEAD, OPTIONS
+      X-Frame-Options:
+      - DENY
+      X-Content-Type-Options:
+      - nosniff
+      Referrer-Policy:
+      - same-origin
+      Cross-Origin-Opener-Policy:
+      - same-origin
+      Vary:
+      - origin
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains
+      Cf-Cache-Status:
+      - DYNAMIC
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 951708963bba262b-LAX
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      string: '{"id":7,"order":"7.00000000000000000000","Nom":"Cours - TFTN","Actif":true,"Table":"633","Champ
+        de recherche":"6033","Champs usager":"6013,6016,6019,6018,6020","Champs instructeur":"6013,6016,6019,6018,6020","Token":"sTak0zBePEHFLysnzyidH4bPOGMqEg33"}'
+  recorded_at: Wed, 18 Jun 2025 01:32:34 GMT
+recorded_with: VCR 6.2.0

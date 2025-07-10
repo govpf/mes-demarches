@@ -20,6 +20,7 @@ class LexpolService
   # %w[entreprise_forme_juridique entreprise_nom_commercial entreprise_raison_sociale entreprise_numero_tahiti entreprise_adresse etablissement_code_postal etablissement_adresse etablissement_numero_tahiti].map { |v| [v, v] }.freeze
 
   FIXED_META_DATA = [
+    ["id", 'Numéro du dossier'],
     ["depose_at", 'Dossier déposé le'],
     ["en_instruction_at", 'Dossier passé en instruction le'],
     ["processed_at", 'Dossier traité le'],
@@ -76,6 +77,7 @@ class LexpolService
     dossier_info = apilexpol.get_dossier_infos(champ.value)
     champ.lexpol_status = dossier_info['statut_libelle']
     champ.lexpol_dossier_url = dossier_info['lienDossier']
+    champ.lexpol_arrete_lien = dossier_info['elements']&.first&.dig('lienLexpol')
     champ.save!
   end
 
