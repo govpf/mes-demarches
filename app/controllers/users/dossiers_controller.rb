@@ -453,7 +453,7 @@ module Users
       )
       dossier.build_default_values
       dossier.save!
-      DossierMailer.with(dossier:).notify_new_draft.deliver_later
+      DraftNotificationJob.schedule_for_dossier(dossier)
 
       if dossier.procedure.for_individual
         redirect_to identite_dossier_path(dossier)
@@ -479,7 +479,7 @@ module Users
 
     def clone
       cloned_dossier = @dossier.clone
-      DossierMailer.with(dossier: cloned_dossier).notify_new_draft.deliver_later
+      DraftNotificationJob.schedule_for_dossier(cloned_dossier)
       flash.notice = t('users.dossiers.cloned_success')
       redirect_to brouillon_dossier_path(cloned_dossier)
     rescue ActiveRecord::RecordInvalid => e

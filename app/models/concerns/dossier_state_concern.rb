@@ -46,7 +46,7 @@ module DossierStateConcern
     disable_notification = h.fetch(:disable_notification, false)
 
     if !disable_notification
-      NotificationMailer.send_en_instruction_notification(self).deliver_later
+      InstructionNotificationJob.schedule_for_dossier(self)
       NotificationMailer.send_notification_for_tiers(self).deliver_later if self.for_tiers?
     end
   end
@@ -72,7 +72,7 @@ module DossierStateConcern
   end
 
   def after_commit_passer_automatiquement_en_instruction
-    NotificationMailer.send_en_instruction_notification(self).deliver_later
+    InstructionNotificationJob.schedule_for_dossier(self)
     NotificationMailer.send_notification_for_tiers(self).deliver_later if self.for_tiers?
   end
 
