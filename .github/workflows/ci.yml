@@ -251,10 +251,24 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=registry,ref=${{env.repo}}:buildcache
           cache-to:   type=registry,ref=${{env.repo}}:buildcache,mode=max
-      - name: Update repo description
-        uses: peter-evans/dockerhub-description@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          repository: "${{ env.repo }}"
+#      - name: Debug environment
+#        run: |
+#          echo "Repository: ${{ env.repo }}"
+#          echo "Username: ${{ secrets.DOCKERHUB_USERNAME }}"
+#          echo "Password length: ${#DOCKERHUB_PASSWORD}"
+#        env:
+#          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+#      - name: Update Docker Hub README
+#        uses: ms-jpq/sync-dockerhub-readme@v1
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+#          repository: ${{ env.repo }}
+#          readme: ./README.md
 
+#      - name: Update repo description
+#        uses: peter-evans/dockerhub-description@v4
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+#          repository: "${{ env.repo }}"
