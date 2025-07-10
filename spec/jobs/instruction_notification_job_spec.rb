@@ -3,6 +3,16 @@
 describe InstructionNotificationJob, type: :job do
   let(:dossier) { create(:dossier, :en_instruction) }
   
+  describe '.schedule_for_dossier' do
+    it 'programme le job avec le délai fixe' do
+      expect(described_class).to receive(:set)
+        .with(wait: 15.minutes)
+        .and_return(double(perform_later: true))
+      
+      described_class.schedule_for_dossier(dossier)
+    end
+  end
+  
   describe '#perform' do
     context 'quand le dossier est toujours en instruction' do
       it 'envoie l\'email instruction' do
@@ -35,7 +45,7 @@ describe InstructionNotificationJob, type: :job do
     end
     
     context 'quand le dossier est accepté' do
-      before { dossier.accepte! }
+      before { dossier.update!(state: 'accepte') }
       
       it 'n\'envoie pas l\'email instruction' do
         expect(NotificationMailer).not_to receive(:send_en_instruction_notification)
@@ -45,7 +55,7 @@ describe InstructionNotificationJob, type: :job do
     end
     
     context 'quand le dossier est refusé' do
-      before { dossier.refuse! }
+      before { dossier.update!(state: 'refuse') }
       
       it 'n\'envoie pas l\'email instruction' do
         expect(NotificationMailer).not_to receive(:send_en_instruction_notification)
@@ -55,7 +65,7 @@ describe InstructionNotificationJob, type: :job do
     end
     
     context 'quand le dossier est classé sans suite' do
-      before { dossier.classer_sans_suite! }
+      before { dossier.update!(state: 'sans_suite') }
       
       it 'n\'envoie pas l\'email instruction' do
         expect(NotificationMailer).not_to receive(:send_en_instruction_notification)

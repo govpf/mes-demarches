@@ -3,6 +3,19 @@
 describe DraftNotificationJob, type: :job do
   let(:dossier) { create(:dossier) }
   
+  describe '.schedule_for_dossier' do
+    it 'programme le job avec le bon délai' do
+      allow(dossier.revision).to receive(:estimated_fill_duration).and_return(300) # 5 minutes
+      expected_delay = 10 # 5 minutes * 2
+      
+      expect(described_class).to receive(:set)
+        .with(wait: expected_delay.minutes)
+        .and_return(double(perform_later: true))
+      
+      described_class.schedule_for_dossier(dossier)
+    end
+  end
+  
   describe '#perform' do
     context 'quand le dossier est toujours en brouillon' do
       it 'envoie l\'email brouillon' do
@@ -35,7 +48,7 @@ describe DraftNotificationJob, type: :job do
     end
     
     context 'quand le dossier est accepté' do
-      before { dossier.accepte! }
+      before { dossier.update!(state: 'accepte') }
       
       it 'n\'envoie pas l\'email brouillon' do
         expect(DossierMailer).not_to receive(:with)
