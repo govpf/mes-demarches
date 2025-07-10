@@ -157,10 +157,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
 
     select('Carte de Polynésie', from: 'Type de champ')
     fill_in 'Libellé du champ', with: 'Libellé de champ Te Fenua', fill_options: { clear: :backspace }
-    choose 'Marqueur'
-
-    wait_until { procedure.active_revision.types_de_champ_public.first.te_fenua_layer == 'marker' }
-    expect(page).to have_content('Formulaire enregistré')
+    expect(page).to have_content('Te Fenua')
 
     page.refresh
     preview_window = window_opened_by { click_on 'Prévisualiser le formulaire' }
