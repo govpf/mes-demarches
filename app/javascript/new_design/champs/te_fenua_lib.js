@@ -362,7 +362,7 @@ export function createTeFenuaLayer() {
 export function formatArea(polygon) {
   const area = getArea(polygon, { projection: getProjection('EPSG:4326') });
   let output;
-  if (area > 10000) {
+  if (area > 100000) {
     output = `${Math.round((area / 1000000) * 100) / 100} km<sup>2</sup>`;
   } else {
     output = `${Math.round(area)} m<sup>2</sup>`;

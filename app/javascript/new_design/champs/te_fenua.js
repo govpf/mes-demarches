@@ -91,7 +91,10 @@ function getLink(feature) {
 
 let parcelleToHtml = (html, feature) => {
   const p = feature.getProperties();
-  const labels = [p.label, p.info_titre].filter(Boolean).join(' - ');
+  const area = formatArea(feature.getGeometry());
+  const labels = [p.label, p.commune_associee, area]
+    .filter(Boolean)
+    .join(' - ');
   return `${html}\n<li>${getLink(feature)}&nbsp;${labels}</li>`;
 };
 
@@ -101,7 +104,7 @@ let batimentToHtml = (html, feature) => {
   const labels = [p.info_titre || p.nom || p.sous_categorie, area]
     .filter(Boolean)
     .join(' - ');
-  return `${html}\n<li>${getLink(feature)}&nbsp;Batiment ${labels}</li>`;
+  return `${html}\n<li>${getLink(feature)}&nbsp;${labels}</li>`;
 };
 let zoneToHtml = (html, feature) => {
   const p = feature.getProperties();
@@ -306,6 +309,17 @@ function addInteractions(mapElement, map) {
     );
   }
 
+  function extractProperties(f, feature) {
+    const p = toObject(f.getProperties().info_texte);
+    feature.setProperties({
+      commune: p.commune,
+      commune_associee: p.commune_associee,
+      ile: p.ile,
+      section: p.section,
+      numero: p.numero
+    });
+  }
+
   function addFeatureToChamp(layer, feature, field, category) {
     const source = layer.getSource();
     let index = 1; // source.getFeatures().length + 1;
@@ -323,14 +337,7 @@ function addInteractions(mapElement, map) {
       // ajoute le nom de la commune et l'il à la zone créé
       const features = geojson.readFeatures(pjson);
       if (features.length) {
-        const p = toObject(features[0].getProperties().info_texte);
-        feature.setProperties({
-          commune: p.commune,
-          commune_associee: p.commune_associee,
-          ile: p.ile,
-          section: p.section,
-          numero: p.numero
-        });
+        extractProperties(features[0], feature);
       }
       setTimeout(() => updateChampWith(field, layer));
     });
@@ -584,6 +591,7 @@ function addInteractions(mapElement, map) {
       }
       // Ajoute/Supprime sur la carte les parcelles trouvées par Te Fenua
       const features = geojson.readFeatures(pjson);
+      features.forEach((f) => extractProperties(f, f));
       const areEquals = (a, b) => {
         const getParcelleId = (props) => {
           if (props.id) return props.id.toString();
