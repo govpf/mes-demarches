@@ -153,22 +153,23 @@
                       Proposer une option pour « autre » utilisable dans les conditions
                     = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
 
-        -# DS options
-        .flex.justify-start.fr-mt-1w.flex-gap
-          - if type_de_champ.drop_down_list?
-            .flex.column.justify-start.width-33
-              .cell
-                = form.label :drop_down_options_from_text, "Options de la liste", for: dom_id(type_de_champ, :drop_down_options_from_text)
-                = form.text_area :drop_down_options_from_text,
-                  value: type_de_champ.drop_down_options.join("\r\n"),
-                  class: 'fr-input small-margin small width-100',
-                  rows: 7,
-                  id: dom_id(type_de_champ, :drop_down_options_from_text)
-            - if type_de_champ.simple_drop_down_list?
-              .cell
-                = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
-                  Proposer une option « autre » avec un texte libre
-                = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
+            -# DS options
+            - if type_de_champ.drop_down_list?
+              .cell.flex.flex-gap
+                .flex.column
+                  .cell.fr-mt-1w
+                    = form.label :drop_down_options_from_text, "Options de la liste", for: dom_id(type_de_champ, :drop_down_options_from_text)
+                    = form.text_area :drop_down_options_from_text,
+                      value: type_de_champ.drop_down_options.join("\r\n"),
+                      class: 'fr-input small-margin small width-100',
+                      rows: 7,
+                      id: dom_id(type_de_champ, :drop_down_options_from_text)
+                - if type_de_champ.simple_drop_down_list?
+                  .flex.column
+                    .cell
+                      = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
+                        Proposer une option « autre » avec un texte libre
+                      = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
 
             - if type_de_champ.linked_drop_down_list?
               .cell.fr-mt-1w
