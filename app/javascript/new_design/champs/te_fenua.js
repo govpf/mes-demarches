@@ -91,18 +91,20 @@ function getLink(feature) {
 
 let parcelleToHtml = (html, feature) => {
   const p = feature.getProperties();
-  return `${html}\n<li>${getLink(feature)}&nbsp;Parcelle à ${p.commune} n°${
-    p.sec_parcelle
-  } - ${p.surface_adop} m<sup>2</sup> - ${p.terre}</li>`;
+  const area = formatArea(feature.getGeometry());
+  const labels = [p.label, p.commune_associee, area]
+    .filter(Boolean)
+    .join(' - ');
+  return `${html}\n<li>${getLink(feature)}&nbsp;${labels}</li>`;
 };
 
 let batimentToHtml = (html, feature) => {
   const p = feature.getProperties();
   const area = formatArea(feature.getGeometry());
-  const labels = [p.objectid, p.nom, area, p.commune, p.com, p.ile]
+  const labels = [p.info_titre || p.nom || p.sous_categorie, area]
     .filter(Boolean)
     .join(' - ');
-  return `${html}\n<li>${getLink(feature)}&nbsp;Batiment ${labels}</li>`;
+  return `${html}\n<li>${getLink(feature)}&nbsp;${labels}</li>`;
 };
 let zoneToHtml = (html, feature) => {
   const p = feature.getProperties();
@@ -307,6 +309,17 @@ function addInteractions(mapElement, map) {
     );
   }
 
+  function extractProperties(f, feature) {
+    const p = toObject(f.getProperties().info_texte);
+    feature.setProperties({
+      commune: p.commune,
+      commune_associee: p.commune_associee,
+      ile: p.ile,
+      section: p.section,
+      numero: p.numero
+    });
+  }
+
   function addFeatureToChamp(layer, feature, field, category) {
     const source = layer.getSource();
     let index = 1; // source.getFeatures().length + 1;
@@ -324,14 +337,7 @@ function addInteractions(mapElement, map) {
       // ajoute le nom de la commune et l'il à la zone créé
       const features = geojson.readFeatures(pjson);
       if (features.length) {
-        const p = toObject(features[0].getProperties().info_texte);
-        feature.setProperties({
-          commune: p.commune,
-          commune_associee: p.commune_associee,
-          ile: p.ile,
-          section: p.section,
-          numero: p.numero
-        });
+        extractProperties(features[0], feature);
       }
       setTimeout(() => updateChampWith(field, layer));
     });
@@ -349,8 +355,8 @@ function addInteractions(mapElement, map) {
     map.addInteraction(modify);
     select = new Select({ layers: [zoneManuellesLayer] });
     map.addInteraction(select);
-    createControl(map, clickOnAddZone, 'add', 'Ajouter une zone');
     createControl(map, clickOnEffaceZone, 'delete', 'Effacer une zone');
+    createControl(map, clickOnAddZone, 'add', 'Ajouter une zone');
     draw.on('drawend', (e) => {
       bubbles.add_zone.style.display = 'none';
       const layer = map.zoneManuellesLayer;
@@ -362,6 +368,24 @@ function addInteractions(mapElement, map) {
       if (add_parcelle || add_batiment)
         setTimeout(() => addBatimentParcelleInteraction());
     });
+  }
+
+  if (add_parcelle || add_batiment) {
+    createControl(
+      map,
+      clickOnEffaceParcelleBatiment,
+      'delete',
+      add_parcelle
+        ? 'Effacer les parcelles sélectionnées'
+        : 'Effacer les bâtiments sélectionnés'
+    );
+  } else if (add_marker) {
+    createControl(
+      map,
+      clickOnEffaceMarqueur,
+      'delete',
+      'Effacer tous les marqueurs'
+    );
   }
 
   createControl(map, clickOnGeolocate, 'geolocate', 'Me localiser');
@@ -480,6 +504,23 @@ function addInteractions(mapElement, map) {
     }
   }
 
+  function clickOnEffaceParcelleBatiment(e) {
+    e.preventDefault();
+    if (add_parcelle) {
+      map.parcellesLayer.getSource().clear();
+      updateChampWith('parcelles', map.parcellesLayer);
+    } else if (add_batiment) {
+      map.batimentsLayer.getSource().clear();
+      updateChampWith('batiments', map.batimentsLayer);
+    }
+  }
+
+  function clickOnEffaceMarqueur(e) {
+    e.preventDefault();
+    map.markerLayer.getSource().clear();
+    updateChampWith('markers', map.markerLayer);
+  }
+
   function clickOnToggleCadastre(e) {
     e.preventDefault();
     map.cadastreLayer.setVisible(!map.cadastreLayer.getVisible());
@@ -550,8 +591,18 @@ function addInteractions(mapElement, map) {
       }
       // Ajoute/Supprime sur la carte les parcelles trouvées par Te Fenua
       const features = geojson.readFeatures(pjson);
-      const areEquals = (a, b) => a.id_parcelle === b.id_parcelle;
-      addRemoveFeatures(features, map.parcellesLayer, 'parcelles', areEquals);
+      features.forEach((f) => extractProperties(f, f));
+      const areEquals = (a, b) => {
+        const getParcelleId = (props) => {
+          if (props.id) return props.id.toString();
+          if (props.label) return props.label;
+          return `${props.ile || ''}-${props.commune || ''}-${props.section || ''}-${props.numero || ''}`;
+        };
+        return getParcelleId(a) === getParcelleId(b);
+      };
+      if (features.length) {
+        addRemoveFeatures(features, map.parcellesLayer, 'parcelles', areEquals);
+      }
     });
   }
 
@@ -565,7 +616,11 @@ function addInteractions(mapElement, map) {
         throw new Error('Invalid response returned');
       }
       const features = geojson.readFeatures(json);
-      const batimentEquals = (a, b) => a.objectid === b.objectid;
+      const batimentEquals = (a, b) => {
+        const getBatimentId = (props) =>
+          `${props.ile}-${props.commune}-${props.section}-${props.numero || props.id}`;
+        return getBatimentId(a) === getBatimentId(b);
+      };
       if (features.length) {
         // Ajoute/Supprime sur la carte les batiments trouvées par Te Fenua
         addRemoveFeatures(
@@ -586,9 +641,12 @@ function addInteractions(mapElement, map) {
     let coord = ev.coordinate;
     let resolution = mapView.getResolution();
     let projection = mapView.getProjection();
+    if (add_marker && !add_parcelle && !add_batiment) {
+      return;
+    }
     if (add_batiment) {
       lookForBatiments(coord, resolution, projection);
-    } else {
+    } else if (add_parcelle) {
       lookForParcelles(coord, resolution, projection);
     }
   }
