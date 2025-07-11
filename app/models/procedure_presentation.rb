@@ -10,7 +10,6 @@ class ProcedurePresentation < ApplicationRecord
 
   attribute :displayed_columns, :column, array: true
 
-  attribute :displayed_columns, :array, array: true
   attribute :sorted_column, :sorted_column
   def sorted_column = super || procedure.default_sorted_column # Dummy override to set default value
 
