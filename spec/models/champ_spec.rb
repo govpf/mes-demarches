@@ -234,7 +234,7 @@ describe Champ do
       end
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_piece_justificative)) }
 
-      it { expect(champ.for_export).to eq('logo_test_procedure.png') }
+      it { expect(champ.type_de_champ.champ_value_for_export(champ)).to eq('logo_test_procedure.png') }
     end
   end
 
@@ -249,7 +249,7 @@ describe Champ do
       end
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_piece_justificative)) }
       before { allow(champ).to receive(:dossier).and_return(build(:dossier)) }
-      it { expect(champ.for_tag).to include('<img src="http://') }
+      it { expect(champ.type_de_champ.champ_value_for_tag(champ)).to include('\u003cimg src=\"http://') }
     end
 
     context 'when type_de_champ is numero_dn' do
@@ -257,8 +257,8 @@ describe Champ do
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_numero_dn)) }
 
       it do
-        expect(champ.for_tag).to eq("1234567")
-        expect(champ.for_tag(:date_de_naissance)).to eq('01 janvier 2000')
+        expect(champ.type_de_champ.champ_value_for_tag(champ)).to eq("1234567")
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :date_de_naissance)).to eq('01 janvier 2000')
       end
     end
 
@@ -267,10 +267,10 @@ describe Champ do
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_commune_de_polynesie)) }
 
       it do
-        expect(champ.for_tag).to eq("Arue")
-        expect(champ.for_tag(:ile)).to eq('Tahiti')
-        expect(champ.for_tag(:archipel)).to eq('Iles Du Vent')
-        expect(champ.for_tag(:code_postal)).to eq(98701)
+        expect(champ.type_de_champ.champ_value_for_tag(champ)).to eq("Arue")
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :ile)).to eq('Tahiti')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :archipel)).to eq('Iles Du Vent')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :code_postal)).to eq(98701)
       end
     end
 
@@ -279,10 +279,10 @@ describe Champ do
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_code_postal_de_polynesie)) }
 
       it do
-        expect(champ.for_tag).to eq(98701)
-        expect(champ.for_tag(:ile)).to eq('Tahiti')
-        expect(champ.for_tag(:archipel)).to eq('Iles Du Vent')
-        expect(champ.for_tag(:commune)).to eq('Arue')
+        expect(champ.type_de_champ.champ_value_for_tag(champ)).to eq(98701)
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :ile)).to eq('Tahiti')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :archipel)).to eq('Iles Du Vent')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :commune)).to eq('Arue')
       end
     end
 

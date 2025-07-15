@@ -36,7 +36,7 @@ describe Champs::NumeroDnChamp do
   end
 
   describe 'for_export' do
-    subject { champ.for_export }
+    subject { champ.type_de_champ.champ_value_for_export(champ) }
 
     context 'with no value' do
       let(:champ) { Champs::NumeroDnChamp.new(numero_dn: nil, date_de_naissance: nil) }
