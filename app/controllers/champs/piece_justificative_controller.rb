@@ -33,7 +33,7 @@ class Champs::PieceJustificativeController < Champs::ChampController
       if (0..@champ.piece_justificative_file.size).cover?(index)
         blob = @champ.piece_justificative_file[index]
         if blob.filename.extension == 'pdf' && @champ.dossier.procedure.feature_enabled?(:qrcoded_pdf)
-          send_data StampService.new.stamp(blob, TypesDeChamp::PieceJustificativeTypeDeChamp.download_url(@champ, index)), filename: blob.filename.to_s, type: 'application/pdf'
+          send_data StampService.new.stamp(blob, @champ.type_de_champ.dynamic_type.download_url(@champ, index)), filename: blob.filename.to_s, type: 'application/pdf'
         else
           redirect_to blob.url, status: :found, allow_other_host: true
         end
@@ -79,7 +79,7 @@ class Champs::PieceJustificativeController < Champs::ChampController
     else
       dossier = Dossier.includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
       type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
-      dossier.champ_for_export(type_de_champ, params_row_id)
+      dossier.project_champ(type_de_champ, params_row_id)
     end
     champ&.match_encoded_date?(:created_at, h) ? champ : nil
   end
