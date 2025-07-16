@@ -39,16 +39,17 @@ export class EmailInputController extends ApplicationController {
       const url = new URL(this.urlValue, document.baseURI);
       url.searchParams.append('email', this.inputTarget.value);
 
-    const data = await httpRequest(url.toString())
-      .json<CheckEmailResponse>()
-      .catch(() => null);
+      const data = await httpRequest(url.toString())
+        .json<CheckEmailResponse>()
+        .catch(() => null);
 
-    if (data?.success) {
-      const suggestion = data.suggestions.at(0);
-      if (suggestion) {
-        this.suggestionTarget.innerHTML = suggestion;
-        show(this.ariaRegionTarget);
-        this.ariaRegionTarget.focus();
+      if (data?.success) {
+        const suggestion = data.suggestions.at(0);
+        if (suggestion) {
+          this.suggestionTarget.innerHTML = suggestion;
+          show(this.ariaRegionTarget);
+          this.ariaRegionTarget.focus();
+        }
       }
     }
   }
