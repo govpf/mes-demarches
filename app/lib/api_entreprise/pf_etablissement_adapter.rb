@@ -26,8 +26,6 @@ class APIEntreprise::PfEtablissementAdapter < APIEntreprise::Adapter
     if num_etablissement.present?
       num_etablissement = num_etablissement.to_i
       etablissements = [etablissements.find { |e| e[:numEtablissement] == num_etablissement }].compact
-    else
-      return [nil, nil]
     end
     return [nil, nil] if etablissements.blank?
 
