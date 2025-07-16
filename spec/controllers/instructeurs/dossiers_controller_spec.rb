@@ -1497,6 +1497,9 @@ describe Instructeurs::DossiersController, type: :controller do
     let(:logo_path) { 'spec/fixtures/files/logo_test_procedure.png' }
     let(:rib_path) { 'spec/fixtures/files/RIB.pdf' }
     let(:commentaire) { create(:commentaire, dossier: dossier) }
+    let(:expert) { create(:expert) }
+    let(:experts_procedure) { create(:experts_procedure, expert: expert, procedure: procedure) }
+    let(:avis) { create(:avis, :with_answer, :with_piece_justificative, dossier: dossier, claimant: expert, experts_procedure: experts_procedure) }
 
     before do
       dossier.champs.first.piece_justificative_file.attach(
@@ -1513,20 +1516,63 @@ describe Instructeurs::DossiersController, type: :controller do
         metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE }
       )
 
+      avis.piece_justificative_file.attach(
+        io: File.open(rib_path),
+        filename: "RIB.pdf",
+        content_type: "application/pdf",
+        metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE }
+      )
+
       get :pieces_jointes, params: {
         procedure_id: procedure.id,
         dossier_id: dossier.id
       }
     end
 
-    it 'returns pieces jointes from champs and from messagerie' do
+    it 'returns pieces jointes from champs, messagerie and avis' do
       expect(response.body).to include('Télécharger le fichier toto.txt')
       expect(response.body).to include('Télécharger le fichier logo_test_procedure.png')
       expect(response.body).to include('Télécharger le fichier RIB.pdf')
       expect(response.body).to include('Visualiser')
-      expect(assigns(:gallery_attachments).count).to eq 3
+      expect(response.body).to include('Pièce jointe au message')
+      expect(response.body).to include('Pièce jointe à l’avis')
+      expect(assigns(:gallery_attachments).count).to eq 4
       expect(assigns(:gallery_attachments)).to all(be_a(ActiveStorage::Attachment))
-      expect([Champs::PieceJustificativeChamp, Champs::TitreIdentiteChamp, Commentaire]).to include(*assigns(:gallery_attachments).map { _1.record.class })
+      expect([Champs::PieceJustificativeChamp, Champs::TitreIdentiteChamp, Commentaire, Avis]).to include(*assigns(:gallery_attachments).map { _1.record.class })
+    end
+  end
+
+  describe 'dossier_labels' do
+    let(:procedure) { create(:procedure, :with_labels, instructeurs: [instructeur]) }
+    let!(:dossier) { create(:dossier, :en_construction, procedure:) }
+    context 'it create dossier labels' do
+      subject { post :dossier_labels, params: { procedure_id: procedure.id, dossier_id: dossier.id, label_id: [Label.first.id] }, format: :turbo_stream }
+      it 'works' do
+        subject
+        dossier.reload
+
+        expect(dossier.dossier_labels.count).to eq(1)
+        expect(subject.body).to include('fr-tag--purple-glycine')
+        expect(subject.body).not_to include('Ajouter un label')
+      end
+    end
+
+    context 'it remove dossier labels' do
+      before do
+        DossierLabel.create(dossier_id: dossier.id, label_id: dossier.procedure.labels.first.id)
+      end
+
+      subject { post :dossier_labels, params: { procedure_id: procedure.id, dossier_id: dossier.id, label_id: [] }, format: :turbo_stream }
+
+      it 'works' do
+        expect(dossier.dossier_labels.count).to eq(1)
+
+        subject
+        dossier.reload
+
+        expect(dossier.dossier_labels.count).to eq(0)
+        expect(subject.body).to include('Ajouter un label')
+      end
     end
   end
 end

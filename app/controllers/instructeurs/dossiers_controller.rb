@@ -63,6 +63,19 @@ module Instructeurs
       end
     end
 
+    def dossier_labels
+      labels = params[:label_id]&.map(&:to_i) || []
+
+      @dossier = dossier
+      labels.each { |params_label| DossierLabel.find_or_create_by(dossier_id: @dossier.id, label_id: params_label) }
+
+      all_labels = DossierLabel.where(dossier_id: @dossier.id).pluck(:label_id)
+
+      (all_labels - labels).each { DossierLabel.find_by(dossier_id: @dossier.id, label_id: _1).destroy }
+
+      render :change_state
+    end
+
     def messagerie
       @commentaire = Commentaire.new
       @messagerie_seen_at = current_instructeur.follows.find_by(dossier: dossier)&.messagerie_seen_at
@@ -572,11 +585,21 @@ module Instructeurs
           .commentaires
           .includes(piece_jointe_attachments: :blob)
           .map(&:piece_jointe)
-          .map(&:attachments)
-          .flatten
+          .flat_map(&:attachments)
           .map(&:id)
 
-        champs_attachments_ids + commentaires_attachments_ids
+        avis_attachments_ids = dossier
+          .avis.flat_map { [_1.introduction_file, _1.piece_justificative_file] }
+          .flat_map(&:attachments)
+          .compact
+          .map(&:id)
+
+        justificatif_motivation_id = dossier
+          .justificatif_motivation
+          &.attachment
+          &.id
+
+        champs_attachments_ids + commentaires_attachments_ids + avis_attachments_ids + [justificatif_motivation_id]
       end
       @gallery_attachments = ActiveStorage::Attachment.where(id: gallery_attachments_ids)
     end

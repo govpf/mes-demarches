@@ -64,6 +64,10 @@ module Administrateurs
         rule_operator = :ds_eq
         tdc_options = APIGeoService.regions.map { ["#{_1[:code]} – #{_1[:name]}", _1[:code]] }
         create_groups_from_territorial_tdc(tdc_options, stable_id, rule_operator)
+      when TypeDeChamp.type_champs.fetch(:pays)
+        rule_operator = :ds_eq
+        tdc_options = APIGeoService.countries.map { ["#{_1[:code]} – #{_1[:name]}", _1[:code]] }
+        create_groups_from_territorial_tdc(tdc_options, stable_id, rule_operator)
       when TypeDeChamp.type_champs.fetch(:drop_down_list)
         tdc_options = tdc.drop_down_options.reject(&:empty?)
         create_groups_from_drop_down_list_tdc(tdc_options, stable_id)
@@ -246,7 +250,7 @@ module Administrateurs
       end
 
       if instructeurs.present?
-        flash.now[:notice] = if procedure.routing_enabled?
+        flash[:notice] = if procedure.routing_enabled?
           t('.assignment',
             count: instructeurs.size,
             emails: instructeurs.map(&:email).join(', '),
@@ -268,7 +272,7 @@ module Administrateurs
         end
       end
 
-      flash.now[:alert] = errors.join(". ") if !errors.empty?
+      flash[:alert] = errors.join(". ") if !errors.empty?
 
       @procedure = procedure
       @instructeurs = paginated_instructeurs
@@ -276,10 +280,10 @@ module Administrateurs
 
       if procedure.routing_enabled?
         @groupe_instructeur = groupe_instructeur
-        render :show
+        redirect_to admin_procedure_groupe_instructeur_path(@procedure, @groupe_instructeur)
       else
         @groupes_instructeurs = paginated_groupe_instructeurs
-        render :index
+        redirect_to admin_procedure_groupe_instructeurs_path(@procedure)
       end
     end
 

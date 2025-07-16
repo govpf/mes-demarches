@@ -111,6 +111,7 @@ module Administrateurs
         flash.now.alert = @procedure.errors.full_messages
         render 'new'
       else
+        @procedure.create_generic_labels
         flash.notice = 'Démarche enregistrée.'
         current_administrateur.instructeur.assign_to_procedure(@procedure)
 
@@ -309,10 +310,6 @@ module Administrateurs
       @procedure.assign_attributes(publish_params)
 
       @procedure.publish_or_reopen!(current_administrateur)
-
-      if @procedure.draft_changed?
-        @procedure.publish_revision!
-      end
 
       if params[:old_procedure].present? && @procedure.errors.empty?
         current_administrateur

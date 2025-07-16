@@ -102,18 +102,25 @@ class TypesDeChamp::TypeDeChampBase
     end
   end
 
-  def columns(procedure_id:, displayable: true, prefix: nil)
-    [
-      Column.new(
-        procedure_id:,
-        table: Column::TYPE_DE_CHAMP_TABLE,
-        column: stable_id.to_s,
-        label: libelle_with_prefix(prefix),
-        type: TypeDeChamp.filter_hash_type(type_champ),
-        value_column: TypeDeChamp.filter_hash_value_column(type_champ),
-        displayable:
-      )
-    ]
+  def champ_blank?(champ) = champ.value.blank?
+  def champ_blank_or_invalid?(champ) = champ_blank?(champ)
+
+  def columns(procedure:, displayable: true, prefix: nil)
+    if fillable?
+      [
+        Columns::ChampColumn.new(
+          procedure_id: procedure.id,
+          stable_id:,
+          tdc_type: type_champ,
+          label: libelle_with_prefix(prefix),
+          type: TypeDeChamp.column_type(type_champ),
+          value_column: TypeDeChamp.value_column(type_champ),
+          displayable:
+        )
+      ]
+    else
+      []
+    end
   end
 
   private

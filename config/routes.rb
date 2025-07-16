@@ -119,8 +119,10 @@ Rails.application.routes.draw do
     end
 
     get 'data_exports' => 'administrateurs#data_exports'
-    get 'exports/administrateurs/last_month' => 'administrateurs#export_last_month'
-    get 'exports/instructeurs/last_month' => 'instructeurs#export_last_month'
+    get 'exports/administrateurs/last_half_year' => 'administrateurs#export_last_half_year'
+    get 'exports/instructeurs/last_half_year' => 'instructeurs#export_last_half_year'
+    get 'exports/administrateurs/with_publiee_procedure' => 'administrateurs#export_with_publiee_procedure'
+    get 'exports/instructeurs/currently_active' => 'instructeurs#export_currently_active'
 
     get 'import_procedure_tags' => 'procedures#import_data'
     post 'import_tags' => 'procedures#import_tags'
@@ -489,6 +491,12 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :procedure_presentation, only: [:update] do
+      member do
+        get 'refresh_column_filter'
+      end
+    end
+
     resources :procedures, only: [:index, :show], param: :procedure_id do
       member do
         resources :archives, only: [:index, :create]
@@ -510,11 +518,13 @@ Rails.application.routes.draw do
           end
         end
 
+        # TODO: to remove because of new procedure_presentation_controller
         patch 'update_displayed_fields'
         get 'update_sort' => 'procedures#update_sort', as: 'update_sort'
         post 'add_filter'
         post 'update_filter'
         get 'remove_filter'
+
         get 'download_export'
         post 'download_export'
         get 'polling_last_export'
@@ -532,6 +542,7 @@ Rails.application.routes.draw do
             resources :commentaires, only: [:destroy]
             post 'repousser-expiration' => 'dossiers#extend_conservation'
             post 'repousser-expiration-and-restore' => 'dossiers#extend_conservation_and_restore'
+            post 'dossier_labels' => 'dossiers#dossier_labels'
             get 'geo_data'
             get 'apercu_attestation'
             get 'bilans_bdf'
@@ -727,6 +738,8 @@ Rails.application.routes.draw do
         get 'preview', on: :member
       end
 
+      resources :labels, controller: 'labels'
+
       resource :attestation_template, only: [:show, :edit, :update, :create] do
         get 'preview', on: :member
       end
@@ -754,10 +767,14 @@ Rails.application.routes.draw do
     resources :services, except: [:show] do
       collection do
         patch 'add_to_procedure'
+        get ':procedure_id/prefill' => :prefill, as: :prefill
       end
     end
 
     resources :api_tokens, only: [:create, :destroy, :edit, :update] do
+      member do
+        delete 'remove_procedure'
+      end
       collection do
         get :nom
         get :autorisations

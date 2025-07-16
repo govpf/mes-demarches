@@ -45,7 +45,6 @@ module ApplicationHelper
     when 'alert', 'error'
       class_names << 'alert-danger'
     end
-
     if sticky
       class_names << 'sticky'
     end
@@ -112,6 +111,10 @@ module ApplicationHelper
 
   def try_format_datetime(datetime, format: nil)
     datetime.present? ? I18n.l(datetime, format:) : ''
+  end
+
+  def try_parse_format_date(date)
+    date.then { Date.parse(_1) rescue nil }&.then { I18n.l(_1) }
   end
 
   def try_format_mois_effectif(etablissement)

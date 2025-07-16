@@ -145,6 +145,7 @@ class TypeDeChamp < ApplicationRecord
     type_champs.fetch(:communes),
     type_champs.fetch(:departements),
     type_champs.fetch(:regions),
+    type_champs.fetch(:pays),
     type_champs.fetch(:epci),
     type_champs.fetch(:address)
   ]
@@ -172,13 +173,9 @@ class TypeDeChamp < ApplicationRecord
                  :header_section_level
 
   has_many :revision_types_de_champ, -> { revision_ordered }, class_name: 'ProcedureRevisionTypeDeChamp', dependent: :destroy, inverse_of: :type_de_champ
-  has_one :revision_type_de_champ, -> { revision_ordered }, class_name: 'ProcedureRevisionTypeDeChamp', inverse_of: false
   has_many :revisions, -> { ordered }, through: :revision_types_de_champ
-  has_one :revision, through: :revision_type_de_champ
-  has_one :procedure, through: :revision
 
   delegate :estimated_fill_duration, :estimated_read_duration, :tags_for_template, :libelles_for_export, :libelle_for_export, :primary_options, :secondary_options, :columns, to: :dynamic_type
-  delegate :used_by_routing_rules?, to: :revision_type_de_champ
 
   class WithIndifferentAccess
     def self.load(options)
@@ -243,7 +240,6 @@ class TypeDeChamp < ApplicationRecord
 
   before_save :remove_attachment, if: -> { type_champ_changed? }
   before_validation :set_drop_down_list_options, if: -> { type_champ_changed? }
-  before_save :remove_block, if: -> { type_champ_changed? }
 
   def valid?(context = nil)
     super
@@ -356,11 +352,6 @@ class TypeDeChamp < ApplicationRecord
       TypeDeChamp.type_champs.fetch(:multiple_drop_down_list),
       TypeDeChamp.type_champs.fetch(:yes_no)
     ])
-  end
-
-  def self.is_choice_type_from(type_champ)
-    return false if type_champ == TypeDeChamp.type_champs.fetch(:linked_drop_down_list) # To remove when we stop using linked_drop_down_list
-    TYPE_DE_CHAMP_TO_CATEGORIE[type_champ.to_sym] == CHOICE || type_champ.in?([TypeDeChamp.type_champs.fetch(:departements), TypeDeChamp.type_champs.fetch(:regions)])
   end
 
   def drop_down_list?
@@ -602,18 +593,31 @@ class TypeDeChamp < ApplicationRecord
     end
   end
 
-  def self.filter_hash_type(type_champ)
-    if type_champ == 'multiple_drop_down_list'
+  def self.column_type(type_champ)
+    case type_champ
+    when type_champs.fetch(:datetime)
+      :datetime
+    when type_champs.fetch(:date)
+      :date
+    when type_champs.fetch(:integer_number)
+      :integer
+    when type_champs.fetch(:decimal_number)
+      :decimal
+    when type_champs.fetch(:multiple_drop_down_list)
       :enums
-    elsif is_choice_type_from(type_champ)
+    when type_champs.fetch(:drop_down_list), type_champs.fetch(:departements), type_champs.fetch(:regions)
       :enum
+    when type_champs.fetch(:checkbox), type_champs.fetch(:yes_no)
+      :boolean
+    when type_champs.fetch(:titre_identite), type_champs.fetch(:piece_justificative)
+      :attachements
     else
       :text
     end
   end
 
-  def self.filter_hash_value_column(type_champ)
-    if type_champ.in?([TypeDeChamp.type_champs.fetch(:departements), TypeDeChamp.type_champs.fetch(:regions)])
+  def self.value_column(type_champ)
+    if type_champ.in?([type_champs.fetch(:departements), type_champs.fetch(:regions)])
       :external_id
     else
       :value
@@ -625,6 +629,12 @@ class TypeDeChamp < ApplicationRecord
       APIGeoService.departements.map { ["#{_1[:code]} – #{_1[:name]}", _1[:code]] }
     elsif region?
       APIGeoService.regions.map { [_1[:name], _1[:code]] }
+    elsif linked_drop_down_list?
+      if column.path == :primary
+        primary_options
+      else
+        secondary_options.values.flatten
+      end
     elsif choice_type?
       if drop_down_list?
         drop_down_options
@@ -751,10 +761,9 @@ class TypeDeChamp < ApplicationRecord
     Logic::ChampValue::MANAGED_TYPE_DE_CHAMP.values.include?(type_champ)
   end
 
-  def self.humanized_conditionable_types
-    Logic::ChampValue::MANAGED_TYPE_DE_CHAMP.values.map do
-      "« #{I18n.t(_1, scope: [:activerecord, :attributes, :type_de_champ, :type_champs])} »"
-    end.to_sentence(last_word_connector: ' ou ')
+  def self.humanized_conditionable_types_by_category
+    Logic::ChampValue::MANAGED_TYPE_DE_CHAMP_BY_CATEGORY
+      .map { |_, v| v.map { "« #{I18n.t(_1, scope: [:activerecord, :attributes, :type_de_champ, :type_champs])} »" } }
   end
 
   def invalid_regexp?
@@ -808,7 +817,7 @@ class TypeDeChamp < ApplicationRecord
   end
 
   def champ_value(champ)
-    if use_default_value?(champ)
+    if champ_blank?(champ)
       dynamic_type.champ_default_value
     else
       dynamic_type.champ_value(champ)
@@ -816,7 +825,7 @@ class TypeDeChamp < ApplicationRecord
   end
 
   def champ_value_for_api(champ, version: 2)
-    if use_default_value?(champ)
+    if champ_blank?(champ)
       dynamic_type.champ_default_api_value(version)
     else
       dynamic_type.champ_value_for_api(champ, version:)
@@ -824,7 +833,7 @@ class TypeDeChamp < ApplicationRecord
   end
 
   def champ_value_for_export(champ, path = :value)
-    if use_default_value?(champ)
+    if champ_blank?(champ)
       dynamic_type.champ_default_export_value(path)
     else
       dynamic_type.champ_value_for_export(champ, path)
@@ -832,10 +841,32 @@ class TypeDeChamp < ApplicationRecord
   end
 
   def champ_value_for_tag(champ, path = :value)
-    if use_default_value?(champ)
+    if champ_blank?(champ)
       ''
     else
       dynamic_type.champ_value_for_tag(champ, path)
+    end
+  end
+
+  def champ_blank?(champ)
+    # no champ
+    return true if champ.nil?
+    # type de champ on the revision changed
+    if champ.last_write_type_champ == type_champ || castable_on_change?(champ.last_write_type_champ, type_champ)
+      dynamic_type.champ_blank?(champ)
+    else
+      true
+    end
+  end
+
+  def mandatory_blank?(champ)
+    # no champ
+    return true if champ.nil?
+    # type de champ on the revision changed
+    if champ.last_write_type_champ == type_champ || castable_on_change?(champ.last_write_type_champ, type_champ)
+      mandatory? && dynamic_type.champ_blank_or_invalid?(champ)
+    else
+      true
     end
   end
 
@@ -857,24 +888,12 @@ class TypeDeChamp < ApplicationRecord
 
   private
 
-  def use_default_value?(champ)
-    # no champ
-    return true if champ.nil?
-    # type de champ on the revision changed
-    if champ.last_write_type_champ != type_champ
-      return !castable_on_change?(champ.last_write_type_champ, type_champ)
-    end
-    # special case for linked drop down champ – it's blank implementation is not what you think
-    return champ.value.blank? if type_champ == TypeDeChamp.type_champs.fetch(:linked_drop_down_list)
-    champ.blank?
-  end
-
   def castable_on_change?(from_type, to_type)
     case [from_type, to_type]
     when ['integer_number', 'decimal_number'], # recast numbers automatically
       ['decimal_number', 'integer_number'], # may lose some data, but who cares ?
       ['text', 'textarea'], # allow short text to long text
-      # ['drop_down_list', 'multiple_drop_down_list'], # single list can become multi
+      ['drop_down_list', 'multiple_drop_down_list'], # single list can become multi
       ['date', 'datetime'], # date <=> datetime
       ['datetime', 'date'] # may lose some data, but who cares ?
       true
@@ -902,14 +921,6 @@ class TypeDeChamp < ApplicationRecord
       self.drop_down_options = ['Fromage', 'Dessert']
     elsif linked_drop_down_list? && drop_down_options.none?(/^--.*--$/)
       self.drop_down_options = ['--Fromage--', 'bleu de sassenage', 'picodon', '--Dessert--', 'éclair', 'tarte aux pommes']
-    end
-  end
-
-  def remove_block
-    if !block? && procedure.present?
-      procedure
-        .draft_revision # action occurs only on draft
-        .remove_children_of(self)
     end
   end
 
