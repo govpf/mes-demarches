@@ -16,6 +16,7 @@ module ProcedurePublishConcern
       else
         publish!
       end
+      AdministrationMailer.procedure_published(self).deliver_later
     end
   end
 

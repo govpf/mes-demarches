@@ -134,7 +134,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   end
 
   def lexpol_models
-    service_siret = type_de_champ.procedure&.service&.siret
+    service_siret = coordinate.procedure&.service&.siret
     return [] if service_siret.blank?
 
     # Pour la configuration : seuls les super admins utilisent les comptes de test
@@ -153,7 +153,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   end
 
   def lexpol_service_configured?
-    type_de_champ.procedure&.service&.siret.present?
+    coordinate.procedure&.service&.siret.present?
   end
 
   def options_for_character_limit

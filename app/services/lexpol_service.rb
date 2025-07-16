@@ -85,16 +85,16 @@ class LexpolService
     champ.type_de_champ.options&.[]('lexpol_modele')
   end
 
-  def self.lexpol_variables(lexpol_type_de_champ)
-    default_variables = default_mapping(lexpol_type_de_champ).values
-    champ_variables = lexpol_type_de_champ.revision.types_de_champ.map(&:libelle)
+  def self.lexpol_variables(lexpol_type_de_champ, procedure)
+    default_variables = default_mapping(lexpol_type_de_champ, procedure).values
+    champ_variables = procedure.draft_revision.types_de_champ.map(&:libelle)
     (default_variables + champ_variables).sort_by(&:downcase)
   end
 
   private
 
-  def self.default_mapping(lexpol_type_de_champ)
-    demandeur_mapping = lexpol_type_de_champ.procedure.for_individual? ? FIXED_METADATA_INDIVIDUEL : FIXED_METADATA_ENTREPRISE
+  def self.default_mapping(lexpol_type_de_champ, procedure)
+    demandeur_mapping = procedure.for_individual? ? FIXED_METADATA_INDIVIDUEL : FIXED_METADATA_ENTREPRISE
 
     [*demandeur_mapping, *FIXED_META_DATA, *user_mapping(lexpol_type_de_champ)].to_h
   end
