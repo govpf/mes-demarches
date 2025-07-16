@@ -818,6 +818,7 @@ class Procedure < ApplicationRecord
       nil
     end
   end
+
   def reset_draft_revision!
     if published_revision.present? && draft_changed?
       reset!

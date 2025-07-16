@@ -282,10 +282,6 @@ class Champ < ApplicationRecord
     write_attribute(:value, value.delete("\u0000"))
   end
 
-  def used_by_routing_rules?
-    stable_id.in?(procedure.stable_ids_used_by_routing_rules)
-  end
-
   class NotImplemented < ::StandardError
     def initialize(method)
       super(":#{method} not implemented")
