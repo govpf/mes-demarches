@@ -135,12 +135,13 @@ RSpec.describe DossierCloneConcern do
 
         context 'for Champs::Repetition with rows, original_champ.repetition and rows are duped' do
           let(:types_de_champ_public) { [{ type: :repetition, children: [{}, {}] }] }
-          let(:champ_repetition) { dossier.champs.first }
-          let(:cloned_champ_repetition) { new_dossier.champs.first }
+          let(:champ_repetition) { dossier.champs.find(&:repetition?) }
+          let(:cloned_champ_repetition) { new_dossier.champs.find(&:repetition?) }
 
           it do
-            expect(cloned_champ_repetition.champs.count).to eq(4)
-            expect(cloned_champ_repetition.champs.ids).not_to eq(champ_repetition.champs.ids)
+            expect(cloned_champ_repetition.rows.flatten.count).to eq(4)
+            expect(cloned_champ_repetition.rows.flatten.map(&:id)).not_to eq(champ_repetition.rows.flatten.map(&:id))
+            expect(cloned_champ_repetition.row_ids).to eq(champ_repetition.row_ids)
           end
         end
 
@@ -333,15 +334,17 @@ RSpec.describe DossierCloneConcern do
     subject { dossier.merge_fork(forked_dossier) }
 
     context 'with updated champ' do
+      let(:repetition_champ) { dossier.project_champs_public.last }
       let(:updated_champ) { forked_dossier.champs.find { _1.stable_id == 99 } }
-      let(:updated_repetition_champ) { forked_dossier.champs.find { _1.stable_id == 994 } }
+      let(:updated_repetition_champs) { forked_dossier.champs.filter { _1.stable_id == 994 } }
 
       before do
+        repetition_champ.add_row(updated_by: 'test')
         dossier.champs.each do |champ|
           champ.update(value: 'old value')
         end
         updated_champ.update(value: 'new value')
-        updated_repetition_champ.update(value: 'new value in repetition')
+        updated_repetition_champs.each { _1.update(value: 'new value in repetition') }
         dossier.debounce_index_search_terms_flag.remove
       end
 
@@ -407,9 +410,7 @@ RSpec.describe DossierCloneConcern do
     end
 
     context 'with old revision having repetition' do
-      let(:added_champ) { nil }
       let(:removed_champ) { dossier.champs.find(&:repetition?) }
-      let(:updated_champ) { nil }
 
       before do
         dossier.champs.each do |champ|

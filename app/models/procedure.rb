@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class Procedure < ApplicationRecord
+  include APIEntrepriseTokenConcern
   include ProcedureStatsConcern
   include EncryptableConcern
   include InitiationProcedureConcern
@@ -334,7 +335,6 @@ class Procedure < ApplicationRecord
     size: { less_than: LOGO_MAX_SIZE },
     if: -> { new_record? || created_at > Date.new(2020, 11, 13) }
 
-  validates :api_entreprise_token, jwt_token: true, allow_blank: true
   validates :api_particulier_token, format: { with: /\A[A-Za-z0-9\-_=.]{15,}\z/ }, allow_blank: true
   validate :validate_auto_archive_on_in_the_future, if: :will_save_change_to_auto_archive_on?
 
@@ -376,6 +376,7 @@ class Procedure < ApplicationRecord
     Procedure.transaction do
       if brouillon?
         reset!
+        cleanup_types_de_champ_options!
       end
 
       other_procedure = other_procedure_with_path(path)
@@ -396,6 +397,12 @@ class Procedure < ApplicationRecord
         Rails.logger.info("Resetting #{dossier_ids_to_destroy.size} dossiers on procedure #{id}: #{dossier_ids_to_destroy}")
         draft_revision.dossiers.destroy_all
       end
+    end
+  end
+
+  def cleanup_types_de_champ_options!
+    draft_revision.types_de_champ.each do |type_de_champ|
+      type_de_champ.update!(options: type_de_champ.clean_options)
     end
   end
 
@@ -808,18 +815,6 @@ class Procedure < ApplicationRecord
     "Procedure;#{id}"
   end
 
-  def api_entreprise_role?(role)
-    APIEntrepriseToken.new(api_entreprise_token).role?(role)
-  end
-
-  def api_entreprise_token
-    self[:api_entreprise_token].presence || Rails.application.secrets.api_entreprise[:key]
-  end
-
-  def api_entreprise_token_expired?
-    APIEntrepriseToken.new(api_entreprise_token).expired?
-  end
-
   def create_new_revision(revision = nil)
     transaction do
       new_revision = (revision || draft_revision)
@@ -868,6 +863,7 @@ class Procedure < ApplicationRecord
 
   def publish_revision!
     reset!
+    cleanup_types_de_champ_options!
     transaction do
       self.published_revision = draft_revision
       self.draft_revision = create_new_revision

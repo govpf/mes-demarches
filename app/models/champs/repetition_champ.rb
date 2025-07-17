@@ -3,7 +3,6 @@
 class Champs::RepetitionChamp < Champ
   include ActionView::Helpers::TagHelper
 
-  accepts_nested_attributes_for :champs
   delegate :libelle_for_export, to: :type_de_champ
 
   def rows
@@ -15,11 +14,7 @@ class Champs::RepetitionChamp < Champ
   end
 
   def add_row(updated_by:)
-    # TODO: clean this up when parent_id is deprecated
-    row_id, added_champs = dossier.repetition_add_row(type_de_champ, updated_by:)
-    self.champs << added_champs
-    dossier.champs.reload if dossier.persisted?
-    row_id
+    dossier.repetition_add_row(type_de_champ, updated_by:)
   end
 
   def remove_row(row_id, updated_by:)
