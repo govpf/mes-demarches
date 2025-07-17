@@ -46,7 +46,7 @@ class Champs::RepetitionChamp < Champ
     header = tag.tr(rows[0].map { |c| tag.th(c.libelle) }.reduce(&:+))
     lines = rows.map do |champs|
       tag.tr(champs.map do |champ|
-        for_tag = champ.for_tag
+        for_tag = champ.type_de_champ.champ_value_for_tag(champ)
         tag.td(for_tag)
       end.reduce(&:+))
     end.reduce(&:+)

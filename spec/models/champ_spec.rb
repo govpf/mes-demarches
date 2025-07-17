@@ -176,10 +176,12 @@ describe Champ do
     let(:champ) { Champs::TextChamp.new(value:, dossier: build(:dossier)) }
     before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_text)) }
 
+    let(:value_for_export) { champ.type_de_champ.champ_value_for_export(champ) }
+
     context 'when type_de_champ is text' do
       let(:value) { '123' }
 
-      it { expect(champ.for_export).to eq('123') }
+      it { expect(value_for_export).to eq('123') }
     end
 
     context 'when type_de_champ is textarea' do
@@ -188,7 +190,7 @@ describe Champ do
 
       let(:value) { '<b>gras<b>' }
 
-      it { expect(champ.for_export).to eq('gras') }
+      it { expect(value_for_export).to eq('gras') }
     end
 
     context 'when type_de_champ is yes_no' do
@@ -198,19 +200,19 @@ describe Champ do
       context 'if yes' do
         let(:value) { 'true' }
 
-        it { expect(champ.for_export).to eq('Oui') }
+        it { expect(value_for_export).to eq('Oui') }
       end
 
       context 'if no' do
         let(:value) { 'false' }
 
-        it { expect(champ.for_export).to eq('Non') }
+        it { expect(value_for_export).to eq('Non') }
       end
 
       context 'if nil' do
         let(:value) { nil }
 
-        it { expect(champ.for_export).to eq('Non') }
+        it { expect(value_for_export).to eq('Non') }
       end
     end
 
@@ -220,7 +222,7 @@ describe Champ do
 
       let(:value) { '["Crétinier", "Mousserie"]' }
 
-      it { expect(champ.for_export).to eq('Crétinier, Mousserie') }
+      it { expect(value_for_export).to eq('Crétinier, Mousserie') }
     end
 
     # pf displays links for PJs
@@ -232,7 +234,7 @@ describe Champ do
       end
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_piece_justificative)) }
 
-      it { expect(champ.for_export).to eq('logo_test_procedure.png') }
+      it { expect(champ.type_de_champ.champ_value_for_export(champ)).to eq('logo_test_procedure.png') }
     end
   end
 
@@ -247,7 +249,7 @@ describe Champ do
       end
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_piece_justificative)) }
       before { allow(champ).to receive(:dossier).and_return(build(:dossier)) }
-      it { expect(champ.for_tag).to include('<img src="http://') }
+      it { expect(champ.type_de_champ.champ_value_for_tag(champ)).to include('\u003cimg src=\"http://') }
     end
 
     context 'when type_de_champ is numero_dn' do
@@ -255,8 +257,8 @@ describe Champ do
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_numero_dn)) }
 
       it do
-        expect(champ.for_tag).to eq("1234567")
-        expect(champ.for_tag(:date_de_naissance)).to eq('01 janvier 2000')
+        expect(champ.type_de_champ.champ_value_for_tag(champ)).to eq("1234567")
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :date_de_naissance)).to eq('01 janvier 2000')
       end
     end
 
@@ -265,10 +267,10 @@ describe Champ do
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_commune_de_polynesie)) }
 
       it do
-        expect(champ.for_tag).to eq("Arue")
-        expect(champ.for_tag(:ile)).to eq('Tahiti')
-        expect(champ.for_tag(:archipel)).to eq('Iles Du Vent')
-        expect(champ.for_tag(:code_postal)).to eq(98701)
+        expect(champ.type_de_champ.champ_value_for_tag(champ)).to eq("Arue")
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :ile)).to eq('Tahiti')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :archipel)).to eq('Iles Du Vent')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :code_postal)).to eq(98701)
       end
     end
 
@@ -277,10 +279,10 @@ describe Champ do
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_code_postal_de_polynesie)) }
 
       it do
-        expect(champ.for_tag).to eq(98701)
-        expect(champ.for_tag(:ile)).to eq('Tahiti')
-        expect(champ.for_tag(:archipel)).to eq('Iles Du Vent')
-        expect(champ.for_tag(:commune)).to eq('Arue')
+        expect(champ.type_de_champ.champ_value_for_tag(champ)).to eq(98701)
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :ile)).to eq('Tahiti')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :archipel)).to eq('Iles Du Vent')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :commune)).to eq('Arue')
       end
     end
 
@@ -288,12 +290,14 @@ describe Champ do
       let(:value) { :noop }
       let(:champ_yes_no) { Champs::YesNoChamp.new(value: 'true') }
       let(:champ_text) { Champs::TextChamp.new(value: 'hello') }
+      let(:type_de_champ_yes_no) { build(:type_de_champ_yes_no) }
+      let(:type_de_champ_text) { build(:type_de_champ_text) }
       before do
-        allow(champ_yes_no).to receive(:type_de_champ).and_return(build(:type_de_champ_yes_no))
-        allow(champ_text).to receive(:type_de_champ).and_return(build(:type_de_champ_text))
+        allow(champ_yes_no).to receive(:type_de_champ).and_return(type_de_champ_yes_no)
+        allow(champ_text).to receive(:type_de_champ).and_return(type_de_champ_text)
       end
-      it { expect(TypeDeChamp.champ_value_for_export('text', champ_yes_no)).to eq(nil) }
-      it { expect(TypeDeChamp.champ_value_for_export('yes_no', champ_text)).to eq('Non') }
+      it { expect(type_de_champ_text.champ_value_for_export(champ_yes_no)).to eq(nil) }
+      it { expect(type_de_champ_yes_no.champ_value_for_export(champ_text)).to eq('Non') }
     end
   end
 

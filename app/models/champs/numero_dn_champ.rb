@@ -26,7 +26,7 @@ class Champs::NumeroDnChamp < Champ
   end
 
   def to_s
-    blank? ? "" : "#{for_tag(:value)} né(e) le #{for_tag(:date_de_naissance)}"
+    blank? ? "" : "#{type_de_champ.champ_value_for_tag(self, :value)} né(e) le #{type_de_champ.champ_value_for_tag(self, :date_de_naissance)}"
   end
 
   def blank?

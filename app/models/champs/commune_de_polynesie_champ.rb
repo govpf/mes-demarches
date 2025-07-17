@@ -8,11 +8,11 @@ class Champs::CommuneDePolynesieChamp < Champs::TextChamp
     APIGeo::API.communes_de_polynesie
   end
 
-  def island = for_tag(:ile)
+  def island = type_de_champ.champ_value_for_tag(self, :ile)
 
-  def postal_code = for_tag(:code_postal)
+  def postal_code = type_de_champ.champ_value_for_tag(self, :code_postal)
 
-  def name = for_tag(:value)
+  def name = type_de_champ.champ_value_for_tag(self, :value)
 
   def archipelago = archipel
 

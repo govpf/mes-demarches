@@ -33,23 +33,21 @@ class TypesDeChamp::CodePostalDePolynesieTypeDeChamp < TypesDeChamp::TextTypeDeC
     libelle + LABELS[index]
   end
 
-  class << self
-    def champ_value(champ)
-      city = APIGeo::API.commune_by_postal_code_city_label(champ.value)
-      city ? city[:code_postal].to_s : ''
-    end
+  def champ_value(champ)
+    city = APIGeo::API.commune_by_postal_code_city_label(champ.value)
+    city ? city[:code_postal].to_s : ''
+  end
 
-    def champ_value_for_export(champ, path = :value)
-      champ_value_for_tag(champ, path)
-    end
+  def champ_value_for_export(champ, path = :value)
+    champ_value_for_tag(champ, path)
+  end
 
-    def champ_value_for_tag(champ, path = :value)
-      if champ.value.present? && (city = APIGeo::API.commune_by_postal_code_city_label(champ.value))
-        path = :code_postal if path == :value
-        city[path]
-      else
-        ''
-      end
+  def champ_value_for_tag(champ, path = :value)
+    if champ.value.present? && (city = APIGeo::API.commune_by_postal_code_city_label(champ.value))
+      path = :code_postal if path == :value
+      city[path]
+    else
+      ''
     end
   end
 end

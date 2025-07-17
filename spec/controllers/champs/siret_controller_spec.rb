@@ -184,8 +184,11 @@ describe Champs::SiretController, type: :controller do
 
         subject! { get :show, params: params, format: :turbo_stream }
 
-        it 'does not populates the etablissement and SIRET on the model' do
-          expect(champ.reload.etablissement).to eq(nil)
+        it 'populates the etablissement and SIRET on the model' do
+          champ.reload
+          expect(champ.etablissement).to_not be_nil
+          expect(champ.etablissement.siret).to eq(siret)
+          expect(champ.etablissement.entreprise_raison_sociale).to eq('BANQUE SOCREDO')
           expect(dossier.reload.etablissement).to eq(nil)
         end
       end
