@@ -142,7 +142,7 @@ class GeoArea < ApplicationRecord
     if legacy_cadastre?
       properties['code_dep']
     else
-      properties['commune'][0..1]
+      properties['commune']&.[](0..1)
     end
   end
 
@@ -150,7 +150,8 @@ class GeoArea < ApplicationRecord
     if legacy_cadastre?
       properties['code_com']
     else
-      properties['commune'][2...commune.size]
+      commune_val = properties['commune']
+      commune_val&.[](2...commune_val.size)
     end
   end
 
@@ -190,8 +191,15 @@ class GeoArea < ApplicationRecord
     api_surface = if legacy_cadastre?
       properties['surface_parcelle']
     else
-      properties['contenance']
+      properties['contenance'] || properties['surface']
     end
+
+    # For TeFenua data, extract surface from info_texte if not available in standard fields
+    if api_surface.blank? && properties['info_texte'].present?
+      match = properties['info_texte'].match(/Surface \(en m²\): (\d+)/)
+      api_surface = match[1] if match
+    end
+
     api_surface ? api_surface : area
   end
 
@@ -199,7 +207,7 @@ class GeoArea < ApplicationRecord
     if legacy_cadastre?
       properties['code_arr']
     else
-      properties['prefixe']
+      properties['prefixe'] || ''
     end
   end
 
@@ -219,6 +227,39 @@ class GeoArea < ApplicationRecord
   # pf ile and commune associee are specific to French polynesia
   def ile
     properties['ile']
+  end
+
+  # Building-specific methods for TeFenua data
+  def nom
+    properties['nom']
+  end
+
+  def info_titre
+    properties['info_titre']
+  end
+
+  def info_texte
+    properties['info_texte']
+  end
+
+  def categorie
+    properties['categorie']
+  end
+
+  def sous_categorie
+    properties['sous_categorie']
+  end
+
+  def materiau
+    properties['materiau']
+  end
+
+  def is_building?
+    cadastre? && properties['categorie'].present? && !is_parcelle?
+  end
+
+  def is_parcelle?
+    cadastre? && properties['numero'].present? && properties['section'].present?
   end
 
   def cid

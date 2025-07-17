@@ -1,20 +1,23 @@
 # frozen_string_literal: true
 
 class Champs::TeFenuaChamp < Champ
+  # Default map location for French Polynesia
+  DEFAULT_LON = -149.5665
+  DEFAULT_LAT = -17.6797
   # We are not using scopes here as we want to access
   # the following collections on unsaved records.
   before_save :sync_geo_areas_from_value
 
   def parcelles
-    geo_json_from_value[:parcelles][:features]
+    geo_json_from_value&.dig(:parcelles, :features) || []
   end
 
   def batiments
-    geo_json_from_value[:batiments][:features]
+    geo_json_from_value&.dig(:batiments, :features) || []
   end
 
   def zones_manuelles
-    geo_json_from_value[:zones_manuelles][:features]
+    geo_json_from_value&.dig(:zones_manuelles, :features) || []
   end
 
   def parcelles?
@@ -34,7 +37,7 @@ class Champs::TeFenuaChamp < Champ
   end
 
   def position
-    geo_json_from_value[:position]
+    geo_json_from_value&.dig(:position)
   end
 
   def entry
@@ -128,12 +131,38 @@ class Champs::TeFenuaChamp < Champ
 
     geo_areas.destroy_all
 
-    source = GeoArea.sources.fetch(:selection_utilisateur);
+    # Process each category with appropriate source
     parsed_data.each do |category, collection|
-      next if category == :positions
+      next if category == :positions || !collection.is_a?(Hash) || !collection[:features].is_a?(Array)
+
+      # Determine source based on category
+      source = case category
+      when :parcelles, :batiments
+        GeoArea.sources.fetch(:cadastre)
+      else
+        GeoArea.sources.fetch(:selection_utilisateur)
+      end
 
       collection[:features].each do |feature|
-        geo_areas.build(source:, geometry: feature[:geometry], properties: feature[:properties]&.reject { |k, _v| k == :style })
+        next unless feature[:geometry].is_a?(Hash) && feature[:geometry].present?
+
+        geo_areas.build(
+          source: source,
+          geometry: feature[:geometry],
+          properties: feature[:properties]&.reject { |k, _v| k == :style } || {}
+        )
+      end
+    end
+
+    # Handle legacy :positions format for markers
+    if marker? && parsed_data[:positions].is_a?(Array)
+      parsed_data[:positions].each do |pos_data|
+        next unless pos_data[:geometry].is_a?(Hash) && pos_data[:geometry].present?
+
+        geo_areas.build(
+          source: GeoArea.sources.fetch(:selection_utilisateur),
+          geometry: pos_data[:geometry]
+        )
       end
     end
   end

@@ -87,6 +87,7 @@ class API::V2::Schema < GraphQL::Schema
     Types::Champs::EngagementJuridiqueChampType,
     Types::Champs::YesNoChampType,
     Types::GeoAreas::ParcelleCadastraleType,
+    Types::GeoAreas::BatimentType,
     Types::GeoAreas::SelectionUtilisateurType,
     Types::PersonneMoraleType,
     Types::PersonneMoraleIncompleteType,

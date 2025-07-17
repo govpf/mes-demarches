@@ -4682,6 +4682,8 @@ type TableColumn {
 }
 
 type TeFenuaChamp implements Champ {
+  batiments: [GeoArea!]!
+
   """
   L'identifiant du champDescriptor de ce champ
   """
@@ -4693,6 +4695,8 @@ type TeFenuaChamp implements Champ {
   Libellé du champ.
   """
   label: String!
+  parcelles: [GeoArea!]!
+  position: GeoJSON
   prefilled: Boolean!
 
   """
@@ -4704,6 +4708,7 @@ type TeFenuaChamp implements Champ {
   Date de dernière modification du champ.
   """
   updatedAt: ISO8601DateTime!
+  zonesManuelles: [GeoArea!]!
 }
 
 type TeFenuaChampDescriptor implements ChampDescriptor {

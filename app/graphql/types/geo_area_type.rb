@@ -21,7 +21,11 @@ module Types
       def resolve_type(object, context)
         case object.source
         when GeoArea.sources.fetch(:cadastre)
-          Types::GeoAreas::ParcelleCadastraleType
+          if object.is_building?
+            Types::GeoAreas::BatimentType
+          else
+            Types::GeoAreas::ParcelleCadastraleType
+          end
         when GeoArea.sources.fetch(:selection_utilisateur)
           Types::GeoAreas::SelectionUtilisateurType
         end

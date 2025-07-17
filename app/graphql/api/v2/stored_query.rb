@@ -468,6 +468,15 @@ class API::V2::StoredQuery
       prefixe
       surface
     }
+    ... on Batiment {
+      nom
+      infoTitre
+      infoTexte
+      categorie
+      sousCategorie
+      materiau
+      surfaceCalculee
+    }
   }
 
   fragment RootChampFragment on Champ {
@@ -479,6 +488,11 @@ class API::V2::StoredQuery
       }
     }
     ... on CarteChamp {
+      geoAreas {
+        ...GeoAreaFragment
+      }
+    }
+    ... on TeFenuaChamp {
       geoAreas {
         ...GeoAreaFragment
       }

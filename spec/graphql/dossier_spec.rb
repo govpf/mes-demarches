@@ -7,8 +7,8 @@ RSpec.describe Types::DossierType, type: :graphql do
 
   subject { API::V2::Schema.execute(query, variables: variables, context: context) }
 
-  let(:data) { subject['data'].deep_symbolize_keys }
-  let(:errors) { subject['errors'].deep_symbolize_keys }
+  let(:data) { subject['data']&.deep_symbolize_keys }
+  let(:errors) { subject['errors']&.deep_symbolize_keys }
 
   describe 'dossier with attestation' do
     let(:dossier) { create(:dossier, :accepte, :with_attestation) }
@@ -327,6 +327,75 @@ RSpec.describe Types::DossierType, type: :graphql do
     end
   end
 
+  describe 'dossier with te_fenua champ' do
+    let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :te_fenua, stable_id: 99 }]) }
+    let(:dossier) { create(:dossier, :accepte, procedure: procedure) }
+    let(:query) { DOSSIER_WITH_TE_FENUA_QUERY }
+    let(:variables) { { number: dossier.id } }
+    let(:champ) { dossier.project_champs_public.first }
+
+    context 'with te_fenua data' do
+      before do
+        champ.update(value: {
+          parcelles: {
+            features: [
+              {
+                geometry: { type: 'Polygon', coordinates: [[[-149.5, -17.5], [-149.4, -17.5], [-149.4, -17.4], [-149.5, -17.4], [-149.5, -17.5]]] },
+                properties: { commune: 'Papeete', surface: '1000' }
+              }
+            ]
+          },
+          batiments: {
+            features: [
+              {
+                geometry: { type: 'Point', coordinates: [-149.45, -17.45] },
+                properties: { nom: 'Maison', surface: '100', categorie: '6', info_titre: 'Maison' }
+              }
+            ]
+          },
+          zones_manuelles: {
+            features: []
+          },
+          position: { type: 'Point', coordinates: [-149.5, -17.5] }
+        }.to_json)
+      end
+
+      it 'returns enriched data' do
+        te_fenua_champ = data[:dossier][:champs].find { |c| c[:__typename] == 'TeFenuaChamp' }
+
+        expect(te_fenua_champ[:geoAreas]).to be_an(Array)
+        expect(te_fenua_champ[:geoAreas].size).to eq(2)
+        
+        # Check for parcelle
+        parcelle = te_fenua_champ[:geoAreas].find { |area| area[:__typename] == 'ParcelleCadastrale' }
+        expect(parcelle).to be_present
+        expect(parcelle[:geometry]).to be_present
+        expect(parcelle[:commune]).to eq('Papeete')
+        expect(parcelle[:surface]).to eq('1000')
+        
+        # Check for batiment
+        batiment = te_fenua_champ[:geoAreas].find { |area| area[:__typename] == 'Batiment' }
+        expect(batiment).to be_present
+        expect(batiment[:geometry]).to be_present
+        expect(batiment[:nom]).to eq('Maison')
+        expect(batiment[:categorie]).to eq('6')
+        expect(batiment[:infoTitre]).to eq('Maison')
+      end
+    end
+
+    context 'with empty te_fenua data' do
+      before do
+        champ.update(value: '{}')
+      end
+
+      it 'returns empty arrays' do
+        te_fenua_champ = data[:dossier][:champs].find { |c| c[:__typename] == 'TeFenuaChamp' }
+
+        expect(te_fenua_champ[:geoAreas]).to eq([])
+      end
+    end
+  end
+
   DOSSIER_QUERY = <<-GRAPHQL
   query($number: Int!) {
     dossier(number: $number) {
@@ -568,6 +637,48 @@ RSpec.describe Types::DossierType, type: :graphql do
       champs(id: $id) {
         id
         label
+      }
+    }
+  }
+  GRAPHQL
+
+  DOSSIER_WITH_TE_FENUA_QUERY = <<-GRAPHQL
+  query($number: Int!) {
+    dossier(number: $number) {
+      champs {
+        id
+        label
+        __typename
+        ... on TeFenuaChamp {
+          geoAreas {
+            __typename
+            id
+            source
+            geometry {
+              type
+              coordinates
+            }
+            description
+            ... on ParcelleCadastrale {
+              commune
+              numero
+              section
+              prefixe
+              surface
+              communeAssociee
+              ile
+            }
+            ... on Batiment {
+              nom
+              infoTitre
+              infoTexte
+              categorie
+              sousCategorie
+              materiau
+              surfaceCalculee
+            }
+          }
+        }
       }
     }
   }

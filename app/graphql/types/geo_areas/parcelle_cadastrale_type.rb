@@ -4,14 +4,18 @@ module Types::GeoAreas
   class ParcelleCadastraleType < Types::BaseObject
     implements Types::GeoAreaType
 
-    field :numero, String, null: false
-    field :section, String, null: false
-    field :surface, String, null: false
-    field :prefixe, String, null: false
-    field :commune, String, null: false
+    field :numero, String, null: true
+    field :section, String, null: true
+    field :surface, String, null: true
+    field :prefixe, String, null: true
+    field :commune, String, null: true
     # pf fields
-    field :commune_associee, String, null: false
-    field :ile, String, null: false
+    field :communeAssociee, String, null: true
+    field :ile, String, null: true
+
+    def communeAssociee
+      object.commune_associee
+    end
 
     field :code_dep, String, null: false, deprecation_reason: 'Utilisez le champ `commune` à la place.'
     field :nom_com, String, null: false, deprecation_reason: 'Utilisez le champ `commune` à la place.'
