@@ -365,14 +365,14 @@ RSpec.describe Types::DossierType, type: :graphql do
 
         expect(te_fenua_champ[:geoAreas]).to be_an(Array)
         expect(te_fenua_champ[:geoAreas].size).to eq(2)
-        
+
         # Check for parcelle
         parcelle = te_fenua_champ[:geoAreas].find { |area| area[:__typename] == 'ParcelleCadastrale' }
         expect(parcelle).to be_present
         expect(parcelle[:geometry]).to be_present
         expect(parcelle[:commune]).to eq('Papeete')
         expect(parcelle[:surface]).to eq('1000')
-        
+
         # Check for batiment
         batiment = te_fenua_champ[:geoAreas].find { |area| area[:__typename] == 'Batiment' }
         expect(batiment).to be_present
