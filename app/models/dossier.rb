@@ -13,6 +13,7 @@ class Dossier < ApplicationRecord
   include DossierSectionsConcern
   include DossierStateConcern
   include DossierChampsConcern
+  include DossierEmptyConcern
 
   enum state: {
     brouillon:       'brouillon',
@@ -133,6 +134,8 @@ class Dossier < ApplicationRecord
 
   belongs_to :transfer, class_name: 'DossierTransfer', foreign_key: 'dossier_transfer_id', optional: true, inverse_of: :dossiers
   has_many :transfer_logs, class_name: 'DossierTransferLog', dependent: :destroy
+  has_many :dossier_labels, dependent: :destroy
+  has_many :labels, through: :dossier_labels
 
   after_destroy_commit :log_destroy
 
@@ -376,7 +379,8 @@ class Dossier < ApplicationRecord
       ' OR last_avis_updated_at > follows.avis_seen_at' \
       ' OR last_commentaire_updated_at > follows.messagerie_seen_at' \
       ' OR last_commentaire_piece_jointe_updated_at > follows.pieces_jointes_seen_at' \
-      ' OR last_champ_piece_jointe_updated_at > follows.pieces_jointes_seen_at')
+      ' OR last_champ_piece_jointe_updated_at > follows.pieces_jointes_seen_at' \
+      ' OR last_avis_piece_jointe_updated_at > follows.pieces_jointes_seen_at')
       .distinct
   end
 
@@ -449,6 +453,10 @@ class Dossier < ApplicationRecord
     else
       user.email
     end
+  end
+
+  def user_email_for_display
+    user_email_for(:display)
   end
 
   def expiration_started?

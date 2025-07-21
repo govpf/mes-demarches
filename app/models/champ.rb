@@ -82,7 +82,7 @@ class Champ < ApplicationRecord
   delegate :to_typed_id, :to_typed_id_for_query, to: :type_de_champ, prefix: true
 
   delegate :revision, to: :dossier, prefix: true
-  # delegate :used_by_routing_rules?, to: :type_de_champ
+  delegate :used_by_routing_rules?, to: :type_de_champ
 
   scope :updated_since?, -> (date) { where('champs.updated_at > ?', date) }
   scope :prefilled, -> { where(prefilled: true) }
@@ -107,12 +107,13 @@ class Champ < ApplicationRecord
   end
 
   def mandatory_blank?
-    mandatory? && blank?
+    type_de_champ.mandatory_blank?(self)
   end
 
   def blank?
-    value.blank?
+    type_de_champ.champ_blank?(self)
   end
+
 
   def search_terms
     [to_s]
@@ -124,6 +125,10 @@ class Champ < ApplicationRecord
 
   def last_write_type_champ
     TypeDeChamp::CHAMP_TYPE_TO_TYPE_CHAMP.fetch(type)
+  end
+
+  def last_write_column_type
+    TypeDeChamp.column_type(last_write_type_champ)
   end
 
   def main_value_name

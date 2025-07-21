@@ -3,7 +3,7 @@
 class Logic::ChampValue < Logic::Term
   INSTANCE_MANAGED_TYPE_DE_CHAMP = [:table_row_selector]
 
-  MANAGED_TYPE_DE_CHAMP = TypeDeChamp.type_champs.slice(
+MANAGED_TYPE_DE_CHAMP = TypeDeChamp.type_champs.slice(
     *INSTANCE_MANAGED_TYPE_DE_CHAMP,
     :yes_no,
     :checkbox,
@@ -17,8 +17,14 @@ class Logic::ChampValue < Logic::Term
     :regions,
     :address,
     :commune_de_polynesie,
-    :code_postal_de_polynesie
+    :code_postal_de_polynesie,
+    :pays
   )
+
+  MANAGED_TYPE_DE_CHAMP_BY_CATEGORY = MANAGED_TYPE_DE_CHAMP.keys.map(&:to_sym)
+    .each_with_object(Hash.new { |h, k| h[k] = [] }) do |type, h|
+    h[TypeDeChamp::TYPE_DE_CHAMP_TO_CATEGORIE[type]] << type
+  end
 
   CHAMP_VALUE_TYPE = {
     boolean: :boolean, # from yes_no or checkbox champ
@@ -63,7 +69,7 @@ class Logic::ChampValue < Logic::Term
       targeted_champ.selected
     when "Champs::MultipleDropDownListChamp"
       targeted_champ.selected_options
-    when "Champs::RegionChamp"
+    when "Champs::RegionChamp", "Champs::PaysChamp"
       targeted_champ.code
     when "Champs::DepartementChamp"
       {
@@ -94,7 +100,7 @@ class Logic::ChampValue < Logic::Term
     when MANAGED_TYPE_DE_CHAMP.fetch(:integer_number), MANAGED_TYPE_DE_CHAMP.fetch(:decimal_number)
       CHAMP_VALUE_TYPE.fetch(:number)
     when MANAGED_TYPE_DE_CHAMP.fetch(:drop_down_list),
-      MANAGED_TYPE_DE_CHAMP.fetch(:regions)
+      MANAGED_TYPE_DE_CHAMP.fetch(:regions), MANAGED_TYPE_DE_CHAMP.fetch(:pays)
       CHAMP_VALUE_TYPE.fetch(:enum)
     when MANAGED_TYPE_DE_CHAMP.fetch(:communes)
       CHAMP_VALUE_TYPE.fetch(:commune_enum)
@@ -151,6 +157,8 @@ class Logic::ChampValue < Logic::Term
       APIGeo::API.archipels_de_polynesie.map { [_1, _1] }
     elsif tdc.type_champ == MANAGED_TYPE_DE_CHAMP.fetch(:table_row_selector)
       [['Autre', 'Autre']]
+    elsif tdc.type_champ == MANAGED_TYPE_DE_CHAMP.fetch(:pays)
+      APIGeoService.countries.map { ["#{_1[:name]} – #{_1[:code]}", _1[:code]] }
     else
       tdc.drop_down_options_with_other.map { _1.is_a?(Array) ? _1 : [_1, _1] }
     end

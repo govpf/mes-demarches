@@ -27,7 +27,7 @@ class Column
 
   # the h_id is a Hash and hold enough information to find the column
   # in the ColumnType class, aka be able to do the h_id -> column conversion
-  def h_id = { procedure_id: @procedure_id, column_id: "#{table}/#{column}" }
+  def h_id = { procedure_id: @procedure_id, column_id: }
 
   def ==(other) = h_id == other.h_id # using h_id instead of id to avoid inversion of keys
 
@@ -38,8 +38,10 @@ class Column
   end
 
   def notifications? = [table, column] == ['notifications', 'notifications']
-
   def dossier_state? = [table, column] == ['self', 'state']
+  def groupe_instructeur? = [table, column] == ['groupe_instructeur', 'id']
+  def dossier_labels? = [table, column] == ['dossier_labels', 'label_id']
+  def type_de_champ? = table == TYPE_DE_CHAMP_TABLE
 
   def self.find(h_id)
     begin
@@ -50,4 +52,8 @@ class Column
 
     procedure.find_column(h_id: h_id)
   end
+
+  private
+
+  def column_id = "#{table}/#{column}"
 end

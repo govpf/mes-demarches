@@ -1,18 +1,17 @@
-@import "colors";
-@import "constants";
+@import 'colors';
+@import 'constants';
 
 .alert {
-  padding: 10px;
+  padding: 15px;
   border: 1px solid transparent;
-  margin: 1em 1em 0em 1em;
 }
 
 .alert-danger {
-  background-color: $red;
-  color: #FFFFFF;
+  background-color: $medium-red;
+  color: #ffffff;
 
   a {
-    color: #FFFFFF;
+    color: #ffffff;
   }
 }
 

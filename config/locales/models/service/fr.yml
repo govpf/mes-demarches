@@ -11,34 +11,33 @@ fr:
         telephone: 'Téléphone'
         nom: Nom du service
         organisme: Organisme(s)
-        siret: Numéro TAHITI
         hints:
           nom: |
             Indiquez le nom et la direction rattachée, séparés par une virgule.
-            Exemple : cellule subventions, Direction de la santé
-            Exemple : Services techniques, commune d'Uturoa
+            Exemple : service jeunesse et prévention, direction des affaires maritimes
           organisme: |
-            Indiquez les organismes depuis l\u2019échelon territorial jusqu\u2019au ministère séparés par une virgule.
-            Exemple : Ministère de la Santé, chargé de la Prévention et de la Protection sociale généralisée
-            Exemple : Raiatea, Iles sous le vent
+            Indiquez les organismes depuis l’échelon territorial jusqu’au ministère séparés par une virgule.
+            Exemple : mairie de Mours, préfecture de l'Oise, ministère de la Culture
           email: |
             Indiquez une adresse email valide qui permettra de recevoir et de répondre aux questions des usagers.
-            Exemple : contact.service@administration.gov.pf
-          telephone: "Indiquez le numéro de téléphone du service valide le plus à même de fournir des réponses pertinentes à vos usagers. Exemple : 40 41 42 43"
+            Exemple : contact@mairie-de-mours.fr
+          telephone: "Indiquez le numéro de téléphone du service valide le plus à même de fournir des réponses pertinentes à vos usagers. Exemple : 01 23 45 67 89"
           horaires: |
             Indiquez les jours ouvrables et les horaires où les usagers peuvent vous joindre.
-            Exemple : Du lundi au vendredi de 7h30 à 15h30, le vendredi de 7h30 à 14h30.
+            Exemple : Du lundi au vendredi de 9h30 à 17h30, le samedi de 9h30 à 12h.
           adresse: |
-            Indiquez l\u2019adresse à laquelle un usager peut vous contacter, par exemple s\u2019il n\u2019est pas en capacité de compléter son formulaire en ligne.
+            Indiquez l’adresse à laquelle un usager peut vous contacter, par exemple s’il n’est pas en capacité de compléter son formulaire en ligne.
+      contact_information: *service
 
     errors:
       models:
         service:
           attributes:
             siret:
-              format: "Le numéro TAHITI %{message}"
-              length: "doit commencer par une lettre ou un chiffre, suivi de 5 chiffres"
-              checksum: "est invalide"
+              format: 'Le numéro SIRET %{message}'
+              length: 'doit comporter exactement 14 chiffres'
+              checksum: 'est invalide'
+              not_prefillable: 'Impossible de préremplir les informations pour ce SIRET, veuillez les saisir manuellement'
   type_organisme:
     administration_centrale: 'Administration centrale'
     association: 'Association'

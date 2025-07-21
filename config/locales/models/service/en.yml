@@ -9,14 +9,12 @@ en:
         adresse: 'Mail address'
         email: 'Email'
         telephone: 'Phone'
-        nom: Service name
-        organisme: Organism(s)
-        siret: TAHITI number
     errors:
       models:
         service:
           attributes:
             siret:
-              format: "TAHITI number %{message}"
-              length: "must start with lettee or digit, followed by 5 digits"
-              checksum: "is invalid"
+              format: 'SIRET number %{message}'
+              length: 'must contain exactly 14 digits'
+              checksum: 'is invalid'
+              not_prefillable: 'Unable to pre-fill information for this SIRET, please fill it manually'

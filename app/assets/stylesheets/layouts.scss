@@ -1,79 +1,53 @@
-@import "colors";
-@import "constants";
-@import "placeholders";
+@import 'colors';
+@import 'constants';
+@import 'placeholders';
 
 .two-columns {
-
   @media (min-width: $two-columns-breakpoint) {
-    background: linear-gradient(to right, transparent 0%, transparent 50%, var(--background-alt-blue-france) 50%, var(--background-alt-blue-france) 100%);
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      transparent 50%,
+      var(--background-alt-blue-france) 50%,
+      var(--background-alt-blue-france) 100%
+    );
   }
 
   .columns-container {
+    // TODO: https://github.com/betagouv/demarches-simplifiees.fr/issues/7882, once implemented, we won't need container anymore
     @extend %container;
-    max-width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 0px;
 
     @media (min-width: $two-columns-breakpoint) {
-      width: 100%;
-      margin: auto;
       flex-direction: row;
       align-items: stretch;
-      justify-content: flex-start;
+      justify-content: space-between;
     }
   }
 
   .column {
     width: 100%;
+    max-width: 500px;
     margin: 0 auto;
-    padding: ($default-padding * 2) $default-padding ($default-padding * 2) $default-padding;
-    position: relative;
+    padding: ($default-padding * 2) 0 0 0;
 
+    &:last-of-type {
+      padding-bottom: $default-padding * 2;
+    }
 
     @media (min-width: $two-columns-breakpoint) {
-      padding: ($default-padding * 2) 2% 0 2%;
-      // border-left: 1px solid $grey;
+      width: 45%;
+      margin: 0;
+      padding: $two-columns-padding 0 $two-columns-padding 0;
 
       &:last-of-type {
-        border-top: none;
         padding-bottom: $two-columns-padding;
       }
     }
   }
-
-  .form-column {
-    @extend .column;
-  }
 }
-
-.three-columns {
-  @extend .two-columns;
-
-  @media (min-width: $two-columns-breakpoint) {
-    background: linear-gradient(to right, transparent 0%, transparent 66%, var(--background-alt-blue-france) 33%, var(--background-alt-blue-france) 100%);
-  }
-}
-
-.prior-border {
-  border-top: 1px solid $border-grey;
-
-  @media (min-width: $two-columns-breakpoint) {
-    border-left: 1px solid $border-grey;
-    border-top: none;
-  }
-}
-
-.ou-border {
-  border-bottom: 1px solid $border-grey;
-
-  @media (min-width: $two-columns-breakpoint) {
-    border-right: 1px solid $border-grey;
-    border-bottom: none;
-  }
-}
-
 
 .one-column-centered {
   margin: auto;
@@ -86,17 +60,13 @@
 
 .sticky--top {
   position: sticky;
-  // scss-lint:disable VendorPrefix
   position: -webkit-sticky; // This is needed on Safari (tested on 12.1)
-  // scss-lint:enable VendorPrefix
   top: 1rem;
 }
 
 .sticky--bottom {
   position: sticky;
-  // scss-lint:disable VendorPrefix
   position: -webkit-sticky; // This is needed on Safari (tested on 12.1)
-  // scss-lint:enable VendorPrefix
   bottom: 0;
 
   z-index: 10; // above DSFR btn which are at 1

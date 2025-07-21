@@ -21,4 +21,21 @@ class TypesDeChamp::TitreIdentiteTypeDeChamp < TypesDeChamp::TypeDeChampBase
   def champ_default_export_value(path = :value)
     "absent"
   end
+
+  def champ_blank?(champ) = champ.piece_justificative_file.blank?
+
+  def columns(procedure:, displayable: nil, prefix: nil)
+    [
+      Columns::AttachedManyColumn.new(
+        procedure_id: procedure.id,
+        stable_id:,
+        tdc_type: type_champ,
+        label: libelle_with_prefix(prefix),
+        type: TypeDeChamp.column_type(type_champ),
+        value_column: TypeDeChamp.value_column(type_champ),
+        displayable: false,
+        filterable: false
+      )
+    ]
+  end
 end
