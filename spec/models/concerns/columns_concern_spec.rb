@@ -178,7 +178,7 @@ describe ColumnsConcern do
             procedure.find_column(label: "Nº dossier"),
             procedure.find_column(label: "Email"),
             procedure.find_column(label: "France connecté ?"),
-            procedure.find_column(label: "Établissement SIRET"),
+            procedure.find_column(label: "Numéro TAHITI"),
             procedure.find_column(label: "Établissement siège social"),
             procedure.find_column(label: "Établissement NAF"),
             procedure.find_column(label: "Libellé NAF"),
@@ -197,7 +197,7 @@ describe ColumnsConcern do
             procedure.find_column(label: "Entreprise forme juridique code"),
             procedure.find_column(label: "Entreprise nom commercial"),
             procedure.find_column(label: "Entreprise raison sociale"),
-            procedure.find_column(label: "Entreprise SIRET siège social"),
+            procedure.find_column(label: "Numéro TAHITI siège social"),
             procedure.find_column(label: "Entreprise code effectif entreprise")
           ]
           actuals = procedure.usager_columns_for_export

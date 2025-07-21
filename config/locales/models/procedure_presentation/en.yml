@@ -71,7 +71,7 @@ en:
             entreprise_forme_juridique_code: "Entreprise forme juridique code"
             entreprise_nom_commercial: "Entreprise nom commercial"
             entreprise_raison_sociale: "Entreprise raison sociale"
-            entreprise_siret_siege_social: "Entreprise SIRET siège social"
+            entreprise_siret_siege_social: Numéro TAHITI siège social
             entreprise_code_effectif_entreprise: "Entreprise code effectif entreprise"
             entreprise_nom: 'Entreprise nom'
             entreprise_prenom: 'Entreprise prénom'
