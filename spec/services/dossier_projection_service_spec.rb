@@ -238,7 +238,7 @@ describe DossierProjectionService do
         end
       end
 
-      context 'for a json column' do
+      xcontext 'for a json column' do # PF: Le numéro Tahiti (siret) n'a pas de colonne département.
         let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :siret, libelle: 'siret' }]) }
         let(:dossier) { create(:dossier, procedure:) }
         let(:label) { "siret – département" }
