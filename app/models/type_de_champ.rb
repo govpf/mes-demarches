@@ -443,14 +443,6 @@ class TypeDeChamp < ApplicationRecord
     ])
   end
 
-  def exclude_from_export?
-    type_champ.in?([
-      TypeDeChamp.type_champs.fetch(:header_section),
-      TypeDeChamp.type_champs.fetch(:explication),
-      TypeDeChamp.type_champs.fetch(:repetition)
-    ])
-  end
-
   def choice_type?
     type_champ.in?([
       TypeDeChamp.type_champs.fetch(:checkbox),
@@ -458,38 +450,6 @@ class TypeDeChamp < ApplicationRecord
       TypeDeChamp.type_champs.fetch(:multiple_drop_down_list),
       TypeDeChamp.type_champs.fetch(:yes_no)
     ])
-  end
-
-  def exclude_from_view?
-    type_champ == TypeDeChamp.type_champs.fetch(:explication)
-  end
-
-  def integer_number?
-    type_champ == TypeDeChamp.type_champs.fetch(:integer_number)
-  end
-
-  def decimal_number?
-    type_champ == TypeDeChamp.type_champs.fetch(:decimal_number)
-  end
-
-  def date?
-    type_champ == TypeDeChamp.type_champs.fetch(:date)
-  end
-
-  def visa?
-    type_champ == TypeDeChamp.type_champs.fetch(:visa)
-  end
-
-  def referentiel_de_polynesie?
-    type_champ == TypeDeChamp.type_champs.fetch(:referentiel_de_polynesie)
-  end
-
-  def te_fenua?
-    type_champ == TypeDeChamp.type_champs.fetch(:te_fenua)
-  end
-
-  def lexpol?
-    type_champ == TypeDeChamp.type_champs.fetch(:lexpol)
   end
 
   def public?
