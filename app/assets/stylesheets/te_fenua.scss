@@ -1,18 +1,13 @@
 // MES CONTROLES
 
-.ol-control-add {
+.ol-control-geolocate {
   left: 0.5em;
-  top: 8em;
-
-  button {
-    background-image: image-url('icons/polygon.svg');
-    background-size: cover;
-  }
+  top: 4em;
 }
 
 .ol-control-delete {
   left: 0.5em;
-  top: 10em;
+  top: 6em;
 
   button {
     background-image: image-url('icons/trash-gray.svg');
@@ -22,7 +17,7 @@
 
 .ol-control-layers {
   left: 0.5em;
-  top: 6em;
+  top: 8em;
 
   button {
     background-image: image-url('icons/layers.svg');
@@ -30,9 +25,14 @@
   }
 }
 
-.ol-control-geolocate {
+.ol-control-add {
   left: 0.5em;
-  top: 4em;
+  top: 10em;
+
+  button {
+    background-image: image-url("icons/polygon.svg");
+    background-size: cover;
+  }
 }
 
 .ol-control-geolocate button {
@@ -99,7 +99,7 @@
     bottom: auto;
     left: 2.8em;
     right: auto;
-    top: 7.1em;
+    top: 9.1em;
 
     &::after {
       border: 0.357em solid transparent;

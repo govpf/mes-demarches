@@ -201,11 +201,60 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 ## Processus de Release
 
 ### Étapes pour créer une release
-* S'assurer d'etre sur la branche masterpf. 
-* regarder les deux dernières releases de Mes-Démarches pour comprendre la structure
-* déterminer tous les commits depuis le dernier tag pf-XXX 
-* identifier dans ces commits les releases upstream qui ont été intégrées
-* les fusionner en gardant exactement le texte, les ids des users stories mais en fusionnant les chapitres pour créer la base de la release
-* déterminer dans ces commits les modifications apportées en Polynésie et enrichir la release avec ces informations
-* Vérifier et ajuster éventuellement le texte de la release pour respecter la philosophie des deux dernière releases Mes-Démarches
-* proposer cette release pour validation.
+
+#### 1. Préparation et vérification
+* S'assurer d'être sur la branche masterpf
+* Identifier le dernier tag pf-AAAA-MM-JJ depuis `.git/refs/tags/`
+* Analyser les commits depuis ce tag via `.git/logs/refs/heads/masterpf`
+
+#### 2. Identification des releases upstream intégrées
+* **CRITIQUE** : Identifier précisément quelle(s) release(s) upstream ont été intégrées
+* Les noms des releases upstream sont de la forme `AAAA-MM-JJ-NN` (ex: 2024-10-17-01)
+* Récupérer le contenu exact de ces releases depuis https://github.com/demarches-simplifiees/demarches-simplifiees.fr/releases/tag/AAAA-MM-JJ-NN
+* **NE PAS** inclure d'éléments de releases postérieures à celle intégrée
+
+#### 3. Structure du texte de release (format obligatoire)
+* Titre : `# Release pf-AAAA-MM-JJ`
+* Section : `## Améliorations et correctifs`
+* Sous-section upstream : `### Intégration de la release upstream AAAA-MM-JJ-NN`
+* Chapitres exacts : `#### Administrateur`, `#### Instructeur`, `#### Usager`, `#### API`, `#### Technique`
+* **COPIER EXACTEMENT** le texte, numéros d'issues (#NNNN), et format "ETQ" des releases upstream
+* Sous-section PF : `### Polynésie`
+* Chapitre PF technique : `#### Technique`
+
+#### 4. Contenu spécifique Polynésie
+* **Sémantiquement intéressant uniquement** : nouvelles fonctionnalités utilisateur, corrections importantes
+* **Détails techniques de maintenance** → chapitre Technique
+* Format : liste à puces avec descriptions concises
+* Maintien des spécificités : champs DN, communes PF, codes postaux, nationalités, TeFeNua, Visa, authentification (Tatou, Microsoft), GraphQL étendu
+
+#### 5. Migrations (si applicable)
+* Section `## Migrations` avec liste des migrations ajoutées
+* Format : `- NomDeLaMigration : description`
+
+#### 6. Création de la release GitHub
+```bash
+# Créer le tag local
+git tag -a pf-AAAA-MM-JJ -m "Release pf-AAAA-MM-JJ"
+
+# Créer la GitHub release avec titre et notes formatées
+gh release create pf-AAAA-MM-JJ --title "JJ MMM AAAA" --notes "$(cat <<'EOF'
+## Améliorations et correctifs
+
+### Intégration de la release upstream AAAA-MM-JJ-NN
+
+[CONTENU COMPLET DE LA RELEASE]
+EOF
+)"
+```
+
+#### 7. Vérification
+* Vérifier le tag local : `git tag -l pf-AAAA-MM-JJ`
+* Vérifier sur GitHub : https://github.com/govpf/mes-demarches/releases
+
+### Erreurs critiques à éviter
+* **NE JAMAIS** mélanger des éléments de plusieurs releases upstream
+* **NE JAMAIS** inventer ou modifier les numéros d'issues upstream
+* **TOUJOURS** respecter le chapitrage exact : Administrateur, Instructeur, Usager, API, Technique
+* **TOUJOURS** utiliser le format "ETQ" (En Tant Que) des releases upstream
+* **VÉRIFIER** que la release upstream identifiée correspond bien aux commits intégrés

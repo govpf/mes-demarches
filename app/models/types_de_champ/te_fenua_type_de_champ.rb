@@ -1,7 +1,19 @@
 # frozen_string_literal: true
 
 class TypesDeChamp::TeFenuaTypeDeChamp < TypesDeChamp::TypeDeChampBase
-  LAYERS = [:marker, :zones_manuelles] # :batiments, :parcelles
+  LAYERS = [:parcelles, :batiments, :marker, :zones_manuelles]
+
+  def te_fenua_layer
+    if parcelles == '1'
+      'parcelles'
+    elsif batiments == '1'
+      'batiments'
+    elsif zones_manuelles == '1'
+      'zones_manuelles'
+    else
+      'marker'
+    end
+  end
 
   class << self
     def champ_value_for_api(champ, version = 2)
