@@ -1,11 +1,21 @@
 # frozen_string_literal: true
 
 class TypesDeChamp::RepetitionTypeDeChamp < TypesDeChamp::TypeDeChampBase
+  include ActionView::Helpers::TagHelper
+
   def champ_value_for_tag(champ, path = :value)
     return nil if path != :value
-    return champ_default_value if champ.rows.blank?
+    rows = champ.rows
+    return champ_default_value if rows.blank?
 
-    champ.for_tag(path)
+    # pf displays repetition as table
+    header = tag.tr(rows[0].map { |c| tag.th(c.libelle) }.reduce(&:+))
+    lines = rows.map do |champs|
+      tag.tr(champs.map do |champ|
+        tag.td(champ.type_de_champ.champ_value_for_tag(champ))
+      end.reduce(&:+))
+    end.reduce(&:+)
+    tag.table(header + lines)
   end
 
   def estimated_fill_duration(revision)

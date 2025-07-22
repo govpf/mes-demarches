@@ -13,7 +13,7 @@ class TypesDeChamp::PieceJustificativeTypeDeChamp < TypesDeChamp::TypeDeChampBas
   def champ_value_for_tag(champ, path = nil)
     return nil unless champ.piece_justificative_file.attached?
 
-    html = champ.piece_justificative_file.each_with_index.filter_map do |attachment, i|
+    champ.piece_justificative_file.each_with_index.filter_map do |attachment, i|
       if attachment.virus_scanner.safe? || attachment.virus_scanner.pending?
         url = download_url(champ, i)
         display = attachment.filename
@@ -24,8 +24,6 @@ class TypesDeChamp::PieceJustificativeTypeDeChamp < TypesDeChamp::TypeDeChampBas
         end
       end
     end.flat_map { |e| [e, ",", tag.br] }[0..-3].reduce(&:+)
-
-    html.to_s.gsub('<', '\\u003c').gsub('>', '\\u003e').gsub('"', '\\"')
   end
 
   def download_url(champ, index)
