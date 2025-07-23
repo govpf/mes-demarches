@@ -18,29 +18,43 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
   end
 
   def to_tiptap_node
+    # Récupérer tous les libellés uniques des champs
+    headers = rows.first&.map(&:libelle) || []
+    
     {
-      type: 'orderedList',
+      type: 'table',
       attrs: { class: 'tdc-repetition' },
-      content: rows.map do |champs|
+      content: [
+        # En-tête du tableau
         {
-          type: 'listItem',
-          content: [
+          type: 'tableRow',
+          content: headers.map do |header|
             {
-              type: 'descriptionList',
-              content: champs.map do |champ|
-                [
+              type: 'tableHeader',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: header
+                    }
+                  ]
+                }
+              ]
+            }
+          end
+        },
+        # Lignes de données
+        *rows.map do |champs|
+          {
+            type: 'tableRow',
+            content: champs.map do |champ|
+              {
+                type: 'tableCell',
+                content: [
                   {
-                    type: 'descriptionTerm',
-                    attrs: champ.blank? ? { class: 'invisible' } : nil, # still render libelle so width & alignment are preserved
-                    content: [
-                      {
-                        type: 'text',
-                        text: champ.libelle
-                      }
-                    ]
-                  }.compact,
-                  {
-                    type: 'descriptionDetails',
+                    type: 'paragraph',
                     content: [
                       {
                         type: 'text',
@@ -49,11 +63,11 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
                     ]
                   }
                 ]
-              end.flatten
-            }
-          ]
-        }
-      end
+              }
+            end
+          }
+        end
+      ]
     }
   end
 end

@@ -56,49 +56,99 @@ describe ChampPresentations::RepetitionPresentation do
   end
 
   describe '#to_tiptap_node' do
-    it 'returns the correct HTML structure, without libelle' do
+    it 'returns the correct table structure' do
       expected_node = {
-        type: "orderedList",
+        type: "table",
         attrs: { class: "tdc-repetition" },
         content: [
           {
-            type: "listItem",
+            type: "tableRow",
             content: [
               {
-                type: "descriptionList",
+                type: "tableHeader",
                 content: [
-                  { content: [{ text: "nom", type: "text" }], type: "descriptionTerm" },
-                  { content: [{ text: "ruby", type: "text" }], type: "descriptionDetails" },
-                  { content: [{ text: "stars", type: "text" }], type: "descriptionTerm" },
-                  { content: [{ text: "5", type: "text" }], type: "descriptionDetails" }
+                  {
+                    type: "paragraph",
+                    content: [{ text: "nom", type: "text" }]
+                  }
+                ]
+              },
+              {
+                type: "tableHeader",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ text: "stars", type: "text" }]
+                  }
                 ]
               }
             ]
           },
           {
-            type: "listItem",
+            type: "tableRow",
             content: [
               {
-                type: "descriptionList",
+                type: "tableCell",
                 content: [
-                  { content: [{ text: "nom", type: "text" }], type: "descriptionTerm" },
-                  { content: [{ text: "js", type: "text" }], type: "descriptionDetails" },
-                  { content: [{ text: "stars", type: "text" }], type: "descriptionTerm", attrs: { class: "invisible" } },
-                  { content: [{ text: "", type: "text" }], type: "descriptionDetails" }
+                  {
+                    type: "paragraph",
+                    content: [{ text: "ruby", type: "text" }]
+                  }
+                ]
+              },
+              {
+                type: "tableCell",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ text: "5", type: "text" }]
+                  }
                 ]
               }
             ]
           },
           {
-            type: "listItem",
+            type: "tableRow",
             content: [
               {
-                type: "descriptionList",
+                type: "tableCell",
                 content: [
-                  { content: [{ text: "nom", type: "text" }], type: "descriptionTerm" },
-                  { content: [{ text: "rust", type: "text" }], type: "descriptionDetails" },
-                  { content: [{ text: "stars", type: "text" }], type: "descriptionTerm" },
-                  { content: [{ text: "4", type: "text" }], type: "descriptionDetails" }
+                  {
+                    type: "paragraph",
+                    content: [{ text: "js", type: "text" }]
+                  }
+                ]
+              },
+              {
+                type: "tableCell",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ text: "", type: "text" }]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            type: "tableRow",
+            content: [
+              {
+                type: "tableCell",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ text: "rust", type: "text" }]
+                  }
+                ]
+              },
+              {
+                type: "tableCell",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ text: "4", type: "text" }]
+                  }
                 ]
               }
             ]

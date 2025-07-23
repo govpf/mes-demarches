@@ -279,4 +279,71 @@ RSpec.describe TiptapService do
       it { is_expected.to eq('') }
     end
   end
+
+  describe '.to_html with table' do
+    let(:json) do
+      {
+        type: 'doc',
+        content: [
+          {
+            type: 'table',
+            attrs: { class: 'tdc-repetition' },
+            content: [
+              {
+                type: 'tableRow',
+                content: [
+                  {
+                    type: 'tableHeader',
+                    content: [
+                      {
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: 'Name' }]
+                      }
+                    ]
+                  },
+                  {
+                    type: 'tableHeader',
+                    content: [
+                      {
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: 'Value' }]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                type: 'tableRow',
+                content: [
+                  {
+                    type: 'tableCell',
+                    content: [
+                      {
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: 'Item 1' }]
+                      }
+                    ]
+                  },
+                  {
+                    type: 'tableCell',
+                    content: [
+                      {
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: 'Value 1' }]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    end
+
+    it 'returns correct table HTML' do
+      expected_html = '<table class="tdc-repetition"><tr><th><p>Name</p></th><th><p>Value</p></th></tr><tr><td><p>Item 1</p></td><td><p>Value 1</p></td></tr></table>'
+      expect(described_class.new.to_html(json)).to eq(expected_html)
+    end
+  end
 end

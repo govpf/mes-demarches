@@ -108,6 +108,14 @@ class TiptapService
       else
         text
       end
+    in type: 'table', content:, **rest
+      "<table#{class_list(rest[:attrs])}>#{children(content, substitutions, level + 1)}</table>"
+    in type: 'tableRow', content:
+      "<tr>#{children(content, substitutions, level + 1)}</tr>"
+    in type: 'tableHeader', content:
+      "<th>#{children(content, substitutions, level + 1)}</th>"
+    in type: 'tableCell', content:
+      "<td>#{children(content, substitutions, level + 1)}</td>"
     in { type: type } if ["paragraph", "title", "heading"].include?(type) && !node.key?(:content)
       # noop
     end
