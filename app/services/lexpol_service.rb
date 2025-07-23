@@ -60,7 +60,7 @@ class LexpolService
   end
 
   def build_variables
-    variables = dossier.champs.root.reduce({}) do |variables, champ|
+    variables = dossier.champs.filter { |c| !c.child? }.reduce({}) do |variables, champ|
       variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ) if champ.present?
       variables
     end
