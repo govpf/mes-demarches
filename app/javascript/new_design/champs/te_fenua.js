@@ -609,7 +609,11 @@ function addInteractions(mapElement, map) {
     });
   }
 
-  function enrichirAvecInformationsGeographiques(features, resolution, projection) {
+  function enrichirAvecInformationsGeographiques(
+    features,
+    resolution,
+    projection
+  ) {
     const promises = features.map((feature) => {
       const props = feature.getProperties();
       if (!props.ile || !props.commune) {
@@ -623,24 +627,32 @@ function addInteractions(mapElement, map) {
               }
             }
           })
-          .catch((error) => {});
+          .catch(() => {});
       }
       return Promise.resolve();
     });
-    
+
     return Promise.all(promises);
   }
 
   function normaliserProprietiesBatiment(feature) {
     const props = feature.getProperties();
     const infos = toObject(props.info_texte || '');
-    
-    const nom = props.nom || props.info_titre || infos.info_titre || props.sous_categorie || infos.sous_categorie;
-    
+
+    const nom =
+      props.nom ||
+      props.info_titre ||
+      infos.info_titre ||
+      props.sous_categorie ||
+      infos.sous_categorie;
+
     const surface = props.surface || infos.surface;
-    
-    const surfaceCalculee = formatArea(feature.getGeometry()).replace('<sup>2</sup>', '²');
-    
+
+    const surfaceCalculee = formatArea(feature.getGeometry()).replace(
+      '<sup>2</sup>',
+      '²'
+    );
+
     feature.setProperties({
       nom: nom,
       surface: surface || surfaceCalculee,
@@ -660,9 +672,9 @@ function addInteractions(mapElement, map) {
         throw new Error('Invalid response returned');
       }
       const features = geojson.readFeatures(json);
-      
+
       features.forEach(normaliserProprietiesBatiment);
-      
+
       const batimentEquals = (a, b) => {
         const getBatimentId = (props) => {
           if (props.id) return props.id.toString();
@@ -673,12 +685,20 @@ function addInteractions(mapElement, map) {
       };
       if (features.length) {
         // Ajoute/Supprime sur la carte les batiments trouvées par Te Fenua
-        addRemoveFeatures(features, map.batimentsLayer, 'batiments', batimentEquals);
+        addRemoveFeatures(
+          features,
+          map.batimentsLayer,
+          'batiments',
+          batimentEquals
+        );
         const currentFeatures = map.batimentsLayer.getSource().getFeatures();
-        enrichirAvecInformationsGeographiques(currentFeatures, resolution, projection)
-          .then(() => {
-            updateChampWith('batiments', map.batimentsLayer);
-          });
+        enrichirAvecInformationsGeographiques(
+          currentFeatures,
+          resolution,
+          projection
+        ).then(() => {
+          updateChampWith('batiments', map.batimentsLayer);
+        });
       } else if (add_parcelle) {
         // pas de batiment trouvé ==> recherche les parcelles au point cliqué
         lookForParcelles(coord, resolution, projection);
