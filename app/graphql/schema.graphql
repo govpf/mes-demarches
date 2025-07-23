@@ -3949,7 +3949,6 @@ type ParcelleCadastrale implements GeoArea {
   section: String
   source: GeoAreaSource!
   surface: String
-  surfaceCalculee: Float
   surfaceIntersection: Float! @deprecated(reason: "L’information n’est plus disponible.")
   surfaceParcelle: Float! @deprecated(reason: "Utilisez le champ `surface` à la place.")
 }
