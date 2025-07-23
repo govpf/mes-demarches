@@ -135,7 +135,17 @@ class TypeDeChamp < ApplicationRecord
     expression_reguliere: 'expression_reguliere'
   }.merge(INSTANCE_TYPE_CHAMPS)
 
-  INSTANCE_OPTIONS = [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer, :min, :max, :level, :accredited_users, :lexpol_modele, :lexpol_mapping, :table_id]
+  INSTANCE_OPTIONS_BY_TYPE = {
+    decimal_number: [:min, :max],
+    integer_number: [:min, :max],
+    date: [:min, :max],
+    table_row_selector: [:table_id, :drop_down_other],
+    te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
+    lexpol: [:lexpol_modele, :lexpol_mapping],
+    visa: [:accredited_users]
+  }
+  INSTANCE_OPTIONS = INSTANCE_OPTIONS_BY_TYPE.values.reduce(&:+).uniq
+
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
 
   SIMPLE_ROUTABLE_TYPES = [
@@ -800,7 +810,7 @@ class TypeDeChamp < ApplicationRecord
     type_champs.fetch(:piece_justificative) => [:old_pj, :skip_pj_validation, :skip_content_type_pj_validation],
     type_champs.fetch(:titre_identite) => [:old_pj, :skip_pj_validation, :skip_content_type_pj_validation],
     type_champs.fetch(:expression_reguliere) => [:expression_reguliere, :expression_reguliere_error_message, :expression_reguliere_exemple_text]
-  }
+  }.merge(INSTANCE_OPTIONS_BY_TYPE.transform_keys { |k| type_champs.fetch(k) })
 
   def clean_options
     kept_keys = OPTS_BY_TYPE.fetch(type_champ.to_s) { [] }
