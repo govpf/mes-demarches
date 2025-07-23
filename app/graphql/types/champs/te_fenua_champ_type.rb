@@ -42,7 +42,7 @@ module Types::Champs
       else
         :selection_utilisateur
       end
-      
+
       GeoArea.new(
         source: source,
         geometry: feature[:geometry],
