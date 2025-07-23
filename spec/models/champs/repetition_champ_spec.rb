@@ -13,13 +13,13 @@ describe Champs::RepetitionChamp do
   let(:dossier) { create(:dossier, procedure:) }
   let(:champ) { dossier.champs.find(&:repetition?) }
 
-  describe "#for_tag" do
+  describe "#champ_value_for_tag" do
     before do
       champ.rows[0][0].update(value: "rb")
     end
 
     it "can render as string" do
-      expect(champ.for_tag.to_s).to eq("<table><tr><th>Ext</th></tr><tr><td>rb</td></tr></table>")
+      expect(champ.type_de_champ.champ_value_for_tag(champ).to_s).to eq("<table><tr><th>Ext</th></tr><tr><td>rb</td></tr></table>")
     end
 
     # pf: our modified version of RepetitionChamp#for_tag return a SafeBuffer
