@@ -137,8 +137,10 @@ class Champs::TeFenuaChamp < Champ
 
       # Determine source based on category
       source = case category
-      when :parcelles, :batiments
+      when :parcelles
         GeoArea.sources.fetch(:cadastre)
+      when :batiments
+        GeoArea.sources.fetch(:batiment)
       else
         GeoArea.sources.fetch(:selection_utilisateur)
       end
@@ -154,7 +156,6 @@ class Champs::TeFenuaChamp < Champ
       end
     end
 
-    # Handle legacy :positions format for markers
     if marker? && parsed_data[:positions].is_a?(Array)
       parsed_data[:positions].each do |pos_data|
         next unless pos_data[:geometry].is_a?(Hash) && pos_data[:geometry].present?

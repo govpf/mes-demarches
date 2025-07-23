@@ -463,19 +463,30 @@ class API::V2::StoredQuery
     }
     ... on ParcelleCadastrale {
       commune
+      communeAssociee
+      ile
       numero
       section
       prefixe
       surface
     }
     ... on Batiment {
+      commune
+      communeAssociee
+      ile
       nom
-      infoTitre
-      infoTexte
-      categorie
-      sousCategorie
-      materiau
-      surfaceCalculee
+      surface
+    }
+    ... on Marqueur {
+      commune
+      communeAssociee
+      ile
+    }
+    ... on Zone {
+      commune
+      communeAssociee
+      ile
+      surface
     }
   }
 

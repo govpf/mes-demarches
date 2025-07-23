@@ -4,6 +4,7 @@ en:
       geo_area:
         source:
           cadastre: Cadastral parcel
+          batiment: Building
           quartier_prioritaire: Priority neighbourhood
           selection_utilisateur: User selection
   geo_area:

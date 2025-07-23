@@ -85,6 +85,8 @@ class API::V2::Schema < GraphQL::Schema
     Types::Champs::LexpolChampType,
     Types::Champs::EngagementJuridiqueChampType,
     Types::Champs::YesNoChampType,
+    Types::GeoAreas::MarqueurType,
+    Types::GeoAreas::ZoneType,
     Types::GeoAreas::ParcelleCadastraleType,
     Types::GeoAreas::BatimentType,
     Types::GeoAreas::SelectionUtilisateurType,

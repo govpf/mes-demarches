@@ -201,16 +201,15 @@ type Avis {
 }
 
 type Batiment implements GeoArea {
-  categorie: String
+  commune: String
+  communeAssociee: String
   description: String
   geometry: GeoJSON!
   id: ID!
-  infoTexte: String
-  infoTitre: String
-  materiau: String
+  ile: String
   nom: String
   source: GeoAreaSource!
-  sousCategorie: String
+  surface: String
   surfaceCalculee: Float
 }
 
@@ -2814,6 +2813,11 @@ interface GeoArea {
 
 enum GeoAreaSource {
   """
+  Bâtiment
+  """
+  batiment
+
+  """
   Parcelle cadastrale
   """
   cadastre
@@ -3408,6 +3412,16 @@ type LinkedDropDownListChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type Marqueur implements GeoArea {
+  commune: String
+  communeAssociee: String
+  description: String
+  geometry: GeoJSON!
+  id: ID!
+  ile: String
+  source: GeoAreaSource!
+}
+
 type MesriChampDescriptor implements ChampDescriptor {
   """
   Description des champs d’un bloc répétable.
@@ -3935,6 +3949,7 @@ type ParcelleCadastrale implements GeoArea {
   section: String
   source: GeoAreaSource!
   surface: String
+  surfaceCalculee: Float
   surfaceIntersection: Float! @deprecated(reason: "L’information n’est plus disponible.")
   surfaceParcelle: Float! @deprecated(reason: "Utilisez le champ `surface` à la place.")
 }
@@ -4500,14 +4515,9 @@ type Row {
 }
 
 type SelectionUtilisateur implements GeoArea {
-  commune: String
-  communeAssociee: String
   description: String
   geometry: GeoJSON!
   id: ID!
-  ile: String
-  numero: String
-  section: String
   source: GeoAreaSource!
 }
 
@@ -5262,4 +5272,16 @@ type YesNoChampDescriptor implements ChampDescriptor {
   Type de la valeur du champ.
   """
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
+}
+
+type Zone implements GeoArea {
+  commune: String
+  communeAssociee: String
+  description: String
+  geometry: GeoJSON!
+  id: ID!
+  ile: String
+  source: GeoAreaSource!
+  surface: String
+  surfaceCalculee: Float
 }
