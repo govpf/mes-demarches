@@ -101,7 +101,10 @@ let parcelleToHtml = (html, feature) => {
 let batimentToHtml = (html, feature) => {
   const p = feature.getProperties();
   const area = formatArea(feature.getGeometry());
-  const labels = [p.info_titre || p.nom || p.sous_categorie, area]
+  // Priorité : nom, puis info_titre
+  const nomBatiment = p.nom || p.info_titre;
+  const ca = p.commune_associee !== p.commune ? p.commune_associee : null;
+  const labels = [nomBatiment, area, ca, p.commune, p.ile]
     .filter(Boolean)
     .join(' - ');
   return `${html}\n<li>${getLink(feature)}&nbsp;${labels}</li>`;
@@ -606,6 +609,47 @@ function addInteractions(mapElement, map) {
     });
   }
 
+  function enrichirAvecInformationsGeographiques(features, resolution, projection) {
+    const promises = features.map((feature) => {
+      const props = feature.getProperties();
+      if (!props.ile || !props.commune) {
+        const center = getCenter(feature.getGeometry().getExtent());
+        return getCadastreFeatureInfo(center, resolution, projection)
+          .then((pjson) => {
+            if (pjson && pjson.type === 'FeatureCollection') {
+              const cadastreFeatures = geojson.readFeatures(pjson);
+              if (cadastreFeatures.length) {
+                extractProperties(cadastreFeatures[0], feature);
+              }
+            }
+          })
+          .catch((error) => {});
+      }
+      return Promise.resolve();
+    });
+    
+    return Promise.all(promises);
+  }
+
+  function normaliserProprietiesBatiment(feature) {
+    const props = feature.getProperties();
+    const infos = toObject(props.info_texte || '');
+    
+    const nom = props.nom || props.info_titre || infos.info_titre || props.sous_categorie || infos.sous_categorie;
+    
+    const surface = props.surface || infos.surface;
+    
+    const surfaceCalculee = formatArea(feature.getGeometry()).replace('<sup>2</sup>', '²');
+    
+    feature.setProperties({
+      nom: nom,
+      surface: surface || surfaceCalculee,
+      categorie: props.categorie,
+      sous_categorie: props.sous_categorie || infos.sous_categorie,
+      info_titre: props.info_titre || infos.info_titre
+    });
+  }
+
   // look for batiments under the cursor and if not found look for parcelle
   function lookForBatiments(coord, resolution, projection) {
     // const start = new Date();
@@ -616,19 +660,25 @@ function addInteractions(mapElement, map) {
         throw new Error('Invalid response returned');
       }
       const features = geojson.readFeatures(json);
+      
+      features.forEach(normaliserProprietiesBatiment);
+      
       const batimentEquals = (a, b) => {
-        const getBatimentId = (props) =>
-          `${props.ile}-${props.commune}-${props.section}-${props.numero || props.id}`;
+        const getBatimentId = (props) => {
+          if (props.id) return props.id.toString();
+          if (props.nom) return props.nom;
+          return `${props.ile || ''}-${props.commune || ''}-${props.section || ''}-${props.numero || props.id || ''}`;
+        };
         return getBatimentId(a) === getBatimentId(b);
       };
       if (features.length) {
         // Ajoute/Supprime sur la carte les batiments trouvées par Te Fenua
-        addRemoveFeatures(
-          features,
-          map.batimentsLayer,
-          'batiments',
-          batimentEquals
-        );
+        addRemoveFeatures(features, map.batimentsLayer, 'batiments', batimentEquals);
+        const currentFeatures = map.batimentsLayer.getSource().getFeatures();
+        enrichirAvecInformationsGeographiques(currentFeatures, resolution, projection)
+          .then(() => {
+            updateChampWith('batiments', map.batimentsLayer);
+          });
       } else if (add_parcelle) {
         // pas de batiment trouvé ==> recherche les parcelles au point cliqué
         lookForParcelles(coord, resolution, projection);

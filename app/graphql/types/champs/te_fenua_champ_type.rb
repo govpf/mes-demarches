@@ -33,8 +33,18 @@ module Types::Champs
     private
 
     def build_geo_area_from_feature(feature)
+      caller_method = caller_locations(1, 1)[0].label
+      source = case caller_method
+      when 'parcelles'
+        :cadastre
+      when 'batiments'
+        :batiment
+      else
+        :selection_utilisateur
+      end
+      
       GeoArea.new(
-        source: :selection_utilisateur,
+        source: source,
         geometry: feature[:geometry],
         properties: feature[:properties]
       )

@@ -34,11 +34,13 @@ class GeoArea < ApplicationRecord
 
   enum :source, {
     cadastre: 'cadastre',
+    batiment: 'batiment',
     selection_utilisateur: 'selection_utilisateur'
   }
 
   scope :selections_utilisateur, -> { where(source: sources.fetch(:selection_utilisateur)) }
   scope :cadastres, -> { where(source: sources.fetch(:cadastre)) }
+  scope :batiments, -> { where(source: sources.fetch(:batiment)) }
 
   validates :geometry, geo_json: true, allow_nil: false
 
@@ -255,7 +257,7 @@ class GeoArea < ApplicationRecord
   end
 
   def is_building?
-    cadastre? && properties['categorie'].present? && !is_parcelle?
+    (cadastre? && properties['categorie'].present?) || source == GeoArea.sources.fetch(:batiment)
   end
 
   def is_parcelle?

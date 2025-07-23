@@ -378,8 +378,6 @@ RSpec.describe Types::DossierType, type: :graphql do
         expect(batiment).to be_present
         expect(batiment[:geometry]).to be_present
         expect(batiment[:nom]).to eq('Maison')
-        expect(batiment[:categorie]).to eq('6')
-        expect(batiment[:infoTitre]).to eq('Maison')
       end
     end
 
@@ -659,23 +657,26 @@ RSpec.describe Types::DossierType, type: :graphql do
               coordinates
             }
             description
-            ... on ParcelleCadastrale {
+            ... on Marqueur {
               commune
-              numero
-              section
-              prefixe
-              surface
               communeAssociee
               ile
             }
+            ... on Zone {
+              surface
+              surfaceCalculee
+            }
+            ... on ParcelleCadastrale {
+              commune
+              communeAssociee
+              ile
+              surface
+              numero
+              section
+              prefixe
+            }
             ... on Batiment {
               nom
-              infoTitre
-              infoTexte
-              categorie
-              sousCategorie
-              materiau
-              surfaceCalculee
             }
           }
         }

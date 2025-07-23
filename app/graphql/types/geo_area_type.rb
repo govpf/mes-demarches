@@ -26,8 +26,18 @@ module Types
           else
             Types::GeoAreas::ParcelleCadastraleType
           end
+        when GeoArea.sources.fetch(:batiment)
+          Types::GeoAreas::BatimentType
         when GeoArea.sources.fetch(:selection_utilisateur)
-          Types::GeoAreas::SelectionUtilisateurType
+          if object.champ.class.name == 'Champs::TeFenuaChamp'
+            if object.polygon?
+              Types::GeoAreas::ZoneType
+            else
+              Types::GeoAreas::MarqueurType
+            end
+          else
+            Types::GeoAreas::SelectionUtilisateurType
+          end
         end
       end
     end

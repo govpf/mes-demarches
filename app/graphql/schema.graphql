@@ -200,20 +200,6 @@ type Avis {
   reponse: String
 }
 
-type Batiment implements GeoArea {
-  categorie: String
-  description: String
-  geometry: GeoJSON!
-  id: ID!
-  infoTexte: String
-  infoTitre: String
-  materiau: String
-  nom: String
-  source: GeoAreaSource!
-  sousCategorie: String
-  surfaceCalculee: Float
-}
-
 """
 Represents non-fractional signed whole numeric values. Since the value may
 exceed the size of a 32-bit integer, it's encoded as a string.
@@ -2814,6 +2800,11 @@ interface GeoArea {
 
 enum GeoAreaSource {
   """
+  Bâtiment
+  """
+  batiment
+
+  """
   Parcelle cadastrale
   """
   cadastre
@@ -3406,6 +3397,16 @@ type LinkedDropDownListChampDescriptor implements ChampDescriptor {
   Type de la valeur du champ.
   """
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
+}
+
+type Marqueur implements GeoArea {
+  commune: String
+  communeAssociee: String
+  description: String
+  geometry: GeoJSON!
+  id: ID!
+  ile: String
+  source: GeoAreaSource!
 }
 
 type MesriChampDescriptor implements ChampDescriptor {
@@ -4590,14 +4591,9 @@ type Row {
 }
 
 type SelectionUtilisateur implements GeoArea {
-  commune: String
-  communeAssociee: String
   description: String
   geometry: GeoJSON!
   id: ID!
-  ile: String
-  numero: String
-  section: String
   source: GeoAreaSource!
 }
 
