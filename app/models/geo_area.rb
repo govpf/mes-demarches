@@ -196,13 +196,13 @@ class GeoArea < ApplicationRecord
       properties['contenance'] || properties['surface']
     end
 
-    # For TeFenua data, extract surface from info_texte if not available in standard fields
-    if api_surface.blank? && properties['info_texte'].present?
-      match = properties['info_texte'].match(/Surface \(en m²\): (\d+)/)
-      api_surface = match[1] if match
+    # For TeFenua data (champ_id present), always use geometric calculation
+    # to ensure consistency across all features
+    if champ.class.name == 'Champs::TeFenuaChamp' && polygon?
+      area
+    else
+      api_surface ? api_surface : area
     end
-
-    api_surface ? api_surface : area
   end
 
   def prefixe

@@ -1,23 +1,20 @@
 # frozen_string_literal: true
 
 class Champs::TeFenuaChamp < Champ
-  # Default map location for French Polynesia
-  DEFAULT_LON = -149.5665
-  DEFAULT_LAT = -17.6797
   # We are not using scopes here as we want to access
   # the following collections on unsaved records.
   before_save :sync_geo_areas_from_value
 
   def parcelles
-    geo_json_from_value&.dig(:parcelles, :features) || []
+    geo_json_from_value&.dig(:parcelles, :features)
   end
 
   def batiments
-    geo_json_from_value&.dig(:batiments, :features) || []
+    geo_json_from_value&.dig(:batiments, :features)
   end
 
   def zones_manuelles
-    geo_json_from_value&.dig(:zones_manuelles, :features) || []
+    geo_json_from_value&.dig(:zones_manuelles, :features)
   end
 
   def parcelles?
