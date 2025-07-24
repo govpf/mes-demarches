@@ -36,7 +36,9 @@ features = [
   :sva,
   :switch_domain,
   # :lexpol,
-  :visa
+  :visa,
+  # pf: feature flag pour la navigation contextuelle entre personas
+  :contextual_persona_navigation
 ]
 
 def database_exists?
