@@ -17,12 +17,16 @@
 
           - if user_signed_in? && nav_bar_profile != :user
             %li
-              = link_to dossiers_path, class: "fr-nav__link" do
+              -# pf: redirection contextuelle lors du changement de persona (feature flag)
+              - path = contextual_or_default_path_for_profile(:user)
+              = link_to path, class: "fr-nav__link" do
                 %span.fr-icon-refresh-line.fr-icon--sm
                 = t('go_user', scope: [:layouts])
           - if instructeur_signed_in? && nav_bar_profile != :instructeur
             %li
-              = link_to instructeur_procedures_path, class: "fr-nav__link" do
+              -# pf: redirection contextuelle lors du changement de persona (feature flag)
+              - path = contextual_or_default_path_for_profile(:instructeur)
+              = link_to path, class: "fr-nav__link" do
                 %span.fr-icon-refresh-line.fr-icon--sm
                 = t('go_instructor', scope: [:layouts])
           - if expert_signed_in? && nav_bar_profile != :expert
@@ -32,7 +36,9 @@
                 = t('go_expert', scope: [:layouts])
           - if administrateur_signed_in? && nav_bar_profile != :administrateur
             %li
-              = link_to admin_procedures_path, class: "fr-nav__link" do
+              -# pf: redirection contextuelle lors du changement de persona (feature flag)
+              - path = contextual_or_default_path_for_profile(:administrateur)
+              = link_to path, class: "fr-nav__link" do
                 %span.fr-icon-refresh-line.fr-icon--sm
                 = t('go_admin', scope: [:layouts])
           - if gestionnaire_signed_in? && nav_bar_profile != :gestionnaire
