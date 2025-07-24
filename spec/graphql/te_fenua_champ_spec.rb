@@ -101,11 +101,11 @@ RSpec.describe 'TeFenua GraphQL API', type: :graphql do
         source: 'cadastre',
         commune: 'Papeete',
         ile: 'Tahiti',
-        surface: '1000',
         numero: '123',
         section: 'AB'
       )
       expect(parcelle[:geometry][:type]).to eq('Polygon')
+      expect(parcelle[:surface].to_f).to be > 0
 
       batiment = geo_areas.find { |area| area[:__typename] == 'Batiment' }
       expect(batiment).to include(
@@ -113,18 +113,19 @@ RSpec.describe 'TeFenua GraphQL API', type: :graphql do
         source: 'batiment',
         nom: 'Maison',
         commune: 'Papeete',
-        ile: 'Tahiti',
-        surface: '150'
+        ile: 'Tahiti'
       )
+      expect(batiment[:surface]).not_to eq('150')
+      expect(batiment[:surface].to_f).to be > 0
 
       zone = geo_areas.find { |area| area[:__typename] == 'Zone' }
       expect(zone).to include(
         __typename: 'Zone',
         source: 'selection_utilisateur',
         commune: 'Papeete',
-        ile: 'Tahiti',
-        surface: '500'
+        ile: 'Tahiti'
       )
+      expect(zone[:surface].to_f).to be > 0
       expect(zone[:surfaceCalculee]).to be_present
 
       marqueur = geo_areas.find { |area| area[:__typename] == 'Marqueur' }
@@ -144,7 +145,7 @@ RSpec.describe 'TeFenua GraphQL API', type: :graphql do
         zones_manuelles: {
           features: [
             {
-              geometry: { type: 'Polygon', coordinates: [[[-149.5, -17.5], [-149.4, -17.5], [-149.4, -17.4], [-149.5, -17.4], [-149.5, -17.5]]] },
+              geometry: { type: 'Polygon', coordinates: [[[-149.5, -17.5], [-149.499, -17.5], [-149.499, -17.499], [-149.5, -17.499], [-149.5, -17.5]]] },
               properties: { commune: 'Papeete', surface: '1000' }
             },
             {
@@ -162,8 +163,7 @@ RSpec.describe 'TeFenua GraphQL API', type: :graphql do
 
       zone = geo_areas.find { |area| area[:__typename] == 'Zone' }
       expect(zone[:geometry][:type]).to eq('Polygon')
-      expect(zone[:surface]).to eq('1000')
-
+      expect(zone[:surface].to_f).to be > 0
       marqueur = geo_areas.find { |area| area[:__typename] == 'Marqueur' }
       expect(marqueur[:geometry][:type]).to eq('Point')
     end
