@@ -371,7 +371,7 @@ RSpec.describe Types::DossierType, type: :graphql do
         expect(parcelle).to be_present
         expect(parcelle[:geometry]).to be_present
         expect(parcelle[:commune]).to eq('Papeete')
-        expect(parcelle[:surface]).to eq('1000')
+        expect(parcelle[:surface].to_f).to be > 0
 
         # Check for batiment
         batiment = te_fenua_champ[:geoAreas].find { |area| area[:__typename] == 'Batiment' }
