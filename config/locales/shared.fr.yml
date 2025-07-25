@@ -22,6 +22,9 @@ fr:
       table_row_selector:
         show:
           toggle_champ: "Afficher/Cacher les champs de « %{champ} »"
+      referentiel_de_polynesie:
+        show:
+          toggle_champ: "Afficher/Cacher les champs de « %{champ} »"
       cnaf:
         show:
           not_filled: non renseigné

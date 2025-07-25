@@ -18,11 +18,11 @@ module Types::Champs
 
       data = object.data.is_a?(String) ? JSON.parse(object.data) : object.data
       return [] unless data.is_a?(Hash) && data.key?('row')
-      
+
       # Utiliser instructeur_fields pour déterminer quelles colonnes afficher
       fields = data['instructeur_fields'].presence || data['row'].keys
       row = data['row']
-      
+
       fields.map do |field_name|
         value = row.key?(field_name) ? (row[field_name] || "") : "Champ #{field_name} inconnu"
         {

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Logic::ChampValue < Logic::Term
-  INSTANCE_MANAGED_TYPE_DE_CHAMP = [:table_row_selector, :referentiel_de_polynesie]
+  INSTANCE_MANAGED_TYPE_DE_CHAMP = [:referentiel_de_polynesie]
 
   MANAGED_TYPE_DE_CHAMP = TypeDeChamp.type_champs.slice(
     *INSTANCE_MANAGED_TYPE_DE_CHAMP,
@@ -118,8 +118,6 @@ class Logic::ChampValue < Logic::Term
       CHAMP_VALUE_TYPE.fetch(:address)
     when MANAGED_TYPE_DE_CHAMP.fetch(:multiple_drop_down_list)
       CHAMP_VALUE_TYPE.fetch(:enums)
-    when MANAGED_TYPE_DE_CHAMP.fetch(:table_row_selector)
-      CHAMP_VALUE_TYPE.fetch(:enum)
     when MANAGED_TYPE_DE_CHAMP.fetch(:referentiel_de_polynesie)
       CHAMP_VALUE_TYPE.fetch(:enum)
     else
@@ -161,8 +159,6 @@ class Logic::ChampValue < Logic::Term
       APIGeoService.countries.map { ["#{_1[:name]} – #{_1[:code]}", _1[:code]] }
     elsif operator_name.in?([Logic::InArchipelOperator.name, Logic::NotInArchipelOperator.name]) || tdc.type_champ.in?([MANAGED_TYPE_DE_CHAMP.fetch(:commune_de_polynesie), MANAGED_TYPE_DE_CHAMP.fetch(:code_postal_de_polynesie)])
       APIGeo::API.archipels_de_polynesie.map { [_1, _1] }
-    elsif tdc.type_champ == MANAGED_TYPE_DE_CHAMP.fetch(:table_row_selector)
-      [['Autre', 'Autre']]
     elsif tdc.type_champ == MANAGED_TYPE_DE_CHAMP.fetch(:referentiel_de_polynesie)
       [['Autre', 'Autre']]
     else

@@ -4357,6 +4357,11 @@ type ReferentielDePolynesieChamp implements Champ {
   Colonnes et valeurs de la table externe
   """
   columns: [TableColumn!]!
+
+  """
+  Identifiant externe de l'enregistrement dans la source de données
+  """
+  externalId: String
   id: ID!
 
   """
@@ -4658,6 +4663,11 @@ type TableRowSelectorChamp implements Champ {
   Colonnes et valeurs de la table externe
   """
   columns: [TableColumn!]!
+
+  """
+  Identifiant externe de l'enregistrement dans la source de données
+  """
+  externalId: String
   id: ID!
 
   """
