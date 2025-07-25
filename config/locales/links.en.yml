@@ -68,7 +68,7 @@ en:
       releases:
         label: "Releases notes"
         title: "Releases notes: Our last updates"
-        url: "https://github.com/demarches-simplifiees/demarches-simplifiees.fr/releases"
+        url: "https://github.com/govpf/mes-demarches/releases"
       security:
         label: "Security"
         title: "Security policy and procedures"
