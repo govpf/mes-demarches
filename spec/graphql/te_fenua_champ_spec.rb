@@ -210,7 +210,7 @@ RSpec.describe 'TeFenua GraphQL API', type: :graphql do
 
       geo_areas = data[:dossier][:champs].first[:geoAreas]
       parcelle = geo_areas.find { |area| area[:__typename] == 'ParcelleCadastrale' }
-      
+
       expect(parcelle[:geometry][:type]).to eq('MultiPolygon')
       expect(parcelle[:surface]).to be_present
       expect(parcelle[:surface].to_f).to be > 0
@@ -238,7 +238,7 @@ RSpec.describe 'TeFenua GraphQL API', type: :graphql do
 
       geo_areas = data[:dossier][:champs].first[:geoAreas]
       zone = geo_areas.find { |area| area[:__typename] == 'Zone' }
-      
+
       expect(zone).to be_present
       expect(zone[:geometry][:type]).to eq('MultiPolygon')
       expect(zone[:surface]).to be_present

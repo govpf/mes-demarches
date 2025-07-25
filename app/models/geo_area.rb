@@ -70,7 +70,7 @@ class GeoArea < ApplicationRecord
       I18n.t("cadastre", scope: 'geo_area.label', numero: numero, prefixe: prefixe, section: section, surface: surface&.round, commune: commune)
     when GeoArea.sources.fetch(:selection_utilisateur)
       if polygon? || multipolygon?
-        if area
+        if area && area > 0
           I18n.t("area", scope: 'geo_area.label', area: number_with_delimiter(area))
         else
           I18n.t("area_unknown", scope: 'geo_area.label')
@@ -89,6 +89,8 @@ class GeoArea < ApplicationRecord
 
   def area
     if polygon? || multipolygon?
+      coords = geometry['coordinates']
+      return nil if coords.blank? || coords.all?(&:blank?)
       GeojsonService.area(geometry.deep_symbolize_keys).round(1)
     end
   end
