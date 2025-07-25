@@ -46,7 +46,12 @@ module DossierStateConcern
     disable_notification = h.fetch(:disable_notification, false)
 
     if !disable_notification
-      InstructionNotificationJob.schedule_for_dossier(self)
+      # pf: feature flag pour activer les notifications différées uniquement sur certaines procédures
+      if procedure.feature_enabled?(:delayed_notifications)
+        InstructionNotificationJob.schedule_for_dossier(self)
+      else
+        NotificationMailer.send_en_instruction_notification(self).deliver_later
+      end
       NotificationMailer.send_notification_for_tiers(self).deliver_later if self.for_tiers?
     end
   end
@@ -72,7 +77,12 @@ module DossierStateConcern
   end
 
   def after_commit_passer_automatiquement_en_instruction
-    InstructionNotificationJob.schedule_for_dossier(self)
+    # pf: feature flag pour activer les notifications différées uniquement sur certaines procédures
+    if procedure.feature_enabled?(:delayed_notifications)
+      InstructionNotificationJob.schedule_for_dossier(self)
+    else
+      NotificationMailer.send_en_instruction_notification(self).deliver_later
+    end
     NotificationMailer.send_notification_for_tiers(self).deliver_later if self.for_tiers?
   end
 
