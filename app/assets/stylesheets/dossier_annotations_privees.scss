@@ -1,5 +1,5 @@
-@import "colors";
-@import "constants";
+@import 'colors';
+@import 'constants';
 
 $dossier-actions-bar-border-width: 1px;
 
@@ -12,8 +12,8 @@ $dossier-actions-bar-border-width: 1px;
 
   .dossier-edit-sticky-footer {
     // scss-lint:disable VendorPrefix DuplicateProperty
-    position: fixed;           // Fallback for IE 11, and other browser that don't support sticky
-    position: -webkit-sticky;  // This is needed on Safari (tested on 12.1)
+    position: fixed; // Fallback for IE 11, and other browser that don't support sticky
+    position: -webkit-sticky; // This is needed on Safari (tested on 12.1)
     position: sticky;
     // scss-lint:enable VendorPrefix DuplicateProperty
 
@@ -32,9 +32,9 @@ $dossier-actions-bar-border-width: 1px;
     padding-right: $default-padding - $dossier-actions-bar-border-width;
     padding-left: $default-padding - $dossier-actions-bar-border-width;
 
-    background: #FFFFFF;
+    background: #ffffff;
 
-    border: $dossier-actions-bar-border-width solid #CCCCCC;
+    border: $dossier-actions-bar-border-width solid #cccccc;
     border-top-left-radius: 5px;
     border-top-right-radius: 5px;
     border-bottom: none;

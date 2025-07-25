@@ -1,5 +1,5 @@
-@import "colors";
-@import "constants";
+@import 'colors';
+@import 'constants';
 
 .alert {
   padding: 10px;
@@ -9,10 +9,10 @@
 
 .alert-danger {
   background-color: $red;
-  color: #FFFFFF;
+  color: #ffffff;
 
   a {
-    color: #FFFFFF;
+    color: #ffffff;
   }
 }
 

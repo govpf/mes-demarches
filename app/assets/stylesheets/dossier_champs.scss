@@ -1,5 +1,5 @@
-@import "colors";
-@import "constants";
+@import 'colors';
+@import 'constants';
 
 .table.dossier-champs {
   th,
@@ -54,7 +54,6 @@
   ul ul {
     list-style-type: circle;
   }
-
 
   ol {
     list-style-type: decimal;

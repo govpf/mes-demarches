@@ -10,7 +10,7 @@
   top: 6em;
 
   button {
-    background-image: image-url("icons/trash-gray.svg");
+    background-image: image-url('icons/trash-gray.svg');
     background-size: cover;
   }
 }
@@ -20,7 +20,7 @@
   top: 8em;
 
   button {
-    background-image: image-url("icons/layers.svg");
+    background-image: image-url('icons/layers.svg');
     background-size: cover;
   }
 }
@@ -30,13 +30,13 @@
   top: 10em;
 
   button {
-    background-image: image-url("icons/polygon.svg");
+    background-image: image-url('icons/polygon.svg');
     background-size: cover;
   }
 }
 
 .ol-control-geolocate button {
-  background-image: image-url("icons/geolocate.svg");
+  background-image: image-url('icons/geolocate.svg');
   background-size: 16px;
   background-repeat: no-repeat;
   background-position: center;
@@ -44,7 +44,7 @@
   width: 1.6em;
   height: 1.6em;
   border-radius: 2px;
-  background-color: #FFFFFF;
+  background-color: #ffffff;
   border: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
@@ -79,7 +79,7 @@
   background-color: rgba(0, 60, 136, 0.7);
   border-radius: 5px;
   bottom: 0.4em;
-  color: #FFFFFF;
+  color: #ffffff;
   padding: 4px 4px 1px;
   position: absolute;
   right: 0.4em;
@@ -105,7 +105,7 @@
       border: 0.357em solid transparent;
       border-left: none;
       border-right-color: rgba(0, 60, 136, 0.7);
-      content: "";
+      content: '';
       height: 0;
       left: 0;
       margin-left: -0.357em;
@@ -120,22 +120,22 @@
     top: 2.5em;
     right: 0.4em;
     bottom: auto;
-    background-color: #FFFFFF;
+    background-color: #ffffff;
     color: #666666;
     border-radius: 0px;
     padding: 0px 0px 0px;
   }
 
   #add-marker-button.active {
-    background-color: #0000FF;
-    color: #FFFFFF;
+    background-color: #0000ff;
+    color: #ffffff;
   }
 
   &.remove-marker {
     top: 5.5em;
     right: 0.4em;
     bottom: auto;
-    background-color: #FFFFFF;
+    background-color: #ffffff;
     color: #000091;
     border-radius: 0px;
     padding: 0px 0px 0px;
@@ -149,8 +149,8 @@
     cursor: pointer;
 
     &:hover {
-      background-color: #FF0000;
-      color: #FFFFFF;
+      background-color: #ff0000;
+      color: #ffffff;
     }
   }
 
@@ -158,7 +158,7 @@
     top: 2.5em;
     right: 0.4em;
     bottom: auto;
-    background-color: #FFFFFF;
+    background-color: #ffffff;
     color: #666666;
     border-radius: 0px;
     padding: 0px;
@@ -167,12 +167,12 @@
     gap: 8px;
 
     #add-marker-button.active {
-      background-color: #0000FF;
-      color: #FFFFFF;
+      background-color: #0000ff;
+      color: #ffffff;
     }
 
     button {
-      background-color: #FFFFFF;
+      background-color: #ffffff;
       color: #666666;
       border-radius: 0px;
       padding: 0 0.5em;

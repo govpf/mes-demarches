@@ -8,6 +8,7 @@ class Procedure < ApplicationRecord
   include ProcedureGroupeInstructeurAPIHackConcern
   include ProcedureSVASVRConcern
   include ProcedureChorusConcern
+  include ProcedurePublishConcern
   include PiecesJointesListConcern
   include ColumnsConcern
 
@@ -60,6 +61,7 @@ class Procedure < ApplicationRecord
   has_and_belongs_to_many :procedure_tags
 
   has_many :bulk_messages, dependent: :destroy
+  has_many :labels, dependent: :destroy
 
   def active_dossier_submitted_message
     published_dossier_submitted_message || draft_dossier_submitted_message
@@ -378,40 +380,6 @@ class Procedure < ApplicationRecord
     dossiers.close_to_expiration.count
   end
 
-  def publish_or_reopen!(administrateur)
-    Procedure.transaction do
-      if brouillon?
-        reset!
-        cleanup_types_de_champ_options!
-      end
-
-      other_procedure = other_procedure_with_path(path)
-      if other_procedure.present? && administrateur.owns?(other_procedure)
-        other_procedure.unpublish!
-        publish!(other_procedure.canonical_procedure || other_procedure)
-      else
-        publish!
-      end
-      AdministrationMailer.procedure_published(self).deliver_later
-    end
-  end
-
-  def reset!
-    if !locked? || draft_changed?
-      dossier_ids_to_destroy = draft_revision.dossiers.ids
-      if dossier_ids_to_destroy.present?
-        Rails.logger.info("Resetting #{dossier_ids_to_destroy.size} dossiers on procedure #{id}: #{dossier_ids_to_destroy}")
-        draft_revision.dossiers.destroy_all
-      end
-    end
-  end
-
-  def cleanup_types_de_champ_options!
-    draft_revision.types_de_champ.each do |type_de_champ|
-      type_de_champ.update!(options: type_de_champ.clean_options)
-    end
-  end
-
   def suggested_path(administrateur)
     if path_customized?
       return path
@@ -581,6 +549,7 @@ class Procedure < ApplicationRecord
     procedure.closing_notification_en_cours = false
     procedure.template = false
     procedure.monavis_embed = nil
+    procedure.labels = labels.map(&:dup)
 
     if !procedure.valid?
       procedure.errors.attribute_names.each do |attribute|
@@ -770,7 +739,7 @@ class Procedure < ApplicationRecord
   end
 
   def routing_champs
-    active_revision.types_de_champ_public.filter(&:used_by_routing_rules?).map(&:libelle)
+    active_revision.revision_types_de_champ_public.filter(&:used_by_routing_rules?).map(&:libelle)
   end
 
   def can_be_deleted_by_administrateur?
@@ -821,23 +790,6 @@ class Procedure < ApplicationRecord
     "Procedure;#{id}"
   end
 
-  def create_new_revision(revision = nil)
-    transaction do
-      new_revision = (revision || draft_revision)
-        .deep_clone(include: [:revision_types_de_champ])
-        .tap { |revision| revision.published_at = nil }
-        .tap(&:save!)
-
-      move_new_children_to_new_parent_coordinate(new_revision)
-
-      # they are not aware of the new tdcs
-      new_revision.types_de_champ_public.reset
-      new_revision.types_de_champ_private.reset
-
-      new_revision
-    end
-  end
-
   def column_styles(table)
     styles =
       case table
@@ -865,21 +817,6 @@ class Procedure < ApplicationRecord
     else
       nil
     end
-  end
-
-  def publish_revision!
-    reset!
-    cleanup_types_de_champ_options!
-    transaction do
-      self.published_revision = draft_revision
-      self.draft_revision = create_new_revision
-      save!(context: :publication)
-      published_revision.touch(:published_at)
-    end
-    dossiers
-      .state_not_termine
-      .find_each(&:rebase_later)
-    AdministrationMailer.procedure_published(self).deliver_later
   end
 
   def reset_draft_revision!
@@ -988,45 +925,6 @@ class Procedure < ApplicationRecord
 
   #----- PF section end
 
-  def move_new_children_to_new_parent_coordinate(new_draft)
-    children = new_draft.revision_types_de_champ
-      .includes(parent: :type_de_champ)
-      .where.not(parent_id: nil)
-    coordinates_by_stable_id = new_draft.revision_types_de_champ
-      .includes(:type_de_champ)
-      .index_by(&:stable_id)
-
-    children.each do |child|
-      child.update!(parent: coordinates_by_stable_id.fetch(child.parent.stable_id))
-    end
-    new_draft.reload
-  end
-
-  def before_publish
-    assign_attributes(closed_at: nil, unpublished_at: nil)
-  end
-
-  def after_publish(canonical_procedure = nil)
-    self.canonical_procedure = canonical_procedure
-    self.published_revision = draft_revision
-    self.draft_revision = create_new_revision
-    save!(context: :publication)
-    touch(:published_at)
-    published_revision.touch(:published_at)
-  end
-
-  def after_republish(canonical_procedure = nil)
-    touch(:published_at)
-  end
-
-  def after_close
-    touch(:closed_at)
-  end
-
-  def after_unpublish
-    touch(:unpublished_at)
-  end
-
   def update_juridique_required
     self.juridique_required ||= (cadre_juridique.present? || deliberation.attached?)
     true
@@ -1060,8 +958,14 @@ class Procedure < ApplicationRecord
     end
   end
 
-  def stable_ids_used_by_routing_rules
-    @stable_ids_used_by_routing_rules ||= groupe_instructeurs.flat_map { _1.routing_rule&.sources }.compact
+  def create_generic_labels
+    Label::GENERIC_LABELS.each do |label|
+      Label.create(name: label[:name], color: label[:color], procedure_id: self.id)
+    end
+  end
+
+  def used_by_routing_rules?(type_de_champ)
+    type_de_champ.stable_id.in?(stable_ids_used_by_routing_rules)
   end
 
   # We need this to unfuck administrate + aasm
@@ -1101,6 +1005,10 @@ class Procedure < ApplicationRecord
   end
 
   private
+
+  def stable_ids_used_by_routing_rules
+    @stable_ids_used_by_routing_rules ||= groupe_instructeurs.flat_map { _1.routing_rule&.sources }.compact.uniq
+  end
 
   def published_revisions_types_de_champ(parent = nil)
     # all published revisions

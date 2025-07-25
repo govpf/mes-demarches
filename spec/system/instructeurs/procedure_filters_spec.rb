@@ -2,7 +2,7 @@
 
 describe "procedure filters" do
   let(:instructeur) { create(:instructeur) }
-  let(:procedure) { create(:procedure, :published, types_de_champ_public:, instructeurs: [instructeur]) }
+  let(:procedure) { create(:procedure, :published, :with_labels, types_de_champ_public:, instructeurs: [instructeur]) }
   let(:types_de_champ_public) { [{ type: :text }] }
   let!(:type_de_champ) { procedure.active_revision.types_de_champ_public.first }
   let!(:new_unfollow_dossier) { create(:dossier, procedure: procedure, state: Dossier.states.fetch(:en_instruction)) }
@@ -19,7 +19,7 @@ describe "procedure filters" do
 
   scenario "should display demandeur by default" do
     within ".dossiers-table" do
-      expect(page).to have_link("Demandeur")
+      expect(page).to have_button("Demandeur")
       expect(page).to have_link(new_unfollow_dossier.user.email)
     end
   end
@@ -28,7 +28,7 @@ describe "procedure filters" do
     procedure.update!(sva_svr: SVASVRConfiguration.new(decision: :sva).attributes)
     visit instructeur_procedure_path(procedure)
     within ".dossiers-table" do
-      expect(page).to have_link("Date décision SVA")
+      expect(page).to have_button("Date décision SVA")
       expect(page).to have_link(new_unfollow_dossier.user.email)
     end
   end
@@ -44,9 +44,9 @@ describe "procedure filters" do
   end
 
   scenario "should add be able to add created_at column", js: true do
-    add_column("Créé le")
+    add_column("Date de création")
     within ".dossiers-table" do
-      expect(page).to have_link("Créé le")
+      expect(page).to have_button("Date de création")
       expect(page).to have_link(new_unfollow_dossier.created_at.strftime('%d/%m/%Y'))
     end
   end
@@ -54,20 +54,20 @@ describe "procedure filters" do
   scenario "should add be able to add and remove custom type_de_champ column", js: true do
     add_column(type_de_champ.libelle)
     within ".dossiers-table" do
-      expect(page).to have_link(type_de_champ.libelle)
+      expect(page).to have_button(type_de_champ.libelle)
       expect(page).to have_link(champ.value)
     end
 
     remove_column(type_de_champ.libelle)
     within ".dossiers-table" do
-      expect(page).not_to have_link(type_de_champ.libelle)
+      expect(page).not_to have_button(type_de_champ.libelle)
       expect(page).not_to have_link(champ.value)
     end
 
     # Test removal of all customizable fields
     remove_column("Demandeur")
     within ".dossiers-table" do
-      expect(page).not_to have_link("Demandeur")
+      expect(page).not_to have_button("Demandeur")
     end
   end
 
@@ -94,15 +94,16 @@ describe "procedure filters" do
       expect(page).to have_link(new_unfollow_dossier_2.user.email)
     end
   end
+
   describe 'with dropdown' do
     let(:types_de_champ_public) { [{ type: :drop_down_list }] }
 
     scenario "should be able to user custom fiters", js: true do
       # use date filter
-      add_filter("En construction le", "10/10/2010", type: :date)
+      add_filter("Date de passage en construction", "10/10/2010", type: :date)
 
       # use statut dropdown filter
-      add_filter('Statut', 'En construction', type: :enum)
+      add_filter('État du dossier', 'En construction', type: :enum)
 
       # use choice dropdown filter
       add_filter('Choix unique', 'val1', type: :enum)
@@ -168,6 +169,15 @@ describe "procedure filters" do
         add_filter(region_champ.libelle, region_champ.value, type: :enum)
         expect(page).to have_link(new_unfollow_dossier.id.to_s)
       end
+    end
+  end
+
+  describe 'dossier labels' do
+    scenario "should be able to filter by dossier labels", js: true do
+      DossierLabel.create!(dossier_id: new_unfollow_dossier.id, label_id: procedure.labels.first.id)
+      add_filter('Labels', procedure.labels.first.name, type: :enum)
+      expect(page).to have_link(new_unfollow_dossier.id.to_s)
+      expect(page).not_to have_link(new_unfollow_dossier_2.id.to_s)
     end
   end
 

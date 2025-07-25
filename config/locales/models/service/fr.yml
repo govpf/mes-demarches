@@ -36,9 +36,10 @@ fr:
         service:
           attributes:
             siret:
-              format: "Le numéro TAHITI %{message}"
-              length: "doit commencer par une lettre ou un chiffre, suivi de 5 chiffres"
-              checksum: "est invalide"
+              format: 'Le numéro TAHITI %{message}'
+              length: 'doit commencer par une lettre ou un chiffre, suivi de 5 chiffres'
+              checksum: 'est invalide'
+              not_prefillable: 'Impossible de préremplir les informations pour ce numéro TAHITI, veuillez les saisir manuellement'
   type_organisme:
     administration_centrale: 'Administration centrale'
     association: 'Association'

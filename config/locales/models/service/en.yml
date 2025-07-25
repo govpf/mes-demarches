@@ -17,6 +17,7 @@ en:
         service:
           attributes:
             siret:
-              format: "TAHITI number %{message}"
-              length: "must start with lettee or digit, followed by 5 digits"
-              checksum: "is invalid"
+              format: 'TAHITI number %{message}'
+              length: 'must start with lettee or digit, followed by 5 digits'
+              checksum: 'is invalid'
+              not_prefillable: 'Unable to pre-fill information for this TAHITI number, please fill it manually'

@@ -107,11 +107,15 @@ class Champ < ApplicationRecord
   end
 
   def mandatory_blank?
-    mandatory? && blank?
+    type_de_champ.mandatory_blank?(self)
   end
 
   def blank?
-    value.blank?
+    type_de_champ.champ_blank?(self)
+  end
+
+  def used_by_routing_rules?
+    procedure.used_by_routing_rules?(type_de_champ)
   end
 
   def search_terms
@@ -124,6 +128,10 @@ class Champ < ApplicationRecord
 
   def last_write_type_champ
     TypeDeChamp::CHAMP_TYPE_TO_TYPE_CHAMP.fetch(type)
+  end
+
+  def last_write_column_type
+    TypeDeChamp.column_type(last_write_type_champ)
   end
 
   def main_value_name
@@ -272,10 +280,6 @@ class Champ < ApplicationRecord
     return if value.present? && !value.include?("\u0000")
 
     write_attribute(:value, value.delete("\u0000"))
-  end
-
-  def used_by_routing_rules?
-    stable_id.in?(procedure.stable_ids_used_by_routing_rules)
   end
 
   class NotImplemented < ::StandardError

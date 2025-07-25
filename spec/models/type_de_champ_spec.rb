@@ -80,23 +80,6 @@ describe TypeDeChamp do
       end
     end
 
-    describe 'changing the type_champ from a repetition' do
-      let!(:procedure) { create(:procedure) }
-      let(:tdc) { create(:type_de_champ_repetition, :with_types_de_champ, procedure: procedure) }
-
-      before do
-        tdc.update(type_champ: target_type_champ)
-      end
-
-      context 'when the target type_champ is not repetition' do
-        let(:target_type_champ) { TypeDeChamp.type_champs.fetch(:text) }
-
-        it 'removes the children types de champ' do
-          expect(procedure.draft_revision.reload.children_of(tdc)).to be_empty
-        end
-      end
-    end
-
     describe 'changing the type_champ from a drop_down_list' do
       let(:tdc) { create(:type_de_champ_drop_down_list) }
 
@@ -464,5 +447,73 @@ describe TypeDeChamp do
         is_expected.to eq({ 'expression_reguliere' => '\d{9}', 'expression_reguliere_error_message' => 'error', 'expression_reguliere_exemple_text' => '123456789' })
       end
     end
+  end
+
+  describe 'champ_value with cast' do
+    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: type_champ }]) }
+    let(:dossier) { create(:dossier, procedure:) }
+    let(:type_champ) { :text }
+    let(:last_write_type_champ) { :text }
+    let(:champ_value) { 'hello' }
+    let(:champ_type) { TypeDeChamp.type_champ_to_champ_class_name(last_write_type_champ.to_s) }
+    let(:type_de_champ) { procedure.active_revision.types_de_champ.first }
+    let(:champ) { dossier.champs.first }
+
+    subject { champ.update_columns(type: champ_type, value: champ_value); type_de_champ.champ_value(champ) }
+
+    it { expect(subject).to eq('hello') }
+
+    context 'text -> integer_number' do
+      let(:last_write_type_champ) { :text }
+      let(:type_champ) { :integer_number }
+
+      it { expect(subject).to eq('') }
+    end
+
+    context 'integer_number -> text' do
+      let(:last_write_type_champ) { :integer_number }
+      let(:type_champ) { :text }
+      let(:champ_value) { '42' }
+
+      it { expect(subject).to eq('') }
+    end
+
+    context 'integer_number -> decimal_number' do
+      let(:last_write_type_champ) { :integer_number }
+      let(:type_champ) { :decimal_number }
+      let(:champ_value) { '42' }
+
+      it { expect(subject).to eq('42') }
+    end
+
+    context 'decimal_number -> integer_number' do
+      let(:last_write_type_champ) { :decimal_number }
+      let(:type_champ) { :integer_number }
+      let(:champ_value) { '42.1' }
+
+      it { expect(subject).to eq('42.1') }
+    end
+
+    context 'drop_down_list -> multiple_drop_down_list' do
+      let(:last_write_type_champ) { :drop_down_list }
+      let(:type_champ) { :multiple_drop_down_list }
+      let(:champ_value) { type_de_champ.drop_down_options.first }
+
+      it { expect(subject).to eq(champ_value) }
+    end
+
+    context 'multiple_drop_down_list -> drop_down_list' do
+      let(:last_write_type_champ) { :multiple_drop_down_list }
+      let(:type_champ) { :drop_down_list }
+      let(:champ_value) { "[\"#{type_de_champ.drop_down_options.first}\"]" }
+
+      it { expect(subject).to eq('') }
+    end
+  end
+
+  describe '#humanized_conditionable_types_by_category' do
+    subject { TypeDeChamp.humanized_conditionable_types_by_category }
+
+    it { is_expected.to eq([["« Référentiel des administrations »"], ["« Oui/Non »", "« Case à cocher seule »", "« Choix simple »", "« Choix multiple »"], ["« Nombre entier »", "« Nombre décimal »"], ["« Communes »", "« EPCI »", "« Départements »", "« Régions »", "« Adresse en France »", "« Pays »", "« Commune de Polynésie »", "« Code Postal de Polynésie »"]]) }
   end
 end

@@ -429,6 +429,15 @@ ActiveRecord::Schema[7.0].define(version: 2024_10_14_084333) do
     t.index ["resolved_at"], name: "index_dossier_corrections_on_resolved_at", where: "((resolved_at IS NULL) OR (resolved_at IS NOT NULL))"
   end
 
+  create_table "dossier_labels", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "dossier_id", null: false
+    t.bigint "label_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["dossier_id"], name: "index_dossier_labels_on_dossier_id"
+    t.index ["label_id"], name: "index_dossier_labels_on_label_id"
+  end
+
   create_table "dossier_operation_logs", force: :cascade do |t|
     t.boolean "automatic_operation", default: false, null: false
     t.bigint "bill_signature_id"
@@ -499,6 +508,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_10_14_084333) do
     t.string "hidden_by_reason"
     t.datetime "hidden_by_user_at"
     t.datetime "identity_updated_at"
+    t.datetime "last_avis_piece_jointe_updated_at"
     t.datetime "last_avis_updated_at"
     t.datetime "last_champ_piece_jointe_updated_at"
     t.datetime "last_champ_private_updated_at"
@@ -833,6 +843,15 @@ ActiveRecord::Schema[7.0].define(version: 2024_10_14_084333) do
     t.integer "user_id"
     t.index ["dossier_id"], name: "index_invites_on_dossier_id"
     t.index ["email", "dossier_id"], name: "index_invites_on_email_and_dossier_id", unique: true
+  end
+
+  create_table "labels", force: :cascade do |t|
+    t.string "color"
+    t.datetime "created_at", null: false
+    t.string "name"
+    t.bigint "procedure_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["procedure_id"], name: "index_labels_on_procedure_id"
   end
 
   create_table "maintenance_tasks_runs", force: :cascade do |t|
@@ -1303,6 +1322,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_10_14_084333) do
   add_foreign_key "dossier_batch_operations", "dossiers"
   add_foreign_key "dossier_corrections", "commentaires"
   add_foreign_key "dossier_corrections", "dossiers"
+  add_foreign_key "dossier_labels", "dossiers"
+  add_foreign_key "dossier_labels", "labels"
   add_foreign_key "dossier_operation_logs", "bill_signatures"
   add_foreign_key "dossier_transfer_logs", "dossiers"
   add_foreign_key "dossiers", "batch_operations"
@@ -1322,6 +1343,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_10_14_084333) do
   add_foreign_key "groupe_instructeurs", "procedures"
   add_foreign_key "initiated_mails", "procedures"
   add_foreign_key "instructeurs", "users"
+  add_foreign_key "labels", "procedures"
   add_foreign_key "merge_logs", "users"
   add_foreign_key "procedure_presentations", "assign_tos"
   add_foreign_key "procedure_revision_types_de_champ", "procedure_revision_types_de_champ", column: "parent_id"
