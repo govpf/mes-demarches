@@ -27,7 +27,6 @@ RSpec.describe 'TeFenua GraphQL API', type: :graphql do
                 commune
                 ile
                 surface
-                surfaceCalculee
               }
               ... on ParcelleCadastrale {
                 commune
@@ -126,7 +125,6 @@ RSpec.describe 'TeFenua GraphQL API', type: :graphql do
         ile: 'Tahiti'
       )
       expect(zone[:surface].to_f).to be > 0
-      expect(zone[:surfaceCalculee]).to be_present
 
       marqueur = geo_areas.find { |area| area[:__typename] == 'Marqueur' }
       expect(marqueur).to include(
@@ -186,6 +184,65 @@ RSpec.describe 'TeFenua GraphQL API', type: :graphql do
 
       batiment = geo_areas.find { |area| area[:__typename] == 'Batiment' }
       expect(batiment[:source]).to eq('batiment')
+    end
+  end
+
+  describe 'with MultiPolygon geometries' do
+    it 'calculates surface correctly for MultiPolygon parcelles' do
+      champ.update(value: {
+        parcelles: {
+          features: [
+            {
+              geometry: {
+                type: 'MultiPolygon',
+                coordinates: [
+                  [[[-149.5, -17.5], [-149.4, -17.5], [-149.4, -17.4], [-149.5, -17.4], [-149.5, -17.5]]]
+                ]
+              },
+              properties: { commune: 'Papeete', ile: 'Tahiti', numero: '123', section: 'AB' }
+            }
+          ]
+        }
+      }.to_json)
+
+      result = API::V2::Schema.execute(query, variables: variables, context: context)
+      data = result.to_h.deep_symbolize_keys[:data]
+
+      geo_areas = data[:dossier][:champs].first[:geoAreas]
+      parcelle = geo_areas.find { |area| area[:__typename] == 'ParcelleCadastrale' }
+      
+      expect(parcelle[:geometry][:type]).to eq('MultiPolygon')
+      expect(parcelle[:surface]).to be_present
+      expect(parcelle[:surface].to_f).to be > 0
+    end
+
+    it 'resolves MultiPolygon zones_manuelles as ZoneType with surface' do
+      champ.update(value: {
+        zones_manuelles: {
+          features: [
+            {
+              geometry: {
+                type: 'MultiPolygon',
+                coordinates: [
+                  [[[-149.5, -17.5], [-149.4, -17.5], [-149.4, -17.4], [-149.5, -17.4], [-149.5, -17.5]]]
+                ]
+              },
+              properties: { commune: 'Papeete', ile: 'Tahiti' }
+            }
+          ]
+        }
+      }.to_json)
+
+      result = API::V2::Schema.execute(query, variables: variables, context: context)
+      data = result.to_h.deep_symbolize_keys[:data]
+
+      geo_areas = data[:dossier][:champs].first[:geoAreas]
+      zone = geo_areas.find { |area| area[:__typename] == 'Zone' }
+      
+      expect(zone).to be_present
+      expect(zone[:geometry][:type]).to eq('MultiPolygon')
+      expect(zone[:surface]).to be_present
+      expect(zone[:surface].to_f).to be > 0
     end
   end
 

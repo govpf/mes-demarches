@@ -30,7 +30,7 @@ module Types
           Types::GeoAreas::BatimentType
         when GeoArea.sources.fetch(:selection_utilisateur)
           if object.champ.class.name == 'Champs::TeFenuaChamp'
-            if object.polygon?
+            if object.polygon? || object.multipolygon?
               Types::GeoAreas::ZoneType
             else
               Types::GeoAreas::MarqueurType

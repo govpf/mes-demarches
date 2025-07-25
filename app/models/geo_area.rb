@@ -69,8 +69,8 @@ class GeoArea < ApplicationRecord
     when GeoArea.sources.fetch(:cadastre)
       I18n.t("cadastre", scope: 'geo_area.label', numero: numero, prefixe: prefixe, section: section, surface: surface&.round, commune: commune)
     when GeoArea.sources.fetch(:selection_utilisateur)
-      if polygon?
-        if area > 0
+      if polygon? || multipolygon?
+        if area
           I18n.t("area", scope: 'geo_area.label', area: number_with_delimiter(area))
         else
           I18n.t("area_unknown", scope: 'geo_area.label')
@@ -88,7 +88,7 @@ class GeoArea < ApplicationRecord
   end
 
   def area
-    if polygon?
+    if polygon? || multipolygon?
       GeojsonService.area(geometry.deep_symbolize_keys).round(1)
     end
   end
@@ -111,6 +111,10 @@ class GeoArea < ApplicationRecord
 
   def polygon?
     geometry['type'] == 'Polygon'
+  end
+
+  def multipolygon?
+    geometry['type'] == 'MultiPolygon'
   end
 
   def point?
@@ -198,7 +202,7 @@ class GeoArea < ApplicationRecord
 
     # For TeFenua data (champ_id present), always use geometric calculation
     # to ensure consistency across all features
-    if champ.class.name == 'Champs::TeFenuaChamp' && polygon?
+    if champ.class.name == 'Champs::TeFenuaChamp' && (polygon? || multipolygon?)
       area
     else
       api_surface ? api_surface : area

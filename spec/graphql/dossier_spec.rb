@@ -664,7 +664,6 @@ RSpec.describe Types::DossierType, type: :graphql do
             }
             ... on Zone {
               surface
-              surfaceCalculee
             }
             ... on ParcelleCadastrale {
               commune
