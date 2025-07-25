@@ -9,7 +9,8 @@ class TypeDeChamp < ApplicationRecord
 
     cojo: :cojo_type_de_champ,
     lexpol: :lexpol,
-    expression_reguliere: :expression_reguliere_type_de_champ
+    expression_reguliere: :expression_reguliere_type_de_champ,
+    referentiel_de_polynesie: :referentiel_de_polynesie
   }
 
   MINIMUM_TEXTAREA_CHARACTER_LIMIT_LENGTH = 400
@@ -20,6 +21,7 @@ class TypeDeChamp < ApplicationRecord
     code_postal_de_polynesie: 'code_postal_de_polynesie',
     numero_dn: 'numero_dn',
     table_row_selector: 'table_row_selector',
+    referentiel_de_polynesie: 'referentiel_de_polynesie',
     te_fenua: 'te_fenua',
     lexpol: 'lexpol',
     visa: 'visa'
@@ -44,6 +46,7 @@ class TypeDeChamp < ApplicationRecord
     te_fenua: REFERENTIEL_EXTERNE,
     lexpol: REFERENTIEL_EXTERNE,
     table_row_selector: REFERENTIEL_EXTERNE,
+    referentiel_de_polynesie: REFERENTIEL_EXTERNE,
     visa: STRUCTURE
   }
 
@@ -140,6 +143,7 @@ class TypeDeChamp < ApplicationRecord
     integer_number: [:min, :max],
     date: [:min, :max],
     table_row_selector: [:table_id, :drop_down_other],
+    referentiel_de_polynesie: [:table_id, :drop_down_other],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
     visa: [:accredited_users]
@@ -454,6 +458,10 @@ class TypeDeChamp < ApplicationRecord
 
   def table_row_selector?
     type_champ == TypeDeChamp.type_champs.fetch(:table_row_selector)
+  end
+
+  def referentiel_de_polynesie?
+    type_champ == TypeDeChamp.type_champs.fetch(:referentiel_de_polynesie)
   end
 
   def te_fenua?
