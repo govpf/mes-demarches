@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class Champs::RepetitionChamp < Champ
-  include ActionView::Helpers::TagHelper
-
   delegate :libelle_for_export, to: :type_de_champ
 
   def rows
@@ -27,26 +25,6 @@ class Champs::RepetitionChamp < Champ
 
   def search_terms
     # The user cannot enter any information here so it doesn’t make much sense to search
-  end
-
-  def for_tag(path = :value)
-    # replace DS text value with table
-    # ([libelle] + rows.map do |champs|
-    #   champs.map do |champ|
-    #     "#{champ.libelle} : #{champ}"
-    #   end.join("\n")
-    # end).join("\n\n")
-
-    return "" if rows.empty?
-
-    header = tag.tr(rows[0].map { |c| tag.th(c.libelle) }.reduce(&:+))
-    lines = rows.map do |champs|
-      tag.tr(champs.map do |champ|
-        for_tag = champ.type_de_champ.champ_value_for_tag(champ)
-        tag.td(for_tag)
-      end.reduce(&:+))
-    end.reduce(&:+)
-    tag.table(header + lines)
   end
 
   def rows_for_export

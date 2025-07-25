@@ -383,6 +383,58 @@ describe TypeDeChamp do
       end
     end
 
+    context "Visa" do
+      let(:type_de_champ) { create(:type_de_champ_visa, procedure:) }
+
+      before do
+        type_de_champ.update!(options: { 'accredited_users' => ['user1@example.com', 'user2@example.com'], 'key' => 'value' })
+        procedure.publish_revision!
+      end
+
+      it 'keeping only the accredited_users' do
+        is_expected.to eq({ 'accredited_users' => ['user1@example.com', 'user2@example.com'] })
+      end
+    end
+
+    context "Table row selector" do
+      let(:type_de_champ) { create(:type_de_champ_table_row_selector, procedure:) }
+
+      before do
+        type_de_champ.update!(options: { 'table_id' => '42', 'drop_down_other' => '1', 'key' => 'value' })
+        procedure.publish_revision!
+      end
+
+      it 'keeping only the table_id and drop_down_other' do
+        is_expected.to eq({ 'table_id' => '42', 'drop_down_other' => '1' })
+      end
+    end
+
+    context "Te Fenua" do
+      let(:type_de_champ) { create(:type_de_champ_te_fenua, procedure:) }
+
+      before do
+        type_de_champ.update!(options: { 'parcelles' => '1', 'batiments' => '0', 'zones_manuelles' => '1', 'te_fenua_layer' => '1', 'key' => 'value' })
+        procedure.publish_revision!
+      end
+
+      it 'keeping only the parcelles, batiments, zones_manuelles and te_fenua_layer' do
+        is_expected.to eq({ 'parcelles' => '1', 'batiments' => '0', 'zones_manuelles' => '1', 'te_fenua_layer' => '1' })
+      end
+    end
+
+    context "Lexpol" do
+      let(:type_de_champ) { create(:type_de_champ_lexpol, procedure:) }
+
+      before do
+        type_de_champ.update!(options: { 'lexpol_modele' => 'modele_1', 'lexpol_mapping' => { 'field1' => 'value1' }, 'key' => 'value' })
+        procedure.publish_revision!
+      end
+
+      it 'keeping only the lexpol_modele and lexpol_mapping' do
+        is_expected.to eq({ 'lexpol_modele' => 'modele_1', 'lexpol_mapping' => { 'field1' => 'value1' } })
+      end
+    end
+
     context "Expression reguliere" do
       let(:type_de_champ) { create(:type_de_champ_expression_reguliere, procedure:) }
 
