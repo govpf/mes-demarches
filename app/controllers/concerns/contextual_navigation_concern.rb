@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # pf: navigation contextuelle entre personas pour améliorer l'UX des créateurs de formulaires
 module ContextualNavigationConcern
   extend ActiveSupport::Concern
@@ -16,22 +18,21 @@ module ContextualNavigationConcern
 
   def contextual_redirect_path_for_profile(target_profile)
     return nil unless contextual_persona_enabled?
-    
+
     context = current_context_info
     return nil if context.empty?
 
     case target_profile
     when :instructeur
       build_instructeur_contextual_path(context)
-    when :user  
+    when :user
       build_user_contextual_path(context)
     when :administrateur
       build_administrateur_contextual_path(context)
     else
       nil
     end
-  rescue StandardError => e
-    Rails.logger.error "[ContextualNav] Error: #{e.message}"
+  rescue StandardError
     nil
   end
 
@@ -61,7 +62,7 @@ module ContextualNavigationConcern
     when :dossier
       if can_access_dossier_as_instructeur?(context[:id])
         dossier = Dossier.find(context[:id])
-        instructeur_dossier_path(procedure_id: dossier.procedure_id, dossier_id: context[:id])
+        instructeur_dossier_path(procedure_id: dossier.procedure.id, dossier_id: context[:id])
       end
     when :procedure
       if can_access_procedure_as_instructeur?(context[:id])
@@ -81,7 +82,7 @@ module ContextualNavigationConcern
     when :procedure
       context[:id]
     when :dossier
-      Dossier.find_by(id: context[:id])&.procedure_id
+      Dossier.find_by(id: context[:id])&.procedure&.id
     end
 
     if procedure_id && can_access_procedure_as_administrateur?(procedure_id)
@@ -91,10 +92,11 @@ module ContextualNavigationConcern
 
   def can_access_dossier_as_instructeur?(dossier_id)
     return false unless instructeur_signed_in?
+
     dossier = Dossier.find_by(id: dossier_id)
     return false unless dossier
-    
-    current_instructeur.procedures.exists?(id: dossier.procedure_id)
+
+    current_instructeur.procedures.exists?(id: dossier.procedure.id)
   end
 
   def can_access_dossier_as_user?(dossier_id)
