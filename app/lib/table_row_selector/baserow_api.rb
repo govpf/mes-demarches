@@ -37,10 +37,17 @@ class TableRowSelector::BaserowAPI
         model = fields(config)
         usager_fields = field_names(model, config['Champs usager'])
         instructeur_fields = field_names(model, config['Champs instructeur'])
-        row = JSON.parse(response.body).filter { |name, _| name.start_with?('field_') }.transform_keys do |key|
+        response_data = JSON.parse(response.body)
+        
+        # Conserver l'id externe pour l'API GraphQL
+        external_id = response_data['id']
+        
+        # Transformer les champs field_* en noms lisibles
+        row = response_data.filter { |name, _| name.start_with?('field_') }.transform_keys do |key|
           model[key[6..-1].to_i]
         end
-        { usager_fields:, instructeur_fields:, row: }
+        
+        { usager_fields:, instructeur_fields:, row:, external_id: }
       end
     end
 
