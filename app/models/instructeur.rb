@@ -30,6 +30,7 @@ class Instructeur < ApplicationRecord
 
   belongs_to :user
 
+  
   scope :with_instant_email_message_notifications, -> {
     includes(:assign_to).where(assign_tos: { instant_email_message_notifications_enabled: true })
   }
