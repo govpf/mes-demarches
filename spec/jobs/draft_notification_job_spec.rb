@@ -6,7 +6,7 @@ describe DraftNotificationJob, type: :job do
   describe '.schedule_for_dossier' do
     it 'programme le job avec le bon délai' do
       allow(dossier.revision).to receive(:estimated_fill_duration).and_return(300) # 5 minutes
-      expected_delay = 10 # 5 minutes * 2
+      expected_delay = 15 # 5 minutes * 3
 
       expect(described_class).to receive(:set)
         .with(wait: expected_delay.minutes)
