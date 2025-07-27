@@ -1,10 +1,16 @@
 # frozen_string_literal: true
 
 module Types::Champs
-  class TableRowSelectorChampType < Types::BaseObject
+  class ReferentielDePolynesieChampType < Types::BaseObject
     implements Types::ChampType
 
-    field :columns, [Types::Champs::ReferentielDePolynesieChampType::TableColumnType], null: false, description: "Colonnes et valeurs de la table externe"
+    class TableColumnType < Types::BaseObject
+      field :name, String, null: false, description: "Nom de la colonne"
+      field :value, String, null: true, description: "Valeur de la colonne"
+      field :type, String, null: false, description: "Type de la valeur"
+    end
+
+    field :columns, [TableColumnType], null: false, description: "Colonnes et valeurs de la table externe"
     field :external_id, String, null: true, description: "Identifiant externe de l'enregistrement dans la source de données"
 
     def columns

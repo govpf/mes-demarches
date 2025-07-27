@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class TableRowSelector::BaserowAPI
+class ReferentielDePolynesie::BaserowAPI
   class << self
     def secrets = Rails.application.secrets.baserow
 
@@ -130,7 +130,10 @@ class TableRowSelector::BaserowAPI
 
     def parse_search_results(response_body, search_field, domain_id)
       JSON.parse(response_body, symbolize_names: true)[:results].map do |result|
-        { label: result[:"field_#{search_field}"], value: "#{domain_id}:#{result[:id]}" }
+        {
+          label: result[:"field_#{search_field}"].to_s,
+          value: "#{domain_id}:#{result[:id]}"
+        }
       end
     end
 

@@ -258,3 +258,28 @@ EOF
 * **TOUJOURS** respecter le chapitrage exact : Administrateur, Instructeur, Usager, API, Technique
 * **TOUJOURS** utiliser le format "ETQ" (En Tant Que) des releases upstream
 * **VÉRIFIER** que la release upstream identifiée correspond bien aux commits intégrés
+## Procédure de Nettoyage du Code
+
+### Suppression du Code lié au TableRowSelector après Premier Déploiement
+
+- Après le premier déploiement réussi, suivre ces étapes précises pour supprimer le code lié au tableRowSelector :
+  1. Supprimer les fichiers spécifiques à `table_row_selector` dans les répertoires :
+     - `app/models/champs/table_row_selector_champ.rb`
+     - `app/graphql/types/champs/table_row_selector_champ_type.rb`
+     - `app/graphql/types/champs/descriptor/table_row_selector_champ_descriptor_type.rb`
+  
+  2. Retirer les références dans `app/models/type_de_champ.rb` :
+     - Supprimer l'entrée `table_row_selector` de l'enum `type_champs`
+     - Retirer toute logique conditionnelle liée à `table_row_selector`
+  
+  3. Nettoyer les migrations et seeds :
+     - Supprimer toute migration qui ajoute des colonnes ou configurations spécifiques à `table_row_selector`
+     - Retirer les références dans les fichiers de seed/fixtures
+  
+  4. Mise à jour des tests et specs :
+     - Supprimer les tests unitaires et d'intégration liés à `table_row_selector`
+     - Ajuster les fixtures et factories de test
+
+  5. Vérifications finales :
+     - Lancer la suite de tests complète pour s'assurer de l'absence de régressions
+     - Valider que GraphQL ne référence plus le type `table_row_selector`

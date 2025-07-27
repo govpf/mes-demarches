@@ -41,6 +41,8 @@ module Types
           Types::Champs::Descriptor::LexpolChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:table_row_selector)
           Types::Champs::Descriptor::TableRowSelectorChampDescriptorType
+        when TypeDeChamp.type_champs.fetch(:referentiel_de_polynesie)
+          Types::Champs::Descriptor::ReferentielDePolynesieChampDescriptorType
 
           # ----- DS champs
         when TypeDeChamp.type_champs.fetch(:engagement_juridique)
