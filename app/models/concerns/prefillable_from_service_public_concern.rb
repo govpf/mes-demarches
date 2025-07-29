@@ -22,6 +22,8 @@ module PrefillableFromServicePublicConcern
     def prefill_from_service_public(result)
       case result
       in Dry::Monads::Success(data)
+        return if data.blank?
+
         self.nom = data[:nom] if nom.blank?
         self.email = data[:adresse_courriel] if email.blank?
         self.telephone = data[:telephone]&.first&.dig("valeur") if telephone.blank?
@@ -35,6 +37,8 @@ module PrefillableFromServicePublicConcern
     def prefill_from_api_entreprise(result)
       case result
       in Dry::Monads::Success(data)
+        return if data.blank?
+
         self.type_organisme = detect_type_organisme(data) if type_organisme.blank?
         self.nom = data[:nom_complet] if nom.blank?
         self.adresse = data.dig(:siege, :geo_adresse) if adresse.blank?
