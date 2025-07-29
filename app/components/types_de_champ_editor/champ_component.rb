@@ -130,7 +130,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   end
 
   def has_legacy_number?
-    revision.types_de_champ.any?(&:legacy_number?)
+    revision.types_de_champ.any?(&:number?)
   end
 
   def lexpol_models
