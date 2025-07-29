@@ -4574,6 +4574,52 @@ type SiretChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type TableColumn {
+  """
+  Nom de la colonne
+  """
+  name: String!
+
+  """
+  Type de la valeur
+  """
+  type: String!
+
+  """
+  Valeur de la colonne
+  """
+  value: String
+}
+
+type TableRowSelectorChamp implements Champ {
+  """
+  L'identifiant du champDescriptor de ce champ
+  """
+  champDescriptorId: String!
+
+  """
+  Colonnes et valeurs de la table externe
+  """
+  columns: [TableColumn!]!
+  id: ID!
+
+  """
+  Libellé du champ.
+  """
+  label: String!
+  prefilled: Boolean!
+
+  """
+  La valeur du champ sous forme texte.
+  """
+  stringValue: String
+
+  """
+  Date de dernière modification du champ.
+  """
+  updatedAt: ISO8601DateTime!
+}
+
 type TableRowSelectorChampDescriptor implements ChampDescriptor {
   """
   Description des champs d’un bloc répétable.
