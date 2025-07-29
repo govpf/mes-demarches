@@ -11,6 +11,7 @@ class TypesDeChamp::SiretTypeDeChamp < TypesDeChamp::TypeDeChampBase
   def champ_blank_or_invalid?(champ) = Siret.new(siret: champ.value).invalid?
 
   def columns(procedure:, displayable: true, prefix: nil)
-    super.concat(addressable_columns(procedure:, displayable:, prefix:))
+    # pf commune, code postal, department, region are not filled for Numéro Tahiti
+    super
   end
 end
