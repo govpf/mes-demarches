@@ -79,6 +79,7 @@ class API::V2::Schema < GraphQL::Schema
     Types::Champs::RegionChampType,
     Types::Champs::RepetitionChampType,
     Types::Champs::SiretChampType,
+    Types::Champs::TableRowSelectorChampType,
     Types::Champs::TextChampType,
     Types::Champs::TitreIdentiteChampType,
     Types::Champs::VisaChampType,
