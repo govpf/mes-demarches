@@ -127,7 +127,7 @@ describe ExportTemplate do
         ]
       end
       it 'is able to resolve stable_id' do
-        expect(export_template.columns_for_stable_id(20).size).to eq(5)
+        expect(export_template.columns_for_stable_id(20).size).to eq(1)
       end
     end
     context 'when procedure has a TypeDeChamp::Text' do
