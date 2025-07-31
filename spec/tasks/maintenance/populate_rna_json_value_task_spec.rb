@@ -20,7 +20,7 @@ module Maintenance
       end
       it 'updates value_json' do
         expect { subject }.to change { element.reload.value_json }
-          .from(nil)
+          .from(anything)
           .to({
             "street_number" => "33",
             "street_name" => "de Modagor",
@@ -33,7 +33,8 @@ module Maintenance
             "departement_name" => nil,
             "department_name" => nil,
             "region_code" => nil,
-            "region_name" => nil
+            "region_name" => nil,
+            "title" => "LA PRÉVENTION ROUTIERE"
           })
       end
     end

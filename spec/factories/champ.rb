@@ -96,7 +96,7 @@ FactoryBot.define do
     end
 
     factory :champ_do_not_use_linked_drop_down_list, class: 'Champs::LinkedDropDownListChamp' do
-      value { '["categorie 1", "choix 1"]' }
+      value { '["primary", "secondary"]' }
     end
 
     factory :champ_do_not_use_pays, class: 'Champs::PaysChamp' do
@@ -207,15 +207,20 @@ FactoryBot.define do
 
     factory :champ_do_not_use_rna, class: 'Champs::RNAChamp' do
       value { 'W173847273' }
+      value_json { AddressProxy::ADDRESS_PARTS.index_by(&:itself).merge(title: "LA PRÉVENTION ROUTIERE") }
     end
 
     factory :champ_do_not_use_engagement_juridique, class: 'Champs::EngagementJuridiqueChamp' do
+      value { 'EJ' }
     end
 
     factory :champ_do_not_use_cojo, class: 'Champs::COJOChamp' do
     end
 
     factory :champ_do_not_use_rnf, class: 'Champs::RNFChamp' do
+      value { '075-FDD-00003-01' }
+      external_id { '075-FDD-00003-01' }
+      value_json { AddressProxy::ADDRESS_PARTS.index_by(&:itself).merge(title: "Fondation SFR") }
     end
 
     factory :champ_do_not_use_expression_reguliere, class: 'Champs::ExpressionReguliereChamp' do
