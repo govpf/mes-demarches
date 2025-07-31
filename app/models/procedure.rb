@@ -873,24 +873,19 @@ class Procedure < ApplicationRecord
   #----- PF section start
 
   def dossier_column_styles(export_template = nil)
-    sample_dossier = dossiers.first || Dossier.new(procedure: self)
-    types_de_champ = types_de_champ_for_procedure_export.to_a
-    columns = sample_dossier.spreadsheet_columns_xlsx(types_de_champ: types_de_champ, export_template: export_template)
+    # Si on a un template d'export, on peut juste retourner un array vide
+    # car les types sont déjà gérés par SpreadsheetArchitect dans ExportedColumn
+    return [] if export_template.present?
 
-    columns.each_with_index.filter_map do |column, index|
-      next if column.nil? || column.size < 3
-
-      type = column[2] # SpreadsheetArchitect type
-      style = {}
-
-      case type
-      when :date
-        style = { columns: index, styles: { format_code: 'dd/mm/yyyy' } }
-      when :time
-        style = { columns: index, styles: { format_code: 'dd/mm/yyyy hh:mm:ss' } }
-      end
-      style unless style.empty?
-    end
+    # Pour les exports sans template, on utilise l'ancienne logique
+    date_index = index_of_dates
+    exported_champs = active_revision.types_de_champ_public.reject(&:exclude_from_export?)
+    exported_annotations = active_revision.types_de_champ_private.reject(&:exclude_from_export?)
+    champ_start = fixed_column_offset
+    private_champ_start = champ_start + exported_champs.length
+    [{ columns: (date_index..date_index + 3), styles: { format_code: 'dd/mm/yyyy hh:mm:ss' } }] +
+      exported_champs.flat_map(&:libelles_for_export).filter_map.with_index(champ_start, &method(:column_style)) +
+      exported_annotations.flat_map(&:libelles_for_export).filter_map.with_index(private_champ_start, &method(:column_style))
   end
 
   def etablissement_column_styles
