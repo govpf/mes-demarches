@@ -13,7 +13,7 @@ describe Columns::ChampColumn do
         expect_type_de_champ_values('email', eq(['yoda@beta.gouv.fr']))
         expect_type_de_champ_values('phone', eq(['0666666666']))
         expect_type_de_champ_values('address', eq(["2 rue des Démarches"]))
-        expect_type_de_champ_values('communes', eq(["Coye-la-Forêt"]))
+        expect_type_de_champ_values('communes', eq(["Coye-la-Forêt", "60580", "60"]))
         expect_type_de_champ_values('departements', eq(['01']))
         expect_type_de_champ_values('regions', eq(['01']))
         expect_type_de_champ_values('pays', eq(['France']))
@@ -30,7 +30,7 @@ describe Columns::ChampColumn do
         expect_type_de_champ_values('checkbox', eq([true]))
         expect_type_de_champ_values('drop_down_list', eq(['val1']))
         expect_type_de_champ_values('multiple_drop_down_list', eq([["val1", "val2"]]))
-        expect_type_de_champ_values('linked_drop_down_list', eq([nil, "categorie 1", "choix 1"]))
+        expect_type_de_champ_values('linked_drop_down_list', eq(["primary / secondary", "primary", "secondary"]))
         expect_type_de_champ_values('yes_no', eq([true]))
         expect_type_de_champ_values('annuaire_education', eq([nil]))
         expect_type_de_champ_values('piece_justificative', be_an_instance_of(Array))
@@ -41,6 +41,8 @@ describe Columns::ChampColumn do
         expect_type_de_champ_values('mesri', eq([nil]))
         expect_type_de_champ_values('cojo', eq([nil]))
         expect_type_de_champ_values('expression_reguliere', eq([nil]))
+        expect_type_de_champ_values('rna', eq(["W173847273", "postal_code", "city_name", "departement_code", "region_name", "LA PRÉVENTION ROUTIERE"]))
+        expect_type_de_champ_values('rnf', eq(["075-FDD-00003-01", "postal_code", "city_name", "departement_code", "region_name", "Fondation SFR"]))
       end
     end
 
