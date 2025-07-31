@@ -873,11 +873,8 @@ class Procedure < ApplicationRecord
   #----- PF section start
 
   def dossier_column_styles(export_template = nil)
-    # Si on a un template d'export, on peut juste retourner un array vide
-    # car les types sont déjà gérés par SpreadsheetArchitect dans ExportedColumn
     return [] if export_template.present?
 
-    # Pour les exports sans template, on utilise l'ancienne logique
     date_index = index_of_dates
     exported_champs = active_revision.types_de_champ_public.reject(&:exclude_from_export?)
     exported_annotations = active_revision.types_de_champ_private.reject(&:exclude_from_export?)
