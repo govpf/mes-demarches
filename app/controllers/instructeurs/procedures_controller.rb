@@ -137,11 +137,6 @@ module Instructeurs
         .groupe_instructeurs
         .where(procedure: procedure)
 
-      @can_download_dossiers = current_instructeur
-        .dossiers
-        .visible_by_administration
-        .exists?(groupe_instructeur_id: groupe_instructeur_ids) && !instructeur_as_manager?
-
       export = Export.find_or_create_fresh_export(export_format, groupe_instructeurs, current_instructeur, **export_options)
 
       @procedure = procedure
@@ -209,7 +204,6 @@ module Instructeurs
     def exports
       @procedure = procedure
       @exports = Export.for_groupe_instructeurs(groupe_instructeur_ids).ante_chronological
-      @export_templates = current_instructeur.export_templates_for(@procedure).includes(:groupe_instructeur)
       cookies.encrypted[cookies_export_key] = {
         value: DateTime.current,
         expires: Export::MAX_DUREE_GENERATION + Export::MAX_DUREE_CONSERVATION_EXPORT,
@@ -221,6 +215,11 @@ module Instructeurs
         format.turbo_stream
         format.html
       end
+    end
+
+    def export_templates
+      @procedure = procedure
+      @export_templates = current_instructeur.export_templates_for(@procedure).includes(:groupe_instructeur)
     end
 
     def email_usagers

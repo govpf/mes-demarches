@@ -7,7 +7,7 @@
     "@coldwired/utils": "^0.13.0",
     "@formatjs/intl-listformat": "^7.5.7",
     "@frsource/autoresize-textarea": "^2.0.87",
-    "@gouvfr/dsfr": "^1.11.2",
+    "@gouvfr/dsfr": "^1.12.1",
     "@graphiql/plugin-explorer": "^3.1.0",
     "@graphiql/toolkit": "^0.9.1",
     "@heroicons/react": "^1.0.6",
@@ -113,15 +113,10 @@
     "lint:css": "prettier app/assets/stylesheets --check",
     "lint:css:fix": "prettier app/assets/stylesheets --write",
     "graphql:doc:build": "RAILS_ENV=production bin/rake graphql:schema:idl && spectaql spectaql_config.yml",
-    "postinstall": "patch-package",
     "test": "vitest",
     "coverage": "vitest run --coverage",
     "up": "bunx npm-check-updates --root --format group -i",
     "vite-bundle-visualizer": "bunx vite-bundle-visualizer"
-  },
-  "resolutions": {
-    "string-width": "4.2.2",
-    "wrap-ansi": "7.0.0"
   },
   "trustedDependencies": [
     "core-js",
@@ -200,5 +195,9 @@
         }
       }
     ]
+  },
+  "patchedDependencies": {
+    "@gouvfr/dsfr@1.12.1": "patches/@gouvfr%2Fdsfr@1.12.1.patch",
+    "@hotwired/turbo@7.3.0": "patches/@hotwired%2Fturbo@7.3.0.patch"
   }
 }
