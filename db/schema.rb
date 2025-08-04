@@ -430,9 +430,9 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "dossier_labels", force: :cascade do |t|
+    t.datetime "created_at", null: false
     t.bigint "dossier_id", null: false
     t.bigint "label_id", null: false
-    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["dossier_id"], name: "index_dossier_labels_on_dossier_id"
     t.index ["label_id"], name: "index_dossier_labels_on_label_id"
@@ -502,12 +502,13 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.boolean "for_tiers", default: false, null: false
     t.boolean "forced_groupe_instructeur", default: false, null: false
     t.bigint "groupe_instructeur_id"
-    t.datetime "groupe_instructeur_updated_at", precision: nil
-    t.datetime "hidden_by_administration_at", precision: nil
+    t.datetime "groupe_instructeur_updated_at"
+    t.datetime "hidden_by_administration_at"
     t.datetime "hidden_by_expired_at"
     t.string "hidden_by_reason"
     t.datetime "hidden_by_user_at"
     t.datetime "identity_updated_at"
+    t.datetime "last_avis_piece_jointe_updated_at"
     t.datetime "last_avis_updated_at"
     t.datetime "last_champ_piece_jointe_updated_at"
     t.datetime "last_champ_private_updated_at"
@@ -520,8 +521,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.bigint "parent_dossier_id"
     t.string "prefill_token"
     t.boolean "prefilled"
-    t.string "private_search_terms"
-    t.datetime "processed_at", precision: nil
+    t.text "private_search_terms"
+    t.datetime "processed_at"
     t.bigint "revision_id"
     t.text "search_terms"
     t.string "state"
@@ -530,8 +531,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.datetime "termine_close_to_expiration_notice_sent_at"
     t.datetime "updated_at"
     t.integer "user_id"
-    t.datetime "last_avis_piece_jointe_updated_at"
-    t.index "to_tsvector('french'::regconfig, (search_terms || (private_search_terms)::text))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
+    t.index "to_tsvector('french'::regconfig, (search_terms || private_search_terms))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
     t.index "to_tsvector('french'::regconfig, search_terms)", name: "index_dossiers_on_search_terms", using: :gin
     t.index ["archived"], name: "index_dossiers_on_archived"
     t.index ["batch_operation_id"], name: "index_dossiers_on_batch_operation_id"
@@ -653,19 +653,19 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.datetime "created_at", null: false
     t.integer "dossiers_count"
     t.bigint "export_template_id"
+    t.jsonb "filtered_columns", default: [], null: false, array: true
     t.string "format", null: false
     t.bigint "instructeur_id"
     t.string "job_status", default: "pending", null: false
     t.text "key", null: false
     t.bigint "procedure_presentation_id"
     t.jsonb "procedure_presentation_snapshot"
+    t.jsonb "sorted_column"
     t.string "statut", default: "tous"
     t.string "time_span_type", default: "everything", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_profile_id"
     t.string "user_profile_type"
-    t.jsonb "filtered_columns", default: [], null: false, array: true
-    t.jsonb "sorted_column"
     t.index ["export_template_id"], name: "index_exports_on_export_template_id"
     t.index ["instructeur_id"], name: "index_exports_on_instructeur_id"
     t.index ["key"], name: "index_exports_on_key"
@@ -846,10 +846,10 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "labels", force: :cascade do |t|
-    t.string "name"
     t.string "color"
-    t.bigint "procedure_id", null: false
     t.datetime "created_at", null: false
+    t.string "name"
+    t.bigint "procedure_id", null: false
     t.datetime "updated_at", null: false
     t.index ["procedure_id"], name: "index_labels_on_procedure_id"
   end
@@ -904,22 +904,22 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "procedure_presentations", id: :serial, force: :cascade do |t|
-    t.integer "assign_to_id"
-    t.datetime "created_at"
-    t.jsonb "displayed_fields", default: [{"label"=>"Demandeur", "table"=>"user", "column"=>"email"}], null: false
-    t.jsonb "filters", default: {"tous"=>[], "suivis"=>[], "traites"=>[], "a-suivre"=>[], "archives"=>[], "expirant"=>[], "supprimes"=>[]}, null: false
-    t.jsonb "sort", default: {"order"=>"desc", "table"=>"notifications", "column"=>"notifications"}, null: false
-    t.datetime "updated_at"
-    t.jsonb "displayed_columns", default: [], null: false, array: true
-    t.jsonb "tous_filters", default: [], null: false, array: true
-    t.jsonb "suivis_filters", default: [], null: false, array: true
-    t.jsonb "traites_filters", default: [], null: false, array: true
     t.jsonb "a_suivre_filters", default: [], null: false, array: true
     t.jsonb "archives_filters", default: [], null: false, array: true
+    t.integer "assign_to_id"
+    t.datetime "created_at"
+    t.jsonb "displayed_columns", default: [], null: false, array: true
+    t.jsonb "displayed_fields", default: [{"label"=>"Demandeur", "table"=>"user", "column"=>"email"}], null: false
     t.jsonb "expirant_filters", default: [], null: false, array: true
+    t.jsonb "filters", default: {"tous"=>[], "suivis"=>[], "traites"=>[], "a-suivre"=>[], "archives"=>[], "expirant"=>[], "supprimes"=>[]}, null: false
+    t.jsonb "sort", default: {"order"=>"desc", "table"=>"notifications", "column"=>"notifications"}, null: false
+    t.jsonb "sorted_column"
+    t.jsonb "suivis_filters", default: [], null: false, array: true
     t.jsonb "supprimes_filters", default: [], null: false, array: true
     t.jsonb "supprimes_recemment_filters", default: [], null: false, array: true
-    t.jsonb "sorted_column"
+    t.jsonb "tous_filters", default: [], null: false, array: true
+    t.jsonb "traites_filters", default: [], null: false, array: true
+    t.datetime "updated_at"
     t.index ["assign_to_id"], name: "index_procedure_presentations_on_assign_to_id", unique: true
   end
 
@@ -968,6 +968,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.boolean "allow_expert_messaging", default: true, null: false
     t.boolean "allow_expert_review", default: true, null: false
     t.string "api_entreprise_token"
+    t.datetime "api_entreprise_token_expires_at", precision: nil
     t.text "api_particulier_scopes", default: [], array: true
     t.jsonb "api_particulier_sources", default: {}
     t.boolean "ask_birthday", default: false, null: false
@@ -987,7 +988,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "description"
     t.string "description_pj"
     t.string "description_target_audience"
-    t.datetime "dossiers_count_computed_at", precision: nil
+    t.datetime "dossiers_count_computed_at"
     t.bigint "draft_revision_id"
     t.integer "duree_conservation_dossiers_dans_ds"
     t.boolean "duree_conservation_etendue_par_ds", default: false, null: false
@@ -1025,12 +1026,11 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.jsonb "sva_svr", default: {}, null: false
     t.text "tags", default: [], array: true
     t.boolean "template", default: false, null: false
-    t.datetime "unpublished_at", precision: nil
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "unpublished_at"
+    t.datetime "updated_at", null: false
     t.string "web_hook_url"
     t.datetime "whitelisted_at"
     t.bigint "zone_id"
-    t.datetime "api_entreprise_token_expires_at", precision: nil
     t.index ["api_particulier_sources"], name: "index_procedures_on_api_particulier_sources", using: :gin
     t.index ["declarative_with_state"], name: "index_procedures_on_declarative_with_state"
     t.index ["defaut_groupe_instructeur_id"], name: "index_procedures_on_defaut_groupe_instructeur_id"
@@ -1195,7 +1195,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.bigint "dossier_id"
     t.string "instructeur_email"
     t.string "motivation"
-    t.datetime "processed_at", precision: nil
+    t.datetime "processed_at"
     t.string "state"
     t.index ["dossier_id"], name: "index_traitements_on_dossier_id"
   end
