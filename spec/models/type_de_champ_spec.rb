@@ -462,6 +462,6 @@ describe TypeDeChamp do
   describe '#humanized_conditionable_types_by_category' do
     subject { TypeDeChamp.humanized_conditionable_types_by_category }
 
-    it { is_expected.to eq([["« Référentiel des administrations »"], ["« Oui/Non »", "« Case à cocher seule »", "« Choix simple »", "« Choix multiple »"], ["« Nombre entier »", "« Nombre décimal »"], ["« Communes »", "« EPCI »", "« Départements »", "« Régions »", "« Adresse en France »", "« Pays »", "« Commune de Polynésie »", "« Code Postal de Polynésie »"]]) }
+        it { is_expected.to eq([["« Référentiel des administrations »"], ["« Oui/Non »", "« Case à cocher seule »", "« Choix simple »", "« Choix multiple »"], ["« Nombre entier »", "« Nombre décimal »"], ["« Adresse en France »", "« Communes »", "« EPCI »", "« Départements »", "« Régions »", "« Pays »", "« Commune de Polynésie »", "« Code Postal de Polynésie »"]]) }
   end
 end
