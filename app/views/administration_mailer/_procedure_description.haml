@@ -11,9 +11,9 @@
           = link_to "#{administrateur.email}", "mailto:#{administrateur.email}"
   %li
     Liste des champs remplis par l'usager
-    = render partial: "field_table", locals: { procedure: procedure, types_de_champ: procedure.types_de_champ_for_procedure_presentation.public_only }
+    = render partial: "field_table", locals: { procedure: procedure, types_de_champ: procedure.all_revisions_types_de_champ.public_only }
   - if procedure.active_revision.types_de_champ_private.present?
     %li
       Liste des champs remplis par l'organisme
       = procedure.service&.nom
-      = render partial: "field_table", locals: { procedure: procedure, types_de_champ: procedure.types_de_champ_for_procedure_presentation.private_only }
+      = render partial: "field_table", locals: { procedure: procedure, types_de_champ: procedure.all_revisions_types_de_champ.private_only }
