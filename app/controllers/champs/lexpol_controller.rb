@@ -9,12 +9,15 @@ module Champs
       force_create = params[:force_create].present?
       service.upsert_dossier(force_create: force_create)
       flash[:notice] = "Dossier Lexpol #{@champ.value.blank? ? 'créé' : 'mis à jour'} avec succès"
-    rescue JSON::ParserError
+    rescue JSON::ParserError => e
+      Sentry.capture_message("Invalid Json received from Lexpol : #{e.message}")
       flash[:alert] = "Erreur de communication avec Lexpol"
+
     rescue => e
       if e.message.include?('401')
         flash[:alert] = "Accès non autorisé - Vérifiez votre enregistrement sur Lexpol"
       else
+        Sentry.capture_exception(e)
         flash[:alert] = "Impossible de #{@champ.value.blank? ? "créer" : "mettre à jour"} le dossier Lexpol. #{e.message}"
       end
     ensure

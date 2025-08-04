@@ -39,36 +39,15 @@ class Champ < ApplicationRecord
     :current_section_level,
     :exclude_from_export?,
     :exclude_from_view?,
-    :repetition?,
-    :block?,
-    :dossier_link?,
-    :departement?,
-    :region?,
-    :textarea?,
-    :piece_justificative?,
-    :titre_identite?,
-    :header_section?,
-    :checkbox?,
-    :simple_drop_down_list?,
-    :linked_drop_down_list?,
     :non_fillable?,
     :fillable?,
-    :cnaf?,
-    :dgfip?,
-    :pole_emploi?,
-    :mesri?,
-    :rna?,
-    :siret?,
-    :carte?,
     :te_fenua?,
     :lexpol?,
-    :datetime?,
     :mandatory?,
     :prefillable?,
     :refresh_after_update?,
     :character_limit?,
     :character_limit,
-    :yes_no?,
     :expression_reguliere,
     :expression_reguliere_exemple_text,
     :expression_reguliere_error_message,
@@ -78,6 +57,9 @@ class Champ < ApplicationRecord
 
   # pf champ
   delegate :accredited_user_list, :visa?, :table_id, to: :type_de_champ
+
+  delegate(*TypeDeChamp.type_champs.values.map { "#{_1}?".to_sym }, to: :type_de_champ)
+  delegate :piece_justificative_or_titre_identite?, :any_drop_down_list?, to: :type_de_champ
 
   delegate :to_typed_id, :to_typed_id_for_query, to: :type_de_champ, prefix: true
 
@@ -130,8 +112,8 @@ class Champ < ApplicationRecord
     TypeDeChamp::CHAMP_TYPE_TO_TYPE_CHAMP.fetch(type)
   end
 
-  def last_write_column_type
-    TypeDeChamp.column_type(last_write_type_champ)
+  def is_type?(type_champ)
+    last_write_type_champ == type_champ
   end
 
   def main_value_name

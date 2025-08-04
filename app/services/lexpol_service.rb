@@ -64,7 +64,7 @@ class LexpolService
       variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ) if champ.present?
       variables
     end
-    LexpolService.default_mapping(champ.type_de_champ).reduce(variables) do |variables, (source_field, target_field)|
+    LexpolService.default_mapping(champ.type_de_champ, dossier.procedure).reduce(variables) do |variables, (source_field, target_field)|
       raw_values = LexpolFieldsService.object_field_values(dossier, source_field)
       final_values = raw_values.map { |val| LexpolFieldsService.format_lexpol_value(val) }
       variables[target_field] = final_values.compact_blank.join(', ')

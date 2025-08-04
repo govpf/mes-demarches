@@ -273,6 +273,28 @@ describe DossierFilterService do
       it { is_expected.to eq([dossier_no, dossier_yes].map(&:id)) }
     end
 
+    context 'for labels table' do
+      let(:column) { procedure.find_column(label: 'Labels') }
+
+      let(:label_a) { Label.create(name: "a", color: 'green-bourgeon', procedure:) }
+      let(:label_z) { Label.create(name: "z", color: 'green-bourgeon', procedure:) }
+      let!(:dossier_z) { create(:dossier, procedure:) }
+      let!(:dossier_a) { create(:dossier, procedure:) }
+      let!(:dossier_no_label) { create(:dossier, procedure:) }
+      let!(:dossier_label_a) { DossierLabel.create(dossier: dossier_a, label: label_a) }
+      let!(:dossier_label_z) { DossierLabel.create(dossier: dossier_z, label: label_z) }
+
+      context 'asc' do
+        let(:order) { 'asc' }
+        it { is_expected.to eq([dossier_a, dossier_z, dossier_no_label].map(&:id)) }
+      end
+
+      context 'desc' do
+        let(:order) { 'desc' }
+        it { is_expected.to eq([dossier_no_label, dossier_z, dossier_a].map(&:id)) }
+      end
+    end
+
     context 'for other tables' do
       # All other columns and tables work the same so it’s ok to test only one
       let(:column) { procedure.find_column(label: 'Établissement code postal') }
@@ -488,20 +510,42 @@ describe DossierFilterService do
       end
 
       context 'with enums type_de_champ' do
-        let(:filter) { [type_de_champ.libelle, 'Favorable'] }
-        let(:types_de_champ_public) { [{ type: :multiple_drop_down_list, options: ['Favorable', 'Defavorable'] }] }
+        let(:filter) { [type_de_champ.libelle, search_term] }
+        let(:types_de_champ_public) { [{ type: :multiple_drop_down_list, options: ['champ', 'champignon'] }] }
 
         before do
           kept_champ = kept_dossier.champs.find_by(stable_id: type_de_champ.stable_id)
-          kept_champ.value = ['Favorable']
+          kept_champ.value = ['champ', 'champignon']
           kept_champ.save!
 
           discarded_champ = discarded_dossier.champs.find_by(stable_id: type_de_champ.stable_id)
-          discarded_champ.value = ['Defavorable']
+          discarded_champ.value = ['champignon']
           discarded_champ.save!
         end
 
-        it { is_expected.to contain_exactly(kept_dossier.id) }
+        context 'with single value' do
+          let(:search_term) { 'champ' }
+
+          it { is_expected.to contain_exactly(kept_dossier.id) }
+        end
+
+        context 'with multiple search values' do
+          let(:search_term) { 'champignon' }
+
+          it { is_expected.to contain_exactly(kept_dossier.id, discarded_dossier.id) }
+        end
+
+        context 'test if I could break a regex with %' do
+          let(:search_term) { '%' }
+
+          it { is_expected.to be_empty }
+        end
+
+        context 'test if I could break a regex with .' do
+          let(:search_term) { '.*' }
+
+          it { is_expected.to be_empty }
+        end
       end
     end
 
