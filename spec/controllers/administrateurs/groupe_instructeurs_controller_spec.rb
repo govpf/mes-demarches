@@ -959,8 +959,8 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
       it do
         expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
         expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
-        expect(procedure3.groupe_instructeurs.pluck(:label)).to include("01 – Guadeloupe")
-        expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_eq(champ_value(regions_tdc.stable_id), constant('01')))
+        expect(procedure3.groupe_instructeurs.pluck(:label)).to include("Guadeloupe")
+        expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_eq(champ_value(regions_tdc.stable_id), constant('84')))
         expect(procedure3.routing_enabled).to be_truthy
       end
     end
@@ -1098,11 +1098,11 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
     let!(:drop_down_tdc) { procedure4.draft_revision.types_de_champ.first }
 
-    before { patch :wizard, params: { procedure_id: procedure4.id, choice: { state: 'routage_custom' } } }
+    before { patch :wizard, params: { procedure_id: procedure4.id, choice: { state: 'custom_routing' } } }
 
     it do
       expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure4))
-      expect(procedure4.groupe_instructeurs.pluck(:label)).to match_array(['défaut', 'défaut bis'])
+      expect(procedure4.groupe_instructeurs.pluck(:label)).to match_array(['Groupe 1 (à renommer et configurer)', 'Groupe 2 (à renommer et configurer)'])
       expect(procedure4.reload.routing_enabled).to be_truthy
     end
   end
