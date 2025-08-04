@@ -116,6 +116,8 @@ module Types
           Types::Champs::EngagementJuridiqueChampType
         when ::Champs::TableRowSelectorChamp
           Types::Champs::TableRowSelectorChampType
+        when ::Champs::ReferentielDePolynesieChamp
+          Types::Champs::ReferentielDePolynesieChampType
         else
           Types::Champs::TextChampType
         end

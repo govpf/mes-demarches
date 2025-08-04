@@ -1,4 +1,4 @@
-%p= champ&.for_tag(:value)
+%p= champ&.type_de_champ.champ_value_for_tag(champ,:value)
 %p.fr-text--sm
   Né(e) le
-  = champ&.for_tag(:date_de_naissance)
+  = champ&.type_de_champ.champ_value_for_tag(champ,:date_de_naissance)

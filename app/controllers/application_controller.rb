@@ -7,6 +7,8 @@ class ApplicationController < ActionController::Base
   include Devise::StoreLocationExtension
   include ApplicationController::LongLivedAuthenticityToken
   include ApplicationController::ErrorHandling
+  # pf: ajout du concern pour la navigation contextuelle entre personas
+  include ContextualNavigationConcern
 
   MAINTENANCE_MESSAGE = 'Le site est actuellement en maintenance. Il sera à nouveau disponible dans un court instant.'
 

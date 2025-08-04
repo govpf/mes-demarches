@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_11_12_090128) do
+ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -509,8 +509,10 @@ ActiveRecord::Schema[7.0].define(version: 2024_11_12_090128) do
     t.datetime "hidden_by_user_at"
     t.datetime "identity_updated_at"
     t.datetime "last_avis_updated_at"
+    t.datetime "last_champ_piece_jointe_updated_at"
     t.datetime "last_champ_private_updated_at"
     t.datetime "last_champ_updated_at"
+    t.datetime "last_commentaire_piece_jointe_updated_at"
     t.datetime "last_commentaire_updated_at"
     t.string "mandataire_first_name"
     t.string "mandataire_last_name"
@@ -528,8 +530,6 @@ ActiveRecord::Schema[7.0].define(version: 2024_11_12_090128) do
     t.datetime "termine_close_to_expiration_notice_sent_at"
     t.datetime "updated_at"
     t.integer "user_id"
-    t.datetime "last_champ_piece_jointe_updated_at"
-    t.datetime "last_commentaire_piece_jointe_updated_at"
     t.datetime "last_avis_piece_jointe_updated_at"
     t.index "to_tsvector('french'::regconfig, (search_terms || (private_search_terms)::text))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
     t.index "to_tsvector('french'::regconfig, search_terms)", name: "index_dossiers_on_search_terms", using: :gin
@@ -717,9 +717,9 @@ ActiveRecord::Schema[7.0].define(version: 2024_11_12_090128) do
     t.integer "dossier_id", null: false
     t.integer "instructeur_id", null: false
     t.datetime "messagerie_seen_at", null: false
+    t.datetime "pieces_jointes_seen_at"
     t.datetime "unfollowed_at"
     t.datetime "updated_at"
-    t.datetime "pieces_jointes_seen_at"
     t.index ["dossier_id"], name: "index_follows_on_dossier_id"
     t.index ["instructeur_id", "dossier_id", "unfollowed_at"], name: "uniqueness_index", unique: true
     t.index ["instructeur_id"], name: "index_follows_on_instructeur_id"
@@ -949,8 +949,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_11_12_090128) do
   end
 
   create_table "procedure_tags", force: :cascade do |t|
-    t.string "name", null: false
     t.datetime "created_at", null: false
+    t.string "name", null: false
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_procedure_tags_on_name", unique: true
   end

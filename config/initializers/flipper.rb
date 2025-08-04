@@ -25,6 +25,7 @@ features = [
   :attestation_v2,
   :blocking_pending_correction,
   :cojo_type_de_champ,
+  :delayed_notifications, # pf: feature flag pour les notifications différées par procédure
   :dossier_pdf_vide,
   :engagement_juridique_type_de_champ,
   :export_order_by_revision,
@@ -35,7 +36,9 @@ features = [
   :sva,
   :switch_domain,
   # :lexpol,
-  :visa
+  :visa,
+  # pf: feature flag pour la navigation contextuelle entre personas
+  :contextual_persona_navigation
 ]
 
 def database_exists?

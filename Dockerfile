@@ -44,6 +44,10 @@ RUN adduser --disabled-password --home ${APP_PATH} userapp
 USER userapp
 WORKDIR ${APP_PATH}
 
+# Configuration du shell avec fond rouge sombre et texte blanc
+RUN echo 'export PS1="\[\033[97;41m\]\u@\h:\w\$ \[\033[0m\]"' >> ~/.bashrc && \
+    echo 'export TERM=xterm-256color' >> ~/.bashrc
+
 #----- Building js dependencies (node_modules)
 RUN (curl -fsSL https://bun.sh/install | bash)
 COPY package.json bun.lockb ./

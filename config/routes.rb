@@ -282,6 +282,7 @@ Rails.application.routes.draw do
   namespace :data_sources do
     # pf referentiel configurable
     get 'table_row_selector/:table/search', to: 'table_row_selector#search', as: :trs_search
+    get 'referentiel_de_polynesie/:table/search', to: 'referentiel_de_polynesie#search', as: :rdp_search
 
     get :adresse, to: 'adresse#search', as: :data_source_adresse
     get :commune, to: 'commune#search', as: :data_source_commune

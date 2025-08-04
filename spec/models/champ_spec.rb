@@ -249,7 +249,7 @@ describe Champ do
       end
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_piece_justificative)) }
       before { allow(champ).to receive(:dossier).and_return(build(:dossier)) }
-      it { expect(champ.type_de_champ.champ_value_for_tag(champ)).to include('\u003cimg src=\"http://') }
+      it { expect(champ.type_de_champ.champ_value_for_tag(champ)).to include('<img src="http://') }
     end
 
     context 'when type_de_champ is numero_dn' do

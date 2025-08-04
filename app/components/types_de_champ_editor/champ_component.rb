@@ -108,6 +108,11 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   end
 
   def filter_featured_type_champ(type_champ)
+    # Masquer table_row_selector si referentiel_de_polynesie est activé
+    if type_champ == 'table_row_selector' && procedure.feature_enabled?(:referentiel_de_polynesie)
+      return false
+    end
+
     feature_name = TypeDeChamp::FEATURE_FLAGS[type_champ.to_sym]
     feature_name.blank? || procedure.feature_enabled?(feature_name)
   end

@@ -145,7 +145,12 @@ module Users
     # The prefilled dossier is not owned yet, and the user is signed in: they become the new owner
     def set_prefilled_dossier_ownership
       @prefilled_dossier.update!(user: current_user)
-      DossierMailer.with(dossier: @prefilled_dossier).notify_new_draft.deliver_later
+      # pf: feature flag pour activer les notifications différées uniquement sur certaines procédures
+      if @prefilled_dossier.procedure.feature_enabled?(:delayed_notifications)
+        DraftNotificationJob.schedule_for_dossier(@prefilled_dossier)
+      else
+        DossierMailer.with(dossier: @prefilled_dossier).notify_new_draft.deliver_later
+      end
     end
 
     # The prefilled dossier is owned by another user: raise an exception
