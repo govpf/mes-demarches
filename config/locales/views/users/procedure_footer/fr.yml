@@ -39,6 +39,8 @@ fr:
       dematerialisation:
         header: Dématérialisation
         title_1: Télécharger le formulaire PDF
+        link: "https://www.transformation.gouv.fr/france-services"
+        alt: "Trouver une maison France Services"
       support:
         header: Être accompagné dans votre démarche
       support_links:

@@ -10,8 +10,7 @@ describe "procedure exports" do
     Flipper.enable(:export_template, procedure)
     visit instructeur_procedure_path(procedure)
 
-    click_on "Voir les exports et modèles d'export"
-
+    find("button", text: "Téléchargements").click
     click_on "Modèles d'export"
 
     click_on "Créer un modèle d'export tabulaire"
@@ -30,12 +29,7 @@ describe "procedure exports" do
 
     click_on "Enregistrer"
 
-    find("#tabpanel-export-templates", wait: 5, visible: true)
-    find("#tabpanel-export-templates").click
-
-    within 'table' do
-      expect(page).to have_content('Mon modèle')
-    end
+    expect(page).to have_content('Mon modèle')
 
     # check if all usager colonnes are selected
     #
