@@ -25,6 +25,14 @@ class Champs::RepetitionChamp < Champ
     rows.last&.first&.focusable_input_id
   end
 
+  def discarded?
+    discarded_at.present?
+  end
+
+  def discard!
+    touch(:discarded_at)
+  end
+
   def search_terms
     # The user cannot enter any information here so it doesn’t make much sense to search
   end

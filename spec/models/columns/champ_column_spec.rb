@@ -20,6 +20,21 @@ describe Columns::ChampColumn do
         expect_type_de_champ_values('epci', eq([nil]))
         expect_type_de_champ_values('iban', eq(["FR76 3000 1007 9412 3456 7890 185"]))
         expect_type_de_champ_values('siret', eq(["44011762001530"]))
+        # expect_type_de_champ_values('siret', match_array(
+        #   [
+        #     "44011762001530",
+        #     "SA à conseil d'administration (s.a.i.)",
+        #     "440117620",
+        #     "GRTGAZ",
+        #     "GRTGAZ",
+        #     "1990-04-24",
+        #     "Transports par conduites",
+        #     "92270",
+        #     "Bois-Colombes",
+        #     "92",
+        #     "Île-de-France"
+        #   ]
+        # ))
         expect_type_de_champ_values('text', eq(['text']))
         expect_type_de_champ_values('textarea', eq(['textarea']))
         expect_type_de_champ_values('number', eq(['42']))
@@ -100,20 +115,38 @@ describe Columns::ChampColumn do
       end
 
       context 'from a drop_down_list' do
-        let(:champ) { Champs::DropDownListChamp.new(value: 'val1') }
+        let(:champ) { Champs::DropDownListChamp.new(value:) }
+        let(:value) { 'val1' }
 
         it do
           expect(column('multiple_drop_down_list').value(champ)).to eq(['val1'])
           expect(column('text').value(champ)).to eq('val1')
         end
+
+        context 'value not in options' do
+          let(:value) { 'toto' }
+
+          it do
+            expect(column('simple_drop_down_list').value(champ)).to eq(nil)
+          end
+        end
       end
 
       context 'from a multiple_drop_down_list' do
-        let(:champ) { Champs::MultipleDropDownListChamp.new(value: '["val1","val2"]') }
+        let(:champ) { Champs::MultipleDropDownListChamp.new(value:) }
+        let(:value) { '["val1","val2"]' }
 
         it do
           expect(column('simple_drop_down_list').value(champ)).to eq('val1')
           expect(column('text').value(champ)).to eq('val1, val2')
+        end
+
+        context 'value not in options' do
+          let(:value) { '["toto","val2"]' }
+
+          it do
+            expect(column('multiple_drop_down_list').value(champ)).to eq(['val2'])
+          end
         end
       end
     end
@@ -123,13 +156,13 @@ describe Columns::ChampColumn do
 
   def expect_type_de_champ_values(type, assertion)
     type_de_champ = types_de_champ.find { _1.type_champ == type }
-    champ = dossier.send(:filled_champ, type_de_champ, nil)
+    champ = dossier.send(:filled_champ, type_de_champ)
     columns = type_de_champ.columns(procedure:)
     expect(columns.map { _1.value(champ) }).to assertion
   end
 
   def retrieve_champ(type)
     type_de_champ = types_de_champ.find { _1.type_champ == type }
-    dossier.send(:filled_champ, type_de_champ, nil)
+    dossier.send(:filled_champ, type_de_champ)
   end
 end

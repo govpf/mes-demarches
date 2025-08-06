@@ -105,7 +105,7 @@ module Instructeurs
         .per(ITEMS_PER_PAGE)
 
       @projected_dossiers = DossierProjectionService.project(@filtered_sorted_paginated_ids, procedure_presentation.displayed_columns)
-      @disable_checkbox_all = @projected_dossiers.all? { _1.batch_operation_id.present? }
+      @disable_checkbox_all = @projected_dossiers.all? { _1.dossier.batch_operation_id.present? }
 
       @batch_operations = BatchOperation.joins(:groupe_instructeurs)
         .where(groupe_instructeurs: current_instructeur.groupe_instructeurs.where(procedure_id: @procedure.id))
@@ -237,7 +237,7 @@ module Instructeurs
       dossiers.each do |dossier|
         commentaire = CommentaireService.create(current_instructeur, dossier, bulk_message_params.except(:targets))
         if commentaire.errors.empty?
-          commentaire.dossier.update!(last_commentaire_updated_at: Time.zone.now)
+          commentaire.dossier.touch(:last_commentaire_updated_at)
         else
           errors << dossier.id
         end
@@ -264,6 +264,12 @@ module Instructeurs
     def administrateurs
       @procedure = procedure
       @administrateurs = procedure.administrateurs
+    end
+
+    def apercu
+      @procedure = procedure
+      @dossier = procedure.active_revision.dossier_for_preview(current_user)
+      DossierPreloader.load_one(@dossier)
     end
 
     private

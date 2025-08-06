@@ -658,11 +658,11 @@ describe Users::DossiersController, type: :controller do
       let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:, user:) }
       let(:types_de_champ_public) { [{ type: :repetition, libelle: 'repetition', children: [{ type: :text, libelle: 'child' }] }] }
       let(:editing_fork) { dossier.owner_editing_fork }
-      let(:champ_repetition) { editing_fork.champs.find(&:repetition?) }
+      let(:champ_repetition) { editing_fork.project_champs_public.find(&:repetition?) }
       before do
         editing_fork
 
-        procedure.draft_revision.remove_type_de_champ(editing_fork.champs.find(&:repetition?).stable_id)
+        procedure.draft_revision.remove_type_de_champ(champ_repetition.stable_id)
         procedure.publish_revision!
 
         editing_fork.reload
@@ -675,7 +675,7 @@ describe Users::DossiersController, type: :controller do
 
     context 'when dossier was already submitted' do
       before do
-        expect_any_instance_of(Dossier).to receive(:remove_piece_justificative_file_not_visible!)
+        expect_any_instance_of(Dossier).to receive(:remove_not_visible_or_empty_champs!)
         post :submit_en_construction, params: payload
       end
 
@@ -900,10 +900,11 @@ describe Users::DossiersController, type: :controller do
     before { sign_in(user) }
 
     let(:procedure) { create(:procedure, :published, types_de_champ_public: [{}, { type: :piece_justificative }]) }
-    let!(:dossier) { create(:dossier, :en_construction, user:, procedure:) }
-    let(:first_champ) { dossier.project_champs_public.first }
+    let(:dossier) { create(:dossier, :en_construction, user:, procedure:) }
+    let!(:editing_fork) { dossier.owner_editing_fork }
+    let(:first_champ) { editing_fork.project_champs_public.first }
+    let(:piece_justificative_champ) { editing_fork.project_champs_public.last }
     let(:anchor_to_first_champ) { controller.helpers.link_to I18n.t('views.users.dossiers.fix_champ'), brouillon_dossier_path(anchor: first_champ.labelledby_id), class: 'error-anchor' }
-    let(:piece_justificative_champ) { dossier.project_champs_public.last }
     let(:value) { 'beautiful value' }
     let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
     let(:now) { Time.zone.parse('01/01/2100') }
@@ -951,14 +952,9 @@ describe Users::DossiersController, type: :controller do
 
       it 'updates the dossier timestamps' do
         subject
-        dossier.reload
-        expect(dossier.updated_at).to eq(now)
-        expect(dossier.last_champ_updated_at).to eq(now)
-      end
-
-      it 'updates the dossier state' do
-        subject
-        expect(dossier.reload.state).to eq(Dossier.states.fetch(:en_construction))
+        editing_fork.reload
+        expect(editing_fork.updated_at).to eq(now)
+        expect(editing_fork.last_champ_updated_at).to eq(now)
       end
 
       it { is_expected.to have_http_status(:ok) }
@@ -987,9 +983,9 @@ describe Users::DossiersController, type: :controller do
 
         it 'updates the dossier timestamps' do
           subject
-          dossier.reload
-          expect(dossier.updated_at).to eq(now)
-          expect(dossier.last_champ_updated_at).to eq(now)
+          editing_fork.reload
+          expect(editing_fork.updated_at).to eq(now)
+          expect(editing_fork.last_champ_updated_at).to eq(now)
         end
       end
     end
@@ -1022,14 +1018,10 @@ describe Users::DossiersController, type: :controller do
       end
 
       context 'iban error' do
+        let(:types_de_champ_public) { [{ type: :iban }] }
         let(:value) { 'abc' }
 
-        before do
-          first_champ.type_de_champ.update!(type_champ: :iban, mandatory: true, libelle: 'l')
-          dossier.project_champs_public.first.becomes!(Champs::IbanChamp).save!
-
-          subject
-        end
+        before { subject }
 
         it { expect(response).to have_http_status(:success) }
       end
@@ -1062,9 +1054,7 @@ describe Users::DossiersController, type: :controller do
     end
 
     context 'when the champ is a phone number' do
-      let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :phone }]) }
-      let!(:dossier) { create(:dossier, :en_construction, user:, procedure:) }
-      let(:first_champ) { dossier.project_champs_public.first }
+      let(:types_de_champ_public) { [{ type: :phone }] }
       let(:now) { Time.zone.parse('01/01/2100') }
 
       let(:submit_payload) do
@@ -1479,6 +1469,19 @@ describe Users::DossiersController, type: :controller do
 
       it 'must have hidden_by_user_at nil' do
         expect(dossier.reload.hidden_by_user_at).to be_nil
+      end
+    end
+
+    context 'when brouillon has been automatically expired' do
+      let(:dossier) { create(:dossier, :brouillon, user:) }
+
+      before {
+        dossier.hide_and_keep_track!(:automatic, :not_modified_for_a_long_time)
+      }
+
+      it 'must restore hidden attributes' do
+        expect { subject }.to change { dossier.reload.hidden_by_expired_at }.from(anything).to(nil)
+        expect(dossier.hidden_by_reason).to eq("not_modified_for_a_long_time")
       end
     end
   end

@@ -123,7 +123,7 @@ describe ExportTemplate do
     context 'when procedure has a TypeDeChamp::Siret' do
       let(:types_de_champ_public) do
         [
-          { type: :siret, libelle: 'siret', stable_id: 20 }
+          { type: :siret, libelle: 'SIRET', stable_id: 20 }
         ]
       end
       it 'is able to resolve stable_id' do

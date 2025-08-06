@@ -16,7 +16,7 @@ module Users
 
     before_action :ensure_ownership!, except: ACTIONS_ALLOWED_TO_ANY_USER + ACTIONS_ALLOWED_TO_OWNER_OR_INVITE
     before_action :ensure_ownership_or_invitation!, only: ACTIONS_ALLOWED_TO_OWNER_OR_INVITE
-    before_action :ensure_dossier_can_be_updated, only: [:update_identite, :update_siret, :brouillon, :submit_brouillon, :submit_en_construction, :modifier, :modifier_legacy, :update, :champ]
+    before_action :ensure_dossier_can_be_updated, only: [:update_identite, :update_siret, :brouillon, :submit_brouillon, :submit_en_construction, :modifier, :update, :champ]
     before_action :ensure_dossier_can_be_filled, only: [:brouillon, :modifier, :submit_brouillon, :submit_en_construction, :update]
     before_action :ensure_dossier_can_be_viewed, only: [:show]
     before_action :forbid_invite_submission!, only: [:submit_brouillon]
@@ -296,17 +296,9 @@ module Users
 
       if @dossier.errors.blank? && @dossier.can_passer_en_construction?
         @dossier.passer_en_construction!
-        @dossier.process_declarative!
-        @dossier.process_sva_svr!
-        @dossier.groupe_instructeur.instructeurs.with_instant_email_dossier_notifications.each do |instructeur|
-          DossierMailer.notify_new_dossier_depose_to_instructeur(@dossier, instructeur.email).deliver_later
-        end
         redirect_to merci_dossier_path(@dossier)
       else
-        respond_to do |format|
-          format.html { render :brouillon }
-          format.turbo_stream
-        end
+        render :brouillon
       end
     end
 
@@ -324,17 +316,7 @@ module Users
 
     def modifier
       @dossier = dossier_with_champs
-    end
-
-    # Transition to en_construction forks,
-    # so users editing en_construction dossiers won't completely break their changes.
-    # TODO: remove me after fork en_construction feature deploy (PR #8790)
-    def modifier_legacy
-      respond_to do |format|
-        format.turbo_stream do
-          flash.alert = "Une mise à jour de cette page est nécessaire pour poursuivre, veuillez la recharger (touche F5). Attention: le dernier champ modifié n’a pas été sauvegardé, vous devrez le ressaisir."
-        end
-      end
+      @dossier_for_editing = dossier.owner_editing_fork
     end
 
     def submit_en_construction
@@ -347,35 +329,27 @@ module Users
 
       submit_dossier_and_compute_errors
 
-      if @dossier.errors.blank? && @dossier.can_passer_en_construction?
-        editing_fork_origin.merge_fork(@dossier)
+      if dossier.errors.blank? && dossier.can_passer_en_construction?
+        editing_fork_origin.merge_fork(dossier)
         editing_fork_origin.submit_en_construction!
-
         redirect_to dossier_path(editing_fork_origin)
       else
-        respond_to do |format|
-          format.html do
-            render :modifier
-          end
-
-          format.turbo_stream do
-            @to_show, @to_hide, @to_update = champs_to_turbo_update(champs_public_attributes_params, dossier.champs.filter(&:public?))
-            render :update, layout: false
-          end
-        end
+        @dossier_for_editing = dossier
+        @dossier = editing_fork_origin
+        render :modifier
       end
     end
 
     def update
       @dossier = dossier.en_construction? ? dossier.find_editing_fork(dossier.user) : dossier
       @dossier = dossier_with_champs(pj_template: false)
-      @can_passer_en_construction_was, @can_passer_en_construction_is = @dossier.track_can_passer_en_construction do
+      @can_passer_en_construction_was, @can_passer_en_construction_is = dossier.track_can_passer_en_construction do
         update_dossier_and_compute_errors
       end
 
       respond_to do |format|
         format.turbo_stream do
-          @to_show, @to_hide, @to_update = champs_to_turbo_update(champs_public_attributes_params, dossier.champs.filter(&:public?))
+          @to_show, @to_hide, @to_update = champs_to_turbo_update(champs_public_attributes_params, dossier.project_champs_public_all)
           render :update, layout: false
         end
       end
@@ -387,8 +361,8 @@ module Users
 
     def champ
       @dossier = dossier_with_champs(pj_template: false)
-      type_de_champ = @dossier.find_type_de_champ_by_stable_id(params[:stable_id], :public)
-      champ = @dossier.project_champ(type_de_champ, params[:row_id])
+      type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id], :public)
+      champ = dossier.project_champ(type_de_champ, row_id: params[:row_id])
 
       respond_to do |format|
         format.turbo_stream do
@@ -594,7 +568,7 @@ module Users
       if action_name == 'update' || action_name == 'champ'
         Dossier.visible_by_user.or(Dossier.for_procedure_preview).or(Dossier.for_editing_fork)
       elsif action_name == 'restore'
-        Dossier.hidden_by_user
+        Dossier.hidden_by_user.or(Dossier.hidden_by_not_modified_for_a_long_time)
       elsif action_name == 'extend_conservation_and_restore' || (action_name == 'show' && request.format.pdf?)
         Dossier.visible_by_user.or(Dossier.hidden_by_expired)
       else
@@ -622,36 +596,34 @@ module Users
     end
 
     def update_dossier_and_compute_errors
-      @dossier.update_champs_attributes(champs_public_attributes_params, :public, updated_by: current_user.email)
-      updated_champs = @dossier.champs.filter(&:changed_for_autosave?)
-      if updated_champs.present?
-        @dossier.last_champ_updated_at = Time.zone.now
-      end
+      dossier.update_champs_attributes(champs_public_attributes_params, :public, updated_by: current_user.email)
+      updated_champs = dossier.champs.filter(&:changed_for_autosave?)
 
       # We save the dossier without validating fields, and if it is successful and the client
       # requests it, we ask for field validation errors.
-      if @dossier.save
-        if updated_champs.any?(&:used_by_routing_rules?)
-          @update_contact_information = true
-          RoutingEngine.compute(@dossier)
+      if dossier.save
+        if dossier.brouillon? && updated_champs.present?
+          dossier.touch(:last_champ_updated_at)
+          if updated_champs.any?(&:used_by_routing_rules?)
+            @update_contact_information = true
+            RoutingEngine.compute(dossier)
+          end
         end
 
         if params[:validate].present?
-          @dossier.valid?(:champs_public_value)
+          dossier.valid?(:champs_public_value)
         end
       end
-
-      @dossier.errors
     end
 
     def submit_dossier_and_compute_errors
-      @dossier.validate(:champs_public_value)
-      @dossier.check_mandatory_and_visible_champs
+      dossier.validate(:champs_public_value)
+      dossier.check_mandatory_and_visible_champs
 
-      if @dossier.editing_fork_origin&.pending_correction?
-        @dossier.editing_fork_origin.validate(:champs_public_value)
-        @dossier.editing_fork_origin.errors.where(:pending_correction).each do |error|
-          @dossier.errors.import(error)
+      if dossier.editing_fork_origin&.pending_correction?
+        dossier.editing_fork_origin.validate(:champs_public_value)
+        dossier.editing_fork_origin.errors.where(:pending_correction).each do |error|
+          dossier.errors.import(error)
         end
       end
     end

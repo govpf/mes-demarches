@@ -202,6 +202,7 @@ class TypeDeChamp < ApplicationRecord
   scope :not_condition, -> { where(condition: nil) }
   scope :fillable, -> { where.not(type_champ: [type_champs.fetch(:header_section), type_champs.fetch(:explication)]) }
   scope :with_header_section, -> { where.not(type_champ: TypeDeChamp.type_champs[:explication]) }
+  scope :mandatory, -> { where(mandatory: true) }
 
   scope :dubious, -> {
     where("unaccent(types_de_champ.libelle) ~* unaccent(?)", DubiousProcedure.forbidden_regexp)
@@ -390,10 +391,6 @@ class TypeDeChamp < ApplicationRecord
     !private?
   end
 
-  def in_revision?(revision)
-    revision.types_de_champ.any? { _1.stable_id == stable_id }
-  end
-
   def child?(revision)
     revision.coordinate_for(self)&.child?
   end
@@ -514,7 +511,7 @@ class TypeDeChamp < ApplicationRecord
     elsif regions?
       APIGeoService.region_options
     elsif any_drop_down_list?
-      drop_down_options
+      drop_down_options.map { [_1, _1] }
     elsif yes_no?
       Champs::YesNoChamp.options
     elsif checkbox?

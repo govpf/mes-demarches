@@ -65,7 +65,13 @@ class Champs::PieceJustificativeController < Champs::ChampController
       ChampRevision.create_or_update_revision(@champ, current_instructeur.id)
     end
 
-    @champ.dossier.update(last_champ_updated_at: Time.zone.now.utc) if save_succeed
+    if save_succeed
+      if dossier.brouillon?
+        dossier.touch(:last_champ_updated_at, :last_champ_piece_jointe_updated_at)
+      else
+        @champ.dossier.update(last_champ_updated_at: Time.zone.now.utc)
+      end
+    end
 
     save_succeed
   end
@@ -82,5 +88,9 @@ class Champs::PieceJustificativeController < Champs::ChampController
       dossier.project_champ(type_de_champ, params_row_id)
     end
     champ&.match_encoded_date?(:created_at, h) ? champ : nil
+  end
+
+  def dossier
+    @champ.dossier
   end
 end

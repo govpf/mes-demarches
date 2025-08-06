@@ -36,8 +36,9 @@ module CreateAvisConcern
     create_results = Avis.create(
       expert_emails.flat_map do |email|
         user = User.create_or_promote_to_expert(email, SecureRandom.hex)
-        experts_procedure = user.valid? ? ExpertsProcedure.find_or_create_by(procedure: dossier.procedure, expert: user.expert) : nil
+
         allowed_dossiers.map do |dossier|
+          experts_procedure = user.valid? ? ExpertsProcedure.find_or_create_by(procedure: dossier.procedure, expert: user.expert) : nil
           {
             email: email,
             introduction: create_avis_params[:introduction],
@@ -56,7 +57,7 @@ module CreateAvisConcern
     persisted, failed = create_results.partition(&:persisted?)
 
     if persisted.any?
-      dossier.update!(last_avis_updated_at: Time.zone.now)
+      dossier.touch(:last_avis_updated_at)
       sent_emails_addresses = []
       persisted.each do |avis|
         avis.dossier.demander_un_avis!(avis)

@@ -46,7 +46,7 @@ describe ColumnsConcern do
           { label: 'notifications', table: 'notifications', column: 'notifications', displayable: true, type: :text, filterable: false },
           { label: 'Date de création', table: 'self', column: 'created_at', displayable: true, type: :date, filterable: true },
           { label: 'Mis à jour le', table: 'self', column: 'updated_at', displayable: true, type: :date, filterable: true },
-          { label: 'Date de dépot', table: 'self', column: 'depose_at', displayable: true, type: :date, filterable: true },
+          { label: 'Date de dépôt', table: 'self', column: 'depose_at', displayable: true, type: :date, filterable: true },
           { label: 'En construction le', table: 'self', column: 'en_construction_at', displayable: true, type: :date, filterable: true },
           { label: 'En instruction le', table: 'self', column: 'en_instruction_at', displayable: true, type: :date, filterable: true },
           { label: 'Terminé le', table: 'self', column: 'processed_at', displayable: true, type: :date, filterable: true },
@@ -99,9 +99,9 @@ describe ColumnsConcern do
       end
 
       context 'with rna' do
-        let(:types_de_champ_public) { [{ type: :rna, libelle: 'rna' }] }
+        let(:types_de_champ_public) { [{ type: :rna, libelle: 'RNA' }] }
         let(:types_de_champ_private) { [] }
-        it { expect(subject.map(&:label)).to include('rna – commune') }
+        it { expect(subject.map(&:label)).to include('RNA – Commune') }
       end
 
       context 'with linked drop down list' do
@@ -187,8 +187,8 @@ describe ColumnsConcern do
             procedure.find_column(label: "France connecté ?"),
             procedure.find_column(label: "Numéro TAHITI"),
             procedure.find_column(label: "Établissement siège social"),
-            procedure.find_column(label: "Établissement NAF"),
             procedure.find_column(label: "Libellé NAF"),
+            procedure.find_column(label: "Code NAF"),
             procedure.find_column(label: "Établissement Adresse"),
             procedure.find_column(label: "Établissement numero voie"),
             procedure.find_column(label: "Établissement type voie"),
@@ -242,7 +242,7 @@ describe ColumnsConcern do
           procedure.find_column(label: "État du dossier"),
           procedure.find_column(label: "Date du dernier évènement"),
           procedure.find_column(label: "Date de dernière modification (usager)"),
-          procedure.find_column(label: "Date de dépot"),
+          procedure.find_column(label: "Date de dépôt"),
           procedure.find_column(label: "Date de passage en instruction"),
           procedure.find_column(label: "Date de traitement"),
           procedure.find_column(label: "Motivation de la décision"),

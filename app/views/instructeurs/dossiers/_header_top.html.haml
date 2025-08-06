@@ -1,8 +1,11 @@
 #header-top.fr-container
   .flex
     %div
-      %h1.fr-h3.fr-mb-1w
-        = t('show_dossier', scope: [:layouts, :breadcrumb], dossier_id: dossier.id, owner_name: dossier.owner_name)
+      .flex.fr-mb-1w
+        = render Instructeurs::BackButtonComponent.new(to: instructeur_procedure_path(dossier.procedure, statut: params[:statut]))
+        %h1.fr-h3.fr-mb-1w
+          = t('show_dossier', scope: [:layouts, :breadcrumb], dossier_id: dossier.id, owner_name: dossier.owner_name)
+
 
       = link_to dossier.procedure.libelle.truncate_words(10), instructeur_procedure_path(dossier.procedure), title: dossier.procedure.libelle, class: "fr-link"
       .fr-mt-2w.fr-badge-group
@@ -13,7 +16,7 @@
           = pending_correction_badge(:for_instructeur)
         - elsif dossier.en_construction? && dossier.last_correction_resolved?
           = correction_resolved_badge
-        = render Instructeurs::SVASVRDecisionBadgeComponent.new(projection_or_dossier: dossier, procedure: dossier.procedure, with_label: true)
+        = render Instructeurs::SVASVRDecisionBadgeComponent.new(dossier:, procedure: dossier.procedure, with_label: true)
 
 
     .header-actions.fr-ml-auto
