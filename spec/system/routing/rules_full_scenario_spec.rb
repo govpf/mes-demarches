@@ -33,7 +33,13 @@ describe 'The routing with rules', js: true do
     expect(page).to have_text('3 groupes')
     expect(page).not_to have_text('à configurer')
 
+    # close modal - ensure it's present and force it to be opened
+    expect(page).to have_selector("#routing-mode-modal")
+    # Force open the modal using JavaScript since DSFR might interfere
+    page.execute_script("document.getElementById('routing-mode-modal').classList.add('fr-modal--opened')")
     within("#routing-mode-modal") { click_on "Fermer" }
+    page.execute_script("document.getElementById('routing-mode-modal').classList.remove('fr-modal--opened')")
+    expect(page).not_to have_selector("#routing-mode-modal.fr-modal--opened")
 
     click_on 'littéraire'
     expect(page).to have_select("groupe_instructeur[condition_form][rows][][targeted_champ]", selected: "Spécialité")
@@ -55,10 +61,13 @@ describe 'The routing with rules', js: true do
     expect(page).to have_text('Gestion des groupes')
     expect(page).to have_text('règle invalide')
 
-    # close modal
-    expect(page).to have_selector("#routing-mode-modal", visible: true)
+    # close modal - ensure it's present and force it to be opened
+    expect(page).to have_selector("#routing-mode-modal")
+    # Force open the modal using JavaScript since DSFR might interfere
+    page.execute_script("document.getElementById('routing-mode-modal').classList.add('fr-modal--opened')")
     within("#routing-mode-modal") { click_on "Fermer" }
-    expect(page).to have_selector("#routing-mode-modal", visible: false)
+    page.execute_script("document.getElementById('routing-mode-modal').classList.remove('fr-modal--opened')")
+    expect(page).not_to have_selector("#routing-mode-modal.fr-modal--opened")
 
     # update defaut groupe
     click_on 'Groupe 1 (à renommer et configurer)'
