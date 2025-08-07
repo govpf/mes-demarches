@@ -55,7 +55,9 @@ export class TurboPollController extends ApplicationController {
   }
 
   private cancel(): void {
-    clearInterval(this.#timer);
+    if (this.#timer) {
+      clearInterval(this.#timer);
+    }
     this.#abortController?.abort();
     this.#abortController = window.AbortController
       ? new AbortController()

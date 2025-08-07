@@ -44,7 +44,7 @@ export class EmailInputController extends ApplicationController {
         .catch(() => null);
 
       if (data?.success) {
-        const suggestion = data.suggestions?.at(0);
+        const suggestion = data.suggestions?.[0];
         if (suggestion) {
           this.suggestionTarget.innerHTML = suggestion;
           show(this.ariaRegionTarget);

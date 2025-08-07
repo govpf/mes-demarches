@@ -26,7 +26,9 @@ export class ClipboardController extends Controller {
   }
 
   disconnect(): void {
-    clearTimeout(this.#timer);
+    if (this.#timer) {
+      clearTimeout(this.#timer);
+    }
   }
 
   copy() {
@@ -43,7 +45,9 @@ export class ClipboardController extends Controller {
       this.successTarget.classList.remove('hidden');
     }
 
-    clearTimeout(this.#timer);
+    if (this.#timer) {
+      clearTimeout(this.#timer);
+    }
 
     this.#timer = setTimeout(() => {
       if (this.hasSuccessTarget) {
