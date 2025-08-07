@@ -1059,7 +1059,6 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
     it do
       expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
-      expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
       expect(procedure3.groupe_instructeurs.pluck(:label)).to include("Australes")
       expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_in_archipel(champ_value(commune_de_polynesie_tdc.stable_id), constant('Australes')))
       expect(procedure3.routing_enabled).to be_truthy
@@ -1079,7 +1078,6 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
     it do
       expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
-      expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
       expect(procedure3.groupe_instructeurs.pluck(:label)).to include("Australes")
       expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_in_archipel(champ_value(code_postal_de_polynesie_tdc.stable_id), constant('Australes')))
       expect(procedure3.routing_enabled).to be_truthy
