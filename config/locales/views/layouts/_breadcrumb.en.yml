@@ -1,7 +1,7 @@
 en:
   layouts:
     breadcrumb:
-      root: "Home"
+      root: "Home - List of procedures"
       you_are_here: "You are here"
       show: Show breadcrumb
       preview: "Preview the form"
@@ -16,3 +16,5 @@ en:
       go_to_FAQ: "read FAQ"
       url_FAQ: "/faq#accordion-administrateur-2"
       faq: Frequently Asked Questions
+      show_dossier: "File nº %{dossier_id} – %{owner_name}"
+      show_procedure: '%{libelle} – Files'

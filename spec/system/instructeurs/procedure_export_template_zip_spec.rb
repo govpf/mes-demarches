@@ -9,7 +9,7 @@ describe "procedure exports zip" do
   scenario "create an export_template zip", chome: true do
     visit instructeur_procedure_path(procedure)
 
-    click_on "Voir les exports et modèles d'export"
+    find("button", text: "Téléchargements").click
 
     click_on "Modèles d'export"
 
@@ -19,11 +19,6 @@ describe "procedure exports zip" do
     expect(page).to have_content("Sélectionnez les fichiers que vous souhaitez exporter")
     click_on "Enregistrer"
 
-    find("#tabpanel-export-templates", wait: 5, visible: true)
-    find("#tabpanel-export-templates").click
-
-    within 'table' do
-      expect(page).to have_content('Mon modèle')
-    end
+    expect(page).to have_content('Mon modèle')
   end
 end
