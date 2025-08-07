@@ -11,6 +11,7 @@ class Logic::ChampValue < Logic::Term
     :decimal_number,
     :drop_down_list,
     :multiple_drop_down_list,
+    :address,
     :communes,
     :epci,
     :departements,
