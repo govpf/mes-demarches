@@ -71,10 +71,11 @@ class Procedure < ApplicationRecord
     brouillon? ? draft_revision : published_revision
   end
 
-  def all_revisions_types_de_champ(parent: nil)
+  def all_revisions_types_de_champ(parent: nil, with_header_section: false)
+    types_de_champ_scope = with_header_section ? TypeDeChamp.with_header_section : TypeDeChamp.fillable
     if brouillon?
       if parent.nil?
-        TypeDeChamp.fillable
+        types_de_champ_scope
           .joins(:revision_types_de_champ)
           .where(revision_types_de_champ: { revision_id: draft_revision_id, parent_id: nil })
           .order(:private, :position)
@@ -82,8 +83,8 @@ class Procedure < ApplicationRecord
         draft_revision.children_of(parent)
       end
     else
-      cache_key = ['all_revisions_types_de_champ', published_revision, parent].compact
-      Rails.cache.fetch(cache_key, expires_in: 1.month) { published_revisions_types_de_champ(parent) }
+      cache_key = ['all_revisions_types_de_champ', published_revision, parent, with_header_section].compact
+      Rails.cache.fetch(cache_key, expires_in: 1.month) { published_revisions_types_de_champ(parent:, with_header_section:) }
     end
   end
 
@@ -790,11 +791,11 @@ class Procedure < ApplicationRecord
     "Procedure;#{id}"
   end
 
-  def column_styles(table)
+  def column_styles(table, export_template: nil)
     styles =
       case table
       when :dossiers
-        dossier_column_styles
+        dossier_column_styles(export_template)
       when :etablissements
         etablissement_column_styles
       when :avis
@@ -871,15 +872,68 @@ class Procedure < ApplicationRecord
 
   #----- PF section start
 
-  def dossier_column_styles
+  def dossier_column_styles(export_template = nil)
+    if export_template.present?
+      # PF: Générer les styles de colonnes pour les templates d'export
+      return export_template_column_styles(export_template)
+    end
+
     date_index = index_of_dates
     exported_champs = active_revision.types_de_champ_public.reject(&:exclude_from_export?)
     exported_annotations = active_revision.types_de_champ_private.reject(&:exclude_from_export?)
     champ_start = fixed_column_offset
     private_champ_start = champ_start + exported_champs.length
-    [{ columns: (date_index..date_index + 3), styles: { format_code: 'dd/mm/yyyy hh:mm:ss' } }] +
+    date_columns_styles(date_index) +
       exported_champs.flat_map(&:libelles_for_export).filter_map.with_index(champ_start, &method(:column_style)) +
       exported_annotations.flat_map(&:libelles_for_export).filter_map.with_index(private_champ_start, &method(:column_style))
+  end
+
+  def date_columns_styles(date_index)
+    # PF: Styles pour toutes les colonnes de dates fixes du dossier
+    styles = []
+    current_index = date_index
+
+    # Dernière mise à jour le (datetime)
+    styles << { columns: current_index, styles: { format_code: 'dd/mm/yyyy hh:mm:ss' } }
+    current_index += 1
+
+    # Dernière mise à jour du dossier le (datetime)
+    styles << { columns: current_index, styles: { format_code: 'dd/mm/yyyy hh:mm:ss' } }
+    current_index += 1
+
+    # Déposé le (datetime)
+    styles << { columns: current_index, styles: { format_code: 'dd/mm/yyyy hh:mm:ss' } }
+    current_index += 1
+
+    # Passé en instruction le (datetime)
+    styles << { columns: current_index, styles: { format_code: 'dd/mm/yyyy hh:mm:ss' } }
+    current_index += 1
+
+    # Date décision SVA/SVR (date) - conditionnelle
+    if sva_svr_enabled?
+      styles << { columns: current_index, styles: { format_code: 'dd/mm/yyyy' } }
+      current_index += 1
+    end
+
+    # Traité le (datetime)
+    styles << { columns: current_index, styles: { format_code: 'dd/mm/yyyy hh:mm:ss' } }
+
+    styles
+  end
+
+  def export_template_column_styles(export_template)
+    # PF: Générer les styles de colonnes pour les dates dans les templates d'export
+    all_columns = export_template.dossier_exported_columns +
+                  export_template.exported_columns.filter { _1.column.champ_column? }
+
+    all_columns.filter_map.with_index do |exported_column, index|
+      case exported_column.column.type
+      when :date
+        { columns: index, styles: { format_code: 'dd/mm/yyyy' } }
+      when :datetime
+        { columns: index, styles: { format_code: 'dd/mm/yyyy hh:mm:ss' } }
+      end
+    end
   end
 
   def etablissement_column_styles
@@ -897,20 +951,23 @@ class Procedure < ApplicationRecord
 
   def fixed_column_offset
     size = index_of_dates
-    size += 6 # Dernière mise à jour le, Déposé le, Passé en instruction le, Traité le, Motivation de la décision, Instructeurs
-    size += 1 if routing_enabled? # groupe instructeur
+    # PF: Compter toutes les colonnes fixes après les dates
+    size += 7 # Dernière mise à jour le, Dernière MAJ dossier, Déposé le, Passé en instruction le, Traité le, Motivation, Instructeurs
+    size += 1 if sva_svr_enabled? # Date décision SVA/SVR
+    size += 1 if routing_enabled? # Groupe instructeur
     size
   end
 
   def index_of_dates
-    size = 2 # ID, Email
+    size = 3 # ID, Email, Connecté via
     if for_individual?
-      size += 3 # Civilité, Nom, Prénom
+      size += 6 # Civilité, Nom, Prénom, Dépôt pour un tiers, Nom du mandataire, Prénom du mandataire
       size += 1 if ask_birthday # Date de naissance
     else
       size += 1 # Entreprise raison sociale
     end
     size += 2 # Archivé, État du dossier
+    # PF: Les dates commencent après ces colonnes, avec "Dernière mise à jour le"
     size
   end
 
@@ -1010,7 +1067,7 @@ class Procedure < ApplicationRecord
     @stable_ids_used_by_routing_rules ||= groupe_instructeurs.flat_map { _1.routing_rule&.sources }.compact.uniq
   end
 
-  def published_revisions_types_de_champ(parent = nil)
+  def published_revisions_types_de_champ(parent: nil, with_header_section: false)
     # all published revisions
     revision_ids = revisions.ids - [draft_revision_id]
     # fetch all parent types de champ
@@ -1024,8 +1081,8 @@ class Procedure < ApplicationRecord
 
     # fetch all type_de_champ.stable_id for all the revisions expect draft
     # and for each stable_id take the bigger (more recent) type_de_champ.id
-    recent_ids = TypeDeChamp
-      .fillable
+    types_de_champ_scope = with_header_section ? TypeDeChamp.with_header_section : TypeDeChamp.fillable
+    recent_ids = types_de_champ_scope
       .joins(:revision_types_de_champ)
       .where(revision_types_de_champ: { revision_id: revision_ids, parent_id: parent_ids })
       .group(:stable_id).select('MAX(types_de_champ.id)')

@@ -149,7 +149,7 @@ describe ColumnsConcern do
         it "returns all usager columns" do
           expected = [
             procedure.find_column(label: "Nº dossier"),
-            procedure.find_column(label: "Email"),
+            procedure.find_column(label: "Adresse électronique"),
             procedure.find_column(label: "France connecté ?"),
             procedure.find_column(label: "Civilité"),
             procedure.find_column(label: "Nom"),
@@ -171,7 +171,7 @@ describe ColumnsConcern do
         it "returns all usager columns" do
           expected = [
             procedure.find_column(label: "Nº dossier"),
-            procedure.find_column(label: "Email"),
+            procedure.find_column(label: "Adresse électronique"),
             procedure.find_column(label: "France connecté ?"),
             procedure.find_column(label: "Numéro TAHITI"),
             procedure.find_column(label: "Établissement siège social"),
@@ -192,7 +192,7 @@ describe ColumnsConcern do
             procedure.find_column(label: "Entreprise forme juridique code"),
             procedure.find_column(label: "Entreprise nom commercial"),
             procedure.find_column(label: "Entreprise raison sociale"),
-            procedure.find_column(label: "Numéro TAHITI siège social"),
+            procedure.find_column(label: "Entreprise n° TAHITI siège social"),
             procedure.find_column(label: "Entreprise code effectif entreprise")
           ]
           actuals = procedure.usager_columns_for_export
@@ -230,7 +230,7 @@ describe ColumnsConcern do
           procedure.find_column(label: "État du dossier"),
           procedure.find_column(label: "Date du dernier évènement"),
           procedure.find_column(label: "Date de dernière modification (usager)"),
-          procedure.find_column(label: "Date de dépot"),
+          procedure.find_column(label: "Date de dépôt"),
           procedure.find_column(label: "Date de passage en instruction"),
           procedure.find_column(label: "Date de traitement"),
           procedure.find_column(label: "Motivation de la décision"),
