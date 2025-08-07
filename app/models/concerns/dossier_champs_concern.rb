@@ -10,9 +10,7 @@ module DossierChampsConcern
       value = type_de_champ.champ_blank?(champ) ? nil : champ.value
       updated_at = champ&.updated_at || depose_at || created_at
       rebased_at = champ&.rebased_at
-      type_de_champ.build_champ(dossier: self, row_id:, updated_at:, rebased_at:, value:).tap do |new_champ|
-        new_champ.instance_variable_set(:@type_de_champ, type_de_champ)
-      end
+      type_de_champ.build_champ(dossier: self, row_id:, updated_at:, rebased_at:, value:)
     else
       champ
     end
