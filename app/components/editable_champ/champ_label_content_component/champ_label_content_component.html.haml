@@ -15,7 +15,7 @@
     = t('.check_content_rebased')
 
 - if @champ.description.present?
-  %span.fr-hint-text= render SimpleFormatComponent.new(@champ.description, allow_a: true)
+  %span.fr-hint-text.champ-description= render SimpleFormatComponent.new(@champ.description, allow_a: true)
 
 - if hint?
   %span.fr-hint-text{ data: { controller: 'date-input-hint' } }= hint
