@@ -50,7 +50,7 @@ RUN echo 'export PS1="\[\033[97;41m\]\u@\h:\w\$ \[\033[0m\]"' >> ~/.bashrc && \
 
 #----- Building js dependencies (node_modules)
 RUN (curl -fsSL https://bun.sh/install | bash)
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 COPY --chown=userapp:userapp --from=bun /app/node_modules ${APP_PATH}/node_modules
 COPY patches ./patches/
 RUN .bun/bin/bun install
