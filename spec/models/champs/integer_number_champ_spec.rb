@@ -10,6 +10,7 @@ describe Champs::IntegerNumberChamp do
     allow(champ).to receive(:visible?).and_return(true)
     allow(champ).to receive(:in_dossier_revision?).and_return(true)
     allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_integer_number))
+    allow(champ).to receive(:can_validate?).and_return(true)
   end
   subject { champ.validate(:champs_public_value) }
 

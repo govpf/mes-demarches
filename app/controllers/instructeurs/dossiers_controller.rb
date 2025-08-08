@@ -250,7 +250,7 @@ module Instructeurs
 
         if commentaire.valid?
           dossier.flag_as_pending_correction!(commentaire, params[:reason].presence)
-          dossier.update!(last_commentaire_updated_at: Time.zone.now)
+          dossier.touch(:last_commentaire_updated_at)
           current_instructeur.follow(dossier)
 
           flash.notice = "Dossier marqué comme en attente de correction."
@@ -275,10 +275,10 @@ module Instructeurs
       @commentaire = CommentaireService.create(current_instructeur, dossier, commentaire_params)
 
       if @commentaire.errors.empty?
-        @commentaire.dossier.update!(last_commentaire_updated_at: Time.zone.now)
+        @commentaire.dossier.touch(:last_commentaire_updated_at)
         current_instructeur.follow(dossier)
         flash.notice = "Message envoyé"
-        redirect_to messagerie_instructeur_dossier_path(procedure, dossier)
+        redirect_to messagerie_instructeur_dossier_path(procedure, dossier, statut: statut)
       else
         @commentaire.piece_jointe.purge.reload
         flash.alert = @commentaire.errors.full_messages
@@ -290,7 +290,7 @@ module Instructeurs
       @avis = create_avis_from_params(dossier, current_instructeur)
 
       if @avis.nil?
-        redirect_to avis_instructeur_dossier_path(procedure, dossier)
+        redirect_to avis_instructeur_dossier_path(procedure, dossier, statut: statut)
       else
         @avis_seen_at = current_instructeur.follows.find_by(dossier: dossier)&.avis_seen_at
         render :avis
@@ -300,7 +300,7 @@ module Instructeurs
     def update_annotations
       dossier_with_champs.update_champs_attributes(remove_changes_forbidden_by_visa, :private, updated_by: current_user.email)
       if dossier.champs.any?(&:changed_for_autosave?)
-        dossier.last_champ_private_updated_at = Time.zone.now
+        dossier.touch(:last_champ_private_updated_at)
       end
 
       dossier.save(context: :champs_private_value)
@@ -310,7 +310,7 @@ module Instructeurs
 
       respond_to do |format|
         format.turbo_stream do
-          @to_show, @to_hide, @to_update = champs_to_turbo_update(champs_private_attributes_params, dossier.champs.filter(&:private?))
+          @to_show, @to_hide, @to_update = champs_to_turbo_update(champs_private_attributes_params, dossier.project_champs_private_all)
         end
       end
     end
@@ -323,7 +323,7 @@ module Instructeurs
     def annotation
       @dossier = dossier_with_champs(pj_template: false)
       type_de_champ = @dossier.find_type_de_champ_by_stable_id(params[:stable_id], :private)
-      annotation = @dossier.project_champ(type_de_champ, params[:row_id])
+      annotation = @dossier.project_champ(type_de_champ, row_id: params[:row_id])
 
       respond_to do |format|
         format.turbo_stream do

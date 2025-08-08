@@ -220,6 +220,7 @@ class Dossier < ApplicationRecord
   scope :hidden_by_user,            -> { where.not(hidden_by_user_at: nil) }
   scope :hidden_by_administration,  -> { where.not(hidden_by_administration_at: nil) }
   scope :hidden_by_expired,         -> { where.not(hidden_by_expired_at: nil) }
+  scope :hidden_by_not_modified_for_a_long_time, -> { hidden_by_expired.where(hidden_by_reason: :not_modified_for_a_long_time) }
   scope :visible_by_user,           -> { where(for_procedure_preview: false, hidden_by_user_at: nil, editing_fork_origin_id: nil, hidden_by_expired_at: nil) }
   scope :visible_by_administration, -> {
     state_not_brouillon
@@ -568,7 +569,10 @@ class Dossier < ApplicationRecord
   end
 
   def can_be_deleted_by_automatic?(reason)
-    reason == :expired && !en_instruction?
+    return true if reason == :expired && !en_instruction?
+    return true if reason == :not_modified_for_a_long_time && brouillon?
+
+    false
   end
 
   def can_terminer_automatiquement_by_sva_svr?
@@ -858,7 +862,9 @@ class Dossier < ApplicationRecord
         update(hidden_by_user_at: nil)
       end
 
-      if !hidden_by_user? && !hidden_by_administration?
+      if is_user?(author) && hidden_by_reason&.to_sym == :not_modified_for_a_long_time
+        update(hidden_by_expired_at: nil)
+      elsif !hidden_by_user? && !hidden_by_administration?
         update(hidden_by_reason: nil)
       elsif hidden_by_user?
         update(hidden_by_reason: :user_request)
@@ -872,17 +878,6 @@ class Dossier < ApplicationRecord
 
   def email_template_for(state)
     procedure.email_template_for(state)
-  end
-
-  def submit_en_construction!
-    self.traitements.submit_en_construction
-    save!
-
-    RoutingEngine.compute(self)
-
-    resolve_pending_correction!
-    process_sva_svr!
-    remove_piece_justificative_file_not_visible!
   end
 
   def process_declarative!
@@ -916,20 +911,7 @@ class Dossier < ApplicationRecord
   end
 
   def previously_termine?
-    traitements.termine.exists?
-  end
-
-  def remove_titres_identite!
-    champs.filter(&:titre_identite?).map(&:piece_justificative_file).each(&:purge_later)
-  end
-
-  def remove_piece_justificative_file_not_visible!
-    champs.each do |champ|
-      next unless champ.piece_justificative_file.attached?
-      next if champ.visible?
-
-      champ.piece_justificative_file.purge_later
-    end
+    traitements.any?(&:termine?)
   end
 
   def check_mandatory_and_visible_champs
@@ -1110,13 +1092,13 @@ class Dossier < ApplicationRecord
   end
 
   def build_default_champs_for(types_de_champ)
-    self.champs << types_de_champ.flat_map do |type_de_champ|
-      champ = type_de_champ.build_champ(dossier: self)
-      if type_de_champ.repetition? && (type_de_champ.private? || type_de_champ.mandatory?)
-        row_id = ULID.generate
-        [champ] + revision.children_of(type_de_champ).map { _1.build_champ(dossier: self, row_id:) }
+    self.champs << types_de_champ.filter(&:fillable?).filter_map do |type_de_champ|
+      if type_de_champ.repetition?
+        if type_de_champ.private? || type_de_champ.mandatory?
+          type_de_champ.build_champ(dossier: self, row_id: ULID.generate)
+        end
       else
-        champ
+        type_de_champ.build_champ(dossier: self)
       end
     end
   end

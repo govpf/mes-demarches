@@ -263,6 +263,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   create_table "champs", id: :serial, force: :cascade do |t|
     t.datetime "created_at"
     t.jsonb "data"
+    t.datetime "discarded_at"
     t.integer "dossier_id"
     t.integer "etablissement_id"
     t.string "external_id"
@@ -518,6 +519,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "mandataire_first_name"
     t.string "mandataire_last_name"
     t.text "motivation"
+    t.datetime "notified_soon_deleted_sent_at", precision: nil
     t.bigint "parent_dossier_id"
     t.string "prefill_token"
     t.boolean "prefilled"

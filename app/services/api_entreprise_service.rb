@@ -29,6 +29,7 @@ class APIEntrepriseService
 
       etablissement = dossier_or_champ.build_etablissement(etablissement_params)
       etablissement.save!
+      # <<<<<<< HEAD
 
       if dossier_or_champ.is_a?(Champ)
         dossier_or_champ.update!(value_json: APIGeoService.parse_etablissement_address(etablissement))
@@ -37,6 +38,14 @@ class APIEntrepriseService
         perform_later_fetch_jobs(etablissement, procedure_id, user_id)
       end
       [etablissement, other_etablissements]
+      # TODO : checkback
+      # =======
+      #       etablissement.update_champ_value_json!
+
+      #       perform_later_fetch_jobs(etablissement, procedure_id, user_id)
+
+      #       etablissement
+      # >>>>>>> 2024-12-09-01
     end
 
     def create_etablissement_as_degraded_mode(dossier_or_champ, siret, user_id = nil)
@@ -60,10 +69,7 @@ class APIEntrepriseService
       return nil if etablissement_params.empty?
 
       etablissement.update!(etablissement_params)
-
-      if etablissement.champ.present?
-        etablissement.champ.update!(value_json: APIGeoService.parse_etablissement_address(etablissement))
-      end
+      etablissement.update_champ_value_json!
 
       etablissement
     end
