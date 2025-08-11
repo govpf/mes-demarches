@@ -156,7 +156,7 @@ describe 'Instructing a dossier:', js: true do
   scenario 'A instructeur can see the personnes impliquées and statut is maintened over avis/personnes impliquee paths', chrome: true do
     instructeur2 = create(:instructeur, password: password)
 
-    log_in(instructeur.email, password)
+    log_in(instructeur.email, password, check_email: false)
 
     click_on procedure.libelle
     click_on 'Suivre le dossier'
@@ -207,7 +207,7 @@ describe 'Instructing a dossier:', js: true do
     archivable_procedure = create(:procedure, :published, types_de_champ_public: [{ type: :piece_justificative }], instructeurs: [instructeur])
     create(:dossier, :accepte, procedure: archivable_procedure)
 
-    log_in(instructeur.email, password)
+    log_in(instructeur.email, password, check_email: false)
     visit list_instructeur_archives_path(archivable_procedure)
 
     expect {
@@ -231,7 +231,7 @@ describe 'Instructing a dossier:', js: true do
                 content_type: "application/pdf",
                 metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE })
 
-      log_in(instructeur.email, password)
+      log_in(instructeur.email, password, check_email: false)
       visit instructeur_dossier_path(procedure, dossier)
     end
 
