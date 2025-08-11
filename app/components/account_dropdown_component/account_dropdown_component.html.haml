@@ -2,7 +2,7 @@
   .fr-nav__item
     %button.account-btn.fr-translate__btn.fr-btn{ "aria-controls" => "account", "aria-expanded" => "false", title: t('.my_account') }
       %span.fr-mr-1w= current_email
-      - if dossier && current_user.loged_in_with_france_connect
+      - if dossier && helpers.current_user.loged_in_with_france_connect
         %span
           &nbsp;via
 
