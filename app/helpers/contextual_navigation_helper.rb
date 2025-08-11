@@ -4,7 +4,7 @@
 module ContextualNavigationHelper
   def contextual_or_default_path_for_profile(target_profile)
     if helpers.contextual_persona_enabled?
-      contextual_path = contextual_redirect_path_for_profile(target_profile)
+      contextual_path = helpers.contextual_redirect_path_for_profile(target_profile)
       return contextual_path if contextual_path
     end
 

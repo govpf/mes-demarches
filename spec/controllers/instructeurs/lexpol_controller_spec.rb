@@ -11,7 +11,7 @@ RSpec.describe Champs::LexpolController, type: :controller do
   let(:dossier) { create(:dossier, procedure:) }
 
   let(:value) { nil }
-  let(:champ) { dossier.champ_for_update(tdc, nil, updated_by: instructeur).tap { |c| c.value = value }.tap(&:save!) }
+  let(:champ) { dossier.champ_for_update(tdc, row_id: nil, updated_by: instructeur).tap { |c| c.value = value }.tap(&:save!) }
 
   before do
     allow(ENV).to receive(:fetch).and_call_original

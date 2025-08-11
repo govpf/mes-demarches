@@ -34,11 +34,11 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
         # Switch to instructeur persona
         within('.fr-header nav.fr-nav') do
-          click_link I18n.t('layouts.go_instructor')
+          click_link I18n.t('layouts.account_dropdown_component.go_instructor')
         end
 
         # Should land on instructeur view of the same dossier
-        expect(page).to have_current_path("/procedures/#{procedure.id}/dossiers/#{dossier.id}")
+        expect(page).to have_current_path("/procedures/#{procedure.id}/a-suivre/dossiers/#{dossier.id}")
       end
 
       scenario "instructeur viewing dossier can switch to user on same dossier if they own it" do
@@ -46,7 +46,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
         # Switch to user persona
         within('.fr-header nav.fr-nav') do
-          click_link I18n.t('layouts.go_user')
+          click_link I18n.t('layouts.account_dropdown_component.go_user')
         end
 
         # Should land on user view of the same dossier
@@ -58,7 +58,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
         # Switch to instructeur persona
         within('.fr-header nav.fr-nav') do
-          click_link I18n.t('layouts.go_instructor')
+          click_link I18n.t('layouts.account_dropdown_component.go_instructor')
         end
 
         # Should land on instructeur view of the same procedure
@@ -71,7 +71,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
         # Switch to administrateur persona
         within('.fr-header nav.fr-nav') do
-          click_link I18n.t('layouts.go_admin')
+          click_link I18n.t('layouts.account_dropdown_component.go_admin')
         end
 
         # Should land on admin view of the same procedure
@@ -103,7 +103,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
       # Switch to instructeur persona
       within('.fr-header nav.fr-nav') do
-        click_link I18n.t('layouts.go_instructor')
+        click_link I18n.t('layouts.account_dropdown_component.go_instructor')
       end
 
       # Should land on default instructeur procedures list, not contextual dossier
@@ -118,7 +118,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
       visit dossier_path(dossier)
 
       within('.fr-header nav.fr-nav') do
-        click_link I18n.t('layouts.go_instructor')
+        click_link I18n.t('layouts.account_dropdown_component.go_instructor')
       end
 
       expect(page).to have_current_path(instructeur_procedures_path)
@@ -135,8 +135,8 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
       # Even if contextual navigation fails, the user should still be able to navigate
       within('.fr-header nav.fr-nav') do
-        expect(page).to have_link(I18n.t('layouts.go_instructor'))
-        expect(page).to have_link(I18n.t('layouts.go_admin'))
+        expect(page).to have_link(I18n.t('layouts.account_dropdown_component.go_instructor'))
+        expect(page).to have_link(I18n.t('layouts.account_dropdown_component.go_admin'))
       end
     end
   end
