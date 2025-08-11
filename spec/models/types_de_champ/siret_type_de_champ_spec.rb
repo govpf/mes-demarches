@@ -17,7 +17,6 @@ describe TypesDeChamp::SiretTypeDeChamp do
       expect(columns[0].label).to eq("Identification de l'entreprise – SIRET")
     end
 
-
     it "does not include jsonpath SIRET column" do
       expect(columns.find { |c| c.is_a?(Columns::JSONPathColumn) && c.jsonpath == "$.siret" }).to be_nil
     end

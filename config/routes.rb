@@ -176,8 +176,7 @@ Rails.application.routes.draw do
   end
 
   get 'password_complexity/(:complexity)' => 'password_complexity#show', as: 'show_password_complexity'
-  # TODO : Checkback
-  # post 'password_complexity' => 'password_complexity#show', as: 'show_password_complexity'
+  post 'password_complexity' => 'password_complexity#show', as: 'post_password_complexity'
   get 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
 
   resources :targeted_user_links, only: [:show]
