@@ -34,7 +34,7 @@ export function useDispatchChangeEvent() {
         if (ref.current) {
           const container = ref.current;
           const inputs = Array.from(container.querySelectorAll('input'));
-          const input = inputs.at(0);
+          const input = inputs[0];
           if (input && inputChanged(container, inputs)) {
             inputCountMap.set(container, inputs.length);
             for (const input of inputs) {

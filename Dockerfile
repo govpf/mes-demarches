@@ -3,7 +3,8 @@
 #---------------------------------------------------------------------------------
 FROM oven/bun:1 as bun
 WORKDIR /app
-COPY package.json bun.lockb ./
+COPY package.json bun.lock* ./
+COPY patches ./patches/
 RUN bun install --frozen-lockfile --production
 
 #--------------------------------------------------
@@ -50,9 +51,9 @@ RUN echo 'export PS1="\[\033[97;41m\]\u@\h:\w\$ \[\033[0m\]"' >> ~/.bashrc && \
 
 #----- Building js dependencies (node_modules)
 RUN (curl -fsSL https://bun.sh/install | bash)
-COPY package.json bun.lockb ./
-COPY --chown=userapp:userapp --from=bun /app/node_modules ${APP_PATH}/node_modules
+COPY package.json bun.lock* ./
 COPY patches ./patches/
+COPY --chown=userapp:userapp --from=bun /app/node_modules ${APP_PATH}/node_modules
 RUN .bun/bin/bun install
 
 #----- Bundle gems: copy from builder container the dependency gems

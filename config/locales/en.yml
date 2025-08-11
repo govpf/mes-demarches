@@ -408,9 +408,9 @@ en:
           title: Select a filter
         select_all: Select all
         batch_operation:
-          enabled: 'Add file %{dossier_id} to the selection for the bulk operation'
-          disabled: 'Impossible to add file %{dossier_id} to the selection because it is already in a bulk operation'
-        personalize: Personalize
+          enabled: "Add file %{dossier_id} to the selection for the bulk operation"
+          disabled: "Impossible to add file %{dossier_id} to the selection because it is already in a bulk operation"
+        customize: Customize the table
         passer_en_instruction: Switch to instruction
         repasser_en_construction: Revert to submitted
         show_deleted_dossiers: Show deleted files

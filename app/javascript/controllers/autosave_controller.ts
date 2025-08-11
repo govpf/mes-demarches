@@ -167,7 +167,10 @@ export class AutosaveController extends ApplicationController {
     this.#pendingPromiseCount -= 1;
     if (this.#pendingPromiseCount == 0) {
       this.globalDispatch('autosave:end');
-      clearTimeout(this.#spinnerTimeoutId);
+      if (this.#spinnerTimeoutId) {
+        clearTimeout(this.#spinnerTimeoutId);
+        this.#spinnerTimeoutId = undefined;
+      }
     }
   }
 
