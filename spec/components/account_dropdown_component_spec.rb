@@ -66,6 +66,8 @@ describe AccountDropdownComponent, type: :component do
       before do
         allow_any_instance_of(ApplicationController).to receive(:params)
           .and_return({ id: '123' })
+        allow(vc_test_controller).to receive(:contextual_persona_enabled?).and_return(true)
+        allow(vc_test_controller).to receive(:contextual_redirect_path_for_profile).with(:instructeur).and_return('/procedures/123')
       end
 
       it 'links to specific procedure for instructor' do
