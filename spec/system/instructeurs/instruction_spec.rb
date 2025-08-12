@@ -211,7 +211,7 @@ describe 'Instructing a dossier:', js: true do
     visit list_instructeur_archives_path(archivable_procedure)
 
     expect {
-      page.first(".fr-table .fr-btn").click
+      click_on "Demander la création"
     }.to have_enqueued_job(ArchiveCreationJob).with(archivable_procedure, an_instance_of(Archive), instructeur)
     expect(Archive.first.month).not_to be_nil
   end
