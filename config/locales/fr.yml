@@ -131,29 +131,34 @@ fr:
         line_one_html: 'Le site Mes-Démarches est <strong>partiellement conforme</strong> avec le référentiel général d’amélioration de l’accessibilité (RGAA) version 4.'
         content_html: 'Le site Mes-Démarches est <strong>partiellement conforme</strong> au <a href="https://accessibilite.numerique.gouv.fr/">Référentiel Général d’Amélioration de l’Accessibilité (RGAA)</a> version 4.1.2 en raison des non-conformités listées ci-après.'
       results:
-        title: 'Résultats des tests'
-        line_one: 'En date du 13 juin 2023, le taux moyen de conformité du site est de 80%.'
-        line_three: 'Les usagers peuvent suivre les mesures engagées par le service pour améliorer l’accessibilité du site à l’adresse suivante :'
-        content: "L'audit réalisé en interne en juin 2023 révèle que le taux de conformité global est de 81,36% sur l'échantillon de pages analysés."
+        title: "Résultats des tests"
+        content: "L’audit réalisé en interne en juin 2023 révèle que le taux de conformité global est de 81,36% sur l’échantillon de pages analysés."
         programme:
-          intro: 'Les usagers peuvent suivre les mesures engagées par le service pour améliorer l’accessibilité du site grâce au '
-          label: "Suivez le programme d'amélioration continue de DS en matière d'accessibilité"
-          url: 'https://github.com/demarches-simplifiees/demarches-simplifiees.fr/issues?q=accessibilit%C3%A9+' #DS
-          title: "Suivez le programme d'amélioration continue de DS en matière d'accessibilité - nouvel onglet"
+          intro: "Les usagers peuvent suivre les mesures engagées par le service pour améliorer l’accessibilité du site grâce au "
+          label: "programme d’amélioration continue de DS en matière d’accessibilité"
+          url: "https://github.com/demarches-simplifiees/demarches-simplifiees.fr/issues?q=accessibilit%C3%A9+"
+          title: "programme d’amélioration continue de DS en matière d’accessibilité - nouvel onglet"
       no_accessible:
         title: 'Contenus non accessibles'
         subtitle_one: 'Non-conformités'
         examples_html: 'Exemples :
           <ul>
-          <li>Les pages de documentation ne sont pas entièrement accessibles et sont gérées par un outil tiers.</li>
-          <li>Il en est de même pour les pages de la FAQ.</li>
-          </ul>
-          <p>Nous en tenons compte pour les futures évolutions des pages du site.</p>
-          '
-        subtitle_two: 'Remarques complémentaires'
-        content_html:
-          '<p class="fr-mb-2w">Les pages de documentation sont gérées par un outil tiers. Elles ne sont pas entièrement accessibles.</p>
-          <p class="fr-mb-2w">La gestion de la FAQ était déléguée à un outil tiers. Elle a été réintégrée à la plateforme en mai 2024 et n''a pas encore été auditée.</p>'
+            <li>1.3 - Des alternatives textuelles d’images porteuses d’informations ne sont pas pertinentes.</li>
+            <li>3.1 - Des informations sont données uniquement par la couleur.</li>
+            <li>6.1 - Des liens ne sont pas explicites.</li>
+            <li>7.1 - Des scripts ne sont pas compatibles avec les technologies d’assistance. </li>
+            <li>7.5 - Des messages de statut ne sont pas correctement restitués par les technologies d’assistance.</li>
+            <li>8.9 - Des balises sont utilisées uniquement à des fins de présentation.</li>
+            <li>9.3 - Des listes ne sont pas correctement structurées.</li>
+            <li>10.14 - Des contenus additionnels apparaissant via les styles CSS uniquement ne peuvent pas être rendus visibles au clavier et par tout dispositif de pointage.</li>
+            <li>11.5 - Des champs de même nature ne sont pas regroupés.</li>
+            <li>11.11 - Des contrôles de saisie ne sont pas accompagnés de suggestions facilitant la correction des erreurs.</li>
+            <li>13.3 - Des documents bureautiques en téléchargement ne possèdent pas de version accessible.</li>
+          </ul>"
+        subtitle_two: "Remarques complémentaires"
+        content_html: "<p class=\"fr-mb-2w\">Les pages de documentation sont gérées par un outil tiers. Elles ne sont pas entièrement accessibles.</p>
+          <p class=\"fr-mb-2w\">La gestion de la FAQ était déléguée à un outil tiers. Elle a été réintégrée à la plateforme en mai 2024 et n’a pas encore été auditée.</p>"
+
       preparation:
         title: 'Établissement de cette déclaration d’accessibilité'
         intro: 'Cette déclaration a été établie le 27 avril 2022. Elle a été mise à jour le 1er avril 2023.'
@@ -211,31 +216,29 @@ fr:
           email_html: 'Par voie électronique :'
           adress_html: 'Par voie postale : BP 124- 98713 Papeete TAHITI Polynésie française'
       remedies:
-        title: 'Voies de recours'
-        line_one: 'Si vous constatez un défaut d’accessibilité vous empêchant d’accéder à un contenu ou une fonctionnalité du site, que vous nous le signalez et que vous ne parvenez pas à obtenir une réponse rapide de notre part, vous êtes en droit de faire parvenir vos doléances ou une demande de saisine au Défenseur des droits.'
-        line_two: 'Plusieurs moyens sont à votre disposition :'
-        arcom_title: "Contacter l'Arcom"
-        arcom_content_html: 'Afin de signaler un ou plusieurs manquement(s) à la réglementation relative à l’accessibilité numérique, rendez-vous sur le <a href="https://www.arcom.fr/contact">formulaire de contact du site web de l''Arcom</a>.'
-        ddd_title: 'Saisir le Défenseur des droits'
-        ddd_intro: "Pour faire valoir vos droits relatifs à des défauts d'accessibilité que vous avez rencontrés, plusieurs moyens sont à votre disposition :"
+        title: "Voies de recours"
+        line_one: "Si vous constatez un défaut d’accessibilité vous empêchant d’accéder à un contenu ou une fonctionnalité du site, que vous nous le signalez et que vous ne parvenez pas à obtenir une réponse rapide de notre part, vous êtes en droit de contacter l’Arcom ou de saisir le Défenseur des droits."
+        arcom_title: "Contacter l’Arcom"
+        arcom_content_html: "Afin de signaler un ou plusieurs manquement(s) à la réglementation relative à l’accessibilité numérique, rendez-vous sur le <a href=\"https://www.arcom.fr/contact\">formulaire de contact du site web de l’Arcom</a>."
+        ddd_title: "Saisir le Défenseur des droits"
+        ddd_intro: "Pour faire valoir vos droits relatifs à des défauts d’accessibilité que vous avez rencontrés, plusieurs moyens sont à votre disposition :"
         remedies_one:
           label: 'Un formulaire de contact'
           url: 'https://www.defenseurdesdroits.fr/nous-contacter'
           title: 'Un formulaire de contact - nouvel onglet'
           info: 'Choisissez la thématique « Je suis victime de discrimination » puis « Biens et services privés » et enfin « Handicap ».'
         remedies_two:
-          label: 'Contacter le délégué du Défenseur des droits dans votre région'
-          url: 'https://www.defenseurdesdroits.fr/fr/saisir/delegues'
-          title: 'Contacter le délégué du Défenseur des droits dans votre région - nouvel onglet'
-        remedies_three_html:
-          'Envoyer un courrier par la poste (gratuit, ne pas mettre de timbre) à l''adresse suivante :
-          <p class="fr-mb-2w">Défenseur des droits
+          label: "Contacter le délégué du Défenseur des droits dans votre région"
+          url: "https://www.defenseurdesdroits.fr/fr/saisir/delegues"
+          title: "Contacter le délégué du Défenseur des droits dans votre région - nouvel onglet"
+        remedies_three_html: "Envoyer un courrier par la poste (gratuit, ne pas mettre de timbre) à l’adresse suivante :
+          <p class=\"fr-mb-2w\">Défenseur des droits
           <br >Libre réponse 71120
           <br>75342 Paris CEDEX 07</p>'
     prefill_descriptions:
       edit:
-        intro_html: "Vous souhaitez permettre à vos usager·ères la <strong>création d'un dossier prérempli</strong>, à partir de données dont vous disposez déjà, pour la démarche « %{libelle} »."
-        info_html: Pour cela, sélectionnez ci-dessous les champs que vous souhaitez préremplir.<br> Vous trouverez ensuite en bas de cette page un lien de préremplissage qu'il ne vous restera plus qu'à copier, à adapter en remplaçant les valeurs par défaut et à partager.<br> De la même façon, vous trouverez en bas de page un exemple de requête cURL à adapter si vous souhaitez préremplir les dossiers par API.
+        intro_html: "Vous souhaitez permettre à vos usager·ères la <strong>création d’un dossier prérempli</strong>, à partir de données dont vous disposez déjà, pour la démarche « %{libelle} »."
+        info_html: Pour cela, sélectionnez ci-dessous les champs que vous souhaitez préremplir.<br> Vous trouverez ensuite en bas de cette page un lien de préremplissage qu’il ne vous restera plus qu’à copier, à adapter en remplaçant les valeurs par défaut et à partager.<br> De la même façon, vous trouverez en bas de page un exemple de requête cURL à adapter si vous souhaitez préremplir les dossiers par API.
         champ_id: ID
         champ_type: Type
         entity_add: Ajouter
@@ -279,9 +282,9 @@ fr:
           rna_html: Un numéro RNA
           siret_html: Un numéro TAHITI
           repetition_html: Un tableau de dictionnaires avec les valeurs possibles pour chaque champ de la répétition.
-          annuaire_education_html: Un code d'établissement scolaire, tel que défini par <a href="https://api.gouv.fr/les-api/api-annuaire-education" target="_blank" rel="noopener noreferrer">l'Annuaire de l'Éducation Nationale</a>
+          annuaire_education_html: Un code d’établissement scolaire, tel que défini par <a href="https://api.gouv.fr/les-api/api-annuaire-education" target="_blank" rel="noopener noreferrer">l’Annuaire de l’Éducation Nationale</a>
           dossier_link_html: L’identifiant du dossier, sous forme de nombre entier
-          epci_html: Un tableau contenant le code de département et <a href="https://geo.api.gouv.fr/epcis" target="_blank" rel="noopener noreferrer">celui de l'EPCI</a>
+          epci_html: Un tableau contenant le code de département et <a href="https://geo.api.gouv.fr/epcis" target="_blank" rel="noopener noreferrer">celui de l’EPCI</a>
         examples:
           title: Exemple
           prenom: 'Jean'
@@ -412,16 +415,16 @@ fr:
         tab_explainations:
           a_suivre: Aucun instructeur n’est affecté au suivi de ces dossiers. Soyez le premier !
           suivis: Les dossiers qui sont dans cet onglet sont uniquement ceux que vous suivez. Vous pouvez échanger avec le demandeur jusqu’à pouvoir les accepter, les refuser ou les classer sans suite.
-          traites_html: 'Les dossiers dans cet onglet sont terminés : ils ont été acceptés, refusés ou classés sans suite. Vous pouvez <a href=%{archives_path}>télécharger</a> les archives au format zip des dossiers terminés et leurs pièces jointes.'
-          tous: Tous les dossiers déposés sur cette démarche, qu'ils soient à suivre, suivis par vous ou suivis par d'autres instructeurs.
-          tous_with_routing: Tous les dossiers déposés sur cette démarche et attribués aux groupes d'instructeurs dont vous faites partie.
+          traites_html: "Les dossiers dans cet onglet sont terminés : ils ont été acceptés, refusés ou classés sans suite. Vous pouvez <a href=%{archives_path}>télécharger</a> les archives au format zip des dossiers terminés et leurs pièces jointes."
+          tous: Tous les dossiers déposés sur cette démarche, qu’ils soient à suivre, suivis par vous ou suivis par d’autres instructeurs.
+          tous_with_routing: Tous les dossiers déposés sur cette démarche et attribués aux groupes d’instructeurs dont vous faites partie.
           supprimes: Tous les dossiers <strong>non archivés</strong>, <strong>terminés</strong> et <strong>supprimés par les instructeurs</strong> sur cette démarche
           archives: 'Les dossiers de cet onglet sont archivés : vous ne pouvez plus y répondre, et les demandeurs ne peuvent plus les modifier.'
           expirant: Les dossiers n’expireront pas avant la période de conservation des données.
         archived_dossier: 'Le dossier sera conservé 1 mois supplémentaire'
         delete_dossier: 'Supprimer le dossier'
         deleted_reason:
-          user_request: supprimé par l'usager
+          user_request: supprimé par l’usager
           expired: a expiré
         acts_on_behalf: 'agit pour'
         deleted_by_administration: 'Dossier supprimé par l’administration'
@@ -431,8 +434,8 @@ fr:
           title: Sélectionner un filtre
         select_all: Tout selectionner
         batch_operation:
-          enabled: 'Ajouter le dossier %{dossier_id} à la sélection pour un traitement de masse'
-          disabled: "Impossible d'ajouter le dossier %{dossier_id} à la selection car il est déjà dans un traitement de masse"
+          enabled: "Ajouter le dossier %{dossier_id} à la sélection pour un traitement de masse"
+          disabled: "Impossible d’ajouter le dossier %{dossier_id} à la selection car il est déjà dans un traitement de masse"
         show_deleted_dossiers: Historique des dossiers supprimés
         customize: Personnaliser le tableau
         passer_en_instruction: Passer en instruction
@@ -495,9 +498,9 @@ fr:
             status_review: en instruction
             admin_review: Votre dossier est en cours d’instruction par l’administration. Vous ne pouvez plus le modifier.
             delay_title:
-              sva: 'Votre dossier est soumis au cadre législatif « Silence Vaut Accord »'
-              svr: 'Votre dossier est soumis au cadre législatif « Silence Vaut Rejet »'
-            delay_text_sva_svr: "Vous aurez un retour de l'administration au plus tard le %{date}."
+              sva: "Votre dossier est soumis au cadre législatif « Silence Vaut Accord »"
+              svr: "Votre dossier est soumis au cadre législatif « Silence Vaut Rejet »"
+            delay_text_sva_svr: "Vous aurez un retour de l’administration au plus tard le %{date}."
             status_completed: terminé
             use_mailbox_for_questions_html: '<strong>Vous avez une question ?</strong> Utilisez la messagerie pour <a href="%{mailbox_url}">contacter l’administration directement</a>.'
             acceptee_html: 'Votre dossier a été <strong>accepté</strong>.'
@@ -539,12 +542,12 @@ fr:
               other_html: Cette démarche est close. Vous ne pouvez pas déposer ce dossier, ni en déposer un nouveau pour cette démarche. %{link}
             en_cours:
               internal_procedure_html: Cette démarche est close. Votre dossier est bien déposé et peut être instruit par l’administration. Au besoin, vous pouvez déposer un nouveau dossier sur la %{link} qui la remplace.
-              other_html: Cette démarche est close. Votre dossier est bien déposé et peut être instruit par l'administration. Vous ne pouvez pas déposer de nouveau dossier pour cette démarche. %{link}
+              other_html: Cette démarche est close. Votre dossier est bien déposé et peut être instruit par l’administration. Vous ne pouvez pas déposer de nouveau dossier pour cette démarche. %{link}
             termine:
-              internal_procedure_html: Cette démarche est close. Votre dossier a bien été traité par l'administration. Au besoin, vous pouvez déposer un nouveau dossier sur la %{link} qui la remplace.
-              other_html: Cette démarche est close. Votre dossier a bien été traité par l'administration. Vous ne pouvez pas déposer de nouveau dossier pour cette démarche. %{link}
+              internal_procedure_html: Cette démarche est close. Votre dossier a bien été traité par l’administration. Au besoin, vous pouvez déposer un nouveau dossier sur la %{link} qui la remplace.
+              other_html: Cette démarche est close. Votre dossier a bien été traité par l’administration. Vous ne pouvez pas déposer de nouveau dossier pour cette démarche. %{link}
             title_new_procedure: Nouvelle démarche disponible
-            title_closing_details: Plus d'informations sur la clôture de la démarche
+            title_closing_details: Plus d’informations sur la clôture de la démarche
             more_details: Plus d’informations
             procedure: démarche
             this_procedure: cette démarche
@@ -553,8 +556,8 @@ fr:
           created_at: Créé le %{date}
           updated_at: modifié le %{date}
           shared_with: Dossier partagé par %{owner} avec
-          deleted_by_user: Supprimé le %{date} par l'usager
-          deleted_by_automatic: Supprimé le %{date} automatiquement du à la date d'expiration
+          deleted_by_user: Supprimé le %{date} par l’usager
+          deleted_by_automatic: Supprimé le %{date} automatiquement du à la date d’expiration
         dossier_action:
           edit_dossier: 'Modifier le dossier'
           start_other_dossier: 'Commencer un nouveau dossier'
@@ -768,7 +771,7 @@ fr:
             code_departement:
               not_in_departement_codes: 'doit être un code de département valide'
             external_id:
-              not_in_departement_epci_codes: "doit être un code d'EPCI du département correspondant"
+              not_in_departement_epci_codes: "doit être un code d’EPCI du département correspondant"
             value:
               not_in_departement_epci_names: "doit être un nom d'EPCI du département correspondant"
         'champs/numero_dn_champ':
@@ -808,9 +811,9 @@ fr:
       procedure_archived:
         with_service_and_phone_email: Cette démarche en ligne a été close, il n’est plus possible de déposer de dossier. Pour plus d’informations veuillez contacter le service %{service_name} au %{service_phone_number} ou par email à %{service_email}
         with_organisation_only: Cette démarche en ligne a été close, il n’est plus possible de déposer de dossier. Pour plus d’informations veuillez contacter le service %{organisation_name}
-      evil_regexp: L'expression régulière que vous avez entrée est potentiellement dangereuse et pourrait entraîner des problèmes de performance
-      mismatch_regexp: L'exemple doit correspondre à l'expression régulière fournie
-      syntax_error_regexp: La syntaxe de l'expression régulière n'est pas valide
+      evil_regexp: L’expression régulière que vous avez entrée est potentiellement dangereuse et pourrait entraîner des problèmes de performance
+      mismatch_regexp: L’exemple doit correspondre à l’expression régulière fournie
+      syntax_error_regexp: La syntaxe de l’expression régulière n’est pas valide
       # procedure_not_draft: "Cette démarche n’est maintenant plus en brouillon."
       cadastres_empty:
         one: 'Aucune parcelle cadastrale sur la zone sélectionnée'
@@ -989,19 +992,14 @@ fr:
     particulier:
       choose_email:
         intro_html: "Votre compte FranceConnect utilise <span class='fr-badge fr-badge--info fr-badge--no-icon fr-badge--lowercase'>%{email}</span> comme email de contact."
-        use_email_for_notifications: Souhaitez-vous l'utiliser pour recevoir les notifications concernant l'avancement de vos dossiers ?
-        confirm: Confirmer
+        use_email_for_notifications: Souhaitez-vous l’utiliser pour recevoir les notifications concernant l’avancement de vos dossiers ?
+        confirm: Valider
         choose_email_contact: Choisissez votre email de contact pour finaliser votre connexion
-        alternative_email: Veuillez nous fournir l'email à utiliser pour vous contacter.
-        keep_fc_email_html: 'Oui, utiliser %{email} comme email de contact.'
-        use_another_email: Non, utiliser une autre adresse.
+        alternative_email: Veuillez nous fournir l’adresse électronique à utiliser pour vous contacter
+        keep_fc_email_html: "<span>Oui, utiliser <b>%{email}</b> comme email de contact</span>"
+        use_another_email: Non, utiliser une autre adresse
         email_suggest:
           wanna_say: 'Voulez-vous dire ?'
-      confirmation_sent:
-        confirmation_sent_by_email: Confirmez votre email
-        intro_html: "Un mail de confirmation a été envoyé à votre adresse <span class='fr-badge fr-badge--info fr-badge--no-icon fr-badge--lowercase'>%{email}</span>"
-        click_the_link_in_the_email: Vous devez impérativement cliquer sur le lien du mail pour activer votre adresse et recevoir les notifications sur l'avancement de vos dossiers.
-        continue: Continuer
       merge:
         title: 'Fusion des comptes FranceConnect et %{application_name}'
         subtitle_html: "Bonjour,<br /><br />Votre compte FranceConnect utilise <b class='bold'>%{email}</b> comme email de contact.<br />Or il existe un compte sur %{application_name} avec cet email."
@@ -1051,16 +1049,16 @@ fr:
     flash:
       alert:
         groupe_gestionnaire_administrateur:
-          cannot_be_deleted: "L'administrateur « %{email} » ne peut pas être supprimé du groupe gestionnaire."
-          not_in_groupe_gestionnaire: "L'administrateur « %{email} » n’est pas dans le groupe gestionnaire."
+          cannot_be_deleted: "L’administrateur « %{email} » ne peut pas être supprimé du groupe gestionnaire."
+          not_in_groupe_gestionnaire: "L’administrateur « %{email} » n’est pas dans le groupe gestionnaire."
         groupe_gestionnaire_gestionnaire:
           destroy_at_least_one: 'Suppression impossible : il doit y avoir au moins un gestionnaire dans le groupe racine'
           not_in_groupe_gestionnaire: 'Le gestionnaire « %{email} » n’est pas dans le groupe gestionnaire.'
       notice:
         groupe_gestionnaire_administrateur:
-          create: 'Les administrateurs ont bien été affectés au groupe gestionnaire'
-          destroy: "L'administrateur « %{email} » a été supprimé."
-          remove: "L'administrateur « %{email} » a été retiré du groupe gestionnaire."
+          create: "Les administrateurs ont bien été affectés au groupe gestionnaire"
+          destroy: "L’administrateur « %{email} » a été supprimé."
+          remove: "L’administrateur « %{email} » a été retiré du groupe gestionnaire."
         groupe_gestionnaire_gestionnaire:
           create: 'Les gestionnaires ont bien été affectés au groupe gestionnaire'
           destroy: 'Le gestionnaire « %{email} » a été retiré du groupe gestionnaire.'
@@ -1091,14 +1089,14 @@ fr:
     procedure_description:
       estimated_fill_duration: 'Temps de remplissage estimé : %{estimated_minutes} min'
       estimated_fill_duration_title: Quelle est la durée de remplissage de la démarche ?
-      estimated_fill_duration_detail: 'La durée de remplissage est estimée à %{estimated_minutes} min. Ce délai peut varier selon les options que vous choisirez.'
-      usual_traitement_time_title: Quels sont les délais d'instruction pour cette démarche ?
-      pieces_jointes: Quelles sont les pièces justificatives à fournir ?
-      pieces_jointes_conditionnal_list_title: Liste des pièces en fonction de votre situation
-      sva_svr_title: 'Cette démarche applique le « %{rule} »'
-      sva_text_html: 'Le SVA, ou « <strong>Silence Vaut Accord</strong> », est un principe législatif qui définit le comportement d’une demande en cas d’absence de réponse de l’administration : la demande sera automatiquement acceptée à l’issue d’un délai si votre dossier est complet.'
-      svr_text_html: 'Le SVR, ou « <strong>Silence Vaut Rejet</strong> », est un principe législatif qui définit le comportement d’une demande en cas d’absence de réponse de l’administration : la demande sera automatiquement refusée à l’issue d’un délai si votre dossier est complet.'
+      estimated_fill_duration_detail: "La durée de remplissage est estimée à %{estimated_minutes} min. Ce délai peut varier selon les options que vous choisirez."
+      usual_traitement_time_title: Quels sont les délais d’instruction pour cette démarche ?
+      pieces_jointes : Quelles sont les pièces justificatives à fournir ?
+      pieces_jointes_conditionnal_list_title : Liste des pièces en fonction de votre situation
+      sva_svr_title: "Cette démarche applique le « %{rule} »"
+      sva_text_html: "Le SVA, ou « <strong>Silence Vaut Accord</strong> », est un principe législatif qui définit le comportement d’une demande en cas d’absence de réponse de l’administration : la demande sera automatiquement acceptée à l’issue d’un délai si votre dossier est complet."
+      svr_text_html: "Le SVR, ou « <strong>Silence Vaut Rejet</strong> », est un principe législatif qui définit le comportement d’une demande en cas d’absence de réponse de l’administration : la demande sera automatiquement refusée à l’issue d’un délai si votre dossier est complet."
       sva_svr_prevision_date:
         Ainsi, vous recevrez une réponse à votre demande dans les %{delay} après avoir déposé votre dossier complet.
-        Par exemple, si vous déposez votre dossier aujourd'hui, vous aurez une réponse au plus tard le %{date}.
+        Par exemple, si vous déposez votre dossier aujourd’hui, vous aurez une réponse au plus tard le %{date}.
         Si votre dossier est incomplet, cette date pourrait être repoussée jusqu’à la soumission d’un dossier complété.

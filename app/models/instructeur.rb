@@ -28,6 +28,8 @@ class Instructeur < ApplicationRecord
   has_many :exports, as: :user_profile
   has_many :archives, as: :user_profile
 
+  has_many :instructeurs_procedures, dependent: :destroy
+
   belongs_to :user
 
   scope :with_instant_email_message_notifications, -> {
@@ -106,12 +108,34 @@ class Instructeur < ApplicationRecord
     end
   end
 
+  def ensure_instructeur_procedures_for(procedures)
+    current_instructeur_procedures = instructeurs_procedures.where(procedure_id: procedures.map(&:id))
+    top_position = current_instructeur_procedures.map(&:position).max || 0
+    missing_instructeur_procedures = procedures.sort_by(&:published_at).map(&:id).filter_map do |procedure_id|
+      if !procedure_id.in?(current_instructeur_procedures.map(&:procedure_id))
+        { instructeur_id: id, procedure_id:, position: top_position += 1 }
+      end
+    end
+    InstructeursProcedure.insert_all(missing_instructeur_procedures) if missing_instructeur_procedures.size.positive?
+  end
+
+  def update_instructeur_procedures_positions(ordered_procedure_ids)
+    procedure_id_position = ordered_procedure_ids.reverse.each.with_index.to_h
+    InstructeursProcedure.transaction do
+      procedure_id_position.each do |procedure_id, position|
+        InstructeursProcedure.where(procedure_id:, instructeur_id: id).update(position:)
+      end
+    end
+  end
+
+  def procedure_presentation_for_procedure_id(procedure_id)
+    assign_to = assign_to_for_procedure_id(procedure_id)
+    assign_to.procedure_presentation || assign_to.create_procedure_presentation!
+  end
+
   def procedure_presentation_and_errors_for_procedure_id(procedure_id)
-    assign_to
-      .joins(:groupe_instructeur)
-      .includes(:instructeur, :procedure)
-      .find_by(groupe_instructeurs: { procedure_id: procedure_id })
-      .procedure_presentation_or_default_and_errors
+    assign_to = assign_to_for_procedure_id(procedure_id)
+    assign_to.procedure_presentation_or_default_and_errors
   end
 
   def notifications_for_dossier(dossier)
@@ -333,5 +357,12 @@ class Instructeur < ApplicationRecord
       .where(condition)
       .merge(followed_dossiers)
       .with_notifications
+  end
+
+  def assign_to_for_procedure_id(procedure_id)
+    assign_to
+      .joins(:groupe_instructeur)
+      .includes(:instructeur, :procedure)
+      .find_by(groupe_instructeurs: { procedure_id: procedure_id })
   end
 end

@@ -19,6 +19,7 @@ describe 'Prefilling a dossier (with a GET request):', js: true do
   end
   let(:procedure) { create(:procedure, :for_individual, :published, opendata: true, types_de_champ_public:) }
   let(:dossier) { procedure.dossiers.last }
+  let(:linked_dossier) { create(:dossier, :en_construction, procedure:) }
   let(:types_de_champ) { procedure.active_revision.types_de_champ_public }
 
   let(:type_de_champ_text) { types_de_champ[0] }
@@ -43,7 +44,7 @@ describe 'Prefilling a dossier (with a GET request):', js: true do
     ]
   }
   let(:epci_value) { ['01', '200029999'] }
-  let(:dossier_link_value) { '42' }
+  let(:dossier_link_value) { linked_dossier.id }
   let(:commune_value) { ['01540', '01457'] }
   let(:commune_libelle) { 'Vonnas (01540)' }
   let(:address_value) { "20 Avenue de Ségur 75007 Paris" }
@@ -181,12 +182,10 @@ describe 'Prefilling a dossier (with a GET request):', js: true do
           page.find('.fr-connect').click
 
           expect(page).to have_content("Choisissez votre email de contact pour finaliser votre connexion")
-          expect(page).to have_selector("#use_france_connect_email_no", visible: false, wait: 10)
-          page.execute_script('document.getElementById("use_france_connect_email_no").click()')
-          fill_in("email", with: "exemple@email.com")
-          page.find("input[type='submit'][name='commit'][value='Confirmer']").click
-          expect(page).to have_content("Confirmez votre email")
-          click_on 'Continuer'
+
+          find('label', text: /Oui, utiliser .* comme email de contact/).click
+
+          click_on 'Valider'
           expect(page).to have_content('Vous avez un dossier prérempli')
           find('.fr-btn.fr-mb-2w', text: 'Poursuivre mon dossier prérempli', wait: 10).click
         end

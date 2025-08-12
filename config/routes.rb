@@ -490,6 +490,11 @@ Rails.application.routes.draw do
           put 'preview'
         end
       end
+
+      collection do
+        get 'order_positions'
+        patch 'update_order_positions'
+      end
     end
 
     resources :procedure_presentation, only: [:update] do
@@ -510,6 +515,8 @@ Rails.application.routes.draw do
           resources :dossiers, only: [:show, :destroy], param: :dossier_id, path: "(:statut)/dossiers", defaults: { statut: 'a-suivre' } do
             member do
               resources :commentaires, only: [:destroy]
+              get 'next'
+              get 'previous'
               post 'repousser-expiration' => 'dossiers#extend_conservation'
               post 'repousser-expiration-and-restore' => 'dossiers#extend_conservation_and_restore'
               post 'dossier_labels' => 'dossiers#dossier_labels'

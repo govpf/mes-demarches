@@ -18,7 +18,7 @@ class Champs::DecimalNumberChamp < Champ
     message: -> (object, _data) {
       object.errors.generate_message(:value, :not_a_number)
     }
-  }, if: :validate_champ_value_or_prefill?
+  }, if: :validate_champ_value?
 
   validate :min_max_validation, if: -> { validate_champ_value? || validation_context == :prefill }
 
