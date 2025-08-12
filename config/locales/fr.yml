@@ -154,7 +154,7 @@ fr:
             <li>11.5 - Des champs de même nature ne sont pas regroupés.</li>
             <li>11.11 - Des contrôles de saisie ne sont pas accompagnés de suggestions facilitant la correction des erreurs.</li>
             <li>13.3 - Des documents bureautiques en téléchargement ne possèdent pas de version accessible.</li>
-          </ul>"
+          </ul>'
         subtitle_two: "Remarques complémentaires"
         content_html: "<p class=\"fr-mb-2w\">Les pages de documentation sont gérées par un outil tiers. Elles ne sont pas entièrement accessibles.</p>
           <p class=\"fr-mb-2w\">La gestion de la FAQ était déléguée à un outil tiers. Elle a été réintégrée à la plateforme en mai 2024 et n’a pas encore été auditée.</p>"
@@ -234,7 +234,7 @@ fr:
         remedies_three_html: "Envoyer un courrier par la poste (gratuit, ne pas mettre de timbre) à l’adresse suivante :
           <p class=\"fr-mb-2w\">Défenseur des droits
           <br >Libre réponse 71120
-          <br>75342 Paris CEDEX 07</p>'
+          <br>75342 Paris CEDEX 07</p>"
     prefill_descriptions:
       edit:
         intro_html: "Vous souhaitez permettre à vos usager·ères la <strong>création d’un dossier prérempli</strong>, à partir de données dont vous disposez déjà, pour la démarche « %{libelle} »."
