@@ -13,7 +13,9 @@ class Champs::IntegerNumberChamp < Champ
     }
   }, if: :validate_champ_value?
 
-  validate :min_max_validation, if: :validate_champ_value_or_prefill?
+  # TODO : checkback is there a reason for this today ? Seems like validate champ value ...
+  # does not existe
+  # validate :min_max_validation, if: :validate_champ_value_or_prefill?
 
   def min_max_validation
     return if value.blank?
