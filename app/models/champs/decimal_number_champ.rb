@@ -20,7 +20,7 @@ class Champs::DecimalNumberChamp < Champ
     }
   }, if: :validate_champ_value?
 
-  validate :min_max_validation, if: -> { validate_champ_value? || validation_context == :prefill }
+  validate :min_max_validation, if: :validate_champ_value?
 
   def min_max_validation
     return if value.blank?
