@@ -490,6 +490,11 @@ Rails.application.routes.draw do
           put 'preview'
         end
       end
+
+      collection do
+        get 'order_positions'
+        patch 'update_order_positions'
+      end
     end
 
     resources :procedure_presentation, only: [:update] do
