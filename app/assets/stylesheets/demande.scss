@@ -48,4 +48,12 @@
   .top-bordered {
     border-top: 1px solid var(--border-default-grey);
   }
+
+  .referentiel-value-truncate {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 1rem;
+  }
 }

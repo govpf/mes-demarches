@@ -3,7 +3,7 @@
 - else
   = tag.div(class: "fr-my-2w", 'data-controller': 'expand') do
     %div{ class: "flex top-bordered" }
-      = champ.value
+      %span.referentiel-value-truncate= champ.value
       %button{ type: "button", aria: { controls: champ.id, "expanded": "false", label: t('.toggle_champ', champ: champ.libelle) }, href: champ.id, 'data-action': 'click->expand#toggle', class: "fr-btn fr-btn--tertiary-no-outline" }
         %i.fr-icon-arrow-down-s-line{ 'aria-hidden': 'true', 'data-expand-target': 'icon' }
 
