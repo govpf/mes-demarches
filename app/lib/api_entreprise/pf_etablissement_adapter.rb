@@ -1,6 +1,14 @@
 # frozen_string_literal: true
 
 class APIEntreprise::PfEtablissementAdapter < APIEntreprise::Adapter
+  # Returns all etablissements for a given prefix (used when SIRET < 9 chars)
+  def to_all_etablissements
+    return [] if data_source.blank?
+
+    list_etablissements = data_source.sort_by { |a| a[:numEtablissement] }.filter { |h| h[:dateRadiation].nil? }
+    list_etablissements.map { |e| translate(e).merge(num_entreprise: e[:numEtablissement]) }
+  end
+
   private
 
   def get_resource
@@ -27,7 +35,7 @@ class APIEntreprise::PfEtablissementAdapter < APIEntreprise::Adapter
       num_etablissement = num_etablissement.to_i
       etablissements = [etablissements.find { |e| e[:numEtablissement] == num_etablissement }].compact
     end
-    return [nil, nil] if etablissements.blank?
+    return {} if etablissements.blank?
 
     translated_etablissements = etablissements.map { |e| translate(e) }
     fields = Set.new(translated_etablissements.map(&:keys).flatten)
@@ -39,7 +47,7 @@ class APIEntreprise::PfEtablissementAdapter < APIEntreprise::Adapter
       etablissement[:siret] += format("%03d", etablissement[:num_entreprise])
     end
     etablissement.delete(:num_entreprise)
-    [etablissement, translated_etablissements]
+    etablissement
   end
 
   def merge_values(etablissements, k)

@@ -3,3 +3,4 @@ en:
     messages:
       content_type_invalid: is not of an accepted type
       file_size_out_of_range: is too big. The file must be at most %{max_size}.
+      api_entreprise_down: "Our provider for TAHITI numbers seems down, we'll retrieve data later"

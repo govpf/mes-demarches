@@ -184,11 +184,13 @@ describe Champs::SiretController, type: :controller do
 
         subject! { get :show, params: params, format: :turbo_stream }
 
-        it 'populates the etablissement and SIRET on the model' do
+        it 'finds multiple establishments but does not create one automatically' do
           champ.reload
-          expect(champ.etablissement).to_not be_nil
-          expect(champ.etablissement.siret).to eq(siret)
-          expect(champ.etablissement.entreprise_raison_sociale).to eq('BANQUE SOCREDO')
+          # With an ambiguous TAHITI number, no establishment is created automatically
+          expect(champ.etablissement).to be_nil
+          # But the establishments list should be available for the user to choose
+          expect(assigns(:champ).instance_variable_get(:@etablissements)).to be_present
+          expect(assigns(:champ).instance_variable_get(:@etablissements).size).to be > 1
           expect(dossier.reload.etablissement).to eq(nil)
         end
       end

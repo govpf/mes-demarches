@@ -205,56 +205,63 @@ module Users
       end
 
       sanitized_siret = siret_model.siret
-      etablissement, @other_etablissements = begin
-                        APIEntrepriseService.create_etablissement(@dossier, sanitized_siret, current_user.id)
-                                             rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
-                                               if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
-                                                 # TODO: notify ops
-                                                 APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, sanitized_siret, current_user.id)
-                                               else
-                                                 Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: })
 
-                                                 # probably random error, invite user to retry
-                                                 return render_siret_error(t('errors.messages.siret_network_error'))
-                                               end
-                      end
+      # PF: Handle ambiguous TAHITI numbers (< 9 chars)
+      # In PF, users can enter partial TAHITI numbers that match multiple establishments
+      # Upstream doesn't have this case as SIRET are always complete
+      if sanitized_siret.length < 9
+        @etablissements = begin
+          APIEntrepriseService.list_etablissements(sanitized_siret, @dossier.procedure.id)
+                          rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
+                            Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: sanitized_siret })
+                            return render_siret_error(t('errors.messages.siret_network_error'))
+        end
 
-      if etablissement.nil?
-        return render_siret_error(t('errors.messages.siret_unknown'))
-      end
-
-      current_user.update!(siret: sanitized_siret)
-      @dossier.update!(autorisation_donnees: true)
-
-      if @other_etablissements && @other_etablissements.size > 1
-        redirect_to etablissements_dossier_path
+        if @etablissements.blank?
+          return render_siret_error(t('errors.messages.siret_unknown'))
+        elsif @etablissements.size == 1
+          # PF: Auto-select when only one establishment matches
+          full_siret = "#{sanitized_siret}#{format('%03d', @etablissements[0][:num_entreprise])}"
+          create_etablissement_and_redirect(full_siret)
+        else
+          # PF: Multiple establishments found, redirect to selection page
+          # This is specific to PF where partial TAHITI numbers are ambiguous
+          session[:siret_prefix] = sanitized_siret
+          redirect_to etablissements_dossier_path
+        end
       else
-        redirect_to etablissement_dossier_path
+        # SIRET >= 9 chars, create directly
+        # For French SIRET, we want to propagate API errors with proper messaging
+        create_etablissement_and_redirect(sanitized_siret)
       end
     end
 
+    # PF: New action for handling establishment selection
+    # When a partial TAHITI number matches multiple establishments,
+    # this page lets users choose the correct one
+    # Upstream doesn't need this as SIRET are always unambiguous
     def etablissements
       @dossier = dossier
+      @siret_prefix = session[:siret_prefix] || params[:siret_prefix]
 
-      # Redirect if the user attempts to access the page URL directly
-      if !@dossier.etablissement
+      # Redirect if accessing directly without a SIRET prefix
+      if @siret_prefix.blank?
         flash.alert = t('users.dossiers.etablissement.no_establishment')
         return redirect_to siret_dossier_path(@dossier)
       end
 
-      @dossier.etablissement, @other_etablissements = begin
-                                                        APIEntrepriseService.create_etablissement(@dossier, @dossier.siret[0..5], current_user.id)
-                                                      rescue => error
-                                                        if error.try(:network_error?) && !APIEntrepriseService.api_insee_up?
-                                                          # TODO: notify ops
-                                                          APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, @dossier.siret[0..5], current_user.id)
-                                                        else
-                                                          Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: @dossier.siret[0..5] })
+      @etablissements = begin
+        APIEntrepriseService.list_etablissements(@siret_prefix, @dossier.procedure.id)
+                        rescue => error
+                          Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: @siret_prefix })
+                          flash.alert = t('errors.messages.siret_network_error')
+                          return redirect_to siret_dossier_path(@dossier)
+      end
 
-                                                          # probably random error, invite user to retry
-                                                          return render_siret_error(t('errors.messages.siret_network_error'))
-                                                        end
-                                                      end
+      if @etablissements.blank?
+        flash.alert = t('errors.messages.siret_unknown')
+        return redirect_to siret_dossier_path(@dossier)
+      end
     end
 
     def etablissement
@@ -539,6 +546,28 @@ module Users
 
     def page
       [params[:page].to_i, 1].max
+    end
+
+    def create_etablissement_and_redirect(siret)
+      etablissement = begin
+        APIEntrepriseService.create_etablissement(@dossier, siret, current_user.id)
+                      rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
+                        if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
+                          # TODO: notify ops
+                          APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, siret, current_user.id)
+                        else
+                          Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: siret })
+                          return render_siret_error(t('errors.messages.siret_network_error'))
+                        end
+      end
+
+      if etablissement.nil?
+        return render_siret_error(t('errors.messages.siret_unknown'))
+      end
+
+      current_user.update!(siret: siret)
+      @dossier.update!(autorisation_donnees: true)
+      redirect_to etablissement_dossier_path
     end
 
     def champs_public_params

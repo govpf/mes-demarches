@@ -5,10 +5,18 @@ class Champs::SiretController < Champs::ChampController
     champs_attributes = params.dig(:dossier, :champs_public_attributes) || params.dig(:dossier, :champs_private_attributes)
     siret = champs_attributes.values.first[:value]
 
-    if @champ.fetch_etablissement!(siret, current_user)
+    @champ.fetch_etablissement!(siret, current_user)
+
+    # PF: Handle different cases
+    if @champ.etablissement_fetch_error_key.present?
+      # Real error case
+      @siret = @champ.etablissement_fetch_error_key
+    elsif @champ.etablissement.present?
+      # Single establishment found and created
       @siret = @champ.etablissement.siret
     else
-      @siret = @champ.etablissement_fetch_error_key
+      # PF: Multiple establishments or other cases
+      @siret = siret
     end
   end
 end
