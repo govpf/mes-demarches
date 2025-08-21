@@ -29,7 +29,8 @@ class AttachmentsController < ApplicationController
       ChampRevision.create_or_update_revision(champ, current_instructeur.id)
     end
 
-    flash.notice = 'La pièce jointe a bien été supprimée.'
+    # pf #163 avoid screen scrolling to stay on the current champ
+    # flash.notice = 'La pièce jointe a bien été supprimée.'
 
     if params[:dossier_id]
       @champ = find_champ
