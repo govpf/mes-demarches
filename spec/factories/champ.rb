@@ -121,14 +121,6 @@ FactoryBot.define do
       external_id { '200071991' }
     end
 
-    factory :champ_do_not_use_header_section, class: 'Champs::HeaderSectionChamp' do
-      value { 'une section' }
-    end
-
-    factory :champ_do_not_use_explication, class: 'Champs::ExplicationChamp' do
-      value { '' }
-    end
-
     factory :champ_do_not_use_dossier_link, class: 'Champs::DossierLinkChamp' do
       value { create(:dossier, :en_construction).id }
     end
@@ -202,7 +194,7 @@ FactoryBot.define do
     factory :champ_do_not_use_siret, class: 'Champs::SiretChamp' do
       association :etablissement, factory: [:etablissement]
       value { '44011762001530' }
-      value_json { AddressProxy::ADDRESS_PARTS.index_by(&:itself) }
+      value_json { etablissement.champ_value_json }
     end
 
     factory :champ_do_not_use_rna, class: 'Champs::RNAChamp' do

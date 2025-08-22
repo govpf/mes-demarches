@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe DossierChampsConcern do
-  let(:procedure) do
-    create(:procedure, types_de_champ_public:, types_de_champ_private:)
-  end
+  let(:procedure) { create(:procedure, types_de_champ_public:, types_de_champ_private:) }
   let(:types_de_champ_public) do
     [
       { type: :text, libelle: "Un champ text", stable_id: 99 },
@@ -38,16 +36,16 @@ RSpec.describe DossierChampsConcern do
 
     context "public champ" do
       let(:row_id) { nil }
-      subject { dossier.project_champ(type_de_champ_public, row_id) }
+      subject { dossier.project_champ(type_de_champ_public, row_id:) }
 
       it { expect(subject.persisted?).to be_truthy }
 
       context "in repetition" do
         let(:type_de_champ_public) { dossier.find_type_de_champ_by_stable_id(994) }
-        let(:row_id) { dossier.project_champ(type_de_champ_repetition, nil).row_ids.first }
+        let(:row_id) { dossier.project_champ(type_de_champ_repetition).row_ids.first }
 
         it {
-          expect(subject.persisted?).to be_truthy
+          expect(subject.new_record?).to be_truthy
           expect(subject.row_id).to eq(row_id)
         }
 
@@ -90,7 +88,7 @@ RSpec.describe DossierChampsConcern do
     end
 
     context "private champ" do
-      subject { dossier.project_champ(type_de_champ_private, nil) }
+      subject { dossier.project_champ(type_de_champ_private) }
 
       it { expect(subject.persisted?).to be_truthy }
 
@@ -130,10 +128,11 @@ RSpec.describe DossierChampsConcern do
         { type: :explication }
       ]
     end
+    let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
     subject { dossier.filled_champs_public }
 
-    it { expect(subject.size).to eq(4) }
-    it { expect(subject.find { _1.libelle == 'Nom' }).to be_truthy }
+    it { expect(subject.size).to eq(5) }
+    it { expect(subject.filter { _1.libelle == 'Nom' }.size).to eq(2) }
   end
 
   describe '#filled_champs_private' do
@@ -156,14 +155,8 @@ RSpec.describe DossierChampsConcern do
     it { expect(subject.size).to eq(1) }
 
     context 'given a type de champ repetition in another revision' do
-      let(:procedure) { create(:procedure, :published, types_de_champ_public:, types_de_champ_private:) }
-      let(:draft) { procedure.draft_revision }
-      let(:errored_stable_id) { 666 }
-      let(:type_de_champ_repetition) { procedure.active_revision.types_de_champ.find { _1.stable_id == errored_stable_id } }
       before do
-        dossier
-        tdc_repetition = draft.add_type_de_champ(type_champ: :repetition, libelle: "repetition", stable_id: errored_stable_id)
-        draft.add_type_de_champ(type_champ: :text, libelle: "t1", parent_stable_id: tdc_repetition.stable_id)
+        procedure.draft_revision.remove_type_de_champ(type_de_champ_repetition.stable_id)
         procedure.publish_revision!
       end
 
@@ -232,7 +225,7 @@ RSpec.describe DossierChampsConcern do
     let(:row_id) { nil }
 
     context "public champ" do
-      subject { dossier.champ_for_update(type_de_champ_public, row_id, updated_by: dossier.user.email) }
+      subject { dossier.champ_for_update(type_de_champ_public, row_id:, updated_by: dossier.user.email) }
 
       it {
         expect(subject.persisted?).to be_truthy
@@ -268,10 +261,29 @@ RSpec.describe DossierChampsConcern do
           }
         end
       end
+
+      context "champ with type change" do
+        let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :text, libelle: "Un champ text", stable_id: 99 }]) }
+        let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
+
+        before do
+          tdc = dossier.procedure.draft_revision.find_and_ensure_exclusive_use(99)
+          tdc.update!(type_champ: TypeDeChamp.type_champs.fetch(:checkbox))
+          dossier.procedure.publish_revision!
+          perform_enqueued_jobs
+          dossier.reload
+        end
+
+        it {
+          expect(subject.persisted?).to be_truthy
+          expect(subject.is_a?(Champs::CheckboxChamp)).to be_truthy
+          expect(subject.value).to be_nil
+        }
+      end
     end
 
     context "private champ" do
-      subject { dossier.champ_for_update(type_de_champ_private, row_id, updated_by: dossier.user.email) }
+      subject { dossier.champ_for_update(type_de_champ_private, row_id:, updated_by: dossier.user.email) }
 
       it {
         expect(subject.persisted?).to be_truthy
@@ -292,9 +304,9 @@ RSpec.describe DossierChampsConcern do
       }
     end
 
-    let(:champ_99) { dossier.project_champ(dossier.find_type_de_champ_by_stable_id(99), nil) }
-    let(:champ_991) { dossier.project_champ(dossier.find_type_de_champ_by_stable_id(991), nil) }
-    let(:champ_994) { dossier.project_champ(dossier.find_type_de_champ_by_stable_id(994), row_id) }
+    let(:champ_99) { dossier.project_champ(dossier.find_type_de_champ_by_stable_id(99)) }
+    let(:champ_991) { dossier.project_champ(dossier.find_type_de_champ_by_stable_id(991)) }
+    let(:champ_994) { dossier.project_champ(dossier.find_type_de_champ_by_stable_id(994), row_id:) }
 
     subject { dossier.update_champs_attributes(attributes, :public, updated_by: dossier.user.email) }
 
@@ -323,6 +335,27 @@ RSpec.describe DossierChampsConcern do
         expect(champ_994.value).to eq("Greer")
       }
     end
+
+    context "champ with type change" do
+      let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :text, libelle: "Un champ text", stable_id: 99 }]) }
+      let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
+      let(:attributes) { { "99" => { primary_value: "primary" } } }
+
+      before do
+        tdc = dossier.procedure.draft_revision.find_and_ensure_exclusive_use(99)
+        tdc.update!(type_champ: TypeDeChamp.type_champs.fetch(:linked_drop_down_list), drop_down_options: ["--primary--", "secondary"])
+        dossier.procedure.publish_revision!
+        perform_enqueued_jobs
+        dossier.reload
+      end
+
+      it {
+        subject
+        expect(dossier.champs.any?(&:changed_for_autosave?)).to be_truthy
+        expect(champ_99.changed?).to be_truthy
+        expect(champ_99.value).to eq('["primary",""]')
+      }
+    end
   end
 
   describe "#update_champs_attributes(private)" do
@@ -332,7 +365,7 @@ RSpec.describe DossierChampsConcern do
       }
     end
 
-    let(:annotation_995) { dossier.project_champ(dossier.find_type_de_champ_by_stable_id(995), nil) }
+    let(:annotation_995) { dossier.project_champ(dossier.find_type_de_champ_by_stable_id(995)) }
 
     subject { dossier.update_champs_attributes(attributes, :private, updated_by: dossier.user.email) }
 

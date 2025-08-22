@@ -66,6 +66,9 @@ class Champs::PieceJustificativeController < Champs::ChampController
     end
 
     @champ.dossier.update(last_champ_updated_at: Time.zone.now.utc) if save_succeed
+    if save_succeed && dossier.brouillon?
+      dossier.touch(:last_champ_updated_at, :last_champ_piece_jointe_updated_at)
+    end
 
     save_succeed
   end
@@ -79,8 +82,12 @@ class Champs::PieceJustificativeController < Champs::ChampController
     else
       dossier = Dossier.includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
       type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
-      dossier.project_champ(type_de_champ, params_row_id)
+      dossier.project_champ(type_de_champ, row_id: params_row_id)
     end
     champ&.match_encoded_date?(:created_at, h) ? champ : nil
+  end
+
+  def dossier
+    @champ.dossier
   end
 end
