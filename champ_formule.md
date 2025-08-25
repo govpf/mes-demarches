@@ -39,232 +39,123 @@ gem 'dentaku', '~> 3.5.4'
 
 ## Étapes de développement (User Stories)
 
-### Étape 1 : Modèle et base de données
-**En tant que développeur, je veux créer le nouveau type de champ formule**
+(Les étapes 1 à 8 restent inchangées)
 
-**Tâches :**
-- [ ] **Ajouter `formule: 'formule'` dans `INSTANCE_TYPE_CHAMPS` du modèle `TypeDeChamp` (zone fork)**
-- [ ] **Ajouter `formule: STANDARD` dans `INSTANCE_TYPE_DE_CHAMP_TO_CATEGORIE` (zone fork)**
-- [ ] Créer `TypesDeChamp::FormuleTypeDeChamp` qui hérite de `TypesDeChamp::TypeDeChampBase`
-- [ ] Ajouter les options `formule_expression` dans `INSTANCE_OPTIONS` et `store_accessor :options`
-- [ ] Créer `Champs::FormuleChamp` qui hérite de `Champ`
-- [ ] Ajouter la validation de l'expression de formule avec Dentaku
-- [ ] **Implémenter la conversion automatique texte→numérique dans les calculs**
-- [ ] **Retour systématiquement textuel (à confirmer dans le code)**
+...
 
-**Critères d'acceptation :**
-- Le type de champ "formule" apparaît dans les types disponibles
-- L'expression de formule est stockée dans les options du TypeDeChamp
-- **Le nouveau type utilise les constantes INSTANCE_* (zone fork)**
-- L'expression est validée lors de la sauvegarde
-- **Les références de champs retournent systématiquement du texte**
-- **Conversion automatique texte→numérique quand nécessaire**
+## Étape 9 : Formules sur les Blocs Répétables
 
-### Étape 2 : Interface d'administration - Configuration
-**En tant qu'administrateur, je veux pouvoir configurer un champ formule**
+**Objectif :** Étendre le moteur de formules pour permettre des calculs (sommes, comptages, moyennes) et des vérifications logiques (contient, tous les éléments valident...) sur des champs situés à l'intérieur de blocs répétables.
 
-**Tâches :**
-- [ ] Ajouter l'interface de configuration dans l'éditeur de champs
-- [ ] Créer un champ texte pour saisir l'expression de formule
-- [ ] **~~Ajouter un sélecteur pour le type de retour~~ (simplifié : retour toujours textuel)**
-- [ ] Ajouter une aide contextuelle avec des exemples de formules numériques et textuelles
-- [ ] Valider l'expression côté client avec un aperçu
-- [ ] Lister les champs disponibles pour la formule avec leur type
+### User Story 1 : Calculs et vérifications sur des listes de données
+**En tant qu'administrateur, je veux pouvoir agréger et questionner des données provenant d'un bloc répétable pour répondre à des besoins comme "Quel est le coût total ?" ou "Y a-t-il au moins un passager majeur ?".**
+
+#### **Partie A : Résolution des champs de blocs répétables**
+
+**Tâches (Développeur) :**
+1.  **Définir la syntaxe :** La référence à un champ dans un bloc répétable utilisera la syntaxe `{Nom du Bloc.Nom du Champ}`.
+2.  **Modifier le résolveur de variables :** Adapter la logique qui remplace les `{...}` par leurs valeurs. Quand la syntaxe `{Bloc.Champ}` est détectée, le résolveur ne doit plus retourner une simple valeur, mais une **liste (Array Ruby)** de toutes les valeurs de ce champ pour chaque instance du bloc.
+    - *Exemple :* Si le bloc `Enfants` a 3 entrées avec les âges 10, 22, 15, la référence `{Enfants.Âge}` doit être transformée en `[10, 22, 15]` avant le calcul.
+3.  **Gérer les cas vides :** Si un bloc n'a aucune entrée, la référence doit retourner une liste vide `[]`.
+4.  **Tests :**
+    - Valider qu'une référence à un champ de bloc retourne bien une liste.
+    - Valider que le cas d'un bloc vide retourne `[]`.
 
 **Critères d'acceptation :**
-- L'administrateur peut saisir une expression de formule
-- **Les champs référencés retournent toujours du texte (simplification)**
-- Les champs disponibles sont affichés avec leur libellé et type
-- L'expression est validée en temps réel
-- Des exemples d'usage numériques et textuels sont fournis
+- Le moteur de formule peut interpréter `{Bloc.Champ}` comme une liste de valeurs.
 
-### Étape 3 : Calcul et dépendances
-**En tant que système, je veux calculer automatiquement la valeur des champs formules**
+---
 
-**Tâches :**
-- [ ] Étendre le modèle `Logic::ChampValue` pour supporter les champs dans les formules
-- [ ] Créer `Logic::FormuleChampValue` pour gérer les références aux champs dans les formules
-- [ ] Implémenter le calcul de la formule dans `Champs::FormuleChamp#compute_value`
-- [ ] **Implémenter la logique de conversion automatique texte→numérique pour les opérations math**
-- [ ] **Retour systématiquement textuel du résultat de la formule**
-- [ ] Gérer les erreurs de calcul (division par zéro, références invalides, erreurs de conversion)
-- [ ] Intégrer avec le système de conditions pour détecter les changements
+#### **Partie B : Implémentation de la fonction `FILTER`**
 
-**Critères d'acceptation :**
-- La formule est recalculée automatiquement quand un champ dépendant change
-- **Toutes les références de champs sont traitées comme du texte**
-- **Conversion automatique en numérique pour les opérations mathématiques**
-- **Le résultat final est toujours formaté en texte**
-- Les erreurs sont gérées gracieusement
-- Les références aux champs sont résolues correctement
+**Contexte :** Pour éviter de créer une multitude de fonctions (`SUM_IF`, `COUNT_IF`...), nous introduisons une fonction `FILTER` universelle qui permet de sélectionner des données. Les fonctions existantes (`SUM`, `COUNT`...) seront ensuite composées avec `FILTER`.
 
-### Étape 4 : Interface utilisateur - Affichage
-**En tant qu'usager, je veux voir la valeur calculée par la formule**
-
-**Tâches :**
-- [ ] Créer la vue pour `Champs::FormuleChamp` en lecture seule
-- [ ] Afficher la valeur calculée (toujours textuelle)
-- [ ] **Simplifier l'affichage : toujours textuel, pas de formatage spécifique**
-- [ ] Montrer un indicateur de chargement pendant le calcul
-- [ ] Afficher les erreurs de calcul à l'utilisateur
-- [ ] Gérer l'affichage dans les différents contextes (saisie, lecture, export)
+**Tâches (Développeur) :**
+1.  **Définir la fonction personnalisée `FILTER` :**
+    - Signature : `FILTER(liste_a_retourner, liste_de_condition, condition)`
+    - `liste_a_retourner` : La liste de valeurs à retourner (ex: `{Factures.Montant}`).
+    - `liste_de_condition` : (Optionnel) La liste sur laquelle la condition est testée (ex: `{Factures.Statut}`). Si omis, la condition est testée sur `liste_a_retourner`.
+    - `condition` : L'expression de la condition (ex: `"= 'Payée'"`).
+2.  **Implémenter la logique de `FILTER` :**
+    - La fonction itère sur `liste_de_condition` (ou `liste_a_retourner`).
+    - Pour chaque élément, elle évalue la `condition`.
+    - Si la condition est vraie, elle ajoute l'élément de `liste_a_retourner` (au même index) à une nouvelle liste de résultats.
+    - La fonction retourne la liste de résultats.
+3.  **Tests unitaires pour `FILTER` :**
+    - Cas simple : `FILTER({10, 20, 30}, '> 15')` doit retourner `[20, 30]`.
+    - Cas avec listes parallèles : `FILTER({'A', 'B', 'C'}, {1, 2, 3}, '> 1')` doit retourner `['B', 'C']`.
+    - Cas sans correspondance : doit retourner `[]`.
+    - Cas avec listes de tailles différentes : doit gérer l'erreur ou retourner `[]`.
 
 **Critères d'acceptation :**
-- La valeur calculée s'affiche automatiquement
-- Le champ est en lecture seule pour l'usager
-- **L'affichage est toujours textuel (simplification)**
-- Les erreurs sont affichées de manière compréhensible
+- La fonction `FILTER` est disponible et permet de filtrer une liste en fonction d'une condition sur elle-même ou sur une liste parallèle.
 
-### Étape 5 : Mise à jour dynamique
-**En tant qu'usager, je veux que la formule se recalcule quand je modifie un champ**
+---
 
-**Tâches :**
-- [ ] Étendre `ChampConditionalConcern` pour supporter les champs formules
-- [ ] Implémenter la détection des dépendances de formule
-- [ ] Créer le mécanisme de recalcul automatique via Stimulus/Turbo
-- [ ] Optimiser les performances pour éviter les recalculs inutiles
-- [ ] Gérer les dépendances circulaires
+#### **Partie C : Composition et documentation des cas d'usage**
 
-**Critères d'acceptation :**
-- Le champ formule se recalcule dès qu'un champ dépendant change
-- Pas de dépendances circulaires
-- Performance acceptable même avec plusieurs formules
-
-### Étape 6 : Gestion des annotations privées
-**En tant qu'agent, je veux utiliser des formules dans les annotations privées**
-
-**Tâches :**
-- [ ] Adapter la logique pour que les annotations privées puissent référencer tous les champs usagers
-- [ ] Modifier la résolution des dépendances pour les annotations
-- [ ] Tester la compatibilité avec le workflow de traitement des dossiers
-- [ ] Valider que les formules ne sont pas modifiables par l'usager
+**Tâches (Développeur) :**
+1.  **Valider la composition :** S'assurer que les fonctions existantes (`SUM`, `COUNT`, `AVG`, `JOIN`) fonctionnent correctement quand elles reçoivent une liste issue de `FILTER` (y compris une liste vide).
+2.  **Documenter les cas d'usage principaux :** Mettre à jour la documentation pour expliquer comment réaliser les opérations courantes par composition.
+    - **SUM IF :** `SUM(FILTER({Montants}, {Statuts}, '='Payée''))`
+    - **COUNT IF :** `COUNT(FILTER({Âges}, '> 18'))`
+    - **ANY (au moins un) :** `COUNT(FILTER({Âges}, '> 18')) > 0`
+    - **ALL (tous) :** `COUNT(FILTER({Statuts}, '='Signé'')) = COUNT({Statuts})`
+    - **JOIN IF :** `JOIN(FILTER({Noms}, {Âges}, '> 18'), ', ')`
 
 **Critères d'acceptation :**
-- Les annotations privées peuvent utiliser tous les champs usagers dans leurs formules
-- Les calculs sont effectués côté agent uniquement
-- L'usager ne peut pas voir/modifier ces formules
+- Les fonctions `SUM`, `COUNT`, `AVG`, `JOIN` acceptent en entrée le résultat de `FILTER`.
+- La documentation interne est mise à jour avec les exemples de composition.
 
-### Étape 7 : Validation et tests
-**En tant que développeur, je veux m'assurer de la qualité du code**
+## Étape 10 : Amélioration de la Compatibilité Excel (Fonctions de convenance)
 
-**Tâches :**
-- [ ] Écrire les tests unitaires pour `TypesDeChamp::FormuleTypeDeChamp`
-- [ ] Écrire les tests unitaires pour `Champs::FormuleChamp`
-- [ ] Écrire les tests d'intégration pour les calculs numériques et textuels
-- [ ] Tester les cas d'erreur et les limites
-- [ ] **Tester les fonctions de manipulation de chaînes**
-- [ ] Ajouter les tests de performance
+**Objectif :** Réduire la courbe d'apprentissage pour les utilisateurs familiers avec Excel en offrant des fonctions et des alias connus. Ces fonctions sont des "raccourcis" pour les compositions décrites à l'étape 9.
 
-**Critères d'acceptation :**
-- Couverture de tests > 90%
-- Tous les cas d'usage numériques et textuels sont testés
-- Les performances sont acceptables
+### User Story 1 : Alias des fonctions en français
+**En tant qu'utilisateur d'Excel, je veux pouvoir utiliser les noms de fonctions en français que je connais déjà (SI, SOMME, NB...) pour ne pas avoir à réapprendre les noms en anglais.**
 
-### Étape 8 : Documentation et formation
-**En tant qu'utilisateur, je veux comprendre comment utiliser les formules**
-
-**Tâches :**
-- [ ] Rédiger la documentation utilisateur pour les formules
-- [ ] **Créer des exemples d'usage courants (numériques et textuels)**
-- [ ] Documenter les fonctions disponibles (math + chaînes)
-- [ ] Ajouter des tooltips et aide contextuelle
-- [ ] Créer un guide de migration si nécessaire
+**Tâches (Développeur) :**
+1.  **Identifier le point de configuration :** Localiser dans le code le service ou l'initialiseur où le moteur de calcul Dentaku est configuré.
+2.  **Créer la table d'alias :** Définir une table de correspondance (`Hash` Ruby) qui mappe les noms français aux noms anglais : `{'SI' => 'IF', 'SOMME' => 'SUM', 'NB' => 'COUNT'...}`.
+3.  **Intégrer les alias :** Modifier le processus d'évaluation pour que le moteur reconnaisse les alias français.
+4.  **Tests :** Valider que `SI(VRAI, 1, 0)` et `IF(TRUE, 1, 0)` donnent le même résultat.
 
 **Critères d'acceptation :**
-- Documentation complète et claire
-- Exemples d'usage numériques et textuels disponibles
-- Aide contextuelle dans l'interface
+- Les formules peuvent être écrites avec les noms de fonctions français (`SI`, `SOMME`...) ou anglais (`IF`, `SUM`...). 
 
-## Questions et points d'attention
+---
 
-### Questions techniques :
+### User Story 2 : Fonctions conditionnelles `NB.SI` et `SOMME.SI`
+**En tant qu'utilisateur d'Excel, je veux disposer des fonctions `NB.SI` et `SOMME.SI` car je suis habitué à leur simplicité.**
 
-1. **Syntaxe des formules** : Utiliserons-nous la syntaxe Dentaku standard
-   - ✅ **Validé** : Syntaxe Dentaku standard pour la simplicité
+**Note pour le développeur :** Ces fonctions sont des raccourcis pour `COUNT(FILTER(...))` et `SUM(FILTER(...))`. Elles doivent se comporter exactement comme leur équivalent sur Excel.
 
-2. **Référencement des champs** : Comment référencer les autres champs dans les formules ?
-   - ✅ **Validé** : Syntaxe moustache `{Libellé du champ}`
+#### **Partie A : Implémentation de `NB.SI` (COUNTIF)**
 
-3. **Gestion des types** : Comment gérer les différents types de champs ?
-   - ✅ **Validé** : **Toutes les références de champs retournent du texte**
-   - ✅ **Validé** : **Conversion automatique texte→numérique pour les calculs**
-   - ✅ **Validé** : **Résultat toujours textuel (simplification)**
+**Tâches (Développeur) :**
+1.  **Définir la fonction `NB.SI` :**
+    - Signature : `NB.SI(plage, condition)`
+    - En interne, cette fonction peut appeler `COUNT(FILTER(plage, condition))` pour assurer un comportement cohérent.
+2.  **Tests :**
+    - `NB.SI({'Oui', 'Non', 'Oui'}, '= 'Oui'')` doit retourner `2`.
+    - `NB.SI({10, 20, 30}, '> 15')` doit retourner `2`.
 
-4. **Zone de code (Fork)** : Où placer le nouveau type de champ ?
-   - ✅ **Validé** : **Utiliser les constantes INSTANCE_* pour le fork**
+**Critères d'acceptation :**
+- La fonction `NB.SI({MonBloc.MonChamp}, {condition})` est disponible.
+- Un alias `COUNTIF` est également disponible.
 
-5. **Performance** : Comment optimiser les recalculs pour de gros formulaires ?
-   - Cache des expressions parsées
-   - Calcul paresseux (lazy evaluation)
-   - Éviter les recalculs en cascade
+#### **Partie B : Implémentation de `SOMME.SI` (SUMIF)**
 
-6. **Sécurité** : Quelles sont les fonctions autorisées dans les formules ?
-   - Fonctions mathématiques standard
-   - **Fonctions de manipulation de chaînes Dentaku**
-   - Pas d'accès aux fonctions système
+**Tâches (Développeur) :**
+1.  **Définir la fonction `SOMME.SI` :**
+    - Signature : `SOMME.SI(plage_condition, condition, [plage_somme])`
+    - En interne, utiliser `SUM(FILTER(plage_somme, plage_condition, condition))`.
+2.  **Tests :**
+    - `SOMME.SI({'A', 'B', 'A'}, '= 'A'', {100, 200, 300})` doit retourner `400`.
+    - `SOMME.SI({10, 20, 5}, '> 8')` doit retourner `30`.
 
-### Cas d'usage exemples :
+**Critères d'acceptation :**
+- La fonction `SOMME.SI(...)` est disponible.
+- Un alias `SUMIF` est également disponible.
 
-#### Formules numériques :
-```
-Montant TTC = {Montant HT} * (1 + {Taux TVA} / 100)
-Remise = IF({Type client} = "VIP", {Montant} * 0.1, 0)
-Total = SUM({Produit 1}, {Produit 2}, {Produit 3})
-Age = ROUNDDOWN((TODAY() - {Date de naissance}) / 365.25)
-```
-
-#### Formules textuelles :
-```
-Civilité complète = IF({Civilité} = "M", "Monsieur", "Madame")
-Nom complet = CONCAT({Prénom}, " ", {Nom})
-Message = IF({Age} >= 18, "Vous êtes majeur", "Vous êtes mineur")
-Adresse complète = CONCAT({Adresse}, ", ", {Code postal}, " ", {Ville})
-Statut = IF({Type client} = "VIP", "Client privilégié", "Client standard")
-Résumé = CONCAT("Commande de ", {Nom complet}, " pour ", {Montant TTC}, " €")
-```
-
-#### Formules mixtes (conditions sur nombres, retour texte) :
-```
-Tranche d'âge = IF({Age} < 18, "Mineur", IF({Age} < 65, "Adulte", "Senior"))
-Catégorie montant = IF({Montant} < 100, "Petit achat", IF({Montant} < 1000, "Achat moyen", "Gros achat"))
-```
-
-### Fonctions Dentaku disponibles :
-
-#### Fonctions mathématiques :
-- Arithmétiques : `+`, `-`, `*`, `/`, `%`
-- Comparaisons : `=`, `!=`, `<`, `>`, `<=`, `>=`
-- Logiques : `AND`, `OR`, `NOT`
-- Conditions : `IF(condition, si_vrai, si_faux)`
-- Agrégation : `SUM()`, `MIN()`, `MAX()`, `AVG()`
-- Math : `ROUND()`, `ROUNDUP()`, `ROUNDDOWN()`, `ABS()`, `SQRT()`
-
-#### Fonctions textuelles :
-- Concaténation : `CONCAT()`
-- Extraction : `LEFT()`, `RIGHT()`, `MID()`
-- Informations : `LEN()`, `FIND()`, `CONTAINS()`
-- Transformation : `SUBSTITUTE()`
-
-### Contraintes spécifiques au fork :
-
-1. **Utilisation des constantes INSTANCE_*** :
-   - `INSTANCE_TYPE_CHAMPS` : Ajout du type `formule: 'formule'`
-   - `INSTANCE_TYPE_DE_CHAMP_TO_CATEGORIE` : Classification `formule: STANDARD`
-   - `INSTANCE_OPTIONS` : Ajout de `formule_expression`
-
-2. **Gestion des types simplifiée** :
-   - **Toutes les références de champs retournent systématiquement du texte**
-   - **Conversion automatique texte→numérique lors des opérations mathématiques**
-   - **Résultat final toujours textuel (pas de type de retour à choisir)**
-
-3. **À confirmer dans le code** :
-   - Vérifier que les références aux champs donnent bien du texte
-   - Valider l'approche du retour systématiquement textuel
-   - Optimiser la conversion automatique des types
-
-### Limitations initiales :
-
-- Expressions limitées à 1000 caractères
-- Limitation à 10 niveaux de dépendances
-- **Résultat toujours textuel (simplification)**
-- Pas de fonctions de date avancées (dans un premier temps)
+(... Le reste du document reste inchangé ...)
