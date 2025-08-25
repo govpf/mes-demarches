@@ -516,7 +516,7 @@ describe TypeDeChamp do
 
     it { is_expected.to eq([["« Référentiel des administrations »"], ["« Oui/Non »", "« Case à cocher seule »", "« Choix simple »", "« Choix multiple »"], ["« Nombre entier »", "« Nombre décimal »"], ["« Adresse en France »", "« Communes »", "« EPCI »", "« Départements »", "« Régions »", "« Pays »", "« Commune de Polynésie »", "« Code Postal de Polynésie »"]]) }
   end
-  
+
   describe 'formula expression methods' do
     let(:procedure) { build(:procedure) }
     let(:revision) { procedure.active_revision }
