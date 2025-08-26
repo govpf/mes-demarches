@@ -12,7 +12,7 @@ RUN bun install --frozen-lockfile --production
 # Intermediate container to bundle all gems
 # Building gems requires dev librairies we don't need in production container
 #--------------------------------------------------
-FROM ruby:3.3.0-slim AS base
+FROM ruby:3.3.2-slim AS base
 FROM base AS builder
 
 RUN apt-get update && \
@@ -175,7 +175,9 @@ ENV \
     RUBY_YJIT_ENABLE=true\
     SAML_IDP_ENABLED=""\
     SAML_IDP_CERTIFICATE="billybop"\
-    SAML_IDP_SECRET_KEY="-----BEGIN RSA PRIVATE KEY-----\nblabla+blabla\n-----END RSA PRIVATE KEY-----\n"\
+    SAML_IDP_SECRET_KEY="-----BEGIN RSA PRIVATE KEY-----\
+blabla+blabla\
+-----END RSA PRIVATE KEY-----"\
     SECRET_KEY_BASE="05a2d479d8e412198dabd08ef0eee9d6e180f5cbb48661a35fd1cae287f0a93d40b5f1da08f06780d698bbd458a0ea97f730f83ee780de5d4e31f649a0130cf0"\
     S3_ENDPOINT="" \
     S3_BUCKET="" \
