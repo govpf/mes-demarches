@@ -74,7 +74,7 @@ Dossier (1) ──→ (n) Champ ────────────────
 
 ## Environnement
 
-- Ruby 3.3.1
+- Ruby 3.3.2
 - Rails 7.0.8.4
 - PostgreSQL
 - WSL2 Linux
