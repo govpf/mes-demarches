@@ -40,18 +40,8 @@ describe 'France Connect Particulier Connexion' do
           let(:france_connect_information) { build(:france_connect_information, user_info) }
 
           context 'and no user has the same email' do
-            before {
+            before do
               page.find('.fr-connect').click
-            }
-
-            scenario 'he is redirected to user dossiers page' do
-              expect(page).to have_content("Choisissez votre email de contact pour finaliser votre connexion")
-              find("#use_france_connect_email_no").click
-              fill_in("email", with: "exemple@email.com")
-              page.find("input[type='submit'][name='commit'][value='Confirmer']").click
-              expect(page).to have_content("Confirmez votre email")
-              click_on 'Continuer'
-              expect(User.find_by(email: email)).not_to be nil
             end
 
             scenario 'he is redirected to user dossiers page', js: true do
