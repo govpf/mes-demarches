@@ -12,6 +12,13 @@
               = form.label :type_champ, "Type de champ", for: dom_id(type_de_champ, :type_champ)
               = form.select :type_champ, grouped_options_for_select(types_of_type_de_champ, type_de_champ.type_champ), {}, class: 'fr-select small-margin small inline width-100', id: dom_id(type_de_champ, :type_champ), disabled: coordinate.used_by_routing_rules? || coordinate.used_by_ineligibilite_rules?
 
+              - if type_de_champ.siret?
+                .cell.fr-mt-1w
+                  = button_tag("Liste des informations remontées", type: :button, class: "fr-btn fr-icon-info-line fr-btn--icon-left fr-btn--tertiary-no-outline fr-btn--sm",
+                    data: { "fr-opened" => "false", "turbo-frame" => "api-champ-columns", action: "lazy-modal#load" },
+                    src: api_champ_columns_admin_procedure_path(id: procedure.id, stable_id: type_de_champ.stable_id),
+                    "aria-controls" => "api-champ-columns-modal")
+
           .flex.column.justify-start.flex-grow
             .cell
               .flex.align-center
@@ -103,73 +110,73 @@
                 %ul
                   - LexpolService.lexpol_variables(type_de_champ, procedure).map do |variable|
                     %li= variable
-            -# ----- Polynesia options
-            - if type_de_champ.integer_number? || type_de_champ.decimal_number?
-              .flex.width-33
-              .flex.column
-                .cell
-                  %label bornes
-                .flex.flex-grow.align-center
-                  .cell
-                    = form.label :min, 'Minimum', for: dom_id(type_de_champ, :min)
-                  .cell
-                    = form.number_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min)
-                  .cell
-                    = form.label :max, 'Maximum', for: dom_id(type_de_champ, :max)
-                  .cell
-                    = form.number_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max)
-            - if type_de_champ.date?
-              .flex.width-33
-              .flex.column
-                .cell
-                  %label bornes
-                .flex.flex-grow.align-center
-                  .cell
-                    = form.label :min, 'Début', for: dom_id(type_de_champ, :min)
-                  .cell
-                    = form.date_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min), value: type_de_champ.min
-                  .cell
-                    = form.label :max, 'Fin', for: dom_id(type_de_champ, :max)
-                  .cell
-                    = form.date_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max), value: type_de_champ.max
-            - if type_de_champ.visa?
-              .flex.width-33
-              .flex.flex-grow.align-center
-                .cell.width-100
-                  = form.label :accredited_user_string, "Mails des personnes accréditées", for: dom_id(type_de_champ, :accredited_user_string)
-                  = form.text_area :accredited_user_string, class: 'fr-input small-margin small', rows: 7, id: dom_id(type_de_champ, :accredited_user_string), placeholder: 'Ecrire un email par ligne'
-            - if type_de_champ.table_row_selector? || type_de_champ.referentiel_de_polynesie?
-              .cell.flex.flex-gap
-                .flex.column
-                  .cell.fr-mt-1w
-                    = form.label :table_id, "Table de recherche", for: dom_id(type_de_champ, :table_id)
-                    = form.select :table_id, TypeDeChamp.referentiel_tables,
-                                 { prompt: 'Sélectionnez une table' },
-                                 { id: dom_id(type_de_champ, :table_id),
-                                   class: 'fr-select' }
-                .flex.column
-                  .cell.cell.fr-mt-1w
-                    = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
-                      Proposer une option pour « autre » utilisable dans les conditions
-                    = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
 
-            -# DS options
-            - if type_de_champ.any_drop_down_list?
-              .cell.flex.flex-gap
-                .flex.column
-                  .cell.fr-mt-1w
-                    = form.label :drop_down_options_from_text, "Options de la liste", for: dom_id(type_de_champ, :drop_down_options_from_text)
-                    = form.text_area :drop_down_options_from_text,
-                      value: type_de_champ.drop_down_options.join("\r\n"),
-                      class: 'fr-input small-margin small width-100',
-                      rows: 7,
-                      id: dom_id(type_de_champ, :drop_down_options_from_text)
-                - if type_de_champ.drop_down_list?
-                  .flex.column
-                    .cell
-                      = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
-                        Proposer une option « autre » avec un texte libre
-                      = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
+        .flex.justify-start.fr-mt-1w.flex-gap
+          -# ----- Polynesia options
+          - if type_de_champ.integer_number? || type_de_champ.decimal_number?
+            .flex.width-33
+            .flex.column
+              .cell
+                %label bornes
+              .flex.flex-grow.align-center
+                .cell
+                  = form.label :min, 'Minimum', for: dom_id(type_de_champ, :min)
+                .cell
+                  = form.number_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min)
+                .cell
+                  = form.label :max, 'Maximum', for: dom_id(type_de_champ, :max)
+                .cell
+                  = form.number_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max)
+          - if type_de_champ.date?
+            .flex.width-33
+            .flex.column
+              .cell
+                %label bornes
+              .flex.flex-grow.align-center
+                .cell
+                  = form.label :min, 'Début', for: dom_id(type_de_champ, :min)
+                .cell
+                  = form.date_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min), value: type_de_champ.min
+                .cell
+                  = form.label :max, 'Fin', for: dom_id(type_de_champ, :max)
+                .cell
+                  = form.date_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max), value: type_de_champ.max
+          - if type_de_champ.visa?
+            .flex.width-33
+            .flex.flex-grow.align-center
+              .cell.width-100
+                = form.label :accredited_user_string, "Mails des personnes accréditées", for: dom_id(type_de_champ, :accredited_user_string)
+                = form.text_area :accredited_user_string, class: 'fr-input small-margin small', rows: 7, id: dom_id(type_de_champ, :accredited_user_string), placeholder: 'Ecrire un email par ligne'
+          - if type_de_champ.table_row_selector? || type_de_champ.referentiel_de_polynesie?
+            .cell.flex.flex-gap
+              .flex.column
+                .cell.fr-mt-1w
+                  = form.label :table_id, "Table de recherche", for: dom_id(type_de_champ, :table_id)
+                  = form.select :table_id, TypeDeChamp.referentiel_tables,
+                               { prompt: 'Sélectionnez une table' },
+                               { id: dom_id(type_de_champ, :table_id),
+                                 class: 'fr-select' }
+              .flex.column
+                .cell.cell.fr-mt-1w
+                  = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
+                    Proposer une option pour « autre » utilisable dans les conditions
+                  = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
+
+          -# DS options (updated with upstream structure)
+          - if type_de_champ.any_drop_down_list?
+            .flex.column.justify-start.width-33
+              .cell
+                = form.label :drop_down_options_from_text, "Options de la liste", for: dom_id(type_de_champ, :drop_down_options_from_text)
+                = form.text_area :drop_down_options_from_text,
+                  value: type_de_champ.drop_down_options.join("\r\n"),
+                  class: 'fr-input small-margin small width-100',
+                  rows: 7,
+                  id: dom_id(type_de_champ, :drop_down_options_from_text)
+            - if type_de_champ.drop_down_list?
+              .cell
+                = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
+                  Proposer une option « autre » avec un texte libre
+                = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
 
             - if type_de_champ.linked_drop_down_list?
               .cell.fr-mt-1w
