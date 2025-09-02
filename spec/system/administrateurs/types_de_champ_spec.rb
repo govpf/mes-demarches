@@ -470,12 +470,12 @@ describe 'As an administrateur I can edit types de champ', js: true do
     scenario "loads modal content only when clicked" do
       visit champs_admin_procedure_path(procedure)
 
-      expect(page).not_to have_content("Informations complémentaires au champ Numéro Siret")
+      expect(page).not_to have_content("Informations complémentaires au champ Numéro TAHITI")
 
       click_button "Liste des informations remontées"
 
       within "#api-champ-columns-modal" do
-        expect(page).to have_content("Informations complémentaires au champ Numéro Siret")
+        expect(page).to have_content("Informations complémentaires au champ Numéro TAHITI")
         expect(page).to have_content("Entreprise raison sociale")
         expect(page).not_to have_content("SIRET de test – Commune") # no champ libelle
 
@@ -485,7 +485,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
       expect(page).not_to have_selector("#api-champ-columns-modal[open]")
 
       click_button "Liste des informations remontées"
-      expect(page).to have_content("Informations complémentaires au champ Numéro Siret")
+      expect(page).to have_content("Informations complémentaires au champ Numéro TAHITI")
     end
   end
 end
