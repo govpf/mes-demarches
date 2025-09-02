@@ -283,3 +283,100 @@ EOF
   5. Vérifications finales :
      - Lancer la suite de tests complète pour s'assurer de l'absence de régressions
      - Valider que GraphQL ne référence plus le type `table_row_selector`
+
+## Intégration Upstream
+
+### Vue d'ensemble
+
+L'intégration des releases upstream de [demarches-simplifiees.fr](https://github.com/demarches-simplifiees/demarches-simplifiees.fr) nécessite une approche méthodique pour maintenir les spécificités PF tout en bénéficiant des améliorations upstream.
+
+### Processus d'intégration
+
+#### 1. **Préparation**
+```bash
+# Créer une branche dédiée depuis devpf
+git checkout devpf
+git pull origin devpf
+git checkout -b feature/bump-AAAA-MM-JJ
+
+# Identifier la release upstream à intégrer
+git fetch upstream
+git tag -l "2024-*" | sort -V | tail -5
+```
+
+#### 2. **Intégration du tag upstream**
+```bash
+# Merger le tag upstream
+git merge upstream/AAAA-MM-JJ-NN
+
+# Pour les locales : prendre upstream systématiquement
+git checkout --theirs config/locales/
+```
+
+#### 3. **Stratégie des tags PF**
+
+**🏷️ Principe fondamental :**
+Tous les comportements spécifiques à la Polynésie française doivent être marqués par des commentaires `# pf:` dans le code.
+
+**Résolution de conflits :**
+1. **Chercher les tags `# pf:` voisins** pour comprendre le contexte de la spécificité
+2. **Si tag PF présent** : analyser si la spécificité doit être maintenue
+3. **Si aucun tag PF** : prendre la version upstream par défaut
+
+**Exemples de tags PF :**
+```ruby
+# pf: support OpenID providers (Tatou, Microsoft) en plus de France Connect
+def send_custom_confirmation_instructions(provider_type: :france_connect)
+
+# pf: harmonisation avec France Connect pour maintenir la cohérence UX
+def sanitize(string)
+
+# pf: champs spécifiques Polynésie (DN, communes PF, codes postaux)
+validates :numero_dn, format: { with: /\A\d{8}\z/ }
+```
+
+#### 4. **Tests et corrections**
+
+**🧪 Tests critiques PF à vérifier :**
+```bash
+# Tests authentification spécifique
+bundle exec rspec spec/controllers/omniauth_controller_spec.rb
+
+# Tests champs PF
+bundle exec rspec spec/models/champs/ -e "DN|Commune"
+
+# Tests API GraphQL  
+bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb
+```
+
+**🔧 Corrections typiques :**
+- Messages de validation changés → corriger les expectations des tests
+- Nouvelles règles de linting → `bundle exec rubocop -A`
+- Conflits de traductions → prendre upstream pour les locales
+
+### Bonnes pratiques
+
+#### **🎯 Stratégie de merge**
+- **Une release à la fois** : Ne jamais merger plusieurs releases
+- **Branche dédiée** : `feature/bump-AAAA-MM-JJ`  
+- **Tags PF systématiques** : Marquer toute spécificité dans le code
+- **CI rapide** : Pousser tôt pour avoir le feedback
+
+#### **⚠️ Points de vigilance**
+- **Champs PF** : DN, communes, codes postaux, nationalités
+- **Authentification** : Tatou, Microsoft, workflows de merge  
+- **Templates** : Personnalisations email PF à préserver
+- **Migrations** : Adaptations pour les données PF
+
+### Checklist de validation
+
+#### **✅ Avant le push**
+- [ ] Tous les tests passent : `bundle exec rspec`
+- [ ] Linting OK : `bundle exec rails lint`
+- [ ] Tags `# pf:` ajoutés sur les spécificités
+- [ ] Pas de régression des fonctionnalités PF
+
+#### **✅ Après intégration**
+- [ ] CI verte sur tous les environnements
+- [ ] Tests manuels des fonctionnalités PF
+- [ ] Release notes rédigées
