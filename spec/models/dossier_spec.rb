@@ -1638,7 +1638,7 @@ describe Dossier, type: :model do
 
         it 'should have errors' do
           expect(champ_siret.errors).not_to be_empty
-          expect(champ_siret.errors.first.full_message).to eq("Veuillez selectionner un des établissements")
+          expect(champ_siret.errors.first.full_message).to eq("doit avoir 9 chiffres. Selectionnez un établissement.")
         end
       end
     end

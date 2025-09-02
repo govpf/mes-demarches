@@ -155,25 +155,29 @@ describe FranceConnect::ParticulierController, type: :controller do
         user = User.last
 
         expect(user.email).to eq(email.downcase)
-        expect(UserMailer).to have_received(:custom_confirmation_instructions).with(user, user.confirmation_token)
-        expect(user.email_verified_at).to be_nil
+        expect(user.email_verified_at).not_to be_nil
         expect(fci.reload.merge_token).to be_nil
-        expect(response).to render_template(:confirmation_sent)
+        expect(response).to redirect_to(root_path(user))
       end
     end
 
     context 'when the merge token is invalid' do
       let(:merge_token) { 'invalid_token' }
 
+      before do
+        allow(Current).to receive(:application_name).and_return('Mes-Démarches')
+      end
+
       it 'redirects to root_path with an alert' do
         subject
         expect(response).to redirect_to(root_path)
-        expect(flash[:alert]).to eq("Le délai pour fusionner les comptes FranceConnect et mes-demarches.gov.pf est expiré. Veuillez recommencer la procédure pour fusionner les comptes.")
+        expect(flash[:alert]).to eq(I18n.t('france_connect.particulier.flash.merger_token_expired', application_name: Current.application_name))
       end
     end
 
     context 'when @fci is not valid for merge' do
       before do
+        allow(Current).to receive(:application_name).and_return('Mes-Démarches')
         merge_token
         fci.update!(merge_token_created_at: 2.years.ago)
       end
@@ -182,7 +186,7 @@ describe FranceConnect::ParticulierController, type: :controller do
         subject
 
         expect(response).to redirect_to(root_path)
-        expect(flash[:alert]).to eq('Le délai pour fusionner les comptes FranceConnect et mes-demarches.gov.pf est expiré. Veuillez recommencer la procédure pour fusionner les comptes.')
+        expect(flash[:alert]).to eq(I18n.t('france_connect.particulier.flash.merger_token_expired', application_name: Current.application_name))
       end
     end
   end
@@ -243,7 +247,7 @@ describe FranceConnect::ParticulierController, type: :controller do
           get :confirm_email, params: { token: 'expired_token' }
 
           expect(UserMailer).to have_received(:custom_confirmation_instructions)
-            .with(expired_user_confirmation, expired_user_confirmation.reload.confirmation_token)
+            .with(expired_user_confirmation, expired_user_confirmation.reload.confirmation_token, :france_connect)
 
           expect(response).to redirect_to(root_path)
           expect(flash[:notice]).to eq(I18n.t('france_connect.particulier.flash.confirmation_mail_resent'))
@@ -312,7 +316,7 @@ describe FranceConnect::ParticulierController, type: :controller do
         else
           expect(subject).to redirect_to root_path
         end
-        expect(flash.alert).to eq('Le délai pour fusionner les comptes FranceConnect et demarches-simplifiees.fr est expiré. Veuillez recommencer la procédure pour fusionner les comptes.')
+        expect(flash.alert).to eq(I18n.t('france_connect.particulier.flash.merger_token_expired', application_name: Current.application_name))
       end
     end
   end

@@ -2,58 +2,59 @@
   .fr-grid-row.fr-col-offset-md-2.fr-col-md-8
     .fr-col-12
 
-      %h1.text-center.mt-1= t('.choose_email_contact')
+      %h1.text-center.mt-1= t('.choose_email_contact', provider: t("omniauth.provider.#{@provider}"))
 
-      %p= t('.intro_html', email: @fci.email_france_connect)
+      %p= t('.intro_html', email: @fci.email_france_connect, provider: t("omniauth.provider.#{@provider}"))
 
       %p= t('.use_email_for_notifications')
 
       %fieldset.fr-fieldset
-        = form_with url: france_connect_particulier_merge_using_fc_email_path,
+        = form_with url: omniauth_merge_using_provider_email_path,
           method: :post,
-          data: { controller: 'email-france-connect',
-            email_france_connect_fc_email_path_value: france_connect_particulier_merge_using_fc_email_path,
-            email_france_connect_custom_email_path_value: france_connect_particulier_send_email_merge_request_path,
-            email_france_connect_target: "form" } do |f|
+          data: { controller: 'email-omniauth',
+            'email-omniauth-provider-email-path-value': omniauth_merge_using_provider_email_path,
+            'email-omniauth-custom-email-path-value': omniauth_send_email_merge_request_path,
+            'email-omniauth-target': "form" } do |f|
 
           = hidden_field_tag :merge_token, @fci.merge_token
+          = hidden_field_tag :provider, @provider
 
           %fieldset.fr-fieldset
             %legend.fr-fieldset__legend
             .fr-fieldset__element
               .fr-radio-group
-                = f.radio_button :use_france_connect_email, true,
-                  id: 'use_france_connect_email_yes',
+                = f.radio_button :use_provider_email, true,
+                  id: 'use_provider_email_yes',
                   class: 'fr-radio',
                   required: true,
-                  data: { action: "email-france-connect#triggerEmailField email-france-connect#triggerSubmitDisabled",
-                  email_france_connect_target: "useFranceConnectEmail" }
-                %label.fr-label.fr-text--wrap{ for: 'use_france_connect_email_yes' }
-                  = t('.keep_fc_email_html', email: h(@fci.email_france_connect))
+                  data: { action: "email-omniauth#triggerEmailField email-omniauth#triggerSubmitDisabled",
+                  'email-omniauth-target': "useProviderEmail" }
+                %label.fr-label.fr-text--wrap{ for: 'use_provider_email_yes' }
+                  = t('.keep_provider_email_html', email: h(@fci.email_france_connect), provider: t("omniauth.provider.#{@provider}"))
 
             .fr-fieldset__element
               .fr-radio-group
-                = f.radio_button :use_france_connect_email, false,
-                  id: 'use_france_connect_email_no',
+                = f.radio_button :use_provider_email, false,
+                  id: 'use_provider_email_no',
                   class: 'fr-radio',
                   required: true,
-                  data: { action: "email-france-connect#triggerEmailField email-france-connect#triggerSubmitDisabled", email_france_connect_target: "useFranceConnectEmail" }
-                %label.fr-label.fr-text--wrap{ for: 'use_france_connect_email_no' }
+                  data: { action: "email-omniauth#triggerEmailField email-omniauth#triggerSubmitDisabled", 'email-omniauth-target': "useProviderEmail" }
+                %label.fr-label.fr-text--wrap{ for: 'use_provider_email_no' }
                   = t('.use_another_email')
 
             .fr-fieldset__element.fr-fieldset__element--inline.hidden{
               aria: { hidden: true },
               data: {
-                email_france_connect_target: "emailField",
+                'email-omniauth-target': "emailField",
                 controller: 'email-input',
-                email_input_url_value: show_email_suggestions_path
+                'email-input-url-value': show_email_suggestions_path
                 }
               }
 
               = f.label :email, t('.alternative_email'), class: "fr-label"
               %span.fr-hint-text.mb-1= t('activerecord.attributes.user.hints.email')
               = f.email_field :email,
-                data: { action: "email-france-connect#triggerSubmitDisabled", email_france_connect_target: "emailInput" },
+                data: { action: "email-omniauth#triggerSubmitDisabled", 'email-omniauth-target': "emailInput" },
                 class: "fr-input"
 
               .suspect-email.hidden{ data: { "email-input-target": 'ariaRegion'}, aria: { live: 'off' } }
@@ -68,5 +69,5 @@
           %div
             = f.submit t('.confirm'),
               class: 'fr-btn',
-              data: { email_france_connect_target: "submit" },
+              data: { 'email-omniauth-target': "submit" },
               disabled: true

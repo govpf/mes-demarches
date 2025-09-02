@@ -26,7 +26,7 @@ describe Champs::IntegerNumberChamp do
 
       it 'is not valid and contains errors' do
         is_expected.to be_falsey
-        expect(champ.errors[:value]).to eq(["doit être un nombre entier (sans chiffre après la virgule)"])
+        expect(champ.errors[:value]).to eq(["doit être un nombre entier (sans chiffres après la virgule)"])
       end
     end
 
@@ -35,7 +35,7 @@ describe Champs::IntegerNumberChamp do
 
       it 'is not valid and contains errors' do
         is_expected.to be_falsey
-        expect(champ.errors[:value]).to eq(["doit être un nombre entier (sans chiffre après la virgule)"])
+        expect(champ.errors[:value]).to eq(["doit être un nombre entier (sans chiffres après la virgule)"])
       end
     end
 

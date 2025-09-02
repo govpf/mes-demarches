@@ -34,7 +34,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
         # Switch to instructeur persona
         within('.fr-header nav.fr-nav') do
-          click_link I18n.t('layouts.account_dropdown_component.go_instructor')
+          click_link 'Passer en instructeur'
         end
 
         # Should land on instructeur view of the same dossier
@@ -46,7 +46,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
         # Switch to user persona
         within('.fr-header nav.fr-nav') do
-          click_link I18n.t('layouts.account_dropdown_component.go_user')
+          click_link 'Passer en usager'
         end
 
         # Should land on user view of the same dossier
@@ -58,7 +58,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
         # Switch to instructeur persona
         within('.fr-header nav.fr-nav') do
-          click_link I18n.t('layouts.account_dropdown_component.go_instructor')
+          click_link 'Passer en instructeur'
         end
 
         # Should land on instructeur view of the same procedure
@@ -71,7 +71,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
         # Switch to administrateur persona
         within('.fr-header nav.fr-nav') do
-          click_link I18n.t('layouts.account_dropdown_component.go_admin')
+          click_link 'Passer en administrateur'
         end
 
         # Should land on admin view of the same procedure
@@ -103,7 +103,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
       # Switch to instructeur persona
       within('.fr-header nav.fr-nav') do
-        click_link I18n.t('layouts.account_dropdown_component.go_instructor')
+        click_link 'Passer en instructeur'
       end
 
       # Should land on default instructeur procedures list, not contextual dossier
@@ -118,7 +118,7 @@ RSpec.describe "Contextual persona navigation", type: :system do
       visit dossier_path(dossier)
 
       within('.fr-header nav.fr-nav') do
-        click_link I18n.t('layouts.account_dropdown_component.go_instructor')
+        click_link 'Passer en instructeur'
       end
 
       expect(page).to have_current_path(instructeur_procedures_path)
@@ -135,8 +135,8 @@ RSpec.describe "Contextual persona navigation", type: :system do
 
       # Even if contextual navigation fails, the user should still be able to navigate
       within('.fr-header nav.fr-nav') do
-        expect(page).to have_link(I18n.t('layouts.account_dropdown_component.go_instructor'))
-        expect(page).to have_link(I18n.t('layouts.account_dropdown_component.go_admin'))
+        expect(page).to have_link('Passer en instructeur')
+        expect(page).to have_link('Passer en administrateur')
       end
     end
   end

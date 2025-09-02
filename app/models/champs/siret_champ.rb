@@ -19,7 +19,7 @@ class Champs::SiretChamp < Champ
     return if value.blank?
 
     if value.length < 9
-      errors.add(:value, "Veuillez selectionner un des établissements")
+      errors.add(:value, "doit avoir 9 chiffres. Selectionnez un établissement.")
     end
   end
 end

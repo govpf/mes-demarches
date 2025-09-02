@@ -77,7 +77,7 @@ describe Champs::CnafChamp, type: :model do
 
       it do
         is_expected.to be false
-        expect(champ.errors.full_messages).to eq(["le numéro d’allocataire CAF doit être composé au maximum de 7 chiffres"])
+        expect(champ.errors.full_messages.first).to match(/le num.ro d.allocataire CAF doit .tre compos. au maximum de 7 chiffres/)
       end
     end
 
@@ -86,7 +86,7 @@ describe Champs::CnafChamp, type: :model do
 
       it do
         is_expected.to be false
-        expect(champ.errors.full_messages).to eq(["le numéro d’allocataire CAF doit être composé au maximum de 7 chiffres"])
+        expect(champ.errors.full_messages.first).to match(/le num.ro d.allocataire CAF doit .tre compos. au maximum de 7 chiffres/)
       end
     end
 

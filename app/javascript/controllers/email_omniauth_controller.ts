@@ -1,8 +1,8 @@
 import { ApplicationController } from './application_controller';
 
-export class EmailFranceConnectController extends ApplicationController {
+export class EmailOmniauthController extends ApplicationController {
   static targets = [
-    'useFranceConnectEmail',
+    'useProviderEmail',
     'emailField',
     'submit',
     'emailInput',
@@ -10,28 +10,28 @@ export class EmailFranceConnectController extends ApplicationController {
   ];
 
   emailFieldTarget!: HTMLElement;
-  useFranceConnectEmailTargets!: HTMLInputElement[];
+  useProviderEmailTargets!: HTMLInputElement[];
   submitTarget!: HTMLButtonElement;
   emailInputTarget!: HTMLInputElement;
   formTarget!: HTMLFormElement;
 
-  fcEmailPathValue!: string;
+  providerEmailPathValue!: string;
   customEmailPathValue!: string;
 
   static values = {
-    fcEmailPath: String,
+    providerEmailPath: String,
     customEmailPath: String
   };
 
   triggerEmailField() {
-    if (this.useFCEmail()) {
+    if (this.useProviderEmail()) {
       this.emailFieldTarget.classList.add('hidden');
       this.emailFieldTarget.setAttribute('aria-hidden', 'true');
 
       this.emailInputTarget.removeAttribute('required');
       this.emailInputTarget.value = '';
 
-      this.formTarget.action = this.fcEmailPathValue;
+      this.formTarget.action = this.providerEmailPathValue;
     } else {
       this.emailFieldTarget.classList.remove('hidden');
       this.emailFieldTarget.setAttribute('aria-hidden', 'false');
@@ -43,17 +43,17 @@ export class EmailFranceConnectController extends ApplicationController {
   }
 
   triggerSubmitDisabled() {
-    if (this.useFCEmail() || this.isEmailInputFilled()) {
+    if (this.useProviderEmail() || this.isEmailInputFilled()) {
       this.submitTarget.disabled = false;
     } else {
       this.submitTarget.disabled = true;
     }
   }
 
-  useFCEmail() {
+  useProviderEmail() {
     return (
-      this.useFranceConnectEmailTargets.find((target) => target.checked)
-        ?.value === 'true' || false
+      this.useProviderEmailTargets.find((target) => target.checked)?.value ===
+        'true' || false
     );
   }
 
