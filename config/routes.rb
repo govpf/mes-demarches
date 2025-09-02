@@ -214,6 +214,10 @@ Rails.application.routes.draw do
   post '/auth/:provider/resend_and_renew_merge_confirmation' => 'omniauth#resend_and_renew_merge_confirmation', as: :omniauth_resend_and_renew_merge_confirmation, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   post '/auth/merge_with_existing_account' => 'omniauth#merge_with_existing_account', as: 'omniauth_merge_with_existing_account'
   post '/auth/merge_with_new_account' => 'omniauth#merge_with_new_account', as: 'omniauth_merge_with_new_account'
+  post '/auth/send_email_merge_request' => 'omniauth#send_email_merge_request', as: 'omniauth_send_email_merge_request'
+  post '/auth/merge_using_provider_email' => 'omniauth#merge_using_provider_email', as: 'omniauth_merge_using_provider_email'
+  get '/auth/merge_using_email_link/:email_merge_token' => 'omniauth#merge_using_email_link', as: 'omniauth_merge_using_email_link'
+  get '/auth/confirm_email/:token', to: 'omniauth#confirm_email', as: :omniauth_confirm_email
 
   namespace :agent_connect do
     get '' => 'agent#index'

@@ -1,20 +1,20 @@
 - content_for(:title, @subject)
+- merge_link = omniauth_merge_using_email_link_url(email_merge_token: @email_merge_token)
 
 %p
   Bonjour,
 
 %p
-  Pour confirmer la fusion de votre compte #{t("omniauth.provider.#{@provider}")} avec votre compte #{APPLICATION_NAME}, veuillez cliquer sur le lien suivant :
-- merge_path = omniauth_mail_merge_with_existing_account_url(provider: @provider, merge_token: @merge_token)
-= round_button 'Je confirme', merge_path, :primary
+  Pour confirmer la fusion de votre compte #{I18n.t("omniauth.provider.#{@provider}")}, veuillez cliquer sur le lien suivant :
+= round_button 'Je confirme', merge_link, :primary
 
 %p
-  Vous pouvez aussi visiter ce lien : #{link_to merge_path, merge_path}
+  Vous pouvez aussi visiter ce lien : #{link_to merge_link, merge_link}
 
-%p Ce lien est valide #{distance_of_time_in_words(FranceConnectInformation::MERGE_VALIDITY)}, jusqu'à #{@merge_token_created_at.strftime("%d-%m-%Y à %H:%M (%Z)")}
+%p Ce lien est valide #{distance_of_time_in_words(FranceConnectInformation::MERGE_VALIDITY)}, jusqu'à #{@email_merge_token_created_at.strftime("%d-%m-%Y à %H:%M (%Z)")}
 
 %p
-  Si vous n’êtes pas à l’origine de cette demande, vous pouvez ignorer ce message. Et si vous avez besoin d’assistance, n’hésitez pas à nous contacter à
+  Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer ce message. Et si vous avez besoin d'assistance, n'hésitez pas à nous contacter à
   = succeed '.' do
     = mail_to CONTACT_EMAIL
 

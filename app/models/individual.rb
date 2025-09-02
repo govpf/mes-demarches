@@ -33,10 +33,16 @@ class Individual < ApplicationRecord
   GENDER_FEMALE = 'Mme'
 
   def self.from_france_connect(fc_information)
+    gender_value = case fc_information.gender
+    when 'female' then GENDER_FEMALE
+    when 'male' then GENDER_MALE
+    else nil
+    end
+
     new(
       nom: fc_information.family_name,
       prenom: fc_information.given_name,
-      gender: fc_information.gender == 'female' ? GENDER_FEMALE : GENDER_MALE
+      gender: gender_value
     )
   end
 

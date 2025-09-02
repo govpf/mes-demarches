@@ -33,10 +33,11 @@ class FranceConnectInformation < ApplicationRecord
     save!
   end
 
-  def send_custom_confirmation_instructions
+  # pf: support OpenID providers (Tatou, Microsoft) en plus de France Connect
+  def send_custom_confirmation_instructions(provider_type: :france_connect)
     token = SecureRandom.hex(10)
     user.update!(confirmation_token: token, confirmation_sent_at: Time.zone.now)
-    UserMailer.custom_confirmation_instructions(user, token).deliver_later
+    UserMailer.custom_confirmation_instructions(user, token, provider_type).deliver_later
   end
 
   def create_merge_token!

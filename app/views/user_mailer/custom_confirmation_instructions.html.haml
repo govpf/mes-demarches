@@ -6,7 +6,8 @@
 
 %p
   Veuillez confirmer votre email en cliquant sur le lien ci-dessous:
-  = round_button 'Je confirme', france_connect_confirm_email_url(@token), :primary
+  -# pf: URL dynamique selon provider (France Connect vs OmniAuth Tatou/Microsoft)
+  = round_button 'Je confirme', (@provider_type == :omniauth ? omniauth_confirm_email_url(@token) : france_connect_confirm_email_url(@token)), :primary
 
 
 %p Ce lien est valide #{distance_of_time_in_words(FranceConnectInformation::CONFIRMATION_EMAIL_VALIDITY)}.

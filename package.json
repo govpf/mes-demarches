@@ -108,9 +108,11 @@
   "scripts": {
     "clean": "del tmp public/graphql && bin/vite clobber",
     "lint:js": "eslint --ext .js,.jsx,.ts,.tsx ./app/javascript",
+    "lint:js:fix": "eslint --fix --ext .js,.jsx,.ts,.tsx ./app/javascript",
     "lint:types": "tsc",
     "lint:css": "prettier app/assets/stylesheets --check",
     "lint:css:fix": "prettier app/assets/stylesheets --write",
+    "lintfix": "bun run lint:js:fix && bun run lint:css:fix && bundle exec rubocop -A && bundle exec haml-lint -a app/views/ app/components/",
     "graphql:doc:build": "RAILS_ENV=production bin/rake graphql:schema:idl && spectaql spectaql_config.yml",
     "test": "vitest",
     "coverage": "vitest run --coverage",

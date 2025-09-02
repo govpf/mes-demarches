@@ -34,3 +34,5 @@ fr:
       piece_justificative:
         name: "Télécharger le modèle"
         title: "Télécharger le modèle %{filename}"
+      merge:
+        button_merge: "Fusionner les comptes"

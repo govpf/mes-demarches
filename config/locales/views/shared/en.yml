@@ -32,3 +32,5 @@ en:
       piece_justificative:
         name: "Download template"
         title: "Download template %{filename}"
+      merge:
+        button_merge: "Merge accounts"

@@ -36,9 +36,22 @@ class UserMailer < ApplicationMailer
     mail(to: email, subject: @subject)
   end
 
-  def custom_confirmation_instructions(user, token)
+  def omniauth_merge_confirmation(email, email_merge_token, email_merge_token_created_at, provider)
+    @email_merge_token = email_merge_token
+    @email_merge_token_created_at = email_merge_token_created_at
+    @provider = provider
+    @subject = "Veuillez confirmer la fusion de compte"
+
+    configure_defaults_for_email(email)
+
+    mail(to: email, subject: @subject)
+  end
+
+  # pf: paramètre provider_type pour supporter OmniAuth (Tatou, Microsoft)
+  def custom_confirmation_instructions(user, token, provider_type = :france_connect)
     @user = user
     @token = token
+    @provider_type = provider_type
     mail(to: @user.email, subject: 'Confirmez votre email')
   end
 
