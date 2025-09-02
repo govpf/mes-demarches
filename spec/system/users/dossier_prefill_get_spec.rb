@@ -202,7 +202,11 @@ describe 'Prefilling a dossier (with a GET request):', js: true do
 
           page.find(".fr-btn", text: 'Google').click
 
-          click_on "Poursuivre mon dossier prérempli"
+          expect(page).to have_content("Choisissez votre email de contact pour finaliser votre connexion")
+          find('label', text: /Oui, utiliser .* comme email de contact/).click
+          click_on 'Valider'
+          expect(page).to have_content('Vous avez un dossier prérempli')
+          find('.fr-btn.fr-mb-2w', text: 'Poursuivre mon dossier prérempli', wait: 10).click
         end
       end
     end
