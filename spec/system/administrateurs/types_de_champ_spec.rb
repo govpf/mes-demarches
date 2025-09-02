@@ -476,7 +476,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
 
       within "#api-champ-columns-modal" do
         expect(page).to have_content("Informations complémentaires au champ Numéro TAHITI")
-        expect(page).to have_content("Entreprise raison sociale")
+        expect(page).to have_content("Entreprise nom")
         expect(page).not_to have_content("SIRET de test – Commune") # no champ libelle
 
         click_button "Fermer"
