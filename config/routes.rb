@@ -247,9 +247,6 @@ Rails.application.routes.draw do
     get ':dossier_id/:stable_id/piece_justificative/template', to: 'piece_justificative#template', as: :piece_justificative_template
     get ':dossier_id/:stable_id/piece_justificative/download/:h/:i', to: 'piece_justificative#download', as: :piece_justificative_download
 
-    # TODO remove this route after august 2025
-    get ':champ_id/piece_justificative/download/:h/(:i)', to: 'piece_justificative#download', as: :legacy_piece_justificative_download
-
     post ':dossier_id/:stable_id/lexpol/upsert', to: 'lexpol#upsert', as: :lexpol_upsert_dossier
   end
 
@@ -286,7 +283,6 @@ Rails.application.routes.draw do
 
   namespace :data_sources do
     # pf referentiel configurable
-    get 'table_row_selector/:table/search', to: 'table_row_selector#search', as: :trs_search
     get 'referentiel_de_polynesie/:table/search', to: 'referentiel_de_polynesie#search', as: :rdp_search
 
     get :adresse, to: 'adresse#search', as: :data_source_adresse
