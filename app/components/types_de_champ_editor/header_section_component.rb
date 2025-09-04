@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class TypesDeChampEditor::HeaderSectionComponent < ApplicationComponent
-  MAX_LEVEL = 3
+  MAX_LEVEL = 6
 
   def initialize(form:, tdc:, upper_tdcs:)
     @form = form

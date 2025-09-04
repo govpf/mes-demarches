@@ -63,8 +63,8 @@ RSpec.describe TypesDeChampEditor::HeaderSectionComponent, type: :component do
       let(:upper_tdcs) { [] }
 
       it 'includes disabled levels' do
-        expect(subject).to have_selector("option", count: 3)
-        expect(subject).to have_selector("option[disabled]", count: 2)
+        expect(subject).to have_selector("option", count: 6)
+        expect(subject).to have_selector("option[disabled]", count: 5)
       end
     end
   end

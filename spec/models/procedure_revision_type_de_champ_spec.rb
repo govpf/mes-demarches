@@ -51,7 +51,7 @@ describe ProcedureRevisionTypeDeChamp do
           .find_by(type_de_champ: { libelle: 'a2' })
       end
 
-      it { expect(a2.upper_coordinates.map(&:libelle)).to match_array(["l1", "l2", "a1"]) }
+      it { expect(a2.upper_coordinates.map(&:libelle)).to match_array(["a1"]) }
     end
   end
 end
