@@ -14,9 +14,15 @@
   - siret_value = @siret_prefix ? "#{@siret_prefix}#{sprintf('%03d', etablissement[:num_entreprise])}" : "#{etablissement[:siret]}#{sprintf('%03d', etablissement[:num_entreprise])}"
   %script{ type: "text/javascript", id: rand(1000) }
     :plain
-      document.addEventListener('DOMContentLoaded', function() {
+      function autoSelectSingleEtablissement() {
         updateEtablissement('#{siret_value}', '#{@input_id}', 0);
-      });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', autoSelectSingleEtablissement);
+      } else {
+        autoSelectSingleEtablissement();
+      }
 
 %script{ type: "text/javascript", id: rand(1000) }
   :plain

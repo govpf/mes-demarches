@@ -1,7 +1,14 @@
 - if etablissements.present?
-  // PF: Multiple establishments found
-  %p.fr-info-text Plusieurs établissements correspondent à ce numéro TAHITI. Veuillez sélectionner celui qui vous concerne :
-  = render EditableChamp::EtablissementsListComponent.new(etablissements: etablissements, input_id: @champ.input_id, siret_prefix: siret)
+  // PF: Establishments found (one or multiple)
+  - if etablissements.size > 1
+    %p.fr-info-text Plusieurs établissements correspondent à ce numéro TAHITI. Veuillez sélectionner celui qui vous concerne :
+    = render EditableChamp::EtablissementsListComponent.new(etablissements: etablissements, input_id: @champ.input_id, siret_prefix: siret)
+  - elsif etablissement.present?
+    // PF: Single establishment was automatically created, show the title
+    = render EditableChamp::EtablissementTitreComponent.new(etablissement: etablissement)
+  - else
+    %p.fr-info-text Un seul établissement trouvé, sélection automatique...
+    = render EditableChamp::EtablissementsListComponent.new(etablissements: etablissements, input_id: @champ.input_id, siret_prefix: siret)
 - else
   - case siret
   - when :invalid_length
