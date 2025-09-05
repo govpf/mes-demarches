@@ -48,6 +48,22 @@ if (!window._rails_loaded) {
 }
 Turbo.session.drive = false;
 
+// PF: Custom Turbo Stream action to update input values directly
+Turbo.StreamActions.update_input_value = function () {
+  this.targetElements.forEach((target) => {
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+      target.value = this.templateContent.textContent.trim();
+
+      // Trigger input event to notify other controllers (like format controller)
+      const event = new Event('input', {
+        bubbles: true,
+        cancelable: true
+      });
+      target.dispatchEvent(event);
+    }
+  });
+};
+
 // Expose globals
 window.DS = window.DS || DS;
 

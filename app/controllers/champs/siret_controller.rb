@@ -16,7 +16,6 @@ class Champs::SiretController < Champs::ChampController
       @siret = @champ.etablissement.siret
     else
       # PF: Multiple establishments found, need user selection
-      @multiple_etablissements = @champ.etablissements.present? && @champ.etablissements.size > 1
       @siret = siret
     end
   end
