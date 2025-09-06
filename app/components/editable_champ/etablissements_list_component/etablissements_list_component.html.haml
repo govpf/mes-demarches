@@ -1,24 +1,15 @@
-- if @etablissements.size > 1
-  %span.fr-text--sm
-    = "#{t('.label')} :"
-  %ul.fr-text--sm.fr-text-mention--grey.etablissements
-    - @etablissements.each do |etablissement|
-      %li.fr-btns-group--sm.fr-btns-group--inline.fr-btns-group--icon-right
-        %span
-          = "#{sprintf('%03d', etablissement[:num_entreprise])} - #{etablissement[:entreprise_nom_commercial].presence || etablissement[:entreprise_raison_sociale]} - #{etablissement[:localite]}"
-        - siret_value = @siret_prefix ? "#{@siret_prefix}#{sprintf('%03d', etablissement[:num_entreprise])}" : "#{etablissement[:siret]}#{sprintf('%03d', etablissement[:num_entreprise])}"
-        %a.fr-btn.fr-btn--tertiary{ href: "javascript:void(0)", onclick: "updateEtablissement('#{siret_value}', '#{@input_id}', 1)" }
-          = "Sélectionner"
-- elsif @etablissements.size == 1
-  - etablissement = @etablissements[0]
-  - siret_value = @siret_prefix ? "#{@siret_prefix}#{sprintf('%03d', etablissement[:num_entreprise])}" : "#{etablissement[:siret]}#{sprintf('%03d', etablissement[:num_entreprise])}"
-  %script{ type: "text/javascript", id: rand(1000) }
-    :plain
-      document.addEventListener('DOMContentLoaded', function() {
-        updateEtablissement('#{siret_value}', '#{@input_id}', 0);
-      });
+%span.fr-text--sm
+  = "#{t('.label')} :"
+%ul.fr-text--sm.fr-text-mention--grey.etablissements
+  - @etablissements.each do |etablissement|
+    %li.fr-btns-group--sm.fr-btns-group--inline.fr-btns-group--icon-right
+      %span
+        = "#{sprintf('%03d', etablissement[:num_entreprise])} - #{etablissement[:entreprise_nom_commercial].presence || etablissement[:entreprise_raison_sociale]} - #{etablissement[:localite]}"
+      - siret_value = @siret_prefix ? "#{@siret_prefix}#{sprintf('%03d', etablissement[:num_entreprise])}" : "#{etablissement[:siret]}#{sprintf('%03d', etablissement[:num_entreprise])}"
+      %a.fr-btn.fr-btn--tertiary{ href: "javascript:void(0)", onclick: "updateEtablissement('#{siret_value}', '#{@input_id}', 1)" }
+        = "Sélectionner"
 
-%script{ type: "text/javascript", id: rand(1000) }
+%script{ type: "text/javascript", id: "update-etablissement-#{@input_id}" }
   :plain
     function updateEtablissement(tahitiIti, inputId, refresh) {
       var input = document.getElementById(inputId);
