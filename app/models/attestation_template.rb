@@ -246,13 +246,37 @@ class AttestationTemplate < ApplicationRecord
   def build_v2_pdf(dossier)
     body = render_attributes_for(dossier:).fetch(:body)
 
+    # pf: génération QR code comme dans le controller v2s
+    qrcode_url = qrcode_dossier_url(dossier, created_at: dossier.encoded_date(:created_at))
+    qrcode_svg = qrcode_url ? generate_qrcode_svg(qrcode_url) : nil
+
     html = ApplicationController.render(
       template: '/administrateurs/attestation_template_v2s/show',
       formats: [:html],
       layout: 'attestation',
-      assigns: { attestation_template: self, body: body }
+      assigns: {
+        attestation_template: self,
+        body: body,
+        qrcode_url: qrcode_url,
+        qrcode_svg: qrcode_svg
+      }
     )
 
     WeasyprintService.generate_pdf(html, { procedure_id: procedure.id, dossier_id: dossier.id })
+  end
+
+  # pf: génération SVG du QR code pour vérification attestation
+  def generate_qrcode_svg(url)
+    require 'rqrcode'
+    qrcode = RQRCode::QRCode.new(url)
+    qrcode.as_svg(
+      offset: 0,
+      color: '000',
+      shape_rendering: 'crispEdges',
+      module_size: 3,
+      standalone: true
+    )
+  rescue StandardError
+    nil
   end
 end
