@@ -41,6 +41,7 @@ const DS = {
   showNewAccount
 };
 
+
 // Start Rails helpers
 ActiveStorage.start();
 if (!window._rails_loaded) {
