@@ -5,17 +5,22 @@
     %li.fr-btns-group--sm.fr-btns-group--inline.fr-btns-group--icon-right
       %span
         = "#{sprintf('%03d', etablissement[:num_entreprise])} - #{etablissement[:entreprise_nom_commercial].presence || etablissement[:entreprise_raison_sociale]} - #{etablissement[:localite]}"
-      - siret_value = @siret_prefix ? "#{@siret_prefix}#{sprintf('%03d', etablissement[:num_entreprise])}" : "#{etablissement[:siret]}#{sprintf('%03d', etablissement[:num_entreprise])}"
-      %a.fr-btn.fr-btn--tertiary{ href: "javascript:void(0)", onclick: "updateEtablissement('#{siret_value}', '#{@input_id}', 1)" }
+      - siret_suffix = sprintf('%03d', etablissement[:num_entreprise])
+      %a.fr-btn.fr-btn--tertiary{ href: "javascript:void(0)", onclick: "updateEtablissement('#{siret_suffix}', '#{@input_id}', 1)" }
         = "Sélectionner"
 
 %script{ type: "text/javascript", id: "update-etablissement-#{@input_id}" }
   :plain
-    function updateEtablissement(tahitiIti, inputId, refresh) {
+    function updateEtablissement(siretSuffix, inputId, refresh) {
       var input = document.getElementById(inputId);
 
       if (input) {
-        input.value = tahitiIti;
+        // Get the first 6 characters (TAHITI prefix) from current input
+        var currentValue = input.value.substring(0, 6);
+
+        // Construct new value: current input + suffix
+        input.value = currentValue + siretSuffix;
+
         if (refresh) {
           const event = new Event('input', {
             bubbles: true,
