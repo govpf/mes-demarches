@@ -129,6 +129,9 @@ Rails.application.routes.draw do
     root to: "administrateurs#index"
   end
 
+  # pf: Proxy images pour WeasyPrint (attestation v2)
+  get 'attestation_images/proxy' => 'attestation_images#proxy'
+
   #
   # Letter Opener
   #

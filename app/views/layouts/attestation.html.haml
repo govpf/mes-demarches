@@ -1,6 +1,10 @@
 %html{ lang: 'fr' }
   %head
-    = stylesheet_link_tag 'attestation', media: 'all'
+    -# pf: utiliser nom simple en développement pour WeasyPrint 
+    - if Rails.env.development?
+      %link{ href: '/assets/attestation.css', rel: 'stylesheet', media: 'all' }
+    - else
+      = stylesheet_link_tag 'attestation', media: 'all'
     %title= content_for?(:title) ? yield(:title) : 'Attestation'
     = yield(:authors)
     = yield(:keywords)
