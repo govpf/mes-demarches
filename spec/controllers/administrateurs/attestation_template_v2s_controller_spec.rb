@@ -59,7 +59,8 @@ describe Administrateurs::AttestationTemplateV2sController, type: :controller do
       context 'with logo label' do
         it do
           is_expected.to include("Ministère des devs")
-          is_expected.to match(/centered_marianne-\w+\.svg/)
+          # pf: logo Polynésie au lieu de Marianne
+          is_expected.to match(/polynesie-\w+\.svg/)
         end
       end
 

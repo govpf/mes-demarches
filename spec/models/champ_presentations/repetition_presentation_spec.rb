@@ -56,57 +56,94 @@ describe ChampPresentations::RepetitionPresentation do
   end
 
   describe '#to_tiptap_node' do
-    it 'returns the correct HTML structure, without libelle' do
-      expected_node = {
-        type: "orderedList",
-        attrs: { class: "tdc-repetition" },
-        content: [
+    # pf: test adapté pour la nouvelle logique tableau vs liste descriptive
+    context 'avec champs fillables (format tableau PF)' do
+      it 'génère une structure de tableau' do
+        # pf: nouveau format tableau pour champs simples
+        expected_node = {
+          type: "table",
+          content: [
+            {
+              type: "tableRow",
+              content: [
+                {
+                  type: "tableHeader",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "nom" }] }]
+                },
+                {
+                  type: "tableHeader",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "stars" }] }]
+                }
+              ]
+            },
+            {
+              type: "tableRow",
+              content: [
+                {
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "ruby" }] }]
+                },
+                {
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "5" }] }]
+                }
+              ]
+            },
+            {
+              type: "tableRow",
+              content: [
+                {
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "js" }] }]
+                },
+                {
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }]
+                }
+              ]
+            },
+            {
+              type: "tableRow",
+              content: [
+                {
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "rust" }] }]
+                },
+                {
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "4" }] }]
+                }
+              ]
+            }
+          ]
+        }
+
+        expect(representation.to_tiptap_node).to eq(expected_node)
+      end
+    end
+
+    # pf: test de compatibilité avec format liste original
+    context 'avec champs non-fillables (format liste upstream)' do
+      let(:procedure_with_headers) {
+        create(:procedure, types_de_champ_public: [
           {
-            type: "listItem",
-            content: [
-              {
-                type: "descriptionList",
-                content: [
-                  { content: [{ text: "nom", type: "text" }], type: "descriptionTerm" },
-                  { content: [{ text: "ruby", type: "text" }], type: "descriptionDetails" },
-                  { content: [{ text: "stars", type: "text" }], type: "descriptionTerm" },
-                  { content: [{ text: "5", type: "text" }], type: "descriptionDetails" }
-                ]
-              }
-            ]
-          },
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "descriptionList",
-                content: [
-                  { content: [{ text: "nom", type: "text" }], type: "descriptionTerm" },
-                  { content: [{ text: "js", type: "text" }], type: "descriptionDetails" },
-                  { content: [{ text: "stars", type: "text" }], type: "descriptionTerm", attrs: { class: "invisible" } },
-                  { content: [{ text: "", type: "text" }], type: "descriptionDetails" }
-                ]
-              }
-            ]
-          },
-          {
-            type: "listItem",
-            content: [
-              {
-                type: "descriptionList",
-                content: [
-                  { content: [{ text: "nom", type: "text" }], type: "descriptionTerm" },
-                  { content: [{ text: "rust", type: "text" }], type: "descriptionDetails" },
-                  { content: [{ text: "stars", type: "text" }], type: "descriptionTerm" },
-                  { content: [{ text: "4", type: "text" }], type: "descriptionDetails" }
-                ]
-              }
+            type: :repetition,
+            children: [
+              { type: :header_section, libelle: "Section info" },
+              { type: :text, libelle: "nom" }
             ]
           }
-        ]
+        ])
       }
+      let(:dossier_with_headers) { create(:dossier, procedure: procedure_with_headers) }
+      let(:champ_with_headers) { dossier_with_headers.project_champs_public.first }
+      let(:representation_with_headers) { described_class.new("Test", champ_with_headers.rows) }
 
-      expect(representation.to_tiptap_node).to eq(expected_node)
+      it 'utilise le format liste descriptive original' do
+        result = representation_with_headers.to_tiptap_node
+        expect(result[:type]).to eq("orderedList")
+        expect(result[:attrs]).to eq({ class: "tdc-repetition" })
+      end
     end
   end
 end
