@@ -24,7 +24,7 @@ class AssignTo < ApplicationRecord
     # given a procedure, notifications where instructeur has not followed a dossier since MIN_INACTIVE_DAYS
     AssignTo.joins(:procedure)
       .joins(instructeur: { all_follows: { dossier: :procedure } })
-      .where('assign_tos.updated_at < ?', MIN_INACTIVE_DAYS.days.ago)
+      .where(assign_tos: { updated_at: ...MIN_INACTIVE_DAYS.days.ago })
       .where(instant_email_dossier_notifications_enabled: true)
       .where("procedures.id = procedures_dossiers.id")
       .group("assign_tos.id")
@@ -35,7 +35,7 @@ class AssignTo < ApplicationRecord
     AssignTo.joins(:procedure)
       .joins(:instructeur)
       .left_outer_joins(instructeur: :all_follows)
-      .where('assign_tos.updated_at < ?', MIN_INACTIVE_DAYS.days.ago)
+      .where(assign_tos: { updated_at: ...MIN_INACTIVE_DAYS.days.ago })
       .where(instant_email_dossier_notifications_enabled: true)
       .where(follows: { id: nil })
       .group("assign_tos.id")
