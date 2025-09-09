@@ -10,38 +10,24 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
   end
 
   def to_s
-    # pf: retourner HTML compatible attestation v1 (contrat utilisateur)
-    if use_table_format?
-      to_html_table
-    else
-      to_html_list
-    end
+    # pf: toujours utiliser format tableau avec seulement les champs fillables
+    to_html_table
   end
 
   def to_tiptap_node
-    # pf: utiliser format tableau pour les répétitions simples
-    if use_table_format?
-      to_table_node
-    else
-      to_list_node # Format par défaut
-    end
+    # pf: toujours utiliser format tableau avec seulement les champs fillables
+    to_table_node
   end
 
   private
 
-  # pf: détermine si on utilise le format tableau
-  def use_table_format?
-    return false if rows.empty?
-    # Utilise le format tableau si tous les champs de la première ligne sont fillables (pas header/explication)
-    rows.first.all? { |champ| champ.type_de_champ.fillable? }
-  end
-
-  # pf: génère un nœud tableau
+  # pf: génère un nœud tableau avec seulement les champs fillables
   def to_table_node
-    return { type: 'paragraph', content: [{ type: 'text', text: 'Aucune donnée' }] } if rows.empty?
+    fillable_rows = filter_fillable_champs
+    return { type: 'paragraph', content: [{ type: 'text', text: 'Aucune donnée' }] } if fillable_rows.empty?
 
-    # En-têtes
-    headers = rows.first.map { |champ| champ.type_de_champ.libelle }
+    # En-têtes (seulement les champs fillables de la première ligne)
+    headers = fillable_rows.first.map { |champ| champ.type_de_champ.libelle }
     header_cells = headers.map do |header|
       {
         type: 'tableHeader',
@@ -49,8 +35,8 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
       }
     end
 
-    # Lignes de données
-    data_rows = rows.map do |row_champs|
+    # Lignes de données (seulement les champs fillables)
+    data_rows = fillable_rows.map do |row_champs|
       cells = row_champs.map do |champ|
         cell_content = champ.type_de_champ.champ_value_for_tag(champ)
 
@@ -83,6 +69,13 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
         *data_rows
       ]
     }
+  end
+
+  # pf: filtre pour garder seulement les champs fillables dans chaque ligne
+  def filter_fillable_champs
+    rows.map do |row_champs|
+      row_champs.filter { |champ| champ.type_de_champ.fillable? }
+    end.reject(&:empty?) # Supprime les lignes vides
   end
 
   # pf: génère le format liste original
@@ -126,14 +119,17 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
     }
   end
 
-  # pf: génère HTML tableau simple pour compatibilité v1
+  # pf: génère HTML tableau simple pour compatibilité v1 (seulement champs fillables)
   def to_html_table
-    return '' if rows.empty?
+    fillable_rows = filter_fillable_champs
+    return '' if fillable_rows.empty?
 
-    headers = rows.first.map { |champ| champ.type_de_champ.libelle }
+    # En-têtes (seulement les champs fillables)
+    headers = fillable_rows.first.map { |champ| champ.type_de_champ.libelle }
     header_row = "<tr>#{headers.map { |h| "<th>#{h}</th>" }.join}</tr>"
-    
-    data_rows = rows.map do |row_champs|
+
+    # Lignes de données (seulement les champs fillables)
+    data_rows = fillable_rows.map do |row_champs|
       cells = row_champs.map do |champ|
         cell_value = champ.type_de_champ.champ_value_for_tag(champ)
         cell_content = if cell_value.respond_to?(:to_s)

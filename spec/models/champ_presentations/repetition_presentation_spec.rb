@@ -37,20 +37,10 @@ describe ChampPresentations::RepetitionPresentation do
   let(:representation) { described_class.new(libelle, champ_repetition.rows) }
 
   describe '#to_s' do
-    it 'returns a key-value representation' do
+    # pf: nouveau comportement - retourne HTML tableau avec seulement champs fillables
+    it 'returns HTML table with fillable fields only' do
       expect(representation.to_s).to eq(
-        <<~TXT.strip
-          Langages de programmation
-
-          nom : ruby
-          stars : 5
-
-          nom : js
-          stars :#{' '}
-
-          nom : rust
-          stars : 4
-        TXT
+        '<table><tr><th>nom</th><th>stars</th></tr><tr><td>ruby</td><td>5</td></tr><tr><td>js</td><td></td></tr><tr><td>rust</td><td>4</td></tr></table>'
       )
     end
   end
@@ -122,8 +112,8 @@ describe ChampPresentations::RepetitionPresentation do
       end
     end
 
-    # pf: test de compatibilité avec format liste original
-    context 'avec champs non-fillables (format liste upstream)' do
+    # pf: test avec champs non-fillables - génère tableau avec seulement champs fillables
+    context 'avec champs non-fillables mélangés' do
       let(:procedure_with_headers) {
         create(:procedure, types_de_champ_public: [
           {
@@ -139,10 +129,13 @@ describe ChampPresentations::RepetitionPresentation do
       let(:champ_with_headers) { dossier_with_headers.project_champs_public.first }
       let(:representation_with_headers) { described_class.new("Test", champ_with_headers.rows) }
 
-      it 'utilise le format liste descriptive original' do
+      it 'génère tableau avec seulement les champs fillables' do
         result = representation_with_headers.to_tiptap_node
-        expect(result[:type]).to eq("orderedList")
-        expect(result[:attrs]).to eq({ class: "tdc-repetition" })
+        # pf: toujours tableau maintenant, avec seulement les champs fillables filtrés
+        expect(result[:type]).to eq("table")
+        # Une seule colonne "nom" (header_section filtré)
+        expect(result[:content].first[:content].size).to eq(1)
+        expect(result[:content].first[:content].first[:content].first[:content].first[:text]).to eq("nom")
       end
     end
   end

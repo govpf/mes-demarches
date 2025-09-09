@@ -43,9 +43,9 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
 
   def to_s
     if @is_image
-      "<img src='#{@url}' alt='#{@display_name}' style='max-width: 100px; max-height: 100px; height: auto; width: auto; object-fit: contain;' />"
+      "<img src=\"#{@url}\" alt=\"#{@display_name}\" style=\"max-width: 100px; max-height: 100px; height: auto; width: auto; object-fit: contain;\" />"
     else
-      "<a href='#{@url}' target='_blank' rel='noopener' title='Télécharger la pièce jointe'>#{@display_name}</a>"
+      "<a href=\"#{@url}\" target=\"_blank\" rel=\"noopener\" title=\"Télécharger la pièce jointe\">#{@display_name}</a>"
     end
   end
 
