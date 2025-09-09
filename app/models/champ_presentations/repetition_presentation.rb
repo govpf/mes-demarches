@@ -10,12 +10,12 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
   end
 
   def to_s
-    ([libelle] + rows.map do |champs|
-      champs.map do |champ|
-        cell_value = champ.type_de_champ.champ_value_for_tag(champ)
-        "#{champ.libelle} : #{cell_value}"
-      end.join("\n")
-    end).join("\n\n")
+    # pf: retourner HTML compatible attestation v1 (contrat utilisateur)
+    if use_table_format?
+      to_html_table
+    else
+      to_html_list
+    end
   end
 
   def to_tiptap_node
@@ -124,5 +124,38 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
         }
       end
     }
+  end
+
+  # pf: génère HTML tableau simple pour compatibilité v1
+  def to_html_table
+    return '' if rows.empty?
+
+    headers = rows.first.map { |champ| champ.type_de_champ.libelle }
+    header_row = "<tr>#{headers.map { |h| "<th>#{h}</th>" }.join}</tr>"
+    
+    data_rows = rows.map do |row_champs|
+      cells = row_champs.map do |champ|
+        cell_value = champ.type_de_champ.champ_value_for_tag(champ)
+        cell_content = if cell_value.respond_to?(:to_s)
+          cell_value.to_s
+        else
+          cell_value.to_s
+        end
+        "<td>#{cell_content}</td>"
+      end
+      "<tr>#{cells.join}</tr>"
+    end
+
+    "<table>#{header_row}#{data_rows.join}</table>"
+  end
+
+  # pf: génère HTML liste pour compatibilité v1 (format texte historique)
+  def to_html_list
+    ([libelle] + rows.map do |champs|
+      champs.map do |champ|
+        cell_value = champ.type_de_champ.champ_value_for_tag(champ)
+        "#{champ.libelle} : #{cell_value}"
+      end.join("\n")
+    end).join("\n\n")
   end
 end
