@@ -4382,6 +4382,7 @@ type ReferentielDePolynesieChamp implements Champ {
 }
 
 type ReferentielDePolynesieChampDescriptor implements ChampDescriptor {
+type ReferentielChampDescriptor implements ChampDescriptor {
   """
   Description des champs d’un bloc répétable.
   """
@@ -5133,7 +5134,9 @@ enum TypeDeChamp {
   Référentiel des administrations
   """
   referentiel_de_polynesie
-
+  Référentiel à configurer (avancé)
+  """
+  referentiel
   """
   Régions
   """
