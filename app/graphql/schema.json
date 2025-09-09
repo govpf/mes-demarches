@@ -1822,6 +1822,11 @@
             },
             {
               "kind": "OBJECT",
+              "name": "ReferentielChampDescriptor",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "ReferentielDePolynesieChampDescriptor",
               "ofType": null
             },
@@ -4864,7 +4869,7 @@
                 },
                 {
                   "name": "archived",
-                  "description": "Seulement les dossiers archivés.",
+                  "description": "Seulement les dossiers à archiver.",
                   "type": {
                     "kind": "SCALAR",
                     "name": "Boolean",
@@ -12524,7 +12529,7 @@
                 },
                 {
                   "name": "archived",
-                  "description": "Seulement les dossiers archivés.",
+                  "description": "Seulement les dossiers à archiver.",
                   "type": {
                     "kind": "SCALAR",
                     "name": "Boolean",
@@ -18000,6 +18005,119 @@
         },
         {
           "kind": "OBJECT",
+          "name": "ReferentielChampDescriptor",
+          "description": null,
+          "fields": [
+            {
+              "name": "champDescriptors",
+              "description": "Description des champs d’un bloc répétable.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INTERFACE",
+                    "name": "ChampDescriptor",
+                    "ofType": null
+                  }
+                }
+              },
+              "isDeprecated": true,
+              "deprecationReason": "Utilisez le champ `RepetitionChampDescriptor.champ_descriptors` à la place."
+            },
+            {
+              "name": "description",
+              "description": "Description du champ.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "label",
+              "description": "Libellé du champ.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "required",
+              "description": "Est-ce que le champ est obligatoire ?",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "type",
+              "description": "Type de la valeur du champ.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "TypeDeChamp",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": true,
+              "deprecationReason": "Utilisez le champ `__typename` à la place."
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "ChampDescriptor",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
           "name": "ReferentielDePolynesieChamp",
           "description": null,
           "fields": [
@@ -20984,6 +21102,12 @@
             {
               "name": "expression_reguliere",
               "description": "Expression régulière",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "referentiel",
+              "description": "Référentiel à configurer (avancé)",
               "isDeprecated": false,
               "deprecationReason": null
             },

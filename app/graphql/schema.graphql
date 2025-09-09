@@ -4347,6 +4347,34 @@ type RNFChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type ReferentielChampDescriptor implements ChampDescriptor {
+  """
+  Description des champs d’un bloc répétable.
+  """
+  champDescriptors: [ChampDescriptor!] @deprecated(reason: "Utilisez le champ `RepetitionChampDescriptor.champ_descriptors` à la place.")
+
+  """
+  Description du champ.
+  """
+  description: String
+  id: ID!
+
+  """
+  Libellé du champ.
+  """
+  label: String!
+
+  """
+  Est-ce que le champ est obligatoire ?
+  """
+  required: Boolean!
+
+  """
+  Type de la valeur du champ.
+  """
+  type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
+}
+
 type ReferentielDePolynesieChamp implements Champ {
   """
   L'identifiant du champDescriptor de ce champ
@@ -4382,7 +4410,6 @@ type ReferentielDePolynesieChamp implements Champ {
 }
 
 type ReferentielDePolynesieChampDescriptor implements ChampDescriptor {
-type ReferentielChampDescriptor implements ChampDescriptor {
   """
   Description des champs d’un bloc répétable.
   """
@@ -5131,12 +5158,15 @@ enum TypeDeChamp {
   pole_emploi
 
   """
-  Référentiel des administrations
-  """
-  referentiel_de_polynesie
   Référentiel à configurer (avancé)
   """
   referentiel
+
+  """
+  Référentiel des administrations
+  """
+  referentiel_de_polynesie
+
   """
   Régions
   """
