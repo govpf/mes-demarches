@@ -81,11 +81,6 @@ FactoryBot.define do
       date_de_naissance { "2000-01-01" }
     end
 
-    factory :champ_do_not_use_table_row_selector, class: 'Champs::TableRowSelectorChamp' do
-      value { "98701 - Arue - Tahiti" }
-      data { { 'commune' => 'Arue', 'ile' => 'Tahiti', 'archipel' => 'Ile sous le vent' } }
-    end
-
     factory :champ_do_not_use_referentiel_de_polynesie, class: 'Champs::ReferentielDePolynesieChamp' do
       value { "98701 - Arue - Tahiti" }
       data { { 'commune' => 'Arue', 'ile' => 'Tahiti', 'archipel' => 'Ile sous le vent' } }
