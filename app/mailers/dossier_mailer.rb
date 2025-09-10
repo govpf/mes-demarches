@@ -19,6 +19,8 @@ class DossierMailer < ApplicationMailer
 
   def notify_new_draft
     @dossier = params[:dossier]
+    raise AbortDeliveryError if !@dossier.brouillon? || @dossier.hidden_by_user_at.present?
+
     configure_defaults_for_user(@dossier.user)
 
     I18n.with_locale(@dossier.user_locale) do
@@ -221,26 +223,6 @@ class DossierMailer < ApplicationMailer
       @subject = default_i18n_subject()
 
       mail(to: @transfer.email, subject: @subject)
-    end
-  end
-
-  def notify_old_brouillon_after_deletion(dossier)
-    @dossier = dossier
-    configure_defaults_for_user(dossier.user)
-
-    I18n.with_locale(dossier.user_locale) do
-      @subject = default_i18n_subject(dossier_id: dossier.id)
-      mail(to: dossier.user_email_for(:notification), subject: @subject)
-    end
-  end
-
-  def notify_old_brouillon_soon_deleted(dossier)
-    @dossier = dossier
-    configure_defaults_for_user(dossier.user)
-
-    I18n.with_locale(dossier.user_locale) do
-      @subject = default_i18n_subject(dossier_id: dossier.id)
-      mail(to: dossier.user_email_for(:notification), subject: @subject)
     end
   end
 

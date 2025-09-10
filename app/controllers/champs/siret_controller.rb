@@ -18,5 +18,6 @@ class Champs::SiretController < Champs::ChampController
       # PF: Multiple establishments or other cases
       @siret = siret
     end
+    @champ.dossier.touch_champs_changed([:last_champ_updated_at])
   end
 end

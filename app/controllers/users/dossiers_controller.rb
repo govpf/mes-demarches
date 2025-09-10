@@ -436,7 +436,7 @@ module Users
       if dossier.procedure.feature_enabled?(:delayed_notifications)
         DraftNotificationJob.schedule_for_dossier(dossier)
       else
-        DossierMailer.with(dossier: dossier).notify_new_draft.deliver_later
+        DossierMailer.with(dossier:).notify_new_draft.deliver_later(wait: 1.hour)
       end
 
       if dossier.procedure.for_individual
@@ -646,7 +646,7 @@ module Users
       # requests it, we ask for field validation errors.
       if dossier.save
         if dossier.brouillon? && updated_champs.present?
-          dossier.touch(:last_champ_updated_at)
+          dossier.touch_champs_changed([:last_champ_updated_at])
           if updated_champs.any?(&:used_by_routing_rules?)
             @update_contact_information = true
             RoutingEngine.compute(dossier)
