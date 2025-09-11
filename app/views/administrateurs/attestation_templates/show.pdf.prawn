@@ -163,6 +163,7 @@ prawn_document(margin: [top_margin, right_margin, bottom_margin, left_margin], p
   })
 
   pdf.font 'marianne'
+  pdf.fallback_fonts = ['Helvetica']
 
   grey = '555555'
   black = '000000'
