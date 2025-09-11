@@ -11,7 +11,14 @@ class ChampPresentations::MultiplePieceJustificativePresentation < ChampPresenta
   end
 
   def to_s
-    @presentations.map(&:to_s).join(', ')
+    # pf: concatenation sécurisée - échappe automatiquement les strings non-safe
+    fragments = @presentations.map(&:to_s)
+    ActionController::Base.helpers.safe_join(fragments, ', ')
+  end
+
+  # pf: éviter l'échappement HTML dans TagsSubstitutionConcern
+  def html_safe?
+    true
   end
 
   def to_tiptap_node

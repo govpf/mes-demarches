@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePresentation
+  include ActionView::Helpers::TagHelper
+  include ActionView::Helpers::OutputSafetyHelper
   attr_reader :libelle
   attr_reader :rows
 
@@ -12,6 +14,11 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
   def to_s
     # pf: toujours utiliser format tableau avec seulement les champs fillables
     to_html_table
+  end
+
+  # pf: éviter l'échappement HTML dans TagsSubstitutionConcern
+  def html_safe?
+    true
   end
 
   def to_tiptap_node
@@ -122,27 +129,28 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
   # pf: génère HTML tableau simple pour compatibilité v1 (seulement champs fillables)
   def to_html_table
     fillable_rows = filter_fillable_champs
-    return '' if fillable_rows.empty?
+    return ''.html_safe if fillable_rows.empty?
 
-    # En-têtes (seulement les champs fillables)
+    # En-têtes (seulement les champs fillables) - échappement sécurisé
     headers = fillable_rows.first.map { |champ| champ.type_de_champ.libelle }
-    header_row = "<tr>#{headers.map { |h| "<th>#{h}</th>" }.join}</tr>"
+    header_cells = headers.map do |header|
+      content_tag(:th, escape_once(header))
+    end
+    header_row = content_tag(:tr, safe_join(header_cells))
 
-    # Lignes de données (seulement les champs fillables)
+    # Lignes de données (seulement les champs fillables) - concaténation sécurisée
     data_rows = fillable_rows.map do |row_champs|
       cells = row_champs.map do |champ|
         cell_value = champ.type_de_champ.champ_value_for_tag(champ)
-        cell_content = if cell_value.respond_to?(:to_s)
-          cell_value.to_s
-        else
-          cell_value.to_s
-        end
-        "<td>#{cell_content}</td>"
+        # Sécurisé : si cell_value est html_safe il est préservé, sinon échappé
+        content_tag(:td, cell_value&.to_s || '')
       end
-      "<tr>#{cells.join}</tr>"
+      content_tag(:tr, safe_join(cells))
     end
 
-    "<table>#{header_row}#{data_rows.join}</table>"
+    # Construction sécurisée du tableau final
+    table_content = safe_join([header_row] + data_rows)
+    content_tag(:table, table_content)
   end
 
   # pf: génère HTML liste pour compatibilité v1 (format texte historique)

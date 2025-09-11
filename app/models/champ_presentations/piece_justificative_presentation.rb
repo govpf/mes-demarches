@@ -3,6 +3,8 @@
 # pf: Présentation des pièces jointes pour attestation v2
 # Gère l'affichage des images et documents en format TipTap
 class ChampPresentations::PieceJustificativePresentation < ChampPresentations::BasePresentation
+  include ActionView::Helpers::TagHelper
+  include ActionView::Helpers::OutputSafetyHelper
   def initialize(attachment, is_image: false, champ: nil, index: 0)
     @attachment = attachment
     @attachment_id = attachment.blob.id # pf: utiliser l'ID du blob, pas de l'attachment
@@ -43,10 +45,17 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
 
   def to_s
     if @is_image
-      "<img src=\"#{@url}\" alt=\"#{@display_name}\" style=\"max-width: 100px; max-height: 100px; height: auto; width: auto; object-fit: contain;\" />"
+      content_tag(:img, nil, src: @url, alt: @display_name,
+                  style: 'max-width: 100px; max-height: 100px; height: auto; width: auto; object-fit: contain;')
     else
-      "<a href=\"#{@url}\" target=\"_blank\" rel=\"noopener\" title=\"Télécharger la pièce jointe\">#{@display_name}</a>"
+      content_tag(:a, escape_once(@display_name), href: @url, target: '_blank',
+                  rel: 'noopener', title: 'Télécharger la pièce jointe')
     end
+  end
+
+  # pf: éviter l'échappement HTML dans TagsSubstitutionConcern
+  def html_safe?
+    true
   end
 
   def self.from_attachment(attachment, champ: nil, index: 0)
