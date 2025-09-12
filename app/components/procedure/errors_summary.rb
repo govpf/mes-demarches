@@ -43,6 +43,8 @@ class Procedure::ErrorsSummary < ApplicationComponent
       tdc = error.options[:type_de_champ]
       annotations_admin_procedure_path(@procedure, anchor: dom_id(tdc.stable_self, :editor_error))
     when :attestation_template
+      # pf: préservation accès attestations v1 pour migration graduelle
+      # Le routing vers v1 est maintenu pour les procédures qui n'ont pas encore migré
       edit_admin_procedure_attestation_template_path(@procedure)
     when :initiated_mail, :received_mail, :closed_mail, :refused_mail, :without_continuation_mail, :re_instructed_mail
       klass = "Mails::#{error.attribute.to_s.classify}".constantize

@@ -5,14 +5,26 @@
 
 - if @dossier.etablissement&.as_degraded_mode?
   .container
-    = render Dsfr::CalloutComponent.new(title: "Données de l’entreprise non vérifiées", theme: :warning, icon: "fr-icon-feedback-fill") do |c|
+    = render Dsfr::CalloutComponent.new(title: "Données de l'entreprise non vérifiées", theme: :warning, icon: "fr-icon-feedback-fill") do |c|
       - c.with_html_body do
         %p
-          Les services de l’INSEE sont indisponibles, nous ne pouvons pas vérifier les informations liées à l’établissement de ce dossier.
+          Les services de l’INSEE sont indisponibles, nous ne pouvons pas vérifier les informations liées à l'établissement de ce dossier.
           %strong
-            Il n’est pas possible d’accepter ou de refuser un dossier sans cette étape.
+            Il n'est pas possible d'accepter ou de refuser un dossier sans cette étape.
         %p
-          Les informations sur l'entreprise arriveront d’ici quelques heures.
+          Les informations sur l'entreprise arriveront d'ici quelques heures.
+
+- if @dossier.procedure.attestation_template&.activated? && @dossier.procedure.attestation_template&.version == 1
+  .container
+    = render Dsfr::AlertComponent.new(state: :info, title: "Attestation en ancien format", heading_level: 'h4') do |c|
+      - c.with_body do
+        %p Cette démarche utilise l'ancien système d'attestations qui sera supprimé le <strong>1er novembre 2025</strong>.
+        %p Contactez l'administrateur de cette démarche pour qu'il migre vers le nouveau format et éviter toute interruption de service.
+        .fr-mt-2w
+          = link_to("Voir les administrateurs de cette démarche",
+                    administrateurs_instructeur_procedure_path(@dossier.procedure),
+                    class: "fr-btn fr-btn--secondary fr-btn--sm",
+                    target: "_blank")
 
 .fr-container
   .fr-grid-row.fr-grid-row--center

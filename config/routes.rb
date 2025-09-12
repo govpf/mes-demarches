@@ -769,6 +769,7 @@ Rails.application.routes.draw do
 
       resource :attestation_template, only: [:show, :edit, :update, :create] do
         get 'preview', on: :member
+        post 'migrate', on: :member
       end
       resource :chorus, only: [:edit, :update] do
         get 'add_champ_engagement_juridique'
