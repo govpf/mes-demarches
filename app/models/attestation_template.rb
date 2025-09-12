@@ -162,6 +162,77 @@ class AttestationTemplate < ApplicationRecord
     self.json_body = JSON.parse(json)
   end
 
+  def analyze_v1_content
+    content = [title, body].join(' ')
+    doc = Nokogiri::HTML::DocumentFragment.parse(content)
+
+    basic_tags = []
+
+    # Détecter les balises de formatage basique
+    %w[b i u strong em].each do |tag|
+      basic_tags << tag if doc.css(tag).any?
+    end
+
+    # Compter les tables
+    table_count = doc.css('table').count
+
+    {
+      has_basic_formatting: basic_tags.any?,
+      has_tables: table_count > 0,
+      basic_tags: basic_tags,
+      table_count: table_count
+    }
+  end
+
+  # pf: Migration v1 → v2 - Méthodes de conversion HTML vers TipTap
+  def html_to_tiptap_basic(html_string)
+    return [] if html_string.blank?
+
+    # Parser HTML avec Nokogiri
+    doc = Nokogiri::HTML::DocumentFragment.parse(html_string)
+
+    result = []
+
+    # Traiter chaque nœud au niveau racine
+    doc.children.each do |node|
+      case node.type
+      when Nokogiri::XML::Node::TEXT_NODE
+        text = node.text.strip
+        result << { 'type' => 'text', 'text' => text } if text.present?
+      when Nokogiri::XML::Node::ELEMENT_NODE
+        converted = convert_html_element_to_tiptap(node)
+        result.concat(converted) if converted.is_a?(Array)
+        result << converted if converted.is_a?(Hash)
+      end
+    end
+
+    # Si aucun contenu trouvé, convertir en texte brut
+    if result.empty? && html_string.present?
+      text = doc.text.strip
+      result << { 'type' => 'text', 'text' => text } if text.present?
+    end
+
+    result
+  end
+
+  def html_to_tiptap_inline(html_string)
+    return [] if html_string.blank?
+
+    # Pour le titre, on veut juste le contenu sans paragraphes
+    doc = Nokogiri::HTML::DocumentFragment.parse(html_string)
+
+    result = []
+    extract_inline_content(doc, result)
+
+    # Si aucun contenu trouvé, utiliser le texte brut
+    if result.empty?
+      text = doc.text.strip
+      result << { 'type' => 'text', 'text' => text } if text.present?
+    end
+
+    result
+  end
+
   private
 
   def render_attributes_for_v1(params, base_attributes)
@@ -278,5 +349,167 @@ class AttestationTemplate < ApplicationRecord
     )
   rescue StandardError
     nil
+  end
+
+  # pf: Migration v1 → v2 - Construire une attestation v2 à partir d'une v1
+  def self.build_v2_from_v1(v1_template, procedure)
+    # État du template : draft si procédure publiée, published si procédure brouillon
+    template_state = procedure.publiee? ? 'draft' : 'published'
+
+    v2_template = procedure.attestation_templates.build(
+      version: 2,
+      tiptap_body: convert_v1_content_to_tiptap(v1_template, procedure).to_json,
+      footer: v1_template.footer,
+      activated: v1_template.activated,
+      state: template_state,
+      label_logo: procedure.service&.organisme || ""
+    )
+
+    # Copie des attachments
+    v2_template.logo.attach(v1_template.logo.blob) if v1_template.logo.attached?
+    v2_template.signature.attach(v1_template.signature.blob) if v1_template.signature.attached?
+
+    v2_template
+  end
+
+  def self.convert_v1_content_to_tiptap(v1_template, procedure)
+    # IMPORTANT : Le titre ne doit PAS être wrappé dans un paragraphe !
+    title_content = v1_template.html_to_tiptap_inline(v1_template.title || "Titre de l'attestation")
+    body_content = v1_template.html_to_tiptap_basic(v1_template.body || "")
+
+    # Construire la structure avec le header par défaut d'une attestation v2
+    {
+      "type" => "doc",
+      "content" => [
+        # Header à deux colonnes (structure par défaut v2 enrichie)
+        {
+          "type" => "header",
+          "content" => [
+            {
+              "type" => "headerColumn",
+              "content" => [
+                # Intitulé de l'institution (organisme)
+                {
+                  "type" => "paragraph",
+                  "attrs" => { "textAlign" => "left" },
+                  "content" => [{ "type" => "text", "text" => procedure.service&.organisme || "" }]
+                },
+                # Nom du service
+                {
+                  "type" => "paragraph",
+                  "attrs" => { "textAlign" => "left" },
+                  "content" => [{ "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service" } }]
+                }
+              ]
+            },
+            {
+              "type" => "headerColumn",
+              "content" => [
+                {
+                  "type" => "paragraph",
+                  "attrs" => { "textAlign" => "right" },
+                  "content" => [
+                    { "text" => "Fait le ", "type" => "text" },
+                    { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision" } }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        # Titre centré avec le contenu converti v1
+        {
+          "type" => "title",
+          "content" => title_content
+        },
+        # Corps avec le contenu converti v1
+        {
+          "type" => "body",
+          "content" => body_content
+        }
+      ]
+    }
+  end
+
+  private
+
+  def convert_html_element_to_tiptap(element)
+    case element.name.downcase
+    when 'b', 'strong'
+      convert_with_mark(element, 'bold')
+    when 'i', 'em'
+      convert_with_mark(element, 'italic')
+    when 'u'
+      convert_with_mark(element, 'underline')
+    when 'p'
+      # Pour les paragraphes, extraire le contenu sans wrapper
+      result = []
+      extract_inline_content(element, result)
+      result
+    when 'br'
+      [{ 'type' => 'text', 'text' => "\n" }]
+    else
+      # Pour les balises non supportées, extraire le texte brut
+      text = element.text.strip
+      text.present? ? [{ 'type' => 'text', 'text' => text }] : []
+    end
+  end
+
+  def convert_with_mark(element, mark_type)
+    result = []
+    element.children.each do |child|
+      case child.type
+      when Nokogiri::XML::Node::TEXT_NODE
+        text = child.text
+        if text.present?
+          result << { 'type' => 'text', 'text' => text, 'marks' => [{ 'type' => mark_type }] }
+        end
+      when Nokogiri::XML::Node::ELEMENT_NODE
+        # Gérer les balises imbriquées
+        nested_result = convert_html_element_to_tiptap(child)
+        if nested_result.is_a?(Array)
+          nested_result.each do |item|
+            if item['marks']
+              item['marks'] << { 'type' => mark_type }
+            else
+              item['marks'] = [{ 'type' => mark_type }]
+            end
+          end
+          result.concat(nested_result)
+        end
+      end
+    end
+    result
+  end
+
+  def extract_inline_content(element, result)
+    element.children.each do |child|
+      case child.type
+      when Nokogiri::XML::Node::TEXT_NODE
+        text = child.text.strip
+        result << { 'type' => 'text', 'text' => text } if text.present?
+      when Nokogiri::XML::Node::ELEMENT_NODE
+        case child.name.downcase
+        when 'b', 'strong'
+          text = child.text.strip
+          if text.present?
+            result << { 'type' => 'text', 'text' => text, 'marks' => [{ 'type' => 'bold' }] }
+          end
+        when 'i', 'em'
+          text = child.text.strip
+          if text.present?
+            result << { 'type' => 'text', 'text' => text, 'marks' => [{ 'type' => 'italic' }] }
+          end
+        when 'u'
+          text = child.text.strip
+          if text.present?
+            result << { 'type' => 'text', 'text' => text, 'marks' => [{ 'type' => 'underline' }] }
+          end
+        else
+          # Continuer l'extraction pour les autres balises
+          extract_inline_content(child, result)
+        end
+      end
+    end
   end
 end

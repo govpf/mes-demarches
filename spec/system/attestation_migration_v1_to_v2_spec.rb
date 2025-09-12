@@ -119,15 +119,6 @@ describe 'Migration Attestations v1 vers v2', type: :system do
 
         expect(v1_template.version).to eq 1
       end
-
-      it 'doit permettre le retour arrière depuis v2' do
-        # TODO: Tests d'interface retour arrière:
-        # - Message "Votre attestation v1 est encore disponible"
-        # - Lien "Revenir à l'ancienne version"
-        # - Fonctionnement du retour arrière
-
-        pending 'À implémenter avec l\'interface de migration'
-      end
     end
 
     context 'Conversion avancée (Phase 2)' do

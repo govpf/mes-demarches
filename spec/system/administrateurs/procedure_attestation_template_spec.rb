@@ -157,7 +157,9 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
 
       click_on "Publier"
       expect(attestation.reload).to be_published
-      expect(page).to have_text("L’attestation a été publiée")
+
+      # Attendre que la redirection soit terminée et le flash affiché
+      wait_until { page.has_text?("attestation a été publiée") }
 
       fill_in "Intitulé de la direction", with: "plop"
       click_on "Publier les modifications"
