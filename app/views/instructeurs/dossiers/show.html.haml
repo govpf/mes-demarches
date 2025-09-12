@@ -8,7 +8,7 @@
     = render Dsfr::CalloutComponent.new(title: "Données de l'entreprise non vérifiées", theme: :warning, icon: "fr-icon-feedback-fill") do |c|
       - c.with_html_body do
         %p
-          Les services de l'INSEE sont indisponibles, nous ne pouvons pas vérifier les informations liées à l'établissement de ce dossier.
+          Les services de l’INSEE sont indisponibles, nous ne pouvons pas vérifier les informations liées à l'établissement de ce dossier.
           %strong
             Il n'est pas possible d'accepter ou de refuser un dossier sans cette étape.
         %p
@@ -21,7 +21,7 @@
         %p Cette démarche utilise l'ancien système d'attestations qui sera supprimé le <strong>1er novembre 2025</strong>.
         %p Contactez l'administrateur de cette démarche pour qu'il migre vers le nouveau format et éviter toute interruption de service.
         .fr-mt-2w
-          = link_to("Voir les administrateurs de cette démarche", 
+          = link_to("Voir les administrateurs de cette démarche",
                     administrateurs_instructeur_procedure_path(@dossier.procedure),
                     class: "fr-btn fr-btn--secondary fr-btn--sm",
                     target: "_blank")

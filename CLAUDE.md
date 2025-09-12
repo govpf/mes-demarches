@@ -372,3 +372,4 @@ bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb
 - [ ] CI verte sur tous les environnements
 - [ ] Tests manuels des fonctionnalités PF
 - [ ] Release notes rédigées
+- Tous les messages et texte en français à destination de l'interface doivent utiliser la quote française "’" au lieu d'une quote normale "'". Les tests sur l'interface doivent donc ausi utiliser cette quote française.

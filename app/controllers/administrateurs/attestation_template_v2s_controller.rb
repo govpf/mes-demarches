@@ -117,6 +117,8 @@ module Administrateurs
     private
 
     def ensure_feature_active
+      # pf: contrôle d'accès conditionnel aux attestations v2
+      # Assure que seules les procédures avec feature flag :attestation_v2 peuvent accéder à v2
       redirect_to root_path if !@procedure.feature_enabled?(:attestation_v2)
     end
 
