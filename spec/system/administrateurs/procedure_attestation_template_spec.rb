@@ -228,7 +228,13 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
           attestation_template: create(:attestation_template, version: 2))
       end
 
-      before { Flipper.enable(:attestation_v2) }
+      before do
+        Flipper.enable(:attestation_v2)
+
+        # pf: stub WeasyPrint pour les tests system v2 (PDF généré lors du show)
+        response = Typhoeus::Response.new(code: 200, body: 'Hello world')
+        Typhoeus.stub(WEASYPRINT_URL).and_return(response)
+      end
 
       scenario 'redirige vers l\'éditeur v2' do
         visit admin_procedure_path(procedure)
@@ -249,7 +255,13 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
           libelle: 'Procédure sans attestation')
       end
 
-      before { Flipper.enable(:attestation_v2) }
+      before do
+        Flipper.enable(:attestation_v2)
+
+        # pf: stub WeasyPrint pour les tests system v2 (PDF généré lors du show)
+        response = Typhoeus::Response.new(code: 200, body: 'Hello world')
+        Typhoeus.stub(WEASYPRINT_URL).and_return(response)
+      end
 
       scenario 'redirige vers l\'éditeur v2 par défaut' do
         visit admin_procedure_path(procedure)
@@ -295,7 +307,13 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
           activated: true))
     end
 
-    before { Flipper.enable(:attestation_v2) }
+    before do
+      Flipper.enable(:attestation_v2)
+
+      # pf: stub WeasyPrint pour les tests system v2 (PDF généré lors du show)
+      response = Typhoeus::Response.new(code: 200, body: 'Hello world')
+      Typhoeus.stub(WEASYPRINT_URL).and_return(response)
+    end
 
     scenario 'migration automatique via interface' do
       visit edit_admin_procedure_attestation_template_path(v1_procedure)
