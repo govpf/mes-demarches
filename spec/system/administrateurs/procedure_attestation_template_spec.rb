@@ -320,10 +320,10 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
 
       # Interface de migration doit être visible
       expect(page).to have_content('Migration requise avant le 1er novembre 2025')
-      expect(page).to have_link('Migrer vers le nouvel éditeur')
+      expect(page).to have_link('Essayer le nouvel éditeur')
 
       # Le lien doit pointer vers la route migrate
-      migrate_link = find('a', text: 'Migrer vers le nouvel éditeur')
+      migrate_link = find('a', text: 'Essayer le nouvel éditeur')
       expect(migrate_link['href']).to include(migrate_admin_procedure_attestation_template_path(v1_procedure))
     end
 
