@@ -197,6 +197,11 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
           attestation_template: create(:attestation_template, version: 1))
       end
 
+      before do
+        # pf-v1-compat: désactiver v2 pour tester le routage v1
+        Flipper.disable(:attestation_v2)
+      end
+
       scenario 'redirige vers l\'éditeur v1' do
         visit admin_procedure_path(procedure)
 
@@ -270,6 +275,11 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
         create(:procedure, :draft,
           administrateurs: [administrateur],
           libelle: 'Procédure sans attestation')
+      end
+
+      before do
+        # pf-v1-compat: désactiver v2 pour tester le fallback v1
+        Flipper.disable(:attestation_v2)
       end
 
       scenario 'redirige vers l\'éditeur v1 par défaut' do
