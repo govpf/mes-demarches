@@ -12,6 +12,10 @@ module Administrateurs
 
       @body = @attestation_template.render_attributes_for(dossier: preview_dossier).fetch(:body)
 
+      # pf: générer QR code pour la prévisualisation
+      @qrcode_url = admin_procedure_attestation_template_v2_path(@procedure, format: :pdf)
+      @qrcode_svg = @attestation_template.send(:generate_qrcode_svg, @qrcode_url)
+
       respond_to do |format|
         format.html do
           render layout: 'attestation'
@@ -19,6 +23,10 @@ module Administrateurs
 
         format.pdf do
           html = render_to_string('/administrateurs/attestation_template_v2s/show', layout: 'attestation', formats: [:html])
+
+          # pf: debug temporaire - sauvegarder HTML pour inspection
+          File.write("/tmp/attestation_debug_#{@procedure.id}.html", html)
+          Rails.logger.info "HTML sauvegardé dans /tmp/attestation_debug_#{@procedure.id}.html"
 
           pdf = WeasyprintService.generate_pdf(html, procedure_id: @procedure.id, path: request.path, user_id: current_user.id)
 
@@ -109,6 +117,8 @@ module Administrateurs
     private
 
     def ensure_feature_active
+      # pf: contrôle d'accès conditionnel aux attestations v2
+      # Assure que seules les procédures avec feature flag :attestation_v2 peuvent accéder à v2
       redirect_to root_path if !@procedure.feature_enabled?(:attestation_v2)
     end
 

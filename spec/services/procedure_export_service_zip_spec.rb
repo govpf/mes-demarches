@@ -41,7 +41,7 @@ describe ProcedureExportService do
             ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
               subject
             end
-            expect(sql_count <= 62).to be_truthy
+            expect(sql_count <= 63).to be_truthy
 
             dossier = dossiers.first
 

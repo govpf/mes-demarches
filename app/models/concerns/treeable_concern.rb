@@ -26,9 +26,22 @@ module TreeableConcern
 
       types_de_champ.each do |type_de_champ|
         if type_de_champ.header_section?
+          level = type_de_champ.header_section_level_value.to_i
           new_tree = [type_de_champ]
-          walk[type_de_champ.header_section_level_value - 1].push(new_tree)
-          current_tree = walk[type_de_champ.header_section_level_value] = new_tree
+          parent_tree = walk[level - 1]
+
+          if parent_tree.nil? # Orphelin trouvé
+            # On l'attache à la racine
+            rooted_tree.push(new_tree)
+            # Il devient le nouveau contexte de niveau 1
+            walk[1] = new_tree
+            # On nettoie les niveaux inférieurs pour éviter les faux positifs
+            (2...MAX_DEPTH).each { |i| walk[i] = nil }
+            current_tree = new_tree
+          else # Cas normal
+            parent_tree.push(new_tree)
+            current_tree = walk[level] = new_tree
+          end
         else
           current_tree.push(type_de_champ)
         end
