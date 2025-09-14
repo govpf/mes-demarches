@@ -57,6 +57,7 @@ class TiptapService
   end
 
   def children(content, substitutions, level)
+    return "" if content.nil?
     content.map { node_to_html(_1, substitutions, level) }.join
   end
 
