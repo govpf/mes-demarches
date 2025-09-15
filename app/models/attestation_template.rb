@@ -186,41 +186,48 @@ class AttestationTemplate < ApplicationRecord
 
   # pf: Migration v1 → v2 - Méthodes de conversion HTML vers TipTap
   def html_to_tiptap_basic(html_string)
+    parse_html_to_tiptap(html_string, inline: false)
+  end
+
+  def html_to_tiptap_inline(html_string)
+    parse_html_to_tiptap(html_string, inline: true)
+  end
+
+  private
+
+  def parse_html_to_tiptap(html_string, inline: false)
     return [] if html_string.blank?
 
-    # Parser HTML avec Nokogiri
-    doc = Nokogiri::HTML::DocumentFragment.parse(html_string)
-
-    result = []
-
-    # Traiter chaque nœud au niveau racine
-    doc.children.each do |node|
-      case node.type
-      when Nokogiri::XML::Node::TEXT_NODE
-        text = node.text.strip
-        result << { 'type' => 'text', 'text' => text } if text.present?
-      when Nokogiri::XML::Node::ELEMENT_NODE
-        converted = convert_html_element_to_tiptap(node)
-        result.concat(converted) if converted.is_a?(Array)
-        result << converted if converted.is_a?(Hash)
-      end
+    # Si mode inline, traiter comme avant sans découpage de paragraphes
+    if inline
+      return parse_html_to_tiptap_inline_content(html_string)
     end
 
-    # Si aucun contenu trouvé, convertir en texte brut
-    if result.empty? && html_string.present?
-      text = doc.text.strip
-      result << { 'type' => 'text', 'text' => text } if text.present?
+    # Découper le texte sur les retours à la ligne pour créer des paragraphes séparés
+    paragraphs = html_string.split(/(\r?\n)+/).compact_blank
+
+    result = []
+    paragraphs.each do |paragraph_text|
+      paragraph_content = parse_paragraph_to_tiptap(paragraph_text.strip)
+      if paragraph_content.any?
+        result << {
+          'type' => 'paragraph',
+          'content' => paragraph_content
+        }
+      end
     end
 
     result
   end
 
-  def html_to_tiptap_inline(html_string)
-    return [] if html_string.blank?
+  def parse_html_to_tiptap_inline_content(html_string)
+    # Si pas de HTML, traiter directement comme texte avec variables
+    unless html_string.match?(/<[^>]+>/)
+      return parse_text_with_field_tags(html_string)
+    end
 
-    # Pour le titre, on veut juste le contenu sans paragraphes
+    # Parser HTML avec Nokogiri pour le contenu inline
     doc = Nokogiri::HTML::DocumentFragment.parse(html_string)
-
     result = []
     extract_inline_content(doc, result)
 
@@ -233,7 +240,52 @@ class AttestationTemplate < ApplicationRecord
     result
   end
 
-  private
+  def parse_paragraph_to_tiptap(paragraph_text)
+    return [] if paragraph_text.blank?
+
+    # Si pas de HTML, traiter directement comme texte avec variables
+    unless paragraph_text.match?(/<[^>]+>/)
+      return parse_text_with_field_tags(paragraph_text)
+    end
+
+    # Parser HTML avec Nokogiri pour ce paragraphe
+    doc = Nokogiri::HTML::DocumentFragment.parse(paragraph_text)
+    result = []
+
+    # Traiter chaque nœud au niveau racine
+    doc.children.each do |node|
+      case node.type
+      when Nokogiri::XML::Node::TEXT_NODE
+        text = node.text
+        if text.present?
+          # Traiter les variables --Variable-- dans le texte
+          if text.include?('--')
+            result.concat(parse_text_with_field_tags(text))
+          else
+            result << { 'type' => 'text', 'text' => text }
+          end
+        end
+      when Nokogiri::XML::Node::ELEMENT_NODE
+        converted = convert_html_element_to_tiptap(node)
+        result.concat(converted) if converted.is_a?(Array)
+        result << converted if converted.is_a?(Hash)
+      end
+    end
+
+    # Si aucun contenu trouvé, utiliser le texte brut avec variables
+    if result.empty? && paragraph_text.present?
+      text = doc.text.strip
+      if text.present?
+        if text.include?('--')
+          result.concat(parse_text_with_field_tags(text))
+        else
+          result << { 'type' => 'text', 'text' => text }
+        end
+      end
+    end
+
+    result
+  end
 
   def render_attributes_for_v1(params, base_attributes)
     attributes = base_attributes.merge(
@@ -362,7 +414,8 @@ class AttestationTemplate < ApplicationRecord
       footer: v1_template.footer,
       activated: v1_template.activated,
       state: template_state,
-      label_logo: procedure.service&.organisme || ""
+      label_logo: procedure.service&.organisme || "",
+      official_layout: !v1_template.logo.attached? # Désactiver si logo présent en v1
     )
 
     # Copie des attachments
@@ -388,12 +441,6 @@ class AttestationTemplate < ApplicationRecord
             {
               "type" => "headerColumn",
               "content" => [
-                # Intitulé de l'institution (organisme)
-                {
-                  "type" => "paragraph",
-                  "attrs" => { "textAlign" => "left" },
-                  "content" => [{ "type" => "text", "text" => procedure.service&.organisme || "" }]
-                },
                 # Nom du service
                 {
                   "type" => "paragraph",
@@ -433,83 +480,215 @@ class AttestationTemplate < ApplicationRecord
 
   private
 
-  def convert_html_element_to_tiptap(element)
+  def convert_html_element_to_tiptap(element, inline_mode: false)
     case element.name.downcase
     when 'b', 'strong'
-      convert_with_mark(element, 'bold')
+      apply_mark_to_children(element, 'bold')
     when 'i', 'em'
-      convert_with_mark(element, 'italic')
+      apply_mark_to_children(element, 'italic')
     when 'u'
-      convert_with_mark(element, 'underline')
+      apply_mark_to_children(element, 'underline')
     when 'p'
       # Pour les paragraphes, extraire le contenu sans wrapper
       result = []
-      extract_inline_content(element, result)
+      process_element_children(element, result)
       result
     when 'br'
       [{ 'type' => 'text', 'text' => "\n" }]
     else
-      # Pour les balises non supportées, extraire le texte brut
-      text = element.text.strip
-      text.present? ? [{ 'type' => 'text', 'text' => text }] : []
+      # Pour les balises non supportées, traiter récursivement le contenu
+      result = []
+      process_element_children(element, result)
+      result
     end
   end
 
-  def convert_with_mark(element, mark_type)
-    result = []
+  # Méthode unifiée pour traiter les enfants d'un élément
+  def process_element_children(element, result)
     element.children.each do |child|
       case child.type
       when Nokogiri::XML::Node::TEXT_NODE
         text = child.text
         if text.present?
-          result << { 'type' => 'text', 'text' => text, 'marks' => [{ 'type' => mark_type }] }
-        end
-      when Nokogiri::XML::Node::ELEMENT_NODE
-        # Gérer les balises imbriquées
-        nested_result = convert_html_element_to_tiptap(child)
-        if nested_result.is_a?(Array)
-          nested_result.each do |item|
-            if item['marks']
-              item['marks'] << { 'type' => mark_type }
+          # Traiter les variables --Variable-- dans le texte
+          if text.include?('--')
+            result.concat(parse_text_with_field_tags(text))
+          else
+            # Traiter les retours à la ligne simples dans le texte HTML
+            if text.include?("\n")
+              lines = text.split(/\n/)
+              lines.each_with_index do |line, index|
+                result << { 'type' => 'text', 'text' => line } if line.present?
+                # Ajouter hardBreak entre les lignes
+                if index < lines.length - 1
+                  result << { 'type' => 'hardBreak' }
+                end
+              end
             else
-              item['marks'] = [{ 'type' => mark_type }]
+              result << { 'type' => 'text', 'text' => text }
             end
           end
-          result.concat(nested_result)
         end
+      when Nokogiri::XML::Node::ELEMENT_NODE
+        converted = convert_html_element_to_tiptap(child)
+        result.concat(converted) if converted.is_a?(Array)
+        result << converted if converted.is_a?(Hash)
       end
     end
+  end
+
+  # Appliquer un mark (gras, italique, souligné) aux enfants d'un élément
+  def apply_mark_to_children(element, mark_type)
+    result = []
+    process_element_children(element, result)
+
+    # Ajouter le mark à tous les éléments text
+    result.each do |item|
+      if item['type'] == 'text'
+        item['marks'] = (item['marks'] || []) + [{ 'type' => mark_type }]
+      end
+    end
+
     result
   end
 
   def extract_inline_content(element, result)
-    element.children.each do |child|
-      case child.type
-      when Nokogiri::XML::Node::TEXT_NODE
-        text = child.text.strip
-        result << { 'type' => 'text', 'text' => text } if text.present?
-      when Nokogiri::XML::Node::ELEMENT_NODE
-        case child.name.downcase
-        when 'b', 'strong'
-          text = child.text.strip
-          if text.present?
-            result << { 'type' => 'text', 'text' => text, 'marks' => [{ 'type' => 'bold' }] }
-          end
-        when 'i', 'em'
-          text = child.text.strip
-          if text.present?
-            result << { 'type' => 'text', 'text' => text, 'marks' => [{ 'type' => 'italic' }] }
-          end
-        when 'u'
-          text = child.text.strip
-          if text.present?
-            result << { 'type' => 'text', 'text' => text, 'marks' => [{ 'type' => 'underline' }] }
+    # Délégation à la méthode unifiée
+    process_element_children(element, result)
+  end
+
+  # Conversion des variables --Variable-- en mentions TipTap
+  def parse_text_with_field_tags(text, inherited_marks = [])
+    result = []
+
+    # Regex pour détecter les tags de champs : --quelque-chose--
+    parts = text.split(/(--[^-]+--)/i)
+
+    parts.each do |part|
+      next if part.empty?
+
+      if part.match?(/^--[^-]+--$/i)
+        # Extraire le nom du champ (enlever les --)
+        field_label = part[2..-3].strip
+
+        # Convertir le libellé vers l'ID TipTap v2
+        field_id = convert_field_label_to_id(field_label)
+
+        if field_id
+          # Créer une mention TipTap v2
+          mention_node = { "type" => "mention", "attrs" => { "id" => field_id, "label" => field_label } }
+          mention_node["marks"] = inherited_marks unless inherited_marks.empty?
+          result << mention_node
+        else
+          # Si pas de mapping trouvé, conserver comme texte
+          text_node = { "type" => "text", "text" => part }
+          text_node["marks"] = inherited_marks unless inherited_marks.empty?
+          result << text_node
+        end
+      else
+        # Gérer les retours à la ligne dans le texte normal
+        if part.include?("\n")
+          # Séparer par tous les \n (pas seulement \n\n)
+          lines = part.split(/\n/)
+          lines.each_with_index do |line, index|
+            unless line.strip.empty?
+              text_node = { "type" => "text", "text" => line }
+              text_node["marks"] = inherited_marks unless inherited_marks.empty?
+              result << text_node
+            end
+
+            # Ajouter un hardBreak TipTap sauf pour la dernière ligne
+            if index < lines.length - 1
+              result << { "type" => "hardBreak" }
+            end
           end
         else
-          # Continuer l'extraction pour les autres balises
-          extract_inline_content(child, result)
+          # Texte normal sans retour à la ligne
+          unless part.strip.empty?
+            text_node = { "type" => "text", "text" => part }
+            text_node["marks"] = inherited_marks unless inherited_marks.empty?
+            result << text_node
+          end
         end
       end
     end
+
+    result.empty? ? [{ "type" => "text", "text" => text }] : result
+  end
+
+  def process_final_structure(nodes)
+    # Traiter les paragraph_break pour créer des paragraphes séparés (ancienne logique)
+    if nodes.any? { |node| node["type"] == "paragraph_break" }
+      result = []
+      current_paragraph = []
+
+      nodes.each do |node|
+        if node["type"] == "paragraph_break"
+          # Finaliser le paragraphe actuel s'il a du contenu
+          if current_paragraph.any?
+            result << { "type" => "paragraph", "content" => current_paragraph }
+            current_paragraph = []
+          end
+        else
+          current_paragraph << node
+        end
+      end
+
+      # Ajouter le dernier paragraphe s'il y a du contenu
+      if current_paragraph.any?
+        result << { "type" => "paragraph", "content" => current_paragraph }
+      end
+
+      result
+    elsif nodes.any? { |node| ["text", "mention", "hardBreak"].include?(node["type"]) }
+      # Si on a des nodes inline (text/mention/hardBreak), les wrapper dans un paragraphe
+      [{ "type" => "paragraph", "content" => nodes }]
+    else
+      nodes
+    end
+  end
+
+  def convert_field_label_to_id(field_label)
+    # Mapping des libellés v1 vers les IDs v2 TipTap
+    system_field_mappings = {
+      'nom' => 'individual_last_name',
+      'prénom' => 'individual_first_name',
+      'civilité' => 'individual_gender',
+      'numéro du dossier' => 'dossier_number',
+      'date de dépôt' => 'dossier_depose_at',
+      'date de passage en instruction' => 'dossier_en_instruction_at',
+      'date de décision' => 'dossier_processed_at',
+      'date de mise à jour' => 'dossier_last_champ_updated_at',
+      'libellé démarche' => 'dossier_procedure_libelle',
+      'nom du service' => 'dossier_service_name',
+      'motivation' => 'dossier_motivation'
+    }
+
+    # D'abord chercher dans les champs système
+    system_id = system_field_mappings[field_label.downcase] || system_field_mappings[field_label]
+    return system_id if system_id
+
+    # Ensuite chercher dans les champs de formulaire de la procédure
+    form_field_id = find_form_field_id(field_label)
+    return form_field_id if form_field_id
+
+    # Si aucun mapping trouvé, retourner nil
+    nil
+  end
+
+  def find_form_field_id(field_label)
+    # Chercher dans tous les types de champs de la procédure (publics et privés)
+    all_types_de_champ = procedure.draft_revision.types_de_champ_public +
+                        procedure.draft_revision.types_de_champ_private
+
+    # Chercher par libellé exact (insensible à la casse)
+    matching_tdc = all_types_de_champ.find do |tdc|
+      tdc.libelle.casecmp(field_label).zero?
+    end
+
+    return "tdc#{matching_tdc.stable_id}" if matching_tdc
+
+    # Aucun champ trouvé
+    nil
   end
 end

@@ -263,6 +263,26 @@ describe AttestationTemplate, type: :model do
           expect(v2_template.logo.blob).to eq(v1_template.logo.blob)
           expect(v2_template.signature.blob).to eq(v1_template.signature.blob)
         end
+
+        it 'désactive official_layout si logo présent' do
+          v2_template = procedure.build_attestation_template_v2_from_v1(v1_template)
+          expect(v2_template.official_layout).to be false
+        end
+      end
+
+      context 'sans logo' do
+        let(:v1_template) do
+          create(:attestation_template,
+            version: 1,
+            title: 'Titre simple',
+            body: 'Corps simple',
+            activated: true)
+        end
+
+        it 'active official_layout si pas de logo' do
+          v2_template = procedure.build_attestation_template_v2_from_v1(v1_template)
+          expect(v2_template.official_layout).to be true
+        end
       end
 
       context 'sans contenu v1' do
@@ -290,56 +310,89 @@ describe AttestationTemplate, type: :model do
 
       it 'convertit les balises gras' do
         result = converter.send(:html_to_tiptap_basic, '<b>gras</b>')
-        expected = [{ 'type' => 'text', 'text' => 'gras', 'marks' => [{ 'type' => 'bold' }] }]
+        expected = [{ 'type' => 'paragraph', 'content' => [{ 'type' => 'text', 'text' => 'gras', 'marks' => [{ 'type' => 'bold' }] }] }]
         expect(result).to eq(expected)
       end
 
       it 'convertit les balises italique' do
         result = converter.send(:html_to_tiptap_basic, '<i>italique</i>')
-        expected = [{ 'type' => 'text', 'text' => 'italique', 'marks' => [{ 'type' => 'italic' }] }]
+        expected = [{ 'type' => 'paragraph', 'content' => [{ 'type' => 'text', 'text' => 'italique', 'marks' => [{ 'type' => 'italic' }] }] }]
         expect(result).to eq(expected)
       end
 
       it 'convertit les balises soulignées' do
         result = converter.send(:html_to_tiptap_basic, '<u>souligné</u>')
-        expected = [{ 'type' => 'text', 'text' => 'souligné', 'marks' => [{ 'type' => 'underline' }] }]
+        expected = [{ 'type' => 'paragraph', 'content' => [{ 'type' => 'text', 'text' => 'souligné', 'marks' => [{ 'type' => 'underline' }] }] }]
         expect(result).to eq(expected)
       end
 
       it 'convertit les balises strong et em' do
         result = converter.send(:html_to_tiptap_basic, '<strong>fort</strong> et <em>emphase</em>')
         expected = [
-          { 'type' => 'text', 'text' => 'fort', 'marks' => [{ 'type' => 'bold' }] },
-          { 'type' => 'text', 'text' => 'et' },
-          { 'type' => 'text', 'text' => 'emphase', 'marks' => [{ 'type' => 'italic' }] }
+          {
+            'type' => 'paragraph',
+                    'content' => [
+                      { 'type' => 'text', 'text' => 'fort', 'marks' => [{ 'type' => 'bold' }] },
+                      { 'type' => 'text', 'text' => ' et ' },
+                      { 'type' => 'text', 'text' => 'emphase', 'marks' => [{ 'type' => 'italic' }] }
+                    ]
+          }
         ]
         expect(result).to eq(expected)
       end
 
       it 'gère le formatage combiné' do
         result = converter.send(:html_to_tiptap_basic, '<b><i>gras et italique</i></b>')
-        expected = [{ 'type' => 'text', 'text' => 'gras et italique', 'marks' => [{ 'type' => 'italic' }, { 'type' => 'bold' }] }]
+        expected = [{ 'type' => 'paragraph', 'content' => [{ 'type' => 'text', 'text' => 'gras et italique', 'marks' => [{ 'type' => 'italic' }, { 'type' => 'bold' }] }] }]
         expect(result).to eq(expected)
       end
 
       it 'préserve le texte sans formatage' do
         result = converter.send(:html_to_tiptap_basic, 'texte simple')
-        expected = [{ 'type' => 'text', 'text' => 'texte simple' }]
+        expected = [{ 'type' => 'paragraph', 'content' => [{ 'type' => 'text', 'text' => 'texte simple' }] }]
         expect(result).to eq(expected)
       end
 
       it 'ignore les balises non supportées' do
         result = converter.send(:html_to_tiptap_basic, '<font color="red">texte coloré</font>')
         # Les balises non supportées deviennent du texte brut
-        expect(result.first['text']).to include('texte coloré')
-        expect(result.first['marks']).to be_nil
+        expect(result.first['type']).to eq('paragraph')
+        expect(result.first['content'].first['text']).to include('texte coloré')
+        expect(result.first['content'].first['marks']).to be_nil
       end
 
-      it 'gère les sauts de ligne' do
+      it 'gère les sauts de ligne en créant des paragraphes séparés' do
         result = converter.send(:html_to_tiptap_basic, "ligne1\n\nligne2")
-        # Simple conversion text avec saut de ligne intégré
+        # Nouvelle approche : chaque ligne = un paragraphe
         expect(result).to be_an(Array)
-        expect(result).not_to be_empty
+        expect(result.length).to eq(2)
+        expect(result[0]['type']).to eq('paragraph')
+        expect(result[0]['content'][0]['text']).to eq('ligne1')
+        expect(result[1]['type']).to eq('paragraph')
+        expect(result[1]['content'][0]['text']).to eq('ligne2')
+      end
+    end
+
+    describe '#html_to_tiptap_inline' do
+      let(:converter) { v1_template }
+
+      it 'retourne du contenu inline sans paragraphe' do
+        result = converter.send(:html_to_tiptap_inline, '<b>titre gras</b>')
+        expected = [{ 'type' => 'text', 'text' => 'titre gras', 'marks' => [{ 'type' => 'bold' }] }]
+        expect(result).to eq(expected)
+      end
+
+      it 'traite le texte simple en inline' do
+        result = converter.send(:html_to_tiptap_inline, 'titre simple')
+        expected = [{ 'type' => 'text', 'text' => 'titre simple' }]
+        expect(result).to eq(expected)
+      end
+
+      it 'ignore les retours à la ligne en mode inline' do
+        result = converter.send(:html_to_tiptap_inline, "ligne1\nligne2")
+        # En mode inline, pas de paragraphes séparés
+        expect(result).to be_an(Array)
+        expect(result.first['type']).to eq('text')
       end
     end
 

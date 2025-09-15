@@ -8,13 +8,12 @@ class Procedure::Card::AttestationComponent < ApplicationComponent
   private
 
   def edit_attestation_path
-    # pf: préservation accès attestations v1 pour migration graduelle
-    # Cette logique conditionnelle permet aux procédures existantes de continuer
-    # à utiliser l'interface v1 tant qu'elles n'ont pas migré vers v2
-    if @procedure.attestation_templates_v2.any? || @procedure.feature_enabled?(:attestation_v2)
+    # pf-v1-compat: routing conditionnel temporaire pour migration graduelle
+    # À supprimer quand tous les usagers PF seront migrés vers v2
+    if @procedure.attestation_template&.version == 2 || @procedure.feature_enabled?(:attestation_v2)
       helpers.edit_admin_procedure_attestation_template_v2_path(@procedure)
     else
-      # pf: routing v1 maintenu pour compatibilité avec procédures existantes
+      # pf-v1-compat: fallback v1 temporaire
       helpers.edit_admin_procedure_attestation_template_path(@procedure)
     end
   end

@@ -6,22 +6,22 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
   include ProcedureSpecHelper
 
   let(:administrateur) { administrateurs(:default_admin) }
-  let(:procedure) do
-    create(:procedure, :with_service, :with_instructeur, :with_zone,
-      aasm_state: :brouillon,
-      administrateurs: [administrateur],
-      libelle: 'libellé de la procédure',
-      path: 'libelle-de-la-procedure')
+
+  before do
+    login_as(administrateur.user, scope: :user)
+    Flipper.enable(:attestation_v2) # fully enabled on prod, pending removal in code
+
+    response = Typhoeus::Response.new(code: 200, body: 'Hello world')
+    Typhoeus.stub(WEASYPRINT_URL).and_return(response)
   end
-  before { login_as(administrateur.user, scope: :user) }
 
   def find_attestation_card(with_nested_selector: nil)
-    # pf: logique de routage conditionnel v1/v2 pour les tests
+    # pf-v1-compat: logique de routage conditionnel v1/v2 pour les tests
     # Identique à la logique dans AttestationComponent pour cohérence
     attestation_path = if procedure.attestation_template&.version == 2 || procedure.feature_enabled?(:attestation_v2)
       edit_admin_procedure_attestation_template_v2_path(procedure)
     else
-      # pf: routing v1 maintenu pour tests de compatibilité
+      # pf-v1-compat: routing v1 maintenu pour tests de compatibilité
       edit_admin_procedure_attestation_template_path(procedure)
     end
 
@@ -33,6 +33,7 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
   end
 
   def attestation_edit_path
+    # pf-v1-compat: helper temporaire pour routage conditionnel dans les tests
     if procedure.attestation_template&.version == 2 || procedure.feature_enabled?(:attestation_v2)
       edit_admin_procedure_attestation_template_v2_path(procedure)
     else
@@ -41,45 +42,41 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
   end
 
   context 'Enable, publish, Disable' do
+    let(:procedure) do
+      create(:procedure, :published,
+        administrateurs: [administrateur],
+        attestation_template: build(:attestation_template))
+    end
+
     scenario do
       visit admin_procedure_path(procedure)
-      # start with no attestation
-      expect(page).to have_content('Désactivée')
-      find_attestation_card(with_nested_selector: ".fr-badge")
 
-      expect(page).not_to have_content("Nouvel éditeur d’attestation")
+      within find_attestation_card do
+        expect(page).to have_content('Activée')
+        click
+      end
 
-      # now process to enable attestation
-      find_attestation_card.click
+      within('.fr-alert--info') do
+        expect(page).to have_content("Nouvel éditeur d’attestation")
+        click_on 'cliquez ici'
+      end
+
       fill_in "Titre de l’attestation", with: 'BOOM'
       fill_in "Contenu de l’attestation", with: 'BOOM'
-      find('.toggle-switch-control').click
       click_on 'Enregistrer'
 
-      page.find(".alert-success", text: "Le modèle de l’attestation a bien été enregistré")
-
-      # check attestation
-      visit admin_procedure_path(procedure)
-      expect(page).to have_content('Activée')
-      find_attestation_card(with_nested_selector: ".fr-badge--success")
-
-      # publish procedure
-      # click CTA for publication screen
-      click_on("Publier")
-      # validate publication
-      within('form') { click_on 'Publier' }
-      click_on("Revenir à la page de la démarche")
+      page.find(".alert-success", text: "Le modèle de l’attestation a bien été modifié")
 
       # now process to disable attestation
-      find_attestation_card.click
       find('.toggle-switch-control').click
       click_on 'Enregistrer'
       page.find(".alert-success", text: "Le modèle de l’attestation a bien été modifié")
 
       # check attestation is now disabled
       visit admin_procedure_path(procedure)
-      expect(page).to have_content('Désactivée')
+
       find_attestation_card(with_nested_selector: ".fr-badge")
+      expect(page).to have_content('Désactivée')
     end
   end
 
@@ -89,13 +86,6 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
         administrateurs: [administrateur],
         libelle: 'libellé de la procédure',
         path: 'libelle-de-la-procedure')
-    end
-
-    before do
-      Flipper.enable(:attestation_v2)
-
-      response = Typhoeus::Response.new(code: 200, body: 'Hello world')
-      Typhoeus.stub(WEASYPRINT_URL).and_return(response)
     end
 
     scenario do
@@ -207,6 +197,11 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
           attestation_template: create(:attestation_template, version: 1))
       end
 
+      before do
+        # pf-v1-compat: désactiver v2 pour tester le routage v1
+        Flipper.disable(:attestation_v2)
+      end
+
       scenario 'redirige vers l\'éditeur v1' do
         visit admin_procedure_path(procedure)
 
@@ -282,6 +277,11 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
           libelle: 'Procédure sans attestation')
       end
 
+      before do
+        # pf-v1-compat: désactiver v2 pour tester le fallback v1
+        Flipper.disable(:attestation_v2)
+      end
+
       scenario 'redirige vers l\'éditeur v1 par défaut' do
         visit admin_procedure_path(procedure)
 
@@ -320,10 +320,10 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
 
       # Interface de migration doit être visible
       expect(page).to have_content('Migration requise avant le 1er novembre 2025')
-      expect(page).to have_link('Migrer vers le nouvel éditeur')
+      expect(page).to have_link('Essayer le nouvel éditeur')
 
       # Le lien doit pointer vers la route migrate
-      migrate_link = find('a', text: 'Migrer vers le nouvel éditeur')
+      migrate_link = find('a', text: 'Essayer le nouvel éditeur')
       expect(migrate_link['href']).to include(migrate_admin_procedure_attestation_template_path(v1_procedure))
     end
 

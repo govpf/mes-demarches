@@ -102,7 +102,7 @@
     "typescript": "^5.5.4",
     "vite": "^5.3.5",
     "vite-plugin-full-reload": "^1.2.0",
-    "vite-plugin-ruby": "^5.0.0",
+    "vite-plugin-ruby": "^5.1.0",
     "vitest": "^2.0.4"
   },
   "scripts": {
@@ -112,7 +112,7 @@
     "lint:types": "tsc",
     "lint:css": "prettier app/assets/stylesheets --check",
     "lint:css:fix": "prettier app/assets/stylesheets --write",
-    "lintfix": "bun run lint:js:fix && bun run lint:css:fix && bundle exec rubocop -A && bundle exec haml-lint -a app/views/ app/components/",
+    "lintfix": "bun run lint:js:fix & bun run lint:css:fix & bundle exec rubocop -A & bundle exec haml-lint -a app/views/ app/components/",
     "graphql:doc:build": "RAILS_ENV=production bin/rake graphql:schema:idl && spectaql spectaql_config.yml",
     "test": "vitest",
     "coverage": "vitest run --coverage",

@@ -106,7 +106,8 @@ module Administrateurs
       v2_template.update!(
         json_body: tiptap_content.deep_stringify_keys,
         activated: v1_template.activated,
-        footer: v1_template.footer
+        footer: v1_template.footer,
+        official_layout: !v1_template.logo.attached? # Désactiver si logo présent en v1
       )
 
       # Copie des attachments (remplace les existants)
@@ -128,7 +129,8 @@ module Administrateurs
         activated: v1_template.activated,
         footer: v1_template.footer,
         state: template_state,
-        label_logo: @procedure.service&.organisme || ""
+        label_logo: @procedure.service&.organisme || "",
+        official_layout: !v1_template.logo.attached? # Désactiver si logo présent en v1
       )
 
       # Copie des attachments
@@ -140,8 +142,8 @@ module Administrateurs
 
     def convert_v1_content_to_tiptap(v1_template)
       # IMPORTANT : Le titre ne doit PAS être wrappé dans un paragraphe !
-      title_content = html_to_tiptap_inline(v1_template.title || "Titre de l'attestation")
-      body_content = html_to_tiptap_basic(v1_template.body || "")
+      title_content = v1_template.html_to_tiptap_inline(v1_template.title || "Titre de l'attestation")
+      body_content = v1_template.html_to_tiptap_basic(v1_template.body || "")
 
       # Construire la structure avec le header par défaut d'une attestation v2
       {
@@ -191,107 +193,6 @@ module Administrateurs
           }
         ] + body_content
       }
-    end
-
-    def html_to_tiptap_basic(html_string)
-      # Si pas de HTML, traiter le texte brut avec tags de champs et retours à la ligne
-      unless html_string.match?(/<[^>]+>/)
-        return process_plain_text_with_fields_and_breaks(html_string)
-      end
-
-      # Conversion basique : <b>, <i>, <u> uniquement
-      # Tables et autres balises → texte brut
-      doc = Nokogiri::HTML::DocumentFragment.parse(html_string)
-      nodes = convert_basic_html_nodes(doc.children)
-
-      # Traiter les paragraph_break pour créer des paragraphes séparés
-      if nodes.any? { |node| node["type"] == "paragraph_break" }
-        result = []
-        current_paragraph = []
-
-        nodes.each do |node|
-          if node["type"] == "paragraph_break"
-            # Finaliser le paragraphe actuel s'il a du contenu
-            if current_paragraph.any?
-              result << { "type" => "paragraph", "content" => current_paragraph }
-              current_paragraph = []
-            end
-          else
-            current_paragraph << node
-          end
-        end
-
-        # Ajouter le dernier paragraphe s'il y a du contenu
-        if current_paragraph.any?
-          result << { "type" => "paragraph", "content" => current_paragraph }
-        end
-
-        result
-      elsif nodes.any? { |node| node["type"] == "text" || node["type"] == "mention" }
-        # Si on a des nodes inline (text/mention), les wrapper dans un paragraphe
-        [{ "type" => "paragraph", "content" => nodes }]
-      else
-        nodes
-      end
-    end
-
-    def convert_basic_html_nodes(nodes, inherited_marks = [])
-      result = []
-
-      nodes.each do |node|
-        case node.type
-        when Nokogiri::XML::Node::TEXT_NODE
-          text = node.text
-          next if text.strip.empty?
-
-          # Détecter et préserver les tags de champs (--nom--, --prenom--, etc.)
-          if text.include?('--')
-            result.concat(parse_text_with_field_tags(text, inherited_marks))
-          else
-            text_node = { "type" => "text", "text" => text }
-            text_node["marks"] = inherited_marks unless inherited_marks.empty?
-            result << text_node
-          end
-
-        when Nokogiri::XML::Node::ELEMENT_NODE
-          case node.name.downcase
-          when 'p'
-            # Paragraphe avec contenu converti récursivement
-            content = convert_basic_html_nodes(node.children, inherited_marks)
-            next if content.empty?
-            result << {
-              "type" => "paragraph",
-              "content" => content
-            }
-          when 'br'
-            # Saut de ligne → paragraph vide
-            result << { "type" => "paragraph" }
-          when 'b', 'strong'
-            # Texte en gras - passer le mark aux enfants
-            new_marks = inherited_marks + [{ "type" => "bold" }]
-            result.concat(convert_basic_html_nodes(node.children, new_marks))
-          when 'i', 'em'
-            # Texte en italique - passer le mark aux enfants
-            new_marks = inherited_marks + [{ "type" => "italic" }]
-            result.concat(convert_basic_html_nodes(node.children, new_marks))
-          when 'u'
-            # Texte souligné - passer le mark aux enfants
-            new_marks = inherited_marks + [{ "type" => "underline" }]
-            result.concat(convert_basic_html_nodes(node.children, new_marks))
-          else
-            # Autres balises → texte brut sans formatage
-            text = node.text
-            next if text.strip.empty?
-
-            text_node = { "type" => "text", "text" => text }
-            text_node["marks"] = inherited_marks unless inherited_marks.empty?
-            result << text_node
-          end
-        end
-      end
-
-      # Si aucun contenu valide, retourner un texte vide
-      result.empty? ? [{ "type" => "text", "text" => "" }] : result
     end
 
     def parse_text_with_field_tags(text, inherited_marks = [])
@@ -393,25 +294,6 @@ module Administrateurs
 
       # Aucun champ trouvé
       nil
-    end
-
-    def html_to_tiptap_inline(html_string)
-      # Version inline pour les titres - pas de wrapper paragraphe !
-      # Si pas de HTML, traiter le texte brut avec tags de champs
-      if html_string.match?(/<[^>]+>/)
-        # Conversion basique : <b>, <i>, <u> uniquement
-        doc = Nokogiri::HTML::DocumentFragment.parse(html_string)
-        nodes = convert_basic_html_nodes(doc.children)
-
-        # Retourner directement les nœuds inline, sans wrapper paragraphe
-        nodes.any? ? nodes : [{ "type" => "text", "text" => html_string }]
-      else
-        if html_string.include?('--')
-          return parse_text_with_field_tags(html_string)
-        else
-          return [{ "type" => "text", "text" => html_string }]
-        end
-      end
     end
 
     def process_plain_text_with_fields_and_breaks(text)

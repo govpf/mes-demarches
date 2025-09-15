@@ -47,11 +47,11 @@ fr:
     no_mandatory: (facultatif)
     send_mail: Envoyer le message
     new_tab: "Nouvel onglet"
+    modal_close: "Fermer"
+    modal_close_alt: "Fermer la fenêtre modale"
   helpers:
     procedure:
       testing_procedure: démarche en test
-      close: Close
-      unpublished: Dépubliée
     commentaire:
       send_message_to_instructeur: "Envoyer un message à l’instructeur"
       reply_in_mailbox: "Répondre dans la messagerie"
@@ -71,7 +71,6 @@ fr:
         are_you_new: Vous êtes nouveau sur %{app_name} ?
     my_account: Mon compte
     header:
-      close_modal: 'Fermer'
       back: "Revenir en arrière"
       back_title: "Revenir en arrière, sur le site de mon administration"
       main_menu: "Menu principal"
@@ -331,10 +330,10 @@ fr:
         send_invitation: Envoyer une invitation
         withdraw_permission: "Révoquer l’autorisation"
         want_to_withdraw_permission: "Souhaitez-vous supprimer l’autorisation de %{email} ?"
-        edit_dossier:
-          zero: "Aucun invité peut modifier ce dossier"
-          one: "1 invité peut modifier ce dossier"
-          other: "%{count} invités peuvent modifier ce dossier"
+        edit_dossier_html:
+          zero: '<p class="fr-h6">Aucun invité peut modifier ce dossier.</p>'
+          one: '<h5 class="fr-h6">1 invité peut modifier ce dossier</h5>'
+          other: '<h5 class="fr-h6">%{count} invités peuvent modifier ce dossier</h5>'
         submit_dossier_yourself: "Une fois le dossier complet, vous devez le déposer vous-même."
     pagination:
       next: Suivant
@@ -826,11 +825,9 @@ fr:
       one: nouveau
       other: nouveaux
     followed:
-      one: suivi
-      other: suivis
-    archived:
-      one: archivé
-      other: archivés
+      one: suivi par moi
+      other: suivis par moi
+    archived: à archiver
     en_cours:
       one: en cours
       other: en cours
@@ -844,7 +841,7 @@ fr:
       one: dossier invité
       other: dossiers invités
     dossiers_supprimes:
-      one:  supprimé
+      one: supprimé
       other: supprimés
     dossiers_historique:
       one:  supprimé définitivement
@@ -927,6 +924,8 @@ fr:
          other: "%{count} groupes existent"
        labels:
         to_follow: à suivre
+        to_archive: à archiver
+        dossiers_supprimes: corbeille
         total: dossiers
   administrateurs:
     index:

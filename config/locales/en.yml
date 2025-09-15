@@ -56,11 +56,11 @@ en:
     no_mandatory: (optional)
     send_mail: Send message
     new_tab: New tab
+    modal_close: "Close"
+    modal_close_alt: "Close this modal"
   helpers:
     procedure:
       testing_procedure: testing procedure
-      close: Closed
-      unpublished: Unpublished
     commentaire:
       send_message_to_instructeur: "Send a message to the instructor"
       reply_in_mailbox: "Reply in mailbox"
@@ -80,7 +80,6 @@ en:
         are_you_new: First time on %{app_name}?
     my_account: My account
     header:
-      close_modal: 'Close'
       back: "Back"
       back_title: "Back to my administration's website"
       main_menu: "Main menu"
@@ -338,9 +337,10 @@ en:
         send_invitation: Send an invitation
         withdraw_permission: "Withdraw the permission"
         want_to_withdraw_permission: "Would you like to withdraw the permission of %{email}?"
-        edit_dossier:
-          one: "1 user can edit this file."
-          other: "%{count} users can edit this file."
+        edit_dossier_html:
+          zero: '<p class="fr-h6">No user can edit this file.</p>'
+          one: '<h5 class="fr-h6">1 user can edit this file</h5>'
+          other: '<h5 class="fr-h6">%{count} users can edit this file</h5>'
         submit_dossier_yourself: "You must submit the file yourself when it is complete."
     pagination:
       next: Next
@@ -803,12 +803,8 @@ en:
     new:
       one: new
       other: new
-    followed:
-      one: followed
-      other: followed
-    archived:
-      one: archived
-      other: archived
+    followed: followed by me
+    archived: to archive
     en_cours:
       one: in progress
       other: in progress
@@ -822,8 +818,8 @@ en:
       one: guest file
       other: guest files
     dossiers_supprimes:
-      one: recently deleted file
-      other: recently deleted files
+      one: deleted
+      other: deleted
     dossiers_transferes:
       one: transfer request
       other: transfer requests
@@ -902,7 +898,9 @@ en:
        impossible_deletion: "Unable to delete : the folder is not processed"
        restore: "The folder has been restored"
        labels:
-          to_follow: "to follow"
+          to_follow: to follow
+          to_archive: to archive
+          dossiers_supprimes: trash
   france_connect:
     particulier:
       choose_email:
