@@ -36,30 +36,30 @@ class AttestationTemplate < ApplicationRecord
         "content" => [
           {
             "type" => "headerColumn",
-                      "content" => [
-                        {
-                          "type" => "paragraph",
-                          "attrs" => { "textAlign" => "left" },
-                          "content" => [{ "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service" } }]
-                        }
-                      ]
+            "content" => [
+              {
+                "type" => "paragraph",
+                "attrs" => { "textAlign" => "left" },
+                "content" => [{ "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service" } }]
+              }
+            ]
           },
           {
             "type" => "headerColumn",
             "content" => [
               {
                 "type" => "paragraph",
-                          "attrs" => { "textAlign" => "left" },
-                          "content" => [
-                            { "text" => "Fait le ", "type" => "text" },
-                            { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision" } }
-                          ]
+                "attrs" => { "textAlign" => "left" },
+                "content" => [
+                  { "text" => "Fait le ", "type" => "text" },
+                  { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision" } }
+                ]
               }
             ]
           }
         ]
       },
-      { "type" => "title", "attrs" => { "textAlign" => "center" }, "content" => [{ "text" => "Titre de l’attestation", "type" => "text" }] },
+      { "type" => "title", "attrs" => { "textAlign" => "center" }, "content" => [{ "text" => "Titre de l'attestation", "type" => "text" }] },
       {
         "type" => "paragraph",
         "attrs" => { "textAlign" => "left" },
@@ -316,7 +316,7 @@ class AttestationTemplate < ApplicationRecord
 
     if dossier.present?
       # 2x faster this way than with `replace_tags` which would reparse text
-      used_tags = TiptapService.used_tags_and_libelle_for(json.deep_symbolize_keys)
+      used_tags = TiptapService.used_tags_and_libelle_for(json)
       substitutions = tags_substitutions(used_tags, dossier, escape: false)
       body = tiptap.to_html(json, substitutions)
 
@@ -494,7 +494,7 @@ class AttestationTemplate < ApplicationRecord
       process_element_children(element, result)
       result
     when 'br'
-      [{ 'type' => 'text', 'text' => "\n" }]
+      [{ type: :text, text: "\n" }]
     else
       # Pour les balises non supportées, traiter récursivement le contenu
       result = []
@@ -576,12 +576,12 @@ class AttestationTemplate < ApplicationRecord
 
         if field_id
           # Créer une mention TipTap v2
-          mention_node = { "type" => "mention", "attrs" => { "id" => field_id, "label" => field_label } }
+          mention_node = { 'type' => 'mention', 'attrs' => { 'id' => field_id, 'label' => field_label } }
           mention_node["marks"] = inherited_marks unless inherited_marks.empty?
           result << mention_node
         else
           # Si pas de mapping trouvé, conserver comme texte
-          text_node = { "type" => "text", "text" => part }
+          text_node = { 'type' => 'text', 'text' => part }
           text_node["marks"] = inherited_marks unless inherited_marks.empty?
           result << text_node
         end
@@ -592,20 +592,20 @@ class AttestationTemplate < ApplicationRecord
           lines = part.split(/\n/)
           lines.each_with_index do |line, index|
             unless line.strip.empty?
-              text_node = { "type" => "text", "text" => line }
+              text_node = { 'type' => 'text', 'text' => line }
               text_node["marks"] = inherited_marks unless inherited_marks.empty?
               result << text_node
             end
 
             # Ajouter un hardBreak TipTap sauf pour la dernière ligne
             if index < lines.length - 1
-              result << { "type" => "hardBreak" }
+              result << { 'type' => 'hardBreak' }
             end
           end
         else
           # Texte normal sans retour à la ligne
           unless part.strip.empty?
-            text_node = { "type" => "text", "text" => part }
+            text_node = { 'type' => 'text', 'text' => part }
             text_node["marks"] = inherited_marks unless inherited_marks.empty?
             result << text_node
           end
@@ -613,7 +613,7 @@ class AttestationTemplate < ApplicationRecord
       end
     end
 
-    result.empty? ? [{ "type" => "text", "text" => text }] : result
+    result.empty? ? [{ 'type' => 'text', 'text' => text }] : result
   end
 
   def process_final_structure(nodes)
@@ -626,7 +626,7 @@ class AttestationTemplate < ApplicationRecord
         if node["type"] == "paragraph_break"
           # Finaliser le paragraphe actuel s'il a du contenu
           if current_paragraph.any?
-            result << { "type" => "paragraph", "content" => current_paragraph }
+            result << { 'type' => 'paragraph', 'content' => current_paragraph }
             current_paragraph = []
           end
         else
@@ -636,13 +636,13 @@ class AttestationTemplate < ApplicationRecord
 
       # Ajouter le dernier paragraphe s'il y a du contenu
       if current_paragraph.any?
-        result << { "type" => "paragraph", "content" => current_paragraph }
+        result << { 'type' => 'paragraph', 'content' => current_paragraph }
       end
 
       result
     elsif nodes.any? { |node| ["text", "mention", "hardBreak"].include?(node["type"]) }
       # Si on a des nodes inline (text/mention/hardBreak), les wrapper dans un paragraphe
-      [{ "type" => "paragraph", "content" => nodes }]
+      [{ 'type' => 'paragraph', 'content' => nodes }]
     else
       nodes
     end

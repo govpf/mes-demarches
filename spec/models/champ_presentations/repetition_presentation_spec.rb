@@ -51,57 +51,57 @@ describe ChampPresentations::RepetitionPresentation do
       it 'génère une structure de tableau' do
         # pf: nouveau format tableau pour champs simples
         expected_node = {
-          type: "table",
-          content: [
+          "type" => "table",
+          "content" => [
             {
-              type: "tableRow",
-              content: [
+              "type" => "tableRow",
+              "content" => [
                 {
-                  type: "tableHeader",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "nom" }] }]
+                  "type" => "tableHeader",
+                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "nom" }] }]
                 },
                 {
-                  type: "tableHeader",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "stars" }] }]
+                  "type" => "tableHeader",
+                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "stars" }] }]
                 }
               ]
             },
             {
-              type: "tableRow",
-              content: [
+              "type" => "tableRow",
+              "content" => [
                 {
-                  type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "ruby" }] }]
+                  "type" => "tableCell",
+                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "ruby" }] }]
                 },
                 {
-                  type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "5" }] }]
+                  "type" => "tableCell",
+                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "5" }] }]
                 }
               ]
             },
             {
-              type: "tableRow",
-              content: [
+              "type" => "tableRow",
+              "content" => [
                 {
-                  type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "js" }] }]
+                  "type" => "tableCell",
+                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "js" }] }]
                 },
                 {
-                  type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }]
+                  "type" => "tableCell",
+                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "" }] }]
                 }
               ]
             },
             {
-              type: "tableRow",
-              content: [
+              "type" => "tableRow",
+              "content" => [
                 {
-                  type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "rust" }] }]
+                  "type" => "tableCell",
+                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "rust" }] }]
                 },
                 {
-                  type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "4" }] }]
+                  "type" => "tableCell",
+                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "4" }] }]
                 }
               ]
             }
@@ -132,10 +132,10 @@ describe ChampPresentations::RepetitionPresentation do
       it 'génère tableau avec seulement les champs fillables' do
         result = representation_with_headers.to_tiptap_node
         # pf: toujours tableau maintenant, avec seulement les champs fillables filtrés
-        expect(result[:type]).to eq("table")
+        expect(result["type"]).to eq("table")
         # Une seule colonne "nom" (header_section filtré)
-        expect(result[:content].first[:content].size).to eq(1)
-        expect(result[:content].first[:content].first[:content].first[:content].first[:text]).to eq("nom")
+        expect(result["content"].first["content"].size).to eq(1)
+        expect(result["content"].first["content"].first["content"].first["content"].first["text"]).to eq("nom")
       end
     end
   end

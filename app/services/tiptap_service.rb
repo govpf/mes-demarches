@@ -78,6 +78,8 @@ class TiptapService
       "<p#{body_start_mark}#{text_align(rest[:attrs])}>#{children(content, substitutions, level + 1)}</p>"
     in type: 'title', content:, **rest
       "<h1#{text_align(rest[:attrs])}>#{children(content, substitutions, level + 1)}</h1>"
+    in type: 'body', content:, **rest
+      children(content, substitutions, level + 1).to_s
     in type: 'heading', attrs: { level: hlevel, **attrs }, content:
       "<h#{hlevel}#{body_start_mark}#{text_align(attrs)}>#{children(content, substitutions, level + 1)}</h#{hlevel}>"
     in type: 'bulletList', content:

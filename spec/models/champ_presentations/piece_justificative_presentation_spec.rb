@@ -10,9 +10,9 @@ describe ChampPresentations::PieceJustificativePresentation do
 
       it 'génère un nœud attachmentLink avec blob.id' do
         node = subject.to_tiptap_node
-        expect(node[:type]).to eq('attachmentLink')
-        expect(node[:attrs][:href]).to eq('http://example.com/test.pdf')
-        expect(node[:content]).to eq([{ type: 'text', text: 'test.pdf' }])
+        expect(node['type']).to eq('attachmentLink')
+        expect(node['attrs']['href']).to eq('http://example.com/test.pdf')
+        expect(node['content']).to eq([{ 'type' => 'text', 'text' => 'test.pdf' }])
       end
 
       it 'utilise le blob.id comme identifiant' do
@@ -28,11 +28,11 @@ describe ChampPresentations::PieceJustificativePresentation do
 
       it 'génère un nœud attachmentImage avec blob.id' do
         node = subject.to_tiptap_node
-        expect(node[:type]).to eq('attachmentImage')
-        expect(node[:attrs][:id]).to eq(789) # blob.id
-        expect(node[:attrs][:src]).to eq('http://example.com/image.jpg')
-        expect(node[:attrs][:alt]).to eq('image.jpg')
-        expect(node[:attrs][:display]).to eq('image.jpg')
+        expect(node['type']).to eq('attachmentImage')
+        expect(node['attrs']['id']).to eq(789) # blob.id
+        expect(node['attrs']['src']).to eq('http://example.com/image.jpg')
+        expect(node['attrs']['alt']).to eq('image.jpg')
+        expect(node['attrs']['display']).to eq('image.jpg')
       end
     end
   end

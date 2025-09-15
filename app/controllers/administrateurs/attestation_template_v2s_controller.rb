@@ -22,6 +22,11 @@ module Administrateurs
         end
 
         format.pdf do
+          # pf: désactiver le cache navigateur pour la prévisualisation
+          response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+          response.headers['Pragma'] = 'no-cache'
+          response.headers['Expires'] = '0'
+
           html = render_to_string('/administrateurs/attestation_template_v2s/show', layout: 'attestation', formats: [:html])
 
           # pf: debug temporaire - sauvegarder HTML pour inspection

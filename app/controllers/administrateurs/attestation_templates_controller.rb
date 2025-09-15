@@ -213,12 +213,12 @@ module Administrateurs
 
           if field_id
             # Créer une mention TipTap v2
-            mention_node = { "type" => "mention", "attrs" => { "id" => field_id, "label" => field_label } }
+            mention_node = { 'type' => 'mention', 'attrs' => { 'id' => field_id, 'label' => field_label } }
             mention_node["marks"] = inherited_marks unless inherited_marks.empty?
             result << mention_node
           else
             # Si pas de mapping trouvé, conserver comme texte
-            text_node = { "type" => "text", "text" => part }
+            text_node = { 'type' => 'text', 'text' => part }
             text_node["marks"] = inherited_marks unless inherited_marks.empty?
             result << text_node
           end
@@ -229,20 +229,20 @@ module Administrateurs
             lines = part.split(/\n+/)
             lines.each_with_index do |line, index|
               unless line.strip.empty?
-                text_node = { "type" => "text", "text" => line }
+                text_node = { 'type' => 'text', 'text' => line }
                 text_node["marks"] = inherited_marks unless inherited_marks.empty?
                 result << text_node
               end
 
               # Ajouter un saut de paragraphe sauf pour la dernière ligne
               if index < lines.length - 1
-                result << { "type" => "paragraph_break" } # Marqueur spécial
+                result << { 'type' => 'paragraph_break' } # Marqueur spécial
               end
             end
           else
             # Texte normal sans retour à la ligne
             unless part.strip.empty?
-              text_node = { "type" => "text", "text" => part }
+              text_node = { 'type' => 'text', 'text' => part }
               text_node["marks"] = inherited_marks unless inherited_marks.empty?
               result << text_node
             end
@@ -250,7 +250,7 @@ module Administrateurs
         end
       end
 
-      result.empty? ? [{ "type" => "text", "text" => text }] : result
+      result.empty? ? [{ 'type' => 'text', 'text' => text }] : result
     end
 
     def convert_field_label_to_id(field_label)
@@ -318,7 +318,7 @@ module Administrateurs
               if node["type"] == "paragraph_break"
                 # Finaliser le paragraphe actuel s'il a du contenu
                 if current_paragraph.any?
-                  result << { "type" => "paragraph", "content" => current_paragraph }
+                  result << { 'type' => 'paragraph', 'content' => current_paragraph }
                   current_paragraph = []
                 end
               else
@@ -328,10 +328,10 @@ module Administrateurs
 
             # Ajouter le dernier paragraphe s'il y a du contenu
             if current_paragraph.any?
-              result << { "type" => "paragraph", "content" => current_paragraph }
+              result << { 'type' => 'paragraph', 'content' => current_paragraph }
             end
           else
-            result << { "type" => "paragraph", "content" => para_content }
+            result << { 'type' => 'paragraph', 'content' => para_content }
           end
         end
 
@@ -341,7 +341,7 @@ module Administrateurs
         content_nodes = if text.include?('--')
           parse_text_with_field_tags(text)
         else
-          [{ "type" => "text", "text" => text }]
+          [{ 'type' => 'text', 'text' => text }]
         end
 
         # Traiter les paragraph_break pour créer des paragraphes séparés
@@ -353,7 +353,7 @@ module Administrateurs
             if node["type"] == "paragraph_break"
               # Finaliser le paragraphe actuel s'il a du contenu
               if current_paragraph.any?
-                result << { "type" => "paragraph", "content" => current_paragraph }
+                result << { 'type' => 'paragraph', 'content' => current_paragraph }
                 current_paragraph = []
               end
             else
@@ -363,12 +363,12 @@ module Administrateurs
 
           # Ajouter le dernier paragraphe s'il y a du contenu
           if current_paragraph.any?
-            result << { "type" => "paragraph", "content" => current_paragraph }
+            result << { 'type' => 'paragraph', 'content' => current_paragraph }
           end
 
           result
         else
-          [{ "type" => "paragraph", "content" => content_nodes }]
+          [{ 'type' => 'paragraph', 'content' => content_nodes }]
         end
       end
     end

@@ -26,19 +26,19 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
   def to_tiptap_node
     if @is_image
       {
-        type: 'attachmentImage',
-        attrs: {
-          id: @attachment_id,
-          src: @url,
-          alt: @display_name,
-          display: @display_name
+        'type' => 'attachmentImage',
+        'attrs' => {
+          'id' => @attachment_id,
+          'src' => @url,
+          'alt' => @display_name,
+          'display' => @display_name
         }
       }
     else
       {
-        type: 'attachmentLink',
-        attrs: { href: @url, target: '_blank', rel: 'noopener' },
-        content: [{ type: 'text', text: @display_name }]
+        'type' => 'attachmentLink',
+        'attrs' => { 'href' => @url, 'target' => '_blank', 'rel' => 'noopener' },
+        'content' => [{ 'type' => 'text', 'text' => @display_name }]
       }
     end
   end
