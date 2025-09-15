@@ -162,6 +162,8 @@ class TiptapService
 
   def handle_presentation_node(presentation, substitutions, level)
     node = presentation.to_tiptap_node
+    # Ensure symbol keys for pattern matching consistency
+    node = node.deep_symbolize_keys if node.is_a?(Hash)
     content = node_to_html(node, substitutions, level)
     if presentation.block_level?
       "</p>#{content}<p>"
