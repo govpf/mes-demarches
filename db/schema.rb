@@ -15,6 +15,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
   enable_extension "postgis"
+  disable_extension "postgis_tiger_geocoder"
+  enable_extension "sslinfo"
   enable_extension "unaccent"
 
   create_table "action_text_rich_texts", force: :cascade do |t|
