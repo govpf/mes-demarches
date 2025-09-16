@@ -58,7 +58,7 @@ describe 'As an administrateur I wanna clone a procedure', js: true do
       # pf default path computed is different
       expect(find_field('procedure_path').value).to eq Procedure.last.service.suggested_path + '-libelle-de-la-procedure'
       fill_in 'procedure_path', with: procedure_path
-      expect(page).to have_content 'Si vous publiez cette démarche, l’ancienne sera dépubliée et ne sera plus accessible au public.'
+      expect(page).to have_content "Si vous publiez cette démarche, le lien ne pointera plus sur l'ancienne démarche."
 
       fill_in 'lien_site_web', with: 'http://some.website'
       click_on 'publish'
@@ -97,7 +97,7 @@ describe 'As an administrateur I wanna clone a procedure', js: true do
       # pf default path computed is different
       expect(find_field('procedure_path').value).to eq Procedure.last.service.suggested_path + '-libelle-de-la-procedure'
       fill_in 'procedure_path', with: procedure_path
-      expect(page).to have_content 'Si vous publiez cette démarche, l’ancienne sera dépubliée et ne sera plus accessible au public.'
+      expect(page).to have_content "Si vous publiez cette démarche, le lien ne pointera plus sur l'ancienne démarche."
       fill_in 'lien_site_web', with: 'http://some.website'
       click_on 'publish'
 
