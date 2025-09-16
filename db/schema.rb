@@ -755,15 +755,15 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "geo_areas", force: :cascade do |t|
-    t.string "cadastre_error"
-    t.string "cadastre_state"
     t.bigint "champ_id"
     t.datetime "created_at"
     t.string "geo_reference_id"
     t.jsonb "geometry"
     t.jsonb "properties"
     t.string "source"
-    t.datetime "updated_at", precision: nil
+    t.datetime "updated_at"
+    t.string "cadastre_state"
+    t.string "cadastre_error"
     t.index ["cadastre_state"], name: "index_geo_areas_on_cadastre_state"
     t.index ["champ_id"], name: "index_geo_areas_on_champ_id"
     t.index ["source"], name: "index_geo_areas_on_source"
@@ -867,10 +867,10 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   create_table "labels", force: :cascade do |t|
     t.string "name"
     t.string "color"
-    t.integer "position"
     t.bigint "procedure_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "position"
     t.index ["procedure_id"], name: "index_labels_on_procedure_id"
   end
 
@@ -924,9 +924,9 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "procedure_paths", force: :cascade do |t|
-    t.datetime "created_at", null: false
     t.string "path"
     t.bigint "procedure_id", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["path"], name: "index_procedure_paths_on_path", unique: true
     t.index ["procedure_id"], name: "index_procedure_paths_on_procedure_id"
