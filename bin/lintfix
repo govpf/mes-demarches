@@ -13,10 +13,10 @@ PID_JS=$!
 bun run lint:css:fix &
 PID_CSS=$!
 
-bundle exec rubocop -A &
+/home/clautier/.rbenv/shims/bundle exec rubocop -A &
 PID_RUBOCOP=$!
 
-bundle exec haml-lint -a app/views/ app/components/ &
+/home/clautier/.rbenv/shims/bundle exec haml-lint -a app/views/ app/components/ &
 PID_HAML=$!
 
 # Attendre que tous les processus se terminent

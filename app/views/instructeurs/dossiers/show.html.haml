@@ -14,18 +14,6 @@
         %p
           Les informations sur l'entreprise arriveront d'ici quelques heures.
 
-- if @dossier.procedure.attestation_template&.activated? && @dossier.procedure.attestation_template&.version == 1 && @dossier.procedure.feature_enabled?(:attestation_v2)
-  .container
-    = render Dsfr::AlertComponent.new(state: :info, title: "Attestation en ancien format", heading_level: 'h4') do |c|
-      - c.with_body do
-        %p Cette démarche utilise l'ancien système d'attestations qui sera supprimé le <strong>1er novembre 2025</strong>.
-        %p Contactez l'administrateur de cette démarche pour qu'il migre vers le nouveau format et éviter toute interruption de service.
-        .fr-mt-2w
-          = link_to("Voir les administrateurs de cette démarche",
-                    administrateurs_instructeur_procedure_path(@dossier.procedure),
-                    class: "fr-btn fr-btn--secondary fr-btn--sm",
-                    target: "_blank")
-
 .fr-container
   .fr-grid-row.fr-grid-row--center
     - summary = ViewableChamp::HeaderSectionsSummaryComponent.new(dossier: @dossier, is_private: false)

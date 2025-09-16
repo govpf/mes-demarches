@@ -196,11 +196,17 @@
 
   .signature {
     text-align: right;
-    margin-top: 14mm;
+    margin-top: 10mm;
     margin-right: 25mm;
   }
 
-  .signature,
+  .signature {
+    img {
+      max-height: 30mm;
+      max-width: 100mm;
+    }
+  }
+
   .logo-free-layout {
     img {
       max-height: 50mm;
