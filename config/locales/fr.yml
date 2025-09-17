@@ -926,7 +926,7 @@ fr:
         to_follow: à suivre
         to_archive: à archiver
         dossiers_supprimes: corbeille
-        total: dossiers
+        total: au total
   administrateurs:
     index:
       restored: La démarche %{procedure_id} a été restaurée

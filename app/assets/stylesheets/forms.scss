@@ -289,15 +289,36 @@
     }
   }
 
-  .fr-label .fr-hint-text > *,
-  .fr-fieldset__legend .fr-hint-text > * {
+  .fr-label + .fr-hint-text > *,
+  .fr-fieldset__legend + .fr-hint-text > * {
     // la description d'un champ peut contenir du markup (markdown->html),
-    // on herite donc la fontsize/margin/padding du fr-hint-text
+    // pf: on hérite la couleur et l'interlignage de fr-hint-text mais garde les spécificités PF
+    line-height: inherit;
+    color: inherit;
+    // pf: garde margin inherit pour permettre aux listes imbriquées de fonctionner
     margin: inherit;
-    // pf padding disabled to let sub ul/ol work & bigger fr-hint-text
-    // font-size: inherit;
+    // pf: taille fixe 14px pour lisibilité mobile (plus grande que la fonte par défaut)
     font-size: 14px;
-    // padding: inherit;
+    // pf: padding disabled pour permettre aux sous ul/ol de fonctionner
+    padding: 0;
+  }
+
+  .fr-fieldset .fr-hint-text ul {
+    margin-left: 0.75rem;
+  }
+
+  .fr-fieldset .fr-hint-text ol {
+    margin-left: 1.25rem;
+  }
+
+  .fr-hint-text + .fr-input {
+    // les champs se trouvant juste après un message d'aide ont le même espacement que ceux se trouvant juste après un label
+    margin-top: 0.5rem;
+  }
+
+  .fr-fieldset__legend .fr-hint-text {
+    // les messages d'aide se trouvant dans une légende ont le même espacement que ceux se trouvant dans un label
+    margin-top: 0.25rem;
   }
 
   input[type='password'],
@@ -461,10 +482,6 @@
       .utils-repetition-required-destroy-button {
       display: none;
     }
-  }
-
-  .editable-champ-titre_identite {
-    margin-bottom: 2 * $default-padding;
   }
 
   .cnaf-inputs,

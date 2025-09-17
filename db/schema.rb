@@ -658,6 +658,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.bigint "export_template_id"
     t.jsonb "filtered_columns", default: [], null: false, array: true
     t.string "format", null: false
+    t.boolean "include_archived", default: false, null: false
     t.bigint "instructeur_id"
     t.string "job_status", default: "pending", null: false
     t.text "key", null: false
