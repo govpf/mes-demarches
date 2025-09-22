@@ -358,7 +358,7 @@ describe Users::DossiersController, type: :controller do
         let(:api_etablissement_status) { 502 }
         let(:api_insee_status_response) { Rails.root.join('spec/fixtures/files/api_entreprise/ping.json').read }
 
-        it_behaves_like 'the request fails with an error', I18n.t('errors.messages.siret.network_error')
+        it_behaves_like 'the request fails with an error', I18n.t('errors.messages.siret_network_error')
       end
 
       context 'When API-Entreprise is globally down' do
@@ -371,11 +371,10 @@ describe Users::DossiersController, type: :controller do
           expect(dossier.etablissement).to be_as_degraded_mode
         end
       end
-
-      context 'when API-Entreprise doesn’t know this SIRET' do
+      context 'when API-Entreprise doesn\'t know this SIRET' do
         let(:api_etablissement_status) { 404 }
 
-        it_behaves_like 'the request fails with an error', I18n.t('errors.messages.siret.not_found')
+        it_behaves_like 'the request fails with an error', I18n.t('errors.messages.siret_unknown')
       end
 
       context 'when default token has expired' do
@@ -383,7 +382,7 @@ describe Users::DossiersController, type: :controller do
         let(:api_insee_status_response) { Rails.root.join('spec/fixtures/files/api_entreprise/ping.json').read }
         let(:token_expired) { true }
 
-        it_behaves_like 'the request fails with an error', I18n.t('errors.messages.siret.network_error')
+        it_behaves_like 'the request fails with an error', I18n.t('errors.messages.siret_network_error')
       end
 
       context 'when all API informations available' do
