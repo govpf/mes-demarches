@@ -63,7 +63,7 @@ module SiretChampEtablissementFetchableConcern
       false
     else
       Sentry.capture_exception(error, extra: { dossier_id:, siret: })
-      clear_etablissement!
+      clear_etablissement!(:network_error)
     end
   end
 
