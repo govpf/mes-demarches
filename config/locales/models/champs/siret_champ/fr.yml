@@ -4,3 +4,11 @@ fr:
       champs/siret_champ:
         hints:
           value: "Saisissez 9 caractères. Exemple : 002253-001 ou G33972-001"
+    errors:
+      models:
+        champs/siret_champ:
+          attributes:
+            value:
+              length: 'doit comporter exactement 14 chiffres'
+              checksum: 'n‘est pas valide'
+              not_found: 'aucun établissement n’est rattaché à ce numéro'

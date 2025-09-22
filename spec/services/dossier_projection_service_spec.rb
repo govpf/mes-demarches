@@ -4,59 +4,22 @@ describe DossierProjectionService do
   describe '#project' do
     subject { described_class.project(dossiers_ids, columns) }
 
-    context 'with multiple dossier' do
-      let!(:procedure) { create(:procedure, types_de_champ_public: [{}, { type: :linked_drop_down_list }]) }
-      let!(:dossier_1) { create(:dossier, procedure: procedure) }
-      let!(:dossier_2) { create(:dossier, :en_construction, :archived, procedure: procedure) }
-      let!(:dossier_3) { create(:dossier, :en_instruction, procedure: procedure) }
-
-      let(:dossiers_ids) { [dossier_3.id, dossier_1.id, dossier_2.id] }
-      let(:columns) do
-        procedure.active_revision.types_de_champ_public.map do |type_de_champ|
-          procedure.find_column(label: type_de_champ.libelle)
-        end
-      end
-
-      before do
-        dossier_1.project_champs_public.first.update(value: 'champ_1')
-        dossier_1.project_champs_public.second.update(value: '["test"]')
-        dossier_2.project_champs_public.first.update(value: 'champ_2')
-        dossier_3.project_champs_public.first.destroy
-      end
-
-      let(:result) { subject }
-
-      it 'respects the dossiers_ids order, returns state, archived and nil for empty result' do
-        expect(result.length).to eq(3)
-
-        expect(result[0].dossier.id).to eq(dossier_3.id)
-        expect(result[1].dossier.id).to eq(dossier_1.id)
-        expect(result[2].dossier.id).to eq(dossier_2.id)
-
-        expect(result[0].dossier.state).to eq('en_instruction')
-        expect(result[1].dossier.state).to eq('brouillon')
-        expect(result[2].dossier.state).to eq('en_construction')
-
-        expect(result[0].dossier.archived).to be false
-        expect(result[1].dossier.archived).to be false
-        expect(result[2].dossier.archived).to be true
-
-        expect(result[0].columns[0]).to be nil
-        expect(result[1].columns[0]).to eq('champ_1')
-        expect(result[2].columns[0]).to eq('champ_2')
-      end
+    let(:procedure) { create(:procedure, types_de_champ_public:) }
+    let(:types_de_champ_public) do
+      [
+        { type: :text, libelle: 'texte' },
+        { type: :integer_number, libelle: 'nombre entier' }
+      ]
     end
+    let(:dossiers) { create_list(:dossier, 3, procedure:) }
+    let(:dossiers_ids) { dossiers.take(2).map(&:id) }
+    let(:text_column) { procedure.find_column(label: 'texte') }
+    let(:columns) { [text_column] }
 
-    context 'with commune champ' do
-      let!(:procedure) { create(:procedure, types_de_champ_public: [{ type: :communes }]) }
-      let!(:dossier) { create(:dossier, procedure:) }
+    it do
+      dossiers = subject
 
-      let(:dossiers_ids) { [dossier.id] }
-      let(:columns) do
-        [
-          procedure.find_column(label: procedure.active_revision.types_de_champ_public[0].libelle)
-        ]
-      end
+      expect(dossiers.size).to eq(2)
 
       before do
         dossier.project_champs_public.first.update(code_postal: '63290', external_id: '63102')

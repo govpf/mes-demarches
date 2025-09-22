@@ -116,14 +116,10 @@ describe Champs::SiretController, type: :controller do
 
         subject! { get :show, params: params, format: :turbo_stream }
 
-        it 'saves the etablissement in degraded mode and SIRET on the model' do
+        it 'saves the etablissement in degraded mode' do
           champ.reload
           expect(champ.etablissement.siret).to eq(siret)
           expect(champ.etablissement.as_degraded_mode?).to be true
-        end
-
-        it 'displays a “API entreprise down” error message' do
-          expect(response.body).to include('Notre fournisseur de données semble en panne, nous récupérerons les données plus tard.')
         end
       end
 

@@ -15,8 +15,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
   enable_extension "postgis"
-  disable_extension "postgis_tiger_geocoder"
-  enable_extension "sslinfo"
   enable_extension "unaccent"
 
   create_table "action_text_rich_texts", force: :cascade do |t|
@@ -1249,6 +1247,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "instructeur_email"
     t.string "motivation"
     t.datetime "processed_at", precision: nil
+    t.bigint "revision_id"
     t.string "state"
     t.index ["dossier_id"], name: "index_traitements_on_dossier_id"
   end
@@ -1421,6 +1420,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   add_foreign_key "services", "administrateurs"
   add_foreign_key "targeted_user_links", "users"
   add_foreign_key "traitements", "dossiers"
+  add_foreign_key "traitements", "procedure_revisions", column: "revision_id"
   add_foreign_key "trusted_device_tokens", "instructeurs"
   add_foreign_key "types_de_champ", "referentiels"
   add_foreign_key "users", "users", column: "requested_merge_into_id"

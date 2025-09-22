@@ -118,6 +118,7 @@ ignore_unused:
 - 'combo_search_component.screen_reader_instructions'
 - 'links.common.*'
 - 'date.formats.*'
+- 'views.instructeurs.dossiers.acts_on_behalf'
 # - '{devise,kaminari,will_paginate}.*'
 # - 'simple_form.{yes,no}'
 # - 'simple_form.{placeholders,hints,labels}.*'

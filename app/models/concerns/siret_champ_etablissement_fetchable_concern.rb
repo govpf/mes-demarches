@@ -60,11 +60,10 @@ module SiretChampEtablissementFetchableConcern
       update!(
         etablissement: APIEntrepriseService.create_etablissement_as_degraded_mode(self, siret, user.id)
       )
-      @etablissement_fetch_error_key = :api_entreprise_down
       false
     else
       Sentry.capture_exception(error, extra: { dossier_id:, siret: })
-      clear_etablissement!(:network_error) # i18n-tasks-use t('errors.messages.siret_network_error')
+      clear_etablissement!
     end
   end
 
