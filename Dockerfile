@@ -12,7 +12,7 @@ RUN bun install --frozen-lockfile --production
 # Intermediate container to bundle all gems
 # Building gems requires dev librairies we don't need in production container
 #--------------------------------------------------
-FROM ruby:3.3.2-slim AS base
+FROM ruby:3.3.6-slim AS base
 FROM base AS builder
 
 RUN apt-get update && \

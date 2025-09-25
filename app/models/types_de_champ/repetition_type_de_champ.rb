@@ -5,19 +5,11 @@ class TypesDeChamp::RepetitionTypeDeChamp < TypesDeChamp::TypeDeChampBase
 
   def champ_value_for_tag(champ, path = :value)
     return nil if path != :value
-    # Todo adapt CHampPresentations to remove pf code
-    # ChampPresentations::RepetitionPresentation.new(libelle, champ.dossier.project_rows_for(@type_de_champ))
+
     rows = champ.rows
     return champ_default_value if rows.blank?
 
-    # pf displays repetition as table
-    header = tag.tr(rows[0].map { |c| tag.th(c.libelle) }.reduce(&:+))
-    lines = rows.map do |champs|
-      tag.tr(champs.map do |champ|
-        tag.td(champ.type_de_champ.champ_value_for_tag(champ))
-      end.reduce(&:+))
-    end.reduce(&:+)
-    tag.table(header + lines)
+    ChampPresentations::RepetitionPresentation.new(libelle, rows)
   end
 
   def estimated_fill_duration(revision)

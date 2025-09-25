@@ -264,4 +264,203 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       end
     end
   end
+
+  describe 'POST #migrate' do
+    context 'Migration v1 vers v2' do
+      let(:v1_attestation) do
+        create(:attestation_template,
+          version: 1,
+          title: 'Titre avec <b>gras</b> et <i>italique</i>',
+          body: 'Corps avec <u>souligné</u> et <strong>strong</strong>',
+          footer: 'Pied de page standard',
+          activated: true)
+      end
+      let(:procedure) { create(:procedure, administrateur: admin, attestation_template: v1_attestation) }
+
+      before do
+        Flipper.enable(:attestation_v2)
+      end
+
+      context 'avec attestation v1 existante' do
+        it 'migre le contenu correctement' do
+          expect(procedure.attestation_templates.v2).to be_empty
+
+          post :migrate, params: { procedure_id: procedure.id }
+
+          v2_template = procedure.reload.attestation_templates.v2.first
+          expect(v2_template).to be_present
+          expect(v2_template.version).to eq(2)
+          expect(v2_template).to be_draft
+
+          # Test de la structure JSON Tiptap générée
+          json_body = JSON.parse(v2_template.tiptap_body)
+          expect(json_body['type']).to eq('doc')
+          expect(json_body['content']).to be_an(Array)
+
+          # Test du contenu migré
+          expect(v2_template.footer).to eq('Pied de page standard')
+          expect(v2_template.activated).to be true
+
+          expect(response).to redirect_to(edit_admin_procedure_attestation_template_v2_path(procedure))
+          expect(flash.notice).to include('migrée vers v2')
+        end
+
+        it 'préserve l\'état d\'activation' do
+          v1_attestation.update!(activated: false)
+
+          post :migrate, params: { procedure_id: procedure.id }
+
+          v2_template = procedure.reload.attestation_templates.v2.first
+          expect(v2_template.activated).to be false
+        end
+      end
+
+      context 'avec attachments' do
+        let(:v1_attestation) do
+          create(:attestation_template,
+            version: 1,
+            title: 'Titre simple',
+            body: 'Corps simple',
+            activated: true,
+            logo: logo,
+            signature: signature)
+        end
+
+        it 'copie les logos et signatures' do
+          expect(v1_attestation.logo).to be_attached
+          expect(v1_attestation.signature).to be_attached
+
+          post :migrate, params: { procedure_id: procedure.id }
+
+          v2_template = procedure.reload.attestation_templates.v2.first
+          expect(v2_template.logo).to be_attached
+          expect(v2_template.signature).to be_attached
+
+          # Vérifie que les attachments sont copiés, pas déplacés
+          expect(v1_attestation.reload.logo).to be_attached
+          expect(v1_attestation.reload.signature).to be_attached
+
+          # Vérifie que les blobs sont les mêmes (référence partagée)
+          expect(v2_template.logo.blob).to eq(v1_attestation.logo.blob)
+          expect(v2_template.signature.blob).to eq(v1_attestation.signature.blob)
+        end
+      end
+
+      context 'sans attestation v1' do
+        let(:v1_attestation) { nil }
+
+        it 'affiche une erreur appropriée' do
+          post :migrate, params: { procedure_id: procedure.id }
+
+          expect(response).to redirect_to(edit_admin_procedure_attestation_template_path(procedure))
+          expect(flash.alert).to include('Aucune attestation v1 trouvée')
+        end
+      end
+
+      context 'conversion HTML basique' do
+        let(:test_cases) do
+          {
+            '<b>gras</b>' => { 'type' => 'text', 'text' => 'gras', 'marks' => [{ 'type' => 'bold' }] },
+            '<i>italique</i>' => { 'type' => 'text', 'text' => 'italique', 'marks' => [{ 'type' => 'italic' }] },
+            '<u>souligné</u>' => { 'type' => 'text', 'text' => 'souligné', 'marks' => [{ 'type' => 'underline' }] },
+            '<strong>fort</strong>' => { 'type' => 'text', 'text' => 'fort', 'marks' => [{ 'type' => 'bold' }] },
+            '<em>emphase</em>' => { 'type' => 'text', 'text' => 'emphase', 'marks' => [{ 'type' => 'italic' }] },
+            'Texte <b>gras</b> et <i>italique</i>' => [
+              { 'type' => 'text', 'text' => 'Texte ' },
+              { 'type' => 'text', 'text' => 'gras', 'marks' => [{ 'type' => 'bold' }] },
+              { 'type' => 'text', 'text' => ' et ' },
+              { 'type' => 'text', 'text' => 'italique', 'marks' => [{ 'type' => 'italic' }] }
+            ]
+          }
+        end
+
+        it 'convertit les balises HTML basiques vers Tiptap marks' do
+          test_cases.each do |html_input, expected_structure|
+            v1_attestation.update!(body: html_input)
+
+            post :migrate, params: { procedure_id: procedure.id }
+
+            v2_template = procedure.reload.attestation_templates.v2.first
+            json_body = JSON.parse(v2_template.tiptap_body)
+
+            # Trouve le premier paragraphe avec du contenu
+            paragraph = json_body['content'].find { |node| node['type'] == 'paragraph' && node['content'] }
+
+            if expected_structure.is_a?(Array)
+              expect(paragraph['content']).to match_array(expected_structure)
+            else
+              expect(paragraph['content']).to include(expected_structure)
+            end
+
+            # Nettoie pour le test suivant
+            procedure.attestation_templates.v2.destroy_all
+          end
+        end
+
+        it 'préserve les paragraphes' do
+          v1_attestation.update!(body: "Premier paragraphe\n\nDeuxième paragraphe")
+
+          post :migrate, params: { procedure_id: procedure.id }
+
+          v2_template = procedure.reload.attestation_templates.v2.first
+          json_body = JSON.parse(v2_template.tiptap_body)
+
+          paragraphs = json_body['content'].filter { |node| node['type'] == 'paragraph' }
+          expect(paragraphs.size).to be >= 2
+        end
+
+        it 'gère le texte sans formatage' do
+          v1_attestation.update!(body: 'Texte simple sans formatage')
+
+          post :migrate, params: { procedure_id: procedure.id }
+
+          v2_template = procedure.reload.attestation_templates.v2.first
+          json_body = JSON.parse(v2_template.tiptap_body)
+
+          paragraph = json_body['content'].find { |node| node['type'] == 'paragraph' }
+          expect(paragraph['content']).to include({ 'type' => 'text', 'text' => 'Texte simple sans formatage' })
+        end
+      end
+
+      context 'gestion des erreurs de migration' do
+        before do
+          allow_any_instance_of(AttestationTemplate).to receive(:save).and_return(false)
+          allow_any_instance_of(AttestationTemplate).to receive(:errors).and_return(
+            double(full_messages: ['Erreur de validation'])
+          )
+        end
+
+        it 'gère les erreurs de sauvegarde' do
+          post :migrate, params: { procedure_id: procedure.id }
+
+          expect(response).to redirect_to(edit_admin_procedure_attestation_template_path(procedure))
+          expect(flash.alert).to include('Erreur lors de la migration')
+          expect(flash.alert).to include('Erreur de validation')
+        end
+      end
+
+      context 'procédure publiée' do
+        let(:procedure) { create(:procedure, :published, administrateur: admin, attestation_template: v1_attestation) }
+
+        it 'crée un template draft en v2' do
+          post :migrate, params: { procedure_id: procedure.id }
+
+          v2_template = procedure.reload.attestation_templates.v2.first
+          expect(v2_template).to be_draft
+          expect(v1_attestation.reload).to be_present # v1 préservée
+        end
+      end
+
+      context 'procédure brouillon' do
+        let(:procedure) { create(:procedure, :draft, administrateur: admin, attestation_template: v1_attestation) }
+
+        it 'crée un template draft en v2' do
+          post :migrate, params: { procedure_id: procedure.id }
+
+          v2_template = procedure.reload.attestation_templates.v2.first
+          expect(v2_template).to be_draft
+        end
+      end
+    end
+  end
 end
