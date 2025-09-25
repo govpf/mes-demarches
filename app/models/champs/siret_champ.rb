@@ -3,7 +3,7 @@
 class Champs::SiretChamp < Champ
   include SiretChampEtablissementFetchableConcern
 
-  validate :validate_siret_or_tahiti, if: :validate_champ_value?
+  validate :validate_siret_or_tahiti
 
   def search_terms
     etablissement.present? ? etablissement.search_terms : [value]
