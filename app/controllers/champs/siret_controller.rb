@@ -7,17 +7,27 @@ class Champs::SiretController < Champs::ChampController
 
     @champ.fetch_etablissement!(siret, current_user)
 
-    # PF: Handle different cases
+    # pf: Handle different cases for PF (multiple establishments, errors)
     if @champ.etablissement_fetch_error_key.present?
       # Real error case
       @siret = @champ.etablissement_fetch_error_key
+      @multiple_etablissements = false
     elsif @champ.etablissement.present?
       # Single establishment found and created
       @siret = @champ.etablissement.siret
-    else
-      # PF: Multiple establishments or other cases
+      @multiple_etablissements = false
+    elsif @champ.etablissements.present?
+      # pf: Multiple establishments found (not an error, requires user selection)
       @siret = siret
+      @multiple_etablissements = true
+    else
+      # Other cases
+      @siret = siret
+      @multiple_etablissements = false
     end
+
+    @champ.validate(params[:validate].to_sym) if params[:validate]
+
     @champ.dossier.touch_champs_changed([:last_champ_updated_at])
   end
 end

@@ -4,7 +4,7 @@
   = turbo_stream.show @champ.describedby_id
   = turbo_stream.hide(dom_id(@champ, :siret_info))
 - elsif @multiple_etablissements
-  // PF: Multiple establishments found (not an error)
+  // PF: Multiple establishments found (not an error, requires user selection)
   = turbo_stream.update dom_id(@champ, :siret_info), partial: 'shared/champs/siret/etablissement', locals: { siret: @siret, etablissement: nil, etablissements: @champ.etablissements, multiple_etablissements: true }
   = turbo_stream.show dom_id(@champ, :siret_info)
   = turbo_stream.hide(@champ.describedby_id)
@@ -13,3 +13,6 @@
   = turbo_stream.update dom_id(@champ, :siret_info), partial: 'shared/champs/siret/etablissement', locals: { siret: @siret, etablissement: @champ.etablissement, etablissements: @champ.etablissements }
   = turbo_stream.show dom_id(@champ, :siret_info)
   = turbo_stream.hide(@champ.describedby_id)
+  = fields_for @champ.input_name, @champ do |form|
+    = turbo_stream.replace @champ.input_group_id do
+      = render EditableChamp::EditableChampComponent.new champ: @champ, form: form

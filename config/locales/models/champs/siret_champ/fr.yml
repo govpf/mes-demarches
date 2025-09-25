@@ -3,4 +3,12 @@ fr:
     attributes:
       champs/siret_champ:
         hints:
-          value: "Saisissez 9 caractères. Exemple : 002253-001 ou G33972-001"
+          value: 'Saisissez 9 chiffres (Tahiti) ou 14 chiffres (SIRET). Exemples : 002253-001, G33972-001 ou 500 001 234 56789'
+    errors:
+      models:
+        champs/siret_champ:
+          attributes:
+            value:
+              length: 'doit comporter 9 chiffres (Tahiti) ou 14 chiffres (SIRET)'
+              checksum: 'n’est pas valide'
+              not_found: 'aucun établissement n’est rattaché à ce numéro'

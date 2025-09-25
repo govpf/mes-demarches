@@ -22,6 +22,7 @@ module Administrateurs
 
       @instructeurs = paginated_instructeurs
       @available_instructeur_emails = available_instructeur_emails
+      @maybe_typos = JSON.parse(params[:maybe_typos]) if params[:maybe_typos]
     end
 
     def options
@@ -124,7 +125,8 @@ module Administrateurs
       procedure.defaut_groupe_instructeur.update!(
         routing_rule: nil,
         label: GroupeInstructeur::DEFAUT_LABEL,
-        closed: false
+        closed: false,
+        contact_information: nil
       )
       flash.notice = 'Tous les groupes instructeurs ont été supprimés'
       redirect_to admin_procedure_groupe_instructeurs_path(procedure)
@@ -135,6 +137,7 @@ module Administrateurs
       @groupe_instructeur = groupe_instructeur
       @instructeurs = paginated_instructeurs
       @available_instructeur_emails = available_instructeur_emails
+      @maybe_typos = JSON.parse(params[:maybe_typos]) if params[:maybe_typos]
     end
 
     def create
@@ -203,7 +206,8 @@ module Administrateurs
           procedure.defaut_groupe_instructeur.update!(
             routing_rule: nil,
             label: GroupeInstructeur::DEFAUT_LABEL,
-            closed: false
+            closed: false,
+            contact_information: nil
           )
           routing_notice = " et le routage a été désactivé"
         end
@@ -238,7 +242,9 @@ module Administrateurs
     end
 
     def add_instructeur
+      emails_with_typos = JSON.parse(params[:emails_with_typos]) if params[:emails_with_typos]
       emails = params['emails'].presence || []
+      emails.push(emails_with_typos).flatten! if emails_with_typos
       emails = check_if_typo(emails)
       errors = Array.wrap(generate_emails_suggestions_message(@maybe_typos))
 
@@ -281,12 +287,13 @@ module Administrateurs
       @instructeurs = paginated_instructeurs
       @available_instructeur_emails = available_instructeur_emails
 
+      query_param = { maybe_typos: @maybe_typos.to_json } if @maybe_typos.present?
       if procedure.routing_enabled?
         @groupe_instructeur = groupe_instructeur
-        redirect_to admin_procedure_groupe_instructeur_path(@procedure, @groupe_instructeur)
+        redirect_to admin_procedure_groupe_instructeur_path(@procedure, @groupe_instructeur, query_param)
       else
         @groupes_instructeurs = paginated_groupe_instructeurs
-        redirect_to admin_procedure_groupe_instructeurs_path(@procedure)
+        redirect_to admin_procedure_groupe_instructeurs_path(@procedure, query_param)
       end
     end
 
