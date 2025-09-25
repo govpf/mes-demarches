@@ -1688,7 +1688,7 @@ describe Dossier, type: :model do
       context "and invalid SIRET" do
         before do
           champ_siret.update(value: "1234")
-          champ_siret.valid?
+          champ_siret.validate(:champs_public_value)
         end
 
         it 'should have errors' do
