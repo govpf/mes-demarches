@@ -2,7 +2,7 @@
 
 module Instructeurs
   class ProceduresController < InstructeurController
-    before_action :ensure_ownership!, except: [:index, :order_positions, :update_order_positions]
+    before_action :ensure_ownership!, except: [:index, :order_positions, :update_order_positions, :select_procedure]
     before_action :ensure_not_super_admin!, only: [:download_export, :exports]
 
     ITEMS_PER_PAGE = 100
@@ -74,6 +74,12 @@ module Instructeurs
       redirect_to instructeur_procedures_path, notice: "L'ordre des démarches a été mis à jour."
     end
 
+    def select_procedure
+      return redirect_to instructeur_procedure_path(procedure_id: params[:procedure_id]) if params[:procedure_id].present?
+
+      redirect_to instructeur_procedures_path
+    end
+
     def show
       @procedure = procedure
       # Technically, procedure_presentation already sets the attribute.
@@ -102,7 +108,26 @@ module Instructeurs
 
       @has_export_notification = notify_exports?
       @last_export = last_export_for(statut)
-      @filtered_sorted_ids = DossierFilterService.filtered_sorted_ids(dossiers, statut, procedure_presentation.filters_for(statut), procedure_presentation.sorted_column, current_instructeur, count: dossiers_count)
+
+      begin
+        @filtered_sorted_ids = DossierFilterService.filtered_sorted_ids(dossiers, statut, procedure_presentation.filters_for(statut), procedure_presentation.sorted_column, current_instructeur, count: dossiers_count)
+      rescue ActiveRecord::StatementInvalid => e
+        raise e if !(e.message =~ /PG::UndefinedFunction/) # StatementInvalid is too generic, we'll add more cases if needed
+
+        Sentry.capture_message(
+          "Destroying invalid ProcedurePresentation",
+          extra: {
+            procedure_presentation_id: procedure_presentation.id,
+            errors: e.message,
+            filters: procedure_presentation.filters_for(statut).map(&:to_json).join
+          }
+        )
+
+        procedure_presentation.destroy_filters_for!(statut)
+
+        return redirect_to [:instructeur, @procedure, statut:], alert: t('.reinit_display')
+      end
+
       page = params[:page].presence || 1
 
       @dossiers_count = @filtered_sorted_ids.size
@@ -242,17 +267,15 @@ module Instructeurs
       @bulk_messages = BulkMessage.where(procedure: procedure)
       @bulk_message = current_instructeur.bulk_messages.build
 
-      instructeur_groupe_ids = current_instructeur.groupe_instructeurs.where(procedure: procedure).ids
-      @dossiers_count = procedure.dossiers.state_brouillon.where(groupe_instructeur_id: instructeur_groupe_ids).count
+      @dossiers_count = reachable_brouillons.count
     end
 
     def create_multiple_commentaire
       @procedure = procedure
       errors = []
       bulk_message = current_instructeur.bulk_messages.build(bulk_message_params)
-      instructeur_groupe_ids = current_instructeur.groupe_instructeurs.where(procedure: procedure).ids
 
-      dossiers = procedure.dossiers.state_brouillon.where(groupe_instructeur_id: instructeur_groupe_ids)
+      dossiers = reachable_brouillons
 
       dossiers.each do |dossier|
         commentaire = CommentaireService.create(current_instructeur, dossier, bulk_message_params.except(:targets))
@@ -293,6 +316,15 @@ module Instructeurs
     end
 
     private
+
+    def reachable_brouillons
+      if procedure.routing_enabled?
+        instructeur_groupe_ids = current_instructeur.groupe_instructeurs.where(procedure: procedure).ids
+        procedure.dossiers.brouillon.where(groupe_instructeur_id: instructeur_groupe_ids)
+      else
+        procedure.dossiers.brouillon
+      end
+    end
 
     def assign_to_params
       params.require(:assign_to)

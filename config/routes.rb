@@ -495,6 +495,7 @@ Rails.application.routes.draw do
       collection do
         get 'order_positions'
         patch 'update_order_positions'
+        get 'select_procedure'
       end
     end
 

@@ -565,6 +565,20 @@ describe Instructeurs::ProceduresController, type: :controller do
         end
       end
 
+      context 'when an error occurs in the DossierFilterService' do
+        before do
+          allow(DossierFilterService).to receive(:filtered_sorted_ids).and_raise(ActiveRecord::StatementInvalid.new('PG::UndefinedFunction'))
+
+          expect_any_instance_of(ProcedurePresentation).to receive(:destroy_filters_for!)
+          subject
+        end
+
+        it do
+          expect(response).to redirect_to(instructeur_procedure_path)
+          expect(flash.alert).to include('Votre affichage a dû être réinitialisé')
+        end
+      end
+
       context 'exports notification' do
         context 'without generated export' do
           before do
@@ -756,9 +770,7 @@ describe Instructeurs::ProceduresController, type: :controller do
   end
 
   describe '#email_usagers' do
-    let(:instructeur) { create(:instructeur) }
     let(:procedure) { create(:procedure) }
-    let!(:gi_1) { create(:groupe_instructeur, label: 'gi_1', procedure: procedure, instructeurs: [instructeur]) }
 
     subject do
       get :email_usagers, params: { procedure_id: procedure.id }
@@ -769,13 +781,32 @@ describe Instructeurs::ProceduresController, type: :controller do
     context 'when authenticated' do
       before { sign_in(instructeur.user) }
 
-      context 'when instructor has groups' do
-        let!(:dossier_in_group) { create(:dossier, :brouillon, procedure: procedure, groupe_instructeur: gi_1) }
-        let!(:dossier_without_groupe) { create(:dossier, :brouillon, procedure: procedure, groupe_instructeur: nil) }
+      context 'the procedure is not routed' do
+        let(:instructeur) { create(:instructeur) }
+        let(:defaut_groupe_instructeur) { procedure.defaut_groupe_instructeur }
+        let!(:dossier_in_group) { create(:dossier, :brouillon, procedure:, groupe_instructeur: defaut_groupe_instructeur) }
+        let!(:dossier_without_groupe) { create(:dossier, :brouillon, procedure:, groupe_instructeur: nil) }
 
-        it 'lists only dossiers in instructor groups' do
+        before { defaut_groupe_instructeur.instructeurs << instructeur }
+
+        it 'lists all the brouillon' do
           is_expected.to have_http_status(200)
-          expect(assigns(:dossiers_count)).to eq(1) # only dossier_in_group
+          expect(assigns(:dossiers_count)).to eq(2) # only dossier_in_group
+        end
+      end
+
+      context 'the procedure is routed' do
+        let!(:gi_1) { create(:groupe_instructeur, label: 'gi_1', procedure:, instructeurs: [instructeur]) }
+        let(:instructeur) { create(:instructeur) }
+
+        context 'when instructor has groups' do
+          let!(:dossier_in_group) { create(:dossier, :brouillon, procedure: procedure, groupe_instructeur: gi_1) }
+          let!(:dossier_without_groupe) { create(:dossier, :brouillon, procedure: procedure, groupe_instructeur: nil) }
+
+          it 'lists only dossiers in instructor groups' do
+            is_expected.to have_http_status(200)
+            expect(assigns(:dossiers_count)).to eq(1) # only dossier_in_group
+          end
         end
       end
     end
@@ -998,6 +1029,49 @@ describe Instructeurs::ProceduresController, type: :controller do
       expect(response).to have_http_status(:success)
       expect(response.body).to include("Premier champ")
       expect(response.body).not_to include("Déposer")
+    end
+  end
+
+  describe '#select_procedure' do
+    let(:instructeur) { create(:instructeur) }
+
+    before do
+      sign_in(instructeur.user)
+    end
+
+    context 'when procedure_id is present' do
+      let(:procedure) { create(:procedure) }
+
+      it 'redirects to the procedure path' do
+        puts "procedure.id: #{procedure.id}"
+        get :select_procedure, params: { procedure_id: procedure.id }
+
+        expect(response).to redirect_to(instructeur_procedure_path(procedure_id: procedure.id))
+      end
+    end
+
+    context 'when procedure_id is not present' do
+      it 'redirects to procedures index' do
+        get :select_procedure
+
+        expect(response).to redirect_to(instructeur_procedures_path)
+      end
+    end
+
+    context 'when procedure_id is empty string' do
+      it 'redirects to procedures index' do
+        get :select_procedure, params: { procedure_id: '' }
+
+        expect(response).to redirect_to(instructeur_procedures_path)
+      end
+    end
+
+    context 'when procedure_id is nil' do
+      it 'redirects to procedures index' do
+        get :select_procedure, params: { procedure_id: nil }
+
+        expect(response).to redirect_to(instructeur_procedures_path)
+      end
     end
   end
 end

@@ -1091,6 +1091,16 @@ class Dossier < ApplicationRecord
     end)
   end
 
+  def update_champs_timestamps(changed_champs)
+    return if changed_champs.empty?
+    updated_at = Time.zone.now
+    attributes = { updated_at:, last_champ_updated_at: updated_at }
+    if changed_champs.any?(&:piece_justificative_or_titre_identite?)
+      attributes[:last_champ_piece_jointe_updated_at] = updated_at
+    end
+    update_columns(attributes)
+  end
+
   private
 
   def build_default_champs

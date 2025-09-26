@@ -1,21 +1,19 @@
 # frozen_string_literal: true
 
 describe Champs::SiretChamp do
-  let(:champ) { Champs::SiretChamp.new(value: "", dossier: build(:dossier)) }
-  before do
-    allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_siret))
-    allow(champ).to receive(:in_dossier_revision?).and_return(true)
-  end
-
-  def with_value(value)
-    champ.tap { _1.value = value }
-  end
+  let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :siret }]) }
+  let(:dossier) { create(:dossier, procedure:) }
+  let(:champ) { dossier.champs.first.tap { _1.update(value:, etablissement:) } }
+  let(:value) { "" }
+  let(:etablissement) { nil }
 
   describe '#validate' do
     subject { champ.tap { _1.validate(:champs_public_value) } }
 
     context 'when empty' do
-      it { expect(with_value(nil)).to be_valid }
+      let(:value) { nil }
+
+      it { is_expected.to be_valid }
     end
 
     context 'with invalid format - too short for both systems' do

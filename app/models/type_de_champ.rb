@@ -300,7 +300,7 @@ class TypeDeChamp < ApplicationRecord
       private: private?,
       type: champ_class.name,
       stable_id:,
-      stream: 'main'
+      stream: Champ::MAIN_STREAM
     }
   end
 
@@ -708,11 +708,7 @@ class TypeDeChamp < ApplicationRecord
   end
 
   def public_id(row_id)
-    if row_id.blank?
-      stable_id.to_s
-    else
-      "#{stable_id}-#{row_id}"
-    end
+    self.class.public_id(stable_id, row_id)
   end
 
   def libelle_as_filename
@@ -798,6 +794,14 @@ class TypeDeChamp < ApplicationRecord
   end
 
   class << self
+    def public_id(stable_id, row_id)
+      if row_id.blank? || row_id == Champ::NULL_ROW_ID
+        stable_id.to_s
+      else
+        "#{stable_id}-#{row_id}"
+      end
+    end
+
     def type_champ_to_champ_class_name(type_champ)
       "Champs::#{type_champ.classify}Champ"
     end
