@@ -65,6 +65,7 @@ fr:
           lexpol: "Lexpol"
           expression_reguliere: 'Expression régulière'
           referentiel_de_polynesie: 'Référentiel des administrations'
+          referentiel: 'Référentiel à configurer (avancé)'
     errors:
       type_de_champ:
         attributes:

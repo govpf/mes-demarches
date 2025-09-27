@@ -5,8 +5,8 @@ class TypeDeChamp < ApplicationRecord
   FEATURE_FLAGS = {
     visa: :visa,
     tefenua: :tefenua,
+    referentiel: :referentiel_type_de_champ,
     engagement_juridique: :engagement_juridique_type_de_champ,
-
     cojo: :cojo_type_de_champ,
     lexpol: :lexpol,
     expression_reguliere: :expression_reguliere_type_de_champ,
@@ -49,6 +49,7 @@ class TypeDeChamp < ApplicationRecord
   }
 
   TYPE_DE_CHAMP_TO_CATEGORIE = {
+    referentiel: REFERENTIEL_EXTERNE,
     engagement_juridique: REFERENTIEL_EXTERNE,
     header_section: STRUCTURE,
     repetition: STRUCTURE,
@@ -93,7 +94,6 @@ class TypeDeChamp < ApplicationRecord
 
   enum type_champ: {
     engagement_juridique: 'engagement_juridique',
-
     header_section: 'header_section',
     repetition: 'repetition',
     dossier_link: 'dossier_link',
@@ -132,7 +132,8 @@ class TypeDeChamp < ApplicationRecord
     mesri: 'mesri',
     epci: 'epci',
     cojo: 'cojo',
-    expression_reguliere: 'expression_reguliere'
+    expression_reguliere: 'expression_reguliere',
+    referentiel: 'referentiel'
   }.merge(INSTANCE_TYPE_CHAMPS)
 
   INSTANCE_OPTIONS_BY_TYPE = {
@@ -183,7 +184,10 @@ class TypeDeChamp < ApplicationRecord
                  :header_section_level
 
   has_many :revision_types_de_champ, -> { revision_ordered }, class_name: 'ProcedureRevisionTypeDeChamp', dependent: :destroy, inverse_of: :type_de_champ
+
   has_many :revisions, -> { ordered }, through: :revision_types_de_champ
+
+  belongs_to :referentiel, optional: true, inverse_of: :types_de_champ
 
   delegate :estimated_fill_duration, :estimated_read_duration, :tags_for_template, :libelles_for_export, :libelle_for_export, :primary_options, :secondary_options, :columns, to: :dynamic_type
 

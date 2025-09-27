@@ -43,9 +43,10 @@ module Types
           Types::Champs::Descriptor::ReferentielDePolynesieChampDescriptorType
 
           # ----- DS champs
+        when TypeDeChamp.type_champs.fetch(:referentiel)
+          Types::Champs::Descriptor::ReferentielChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:engagement_juridique)
           Types::Champs::Descriptor::EngagementJuridiqueChampDescriptorType
-
         when TypeDeChamp.type_champs.fetch(:text)
           Types::Champs::Descriptor::TextChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:textarea)

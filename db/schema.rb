@@ -263,7 +263,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   create_table "champs", id: :serial, force: :cascade do |t|
     t.datetime "created_at"
     t.jsonb "data"
-    t.datetime "discarded_at"
     t.integer "dossier_id"
     t.integer "etablissement_id"
     t.string "external_id"
@@ -281,6 +280,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.text "updated_by"
     t.string "value"
     t.jsonb "value_json"
+    t.datetime "discarded_at"
     t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_dossier_id_and_stream_and_stable_id_and_row_id", unique: true
     t.index ["dossier_id"], name: "index_champs_on_dossier_id"
     t.index ["etablissement_id"], name: "index_champs_on_etablissement_id"
@@ -431,9 +431,9 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "dossier_labels", force: :cascade do |t|
-    t.datetime "created_at", null: false
     t.bigint "dossier_id", null: false
     t.bigint "label_id", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["dossier_id"], name: "index_dossier_labels_on_dossier_id"
     t.index ["label_id"], name: "index_dossier_labels_on_label_id"
@@ -503,28 +503,24 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.boolean "for_tiers", default: false, null: false
     t.boolean "forced_groupe_instructeur", default: false, null: false
     t.bigint "groupe_instructeur_id"
-    t.datetime "groupe_instructeur_updated_at"
-    t.datetime "hidden_by_administration_at"
+    t.datetime "groupe_instructeur_updated_at", precision: nil
+    t.datetime "hidden_by_administration_at", precision: nil
     t.datetime "hidden_by_expired_at"
     t.string "hidden_by_reason"
     t.datetime "hidden_by_user_at"
     t.datetime "identity_updated_at"
-    t.datetime "last_avis_piece_jointe_updated_at"
     t.datetime "last_avis_updated_at"
-    t.datetime "last_champ_piece_jointe_updated_at"
     t.datetime "last_champ_private_updated_at"
     t.datetime "last_champ_updated_at"
-    t.datetime "last_commentaire_piece_jointe_updated_at"
     t.datetime "last_commentaire_updated_at"
     t.string "mandataire_first_name"
     t.string "mandataire_last_name"
     t.text "motivation"
-    t.datetime "notified_soon_deleted_sent_at", precision: nil
     t.bigint "parent_dossier_id"
     t.string "prefill_token"
     t.boolean "prefilled"
-    t.text "private_search_terms"
-    t.datetime "processed_at"
+    t.string "private_search_terms"
+    t.datetime "processed_at", precision: nil
     t.bigint "revision_id"
     t.text "search_terms"
     t.string "state"
@@ -533,12 +529,17 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.datetime "termine_close_to_expiration_notice_sent_at"
     t.datetime "updated_at"
     t.integer "user_id"
-    t.index "to_tsvector('french'::regconfig, (search_terms || private_search_terms))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
+    t.datetime "last_champ_piece_jointe_updated_at"
+    t.datetime "last_commentaire_piece_jointe_updated_at"
+    t.datetime "last_avis_piece_jointe_updated_at"
+    t.datetime "notified_soon_deleted_sent_at", precision: nil
+    t.index "to_tsvector('french'::regconfig, (search_terms || (private_search_terms)::text))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
     t.index "to_tsvector('french'::regconfig, search_terms)", name: "index_dossiers_on_search_terms", using: :gin
     t.index ["archived"], name: "index_dossiers_on_archived"
     t.index ["batch_operation_id"], name: "index_dossiers_on_batch_operation_id"
     t.index ["dossier_transfer_id"], name: "index_dossiers_on_dossier_transfer_id"
     t.index ["editing_fork_origin_id"], name: "index_dossiers_on_editing_fork_origin_id"
+    t.index ["groupe_instructeur_id", "state", "archived"], name: "index_dossiers_on_groupe_instructeur_id_and_state_and_archived", where: "((hidden_by_administration_at IS NULL) AND (hidden_by_expired_at IS NULL))"
     t.index ["groupe_instructeur_id"], name: "index_dossiers_on_groupe_instructeur_id"
     t.index ["parent_dossier_id"], name: "index_dossiers_on_parent_dossier_id"
     t.index ["prefill_token"], name: "index_dossiers_on_prefill_token", unique: true
@@ -643,12 +644,12 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.datetime "created_at", null: false
     t.jsonb "dossier_folder", null: false
     t.jsonb "export_pdf", null: false
-    t.jsonb "exported_columns", default: [], null: false, array: true
     t.bigint "groupe_instructeur_id", null: false
     t.string "kind", null: false
     t.string "name", null: false
     t.jsonb "pjs", default: [], null: false, array: true
     t.datetime "updated_at", null: false
+    t.jsonb "exported_columns", default: [], null: false, array: true
     t.index ["groupe_instructeur_id"], name: "index_export_templates_on_groupe_instructeur_id"
   end
 
@@ -656,20 +657,20 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.datetime "created_at", null: false
     t.integer "dossiers_count"
     t.bigint "export_template_id"
-    t.jsonb "filtered_columns", default: [], null: false, array: true
     t.string "format", null: false
-    t.boolean "include_archived", default: false, null: false
     t.bigint "instructeur_id"
     t.string "job_status", default: "pending", null: false
     t.text "key", null: false
     t.bigint "procedure_presentation_id"
     t.jsonb "procedure_presentation_snapshot"
-    t.jsonb "sorted_column"
     t.string "statut", default: "tous"
     t.string "time_span_type", default: "everything", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_profile_id"
     t.string "user_profile_type"
+    t.jsonb "filtered_columns", default: [], null: false, array: true
+    t.jsonb "sorted_column"
+    t.boolean "include_archived", default: false, null: false
     t.index ["export_template_id"], name: "index_exports_on_export_template_id"
     t.index ["instructeur_id"], name: "index_exports_on_instructeur_id"
     t.index ["key"], name: "index_exports_on_key"
@@ -721,9 +722,9 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.integer "dossier_id", null: false
     t.integer "instructeur_id", null: false
     t.datetime "messagerie_seen_at", null: false
-    t.datetime "pieces_jointes_seen_at"
     t.datetime "unfollowed_at"
     t.datetime "updated_at"
+    t.datetime "pieces_jointes_seen_at"
     t.index ["dossier_id"], name: "index_follows_on_dossier_id"
     t.index ["instructeur_id", "dossier_id", "unfollowed_at"], name: "uniqueness_index", unique: true
     t.index ["instructeur_id"], name: "index_follows_on_instructeur_id"
@@ -838,10 +839,10 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "instructeurs_procedures", force: :cascade do |t|
-    t.datetime "created_at", null: false
     t.bigint "instructeur_id", null: false
-    t.integer "position"
     t.bigint "procedure_id", null: false
+    t.integer "position"
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["instructeur_id", "procedure_id"], name: "index_instructeurs_procedures_on_instructeur_and_procedure", unique: true
     t.index ["instructeur_id"], name: "index_instructeurs_procedures_on_instructeur_id"
@@ -861,10 +862,10 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "labels", force: :cascade do |t|
-    t.string "color"
-    t.datetime "created_at", null: false
     t.string "name"
+    t.string "color"
     t.bigint "procedure_id", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["procedure_id"], name: "index_labels_on_procedure_id"
   end
@@ -919,22 +920,22 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "procedure_presentations", id: :serial, force: :cascade do |t|
-    t.jsonb "a_suivre_filters", default: [], null: false, array: true
-    t.jsonb "archives_filters", default: [], null: false, array: true
     t.integer "assign_to_id"
     t.datetime "created_at"
-    t.jsonb "displayed_columns", default: [], null: false, array: true
     t.jsonb "displayed_fields", default: [{"label"=>"Demandeur", "table"=>"user", "column"=>"email"}], null: false
-    t.jsonb "expirant_filters", default: [], null: false, array: true
     t.jsonb "filters", default: {"tous"=>[], "suivis"=>[], "traites"=>[], "a-suivre"=>[], "archives"=>[], "expirant"=>[], "supprimes"=>[]}, null: false
     t.jsonb "sort", default: {"order"=>"desc", "table"=>"notifications", "column"=>"notifications"}, null: false
-    t.jsonb "sorted_column"
+    t.datetime "updated_at"
+    t.jsonb "displayed_columns", default: [], null: false, array: true
+    t.jsonb "tous_filters", default: [], null: false, array: true
     t.jsonb "suivis_filters", default: [], null: false, array: true
+    t.jsonb "traites_filters", default: [], null: false, array: true
+    t.jsonb "a_suivre_filters", default: [], null: false, array: true
+    t.jsonb "archives_filters", default: [], null: false, array: true
+    t.jsonb "expirant_filters", default: [], null: false, array: true
     t.jsonb "supprimes_filters", default: [], null: false, array: true
     t.jsonb "supprimes_recemment_filters", default: [], null: false, array: true
-    t.jsonb "tous_filters", default: [], null: false, array: true
-    t.jsonb "traites_filters", default: [], null: false, array: true
-    t.datetime "updated_at"
+    t.jsonb "sorted_column"
     t.index ["assign_to_id"], name: "index_procedure_presentations_on_assign_to_id", unique: true
   end
 
@@ -964,8 +965,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "procedure_tags", force: :cascade do |t|
-    t.datetime "created_at", null: false
     t.string "name", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_procedure_tags_on_name", unique: true
   end
@@ -983,7 +984,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.boolean "allow_expert_messaging", default: true, null: false
     t.boolean "allow_expert_review", default: true, null: false
     t.string "api_entreprise_token"
-    t.datetime "api_entreprise_token_expires_at", precision: nil
     t.text "api_particulier_scopes", default: [], array: true
     t.jsonb "api_particulier_sources", default: {}
     t.boolean "ask_birthday", default: false, null: false
@@ -1003,7 +1003,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "description"
     t.string "description_pj"
     t.string "description_target_audience"
-    t.datetime "dossiers_count_computed_at"
+    t.datetime "dossiers_count_computed_at", precision: nil
     t.bigint "draft_revision_id"
     t.integer "duree_conservation_dossiers_dans_ds"
     t.boolean "duree_conservation_etendue_par_ds", default: false, null: false
@@ -1041,11 +1041,12 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.jsonb "sva_svr", default: {}, null: false
     t.text "tags", default: [], array: true
     t.boolean "template", default: false, null: false
-    t.datetime "unpublished_at"
-    t.datetime "updated_at", null: false
+    t.datetime "unpublished_at", precision: nil
+    t.datetime "updated_at", precision: nil, null: false
     t.string "web_hook_url"
     t.datetime "whitelisted_at"
     t.bigint "zone_id"
+    t.datetime "api_entreprise_token_expires_at", precision: nil
     t.index ["api_particulier_sources"], name: "index_procedures_on_api_particulier_sources", using: :gin
     t.index ["declarative_with_state"], name: "index_procedures_on_declarative_with_state"
     t.index ["defaut_groupe_instructeur_id"], name: "index_procedures_on_defaut_groupe_instructeur_id"
@@ -1087,6 +1088,27 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "subject"
     t.datetime "updated_at", null: false
     t.index ["procedure_id"], name: "index_received_mails_on_procedure_id"
+  end
+
+  create_table "referentiel_items", force: :cascade do |t|
+    t.bigint "referentiel_id", null: false
+    t.jsonb "option", default: {}, null: false
+    t.jsonb "data", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["referentiel_id"], name: "index_referentiel_items_on_referentiel_id"
+  end
+
+  create_table "referentiels", force: :cascade do |t|
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "headers", default: [], array: true
+    t.string "type"
+    t.string "url"
+    t.string "test_data"
+    t.string "hint"
+    t.string "mode"
   end
 
   create_table "refused_mails", id: :serial, force: :cascade do |t|
@@ -1210,7 +1232,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.bigint "dossier_id"
     t.string "instructeur_email"
     t.string "motivation"
-    t.datetime "processed_at"
+    t.datetime "processed_at", precision: nil
     t.string "state"
     t.index ["dossier_id"], name: "index_traitements_on_dossier_id"
   end
@@ -1235,7 +1257,9 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.bigint "stable_id"
     t.string "type_champ"
     t.datetime "updated_at"
+    t.bigint "referentiel_id"
     t.index ["private"], name: "index_types_de_champ_on_private"
+    t.index ["referentiel_id"], name: "index_types_de_champ_on_referentiel_id"
     t.index ["stable_id"], name: "index_types_de_champ_on_stable_id"
   end
 
@@ -1375,11 +1399,13 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   add_foreign_key "procedures", "services", name: "fk_procedures_services"
   add_foreign_key "procedures", "zones"
   add_foreign_key "received_mails", "procedures"
+  add_foreign_key "referentiel_items", "referentiels"
   add_foreign_key "refused_mails", "procedures"
   add_foreign_key "services", "administrateurs"
   add_foreign_key "targeted_user_links", "users"
   add_foreign_key "traitements", "dossiers"
   add_foreign_key "trusted_device_tokens", "instructeurs"
+  add_foreign_key "types_de_champ", "referentiels"
   add_foreign_key "users", "users", column: "requested_merge_into_id"
   add_foreign_key "without_continuation_mails", "procedures"
   add_foreign_key "zone_labels", "zones"
