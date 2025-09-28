@@ -16,8 +16,7 @@
 - else
   // PF: Handle establishments and other cases
   - if etablissements.present?
-    // PF: Multiple establishments found, user must choose
-    %p.fr-info-text Plusieurs établissements correspondent à ce numéro TAHITI. Veuillez sélectionner celui qui vous concerne :
+    // PF: Establishments found (one or multiple), let component handle display and auto-selection
     = render EditableChamp::EtablissementsListComponent.new(etablissements: etablissements, input_id: @champ.input_id, siret_prefix: siret)
   - elsif etablissement.present?
     // PF: Single establishment was automatically created and saved, show the title

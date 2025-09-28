@@ -36,6 +36,8 @@ module SiretChampEtablissementFetchableConcern
     if etablissements.size == 1
       # PF: Auto-select when only one establishment matches
       full_siret = "#{siret}#{format('%03d', etablissements[0][:num_entreprise])}"
+      # Keep the etablissements list for auto-selection in the view
+      @etablissements = etablissements
       create_and_update_etablissement(full_siret, user)
     else
       # The @etablissements array will be used by the view
