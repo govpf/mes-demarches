@@ -92,7 +92,7 @@ class TypeDeChamp < ApplicationRecord
     expression_reguliere: STANDARD
   }.merge(INSTANCE_TYPE_DE_CHAMP_TO_CATEGORIE)
 
-  enum type_champ: {
+  enum :type_champ, {
     engagement_juridique: 'engagement_juridique',
     header_section: 'header_section',
     repetition: 'repetition',

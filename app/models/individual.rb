@@ -3,7 +3,7 @@
 class Individual < ApplicationRecord
   include SanitizeConcern
 
-  enum notification_method: {
+  enum :notification_method, {
     email: 'email',
     no_notification: 'no_notification'
   }
