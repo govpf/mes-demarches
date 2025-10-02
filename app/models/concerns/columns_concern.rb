@@ -14,7 +14,12 @@ module ColumnsConcern
 
       # TODO: to remove after linked_drop_down column column_id migration
       if column.nil? && h_id.is_a?(Hash) && h_id[:column_id].present?
-        h_id[:column_id].gsub!('->', '.')
+        new_column_id = h_id[:column_id]
+          .gsub('->', '.')
+          .gsub('departement_code', 'department_code')
+          .gsub('naf', 'code_naf')
+
+        h_id[:column_id] = new_column_id
 
         column = columns.find { _1.h_id == h_id }
       end
@@ -54,6 +59,7 @@ module ColumnsConcern
       columns.concat([dossier_motivation_column])
       columns.concat(sva_svr_columns(for_export: true)) if sva_svr_enabled?
       columns.concat([groupe_instructeurs_id_column, followers_instructeurs_email_column])
+      columns.concat([dossier_labels_column])
 
       # ensure the columns exist in main list
       # otherwise, they will be found by the find_column method

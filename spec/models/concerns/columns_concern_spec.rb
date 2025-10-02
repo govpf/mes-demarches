@@ -4,11 +4,17 @@ describe ColumnsConcern do
   let(:procedure_id) { procedure.id }
 
   describe '#find_column' do
-    let(:types_de_champ_public) { [{ type: :linked_drop_down_list, libelle: 'linked' }] }
+    let(:types_de_champ_public) do
+      [
+        { type: :linked_drop_down_list, libelle: 'linked' },
+        { type: :address, libelle: 'address' }
+      ]
+    end
     let(:procedure) { create(:procedure, types_de_champ_public:) }
+    let(:procedure_id) { procedure.id }
     let(:notifications_column) { procedure.notifications_column }
 
-    it do
+    it 'works' do
       label = notifications_column.label
       expect(procedure.find_column(label:)).to eq(notifications_column)
 
@@ -17,17 +23,41 @@ describe ColumnsConcern do
 
       unknwon = 'unknown'
       expect { procedure.find_column(h_id: unknwon) }.to raise_error(ActiveRecord::RecordNotFound)
+    end
 
-      value_column = procedure.find_column(label: 'linked')
+    context 'when the column_id is a old linked drop down list id' do
+      let(:linked_drop_down_column) { procedure.find_column(label: 'linked') }
+      let(:linked_tdc) { procedure.active_revision.types_de_champ.find { _1.type_champ == 'linked_drop_down_list' } }
 
-      procedure_id = procedure.id
-      linked_tdc = procedure.active_revision.types_de_champ
-        .find { _1.type_champ == 'linked_drop_down_list' }
+      it do
+        column_id = "type_de_champ/#{linked_tdc.stable_id}->value"
 
-      column_id = "type_de_champ/#{linked_tdc.stable_id}->value"
+        h_id = { procedure_id:, column_id: }
+        expect(procedure.find_column(h_id:)).to eq(linked_drop_down_column)
+      end
+    end
 
-      h_id = { procedure_id:, column_id: }
-      expect(procedure.find_column(h_id:)).to eq(value_column)
+    context 'when the colum_id is an old department column id' do
+      let(:department_column) { procedure.find_column(label: "address – Département") }
+      let(:address_tdc) { procedure.active_revision.types_de_champ.find { _1.type_champ == 'address' } }
+
+      it do
+        column_id = "type_de_champ/#{address_tdc.stable_id}-$.departement_code"
+
+        h_id = { procedure_id:, column_id: }
+        expect(procedure.find_column(h_id:)).to eq(department_column)
+      end
+    end
+
+    context 'when the column_id is an old naf column' do
+      let(:code_naf_column) { procedure.find_column(label: "Code NAF") }
+
+      it do
+        column_id = "etablissement/naf"
+
+        h_id = { procedure_id:, column_id: }
+        expect(procedure.find_column(h_id:)).to eq(code_naf_column)
+      end
     end
   end
 
@@ -247,7 +277,8 @@ describe ColumnsConcern do
           procedure.find_column(label: "Date de traitement"),
           procedure.find_column(label: "Motivation de la décision"),
           procedure.find_column(label: "Instructeurs"),
-          procedure.find_column(label: "Groupe instructeur")
+          procedure.find_column(label: "Groupe instructeur"),
+          procedure.find_column(label: "Labels")
         ]
         actuals = procedure.dossier_columns_for_export.map(&:h_id)
         expected.each do |expected_col|

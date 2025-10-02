@@ -35,7 +35,7 @@ gem 'devise'
 gem 'devise-i18n'
 gem 'devise-two-factor'
 gem 'discard'
-gem 'dotenv-rails', require: 'dotenv/rails-now' # dotenv should always be loaded before rails
+gem 'dotenv-rails', require: 'dotenv/load' # dotenv should always be loaded before rails
 gem 'dry-monads'
 gem 'faraday-jwt'
 gem 'flipper'
@@ -80,7 +80,7 @@ gem 'parsby'
 gem 'pg'
 gem 'phonelib'
 # 'Cannot extract font' in acrobat https://github.com/prawnpdf/ttfunk/pull/104 ==> Stick to previous version
-gem 'prawn', '~> 2.4.0' # PDF Generation
+gem 'prawn', '2.4.0' # PDF Generation
 gem 'prawn-qrcode' # to generate qrcode in pdfs
 gem 'prawn-rails' # PDF Generation
 gem 'prawn-table'
@@ -104,7 +104,7 @@ gem 'sentry-ruby'
 gem 'sentry-sidekiq'
 gem 'sib-api-v3-sdk'
 gem 'sidekiq', '< 7.3' # 7.3 needs to migrate to sidekiq-cron 2.0
-gem 'sidekiq-cron'
+gem 'sidekiq-cron', '< 2.0' # wait for a release without "keys command"
 gem 'skylight'
 gem 'spreadsheet_architect'
 gem 'string-similarity'
@@ -153,6 +153,8 @@ group :development do
   gem 'rack-mini-profiler'
   gem 'rails-erd', require: false # generates `doc/database_models.pdf`
   gem 'rubocop', require: false
+  gem 'rubocop-capybara', require: false
+  gem 'rubocop-factory_bot', require: false
   gem 'rubocop-performance', require: false
   gem 'rubocop-rails', require: false
   gem 'rubocop-rspec', require: false
