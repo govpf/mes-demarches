@@ -200,6 +200,19 @@ type Avis {
   reponse: String
 }
 
+type Batiment implements GeoArea {
+  commune: String
+  communeAssociee: String
+  description: String
+  geometry: GeoJSON!
+  id: ID!
+  ile: String
+  nom: String
+  source: GeoAreaSource!
+  surface: String
+  surfaceCalculee: Float
+}
+
 """
 Represents non-fractional signed whole numeric values. Since the value may
 exceed the size of a 32-bit integer, it's encoded as a string.
@@ -5338,4 +5351,16 @@ type YesNoChampDescriptor implements ChampDescriptor {
   Type de la valeur du champ.
   """
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
+}
+
+type Zone implements GeoArea {
+  commune: String
+  communeAssociee: String
+  description: String
+  geometry: GeoJSON!
+  id: ID!
+  ile: String
+  source: GeoAreaSource!
+  surface: String
+  surfaceCalculee: Float
 }
