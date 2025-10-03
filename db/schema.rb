@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
+ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -148,6 +148,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   create_table "assign_tos", id: :serial, force: :cascade do |t|
     t.datetime "created_at"
     t.boolean "daily_email_notifications_enabled", default: false, null: false
+    t.boolean "deletion_email_notifications_enabled", default: true, null: false
     t.bigint "groupe_instructeur_id"
     t.boolean "instant_email_dossier_notifications_enabled", default: true, null: false
     t.boolean "instant_email_message_notifications_enabled", default: true, null: false
@@ -503,8 +504,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.boolean "for_tiers", default: false, null: false
     t.boolean "forced_groupe_instructeur", default: false, null: false
     t.bigint "groupe_instructeur_id"
-    t.datetime "groupe_instructeur_updated_at"
-    t.datetime "hidden_by_administration_at"
+    t.datetime "groupe_instructeur_updated_at", precision: nil
+    t.datetime "hidden_by_administration_at", precision: nil
     t.datetime "hidden_by_expired_at"
     t.string "hidden_by_reason"
     t.datetime "hidden_by_user_at"
@@ -523,8 +524,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.bigint "parent_dossier_id"
     t.string "prefill_token"
     t.boolean "prefilled"
-    t.text "private_search_terms"
-    t.datetime "processed_at"
+    t.string "private_search_terms"
+    t.datetime "processed_at", precision: nil
     t.bigint "revision_id"
     t.text "search_terms"
     t.string "state"
@@ -533,7 +534,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.datetime "termine_close_to_expiration_notice_sent_at"
     t.datetime "updated_at"
     t.integer "user_id"
-    t.index "to_tsvector('french'::regconfig, (search_terms || private_search_terms))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
+    t.index "to_tsvector('french'::regconfig, (search_terms || (private_search_terms)::text))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
     t.index "to_tsvector('french'::regconfig, search_terms)", name: "index_dossiers_on_search_terms", using: :gin
     t.index ["archived"], name: "index_dossiers_on_archived"
     t.index ["batch_operation_id"], name: "index_dossiers_on_batch_operation_id"
@@ -755,6 +756,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   end
 
   create_table "geo_areas", force: :cascade do |t|
+    t.string "cadastre_error"
+    t.string "cadastre_state"
     t.bigint "champ_id"
     t.datetime "created_at"
     t.string "geo_reference_id"
@@ -762,6 +765,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.jsonb "properties"
     t.string "source"
     t.datetime "updated_at"
+    t.index ["cadastre_state"], name: "index_geo_areas_on_cadastre_state"
     t.index ["champ_id"], name: "index_geo_areas_on_champ_id"
     t.index ["source"], name: "index_geo_areas_on_source"
   end
@@ -865,6 +869,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "color"
     t.datetime "created_at", null: false
     t.string "name"
+    t.integer "position"
     t.bigint "procedure_id", null: false
     t.datetime "updated_at", null: false
     t.index ["procedure_id"], name: "index_labels_on_procedure_id"
@@ -917,6 +922,15 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "to", null: false
     t.datetime "updated_at", null: false
     t.index ["from"], name: "index_path_rewrites_on_from", unique: true
+  end
+
+  create_table "procedure_paths", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "path"
+    t.bigint "procedure_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["path"], name: "index_procedure_paths_on_path", unique: true
+    t.index ["procedure_id"], name: "index_procedure_paths_on_procedure_id"
   end
 
   create_table "procedure_presentations", id: :serial, force: :cascade do |t|
@@ -1004,7 +1018,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "description"
     t.string "description_pj"
     t.string "description_target_audience"
-    t.datetime "dossiers_count_computed_at"
+    t.datetime "dossiers_count_computed_at", precision: nil
     t.bigint "draft_revision_id"
     t.integer "duree_conservation_dossiers_dans_ds"
     t.boolean "duree_conservation_etendue_par_ds", default: false, null: false
@@ -1042,8 +1056,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.jsonb "sva_svr", default: {}, null: false
     t.text "tags", default: [], array: true
     t.boolean "template", default: false, null: false
-    t.datetime "unpublished_at"
-    t.datetime "updated_at", null: false
+    t.datetime "unpublished_at", precision: nil
+    t.datetime "updated_at", precision: nil, null: false
     t.string "web_hook_url"
     t.datetime "whitelisted_at"
     t.bigint "zone_id"
@@ -1101,6 +1115,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
 
   create_table "referentiels", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.string "digest"
     t.string "headers", default: [], array: true
     t.string "hint"
     t.string "mode"
@@ -1232,7 +1247,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.bigint "dossier_id"
     t.string "instructeur_email"
     t.string "motivation"
-    t.datetime "processed_at"
+    t.datetime "processed_at", precision: nil
+    t.bigint "revision_id"
     t.string "state"
     t.index ["dossier_id"], name: "index_traitements_on_dossier_id"
   end
@@ -1387,6 +1403,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   add_foreign_key "instructeurs_procedures", "procedures"
   add_foreign_key "labels", "procedures"
   add_foreign_key "merge_logs", "users"
+  add_foreign_key "procedure_paths", "procedures"
   add_foreign_key "procedure_presentations", "assign_tos"
   add_foreign_key "procedure_revision_types_de_champ", "procedure_revision_types_de_champ", column: "parent_id"
   add_foreign_key "procedure_revision_types_de_champ", "procedure_revisions", column: "revision_id"
@@ -1404,6 +1421,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   add_foreign_key "services", "administrateurs"
   add_foreign_key "targeted_user_links", "users"
   add_foreign_key "traitements", "dossiers"
+  add_foreign_key "traitements", "procedure_revisions", column: "revision_id"
   add_foreign_key "trusted_device_tokens", "instructeurs"
   add_foreign_key "types_de_champ", "referentiels"
   add_foreign_key "users", "users", column: "requested_merge_into_id"

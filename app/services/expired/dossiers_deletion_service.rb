@@ -141,7 +141,20 @@ class Expired::DossiersDeletionService < Expired::MailRateLimiter
       .with_notifiable_procedure(notify_on_closed: true)
       .includes(:followers_instructeurs, procedure: [:administrateurs])
       .each_with_object(Hash.new { |h, k| h[k] = Set.new }) do |dossier, h|
-        (dossier.followers_instructeurs + dossier.procedure.administrateurs).each { |destinataire| h[destinataire.email] << dossier }
+        all_instructeurs = dossier.followers_instructeurs + dossier.procedure.administrateurs.map(&:instructeur).compact
+
+        # pf: filtre ceux qui ont activé les notifications de suppression (ou pas d'assign_to == notification par défaut)
+        assign_tos = AssignTo.where(
+          instructeur: all_instructeurs,
+          groupe_instructeur_id: dossier.groupe_instructeur_id
+        ).index_by(&:instructeur_id)
+
+        instructeurs_with_notifications = all_instructeurs.filter do |instructeur|
+          assign_to = assign_tos[instructeur.id]
+          assign_to.nil? || assign_to.deletion_email_notifications_enabled
+        end
+
+        instructeurs_with_notifications.each { |instructeur| h[instructeur.email] << dossier }
       end
       .map { |(email, dossiers)| [email, dossiers.to_a] }
   end
