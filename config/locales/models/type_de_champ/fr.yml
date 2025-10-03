@@ -66,6 +66,19 @@ fr:
           expression_reguliere: 'Expression régulière'
           referentiel_de_polynesie: 'Référentiel des administrations'
           referentiel: 'Référentiel à configurer (avancé)'
+        default_libelle:
+          annuaire_education: Établissement
+          communes: Commune
+          departements: Département
+          dossier_link: Numéro de dossier déposé sur %{app_name}
+          epci: Établissements publics de coopération intercommunale (EPCI)
+          iban: IBAN
+          regions: Région
+          siret: Numéro SIRET
+          titre_identite: Pièce d'identité
+          phone: Numéro de téléphone
+          rna: Numéro RNA
+          rnf: Numéro RNF
     errors:
       type_de_champ:
         attributes:

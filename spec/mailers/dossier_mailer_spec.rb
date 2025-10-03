@@ -38,6 +38,22 @@ RSpec.describe DossierMailer, type: :mailer do
         expect(header_value("From", subject)).to include("ne-pas-repondre@demarches.gouv.fr")
       end
     end
+
+    # pf: tests commentés car la vérification d'état est maintenant dans DraftNotificationJob
+    # Les tests de non-envoi pour dossiers cachés/en_construction sont dans draft_notification_job_spec.rb
+    #
+    # it 'when dossier is hidden, it does not send the email' do
+    #   dossier.hide_and_keep_track!(user, :user_request)
+    #   expect(subject.subject).to be_nil
+    # end
+    #
+    # context 'when dossier is not brouillon anymore' do
+    #   let(:dossier) { create(:dossier, :en_construction, user:) }
+    #
+    #   it 'does not send the email' do
+    #     expect(subject.subject).to be_nil
+    #   end
+    # end
   end
 
   describe '.notify_new_answer with dossier brouillon' do
@@ -380,74 +396,6 @@ RSpec.describe DossierMailer, type: :mailer do
 
       it 'does not send an email' do
         expect { subject.perform_now }.not_to raise_error
-      end
-    end
-  end
-
-  describe '.notify_old_brouillon_soon_deleted' do
-    let(:procedure) { create(:procedure, libelle: 'Une superbe démarche') }
-    let(:dossier) { create(:dossier, :brouillon, procedure: procedure) }
-
-    subject { described_class.notify_old_brouillon_soon_deleted(dossier) }
-
-    it 'renders the subject' do
-      expect(subject.subject).to eq("Votre dossier n°#{dossier.id} en brouillon va bientôt être supprimé")
-    end
-
-    it 'renders the receiver email' do
-      expect(subject.to).to eq([dossier.user.email])
-    end
-
-    it 'includes dossier information in body' do
-      expect(subject.body).to include(dossier.id.to_s)
-      expect(subject.body).to include(dossier.procedure.libelle)
-    end
-
-    it 'includes the dossier URL' do
-      expect(subject.body).to include(dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
-    end
-
-    context 'with a different locale' do
-      let(:dossier) { create(:dossier, :brouillon, procedure: procedure) }
-      before { dossier.user.update(locale: :en) }
-
-      it 'renders in the user locale' do
-        expect(subject.body).to include('Access my dossier')
-      end
-    end
-  end
-
-  describe '.notify_old_brouillon_after_deletion' do
-    let(:procedure) { create(:procedure, libelle: 'Une superbe démarche') }
-    let(:dossier) { create(:dossier, :brouillon, procedure: procedure) }
-
-    subject { described_class.notify_old_brouillon_after_deletion(dossier) }
-
-    it 'renders the subject' do
-      expect(subject.subject).to eq("Votre dossier n°#{dossier.id} en brouillon a été supprimé pour cause d'inactivité")
-    end
-
-    it 'renders the receiver email' do
-      expect(subject.to).to eq([dossier.user.email])
-    end
-
-    it 'includes dossier information in body' do
-      expect(subject.body).to include(dossier.id.to_s)
-      expect(subject.body).to include(dossier.procedure.libelle)
-    end
-
-    it 'includes link to create new dossier' do
-      expect(subject.body).to include(commencer_url(dossier.procedure, host: ENV.fetch("APP_HOST_LEGACY")))
-    end
-
-    context 'with a different locale' do
-      let(:dossier) { create(:dossier, :brouillon, procedure: procedure) }
-      before { dossier.user.update(locale: :en) }
-
-      it 'renders in the user locale' do
-        expect(subject.subject).to include("has been deleted due to inactivity")
-        expect(subject.body).to include("has been automatically deleted")
-        expect(subject.body).to include("submit a new application")
       end
     end
   end

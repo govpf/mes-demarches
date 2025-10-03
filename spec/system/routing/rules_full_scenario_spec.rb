@@ -179,7 +179,7 @@ describe 'The routing with rules', js: true do
     expect(page).to have_current_path(instructeur_dossier_path(procedure, litteraire_user.dossiers.first))
 
     # follow the dossier
-    click_on 'Suivre le dossier'
+    click_on 'Suivre'
 
     log_out
 
@@ -191,7 +191,7 @@ describe 'The routing with rules', js: true do
 
     # follow the dossier
     click_on scientifique_user.email
-    click_on 'Suivre le dossier'
+    click_on 'Suivre'
 
     log_out
 
@@ -246,11 +246,11 @@ describe 'The routing with rules', js: true do
 
     # follow the dossier
     click_on scientifique_user.email
-    click_on 'Suivre le dossier'
+    click_on 'Suivre'
 
     visit instructeur_procedure_path(procedure, statut: 'tous')
     click_on litteraire_user.email
-    click_on 'Suivre le dossier'
+    click_on 'Suivre'
     log_out
 
     # scientifique_user updates its group
