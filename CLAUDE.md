@@ -233,11 +233,11 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 * Format : `- NomDeLaMigration : description`
 
 #### 6. Création de la release GitHub
-```bash
-# Créer le tag local
-git tag -a pf-AAAA-MM-JJ -m "Release pf-AAAA-MM-JJ"
 
-# Créer la GitHub release avec titre et notes formatées
+⚠️ **IMPORTANT** : Laisser GitHub créer le tag automatiquement. Ne PAS créer de tag local avant, sinon il faudra le pousser et cela cause des erreurs avec `gh release create`.
+
+```bash
+# Créer la GitHub release (elle créera le tag automatiquement)
 gh release create pf-AAAA-MM-JJ --title "JJ MMM AAAA" --notes "$(cat <<'EOF'
 ## Améliorations et correctifs
 
@@ -249,8 +249,8 @@ EOF
 ```
 
 #### 7. Vérification
-* Vérifier le tag local : `git tag -l pf-AAAA-MM-JJ`
 * Vérifier sur GitHub : https://github.com/govpf/mes-demarches/releases
+* Le tag sera automatiquement créé et visible dans `.git/refs/tags/`
 
 ### Erreurs critiques à éviter
 * **NE JAMAIS** mélanger des éléments de plusieurs releases upstream
