@@ -129,6 +129,9 @@ Rails.application.routes.draw do
     root to: "administrateurs#index"
   end
 
+  # pf: Proxy images pour WeasyPrint (attestation v2)
+  get 'attestation_images/proxy' => 'attestation_images#proxy'
+
   #
   # Letter Opener
   #
@@ -216,7 +219,7 @@ Rails.application.routes.draw do
   post '/auth/merge_with_new_account' => 'omniauth#merge_with_new_account', as: 'omniauth_merge_with_new_account'
   post '/auth/send_email_merge_request' => 'omniauth#send_email_merge_request', as: 'omniauth_send_email_merge_request'
   post '/auth/merge_using_provider_email' => 'omniauth#merge_using_provider_email', as: 'omniauth_merge_using_provider_email'
-  get '/auth/merge_using_email_link/:email_merge_token' => 'omniauth#merge_using_email_link', as: 'omniauth_merge_using_email_link'
+  get '/auth/:provider/merge_using_email_link/:email_merge_token' => 'omniauth#merge_using_email_link', as: 'omniauth_merge_using_email_link', constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   get '/auth/confirm_email/:token', to: 'omniauth#confirm_email', as: :omniauth_confirm_email
 
   namespace :agent_connect do
@@ -243,9 +246,6 @@ Rails.application.routes.draw do
     put ':dossier_id/:stable_id/piece_justificative', to: 'piece_justificative#update'
     get ':dossier_id/:stable_id/piece_justificative/template', to: 'piece_justificative#template', as: :piece_justificative_template
     get ':dossier_id/:stable_id/piece_justificative/download/:h/:i', to: 'piece_justificative#download', as: :piece_justificative_download
-
-    # TODO remove this route after august 2025
-    get ':champ_id/piece_justificative/download/:h/(:i)', to: 'piece_justificative#download', as: :legacy_piece_justificative_download
 
     post ':dossier_id/:stable_id/lexpol/upsert', to: 'lexpol#upsert', as: :lexpol_upsert_dossier
   end
@@ -283,7 +283,6 @@ Rails.application.routes.draw do
 
   namespace :data_sources do
     # pf referentiel configurable
-    get 'table_row_selector/:table/search', to: 'table_row_selector#search', as: :trs_search
     get 'referentiel_de_polynesie/:table/search', to: 'referentiel_de_polynesie#search', as: :rdp_search
 
     get :adresse, to: 'adresse#search', as: :data_source_adresse
@@ -775,6 +774,7 @@ Rails.application.routes.draw do
 
       resource :attestation_template, only: [:show, :edit, :update, :create] do
         get 'preview', on: :member
+        post 'migrate', on: :member
       end
 
       resource :chorus, only: [:edit, :update] do

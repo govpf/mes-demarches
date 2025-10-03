@@ -15,7 +15,7 @@ class Champs::SiretController < Champs::ChampController
       # Single establishment found and created
       @siret = @champ.etablissement.siret
     else
-      # PF: Multiple establishments or other cases
+      # PF: Multiple establishments found, need user selection
       @siret = siret
     end
     @champ.dossier.touch_champs_changed([:last_champ_updated_at])
