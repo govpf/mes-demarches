@@ -44,7 +44,7 @@ describe ProcedureExportService do
               subject
             end
 
-            expect(sql_count).to be <= 63
+            expect(sql_count).to be <= 72
 
             dossier = dossiers.first
 

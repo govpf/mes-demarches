@@ -708,6 +708,8 @@ Rails.application.routes.draw do
       put 'archive'
       get 'publication' => 'procedures#publication', as: :publication
       get 'check_path' => 'procedures#check_path', as: :check_path
+      get 'path'
+      patch 'path', to: 'procedures#update_path', as: :update_path
       put 'publish' => 'procedures#publish', as: :publish
       put 'reset_draft' => 'procedures#reset_draft', as: :reset_draft
       put 'publish_revision' => 'procedures#publish_revision', as: :publish_revision
@@ -764,12 +766,18 @@ Rails.application.routes.draw do
         get 'preview', on: :member
       end
 
-      resources :labels, controller: 'labels'
+      resources :labels, controller: 'labels' do
+        collection do
+          get 'order_positions'
+          patch 'update_order_positions'
+        end
+      end
 
       resource :attestation_template, only: [:show, :edit, :update, :create] do
         get 'preview', on: :member
         post 'migrate', on: :member
       end
+
       resource :chorus, only: [:edit, :update] do
         get 'add_champ_engagement_juridique'
       end
