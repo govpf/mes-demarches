@@ -200,6 +200,19 @@ type Avis {
   reponse: String
 }
 
+type Batiment implements GeoArea {
+  commune: String
+  communeAssociee: String
+  description: String
+  geometry: GeoJSON!
+  id: ID!
+  ile: String
+  nom: String
+  source: GeoAreaSource!
+  surface: String
+  surfaceCalculee: Float
+}
+
 """
 Represents non-fractional signed whole numeric values. Since the value may
 exceed the size of a 32-bit integer, it's encoded as a string.
@@ -2800,6 +2813,11 @@ interface GeoArea {
 
 enum GeoAreaSource {
   """
+  Bâtiment
+  """
+  batiment
+
+  """
   Parcelle cadastrale
   """
   cadastre
@@ -3394,6 +3412,16 @@ type LinkedDropDownListChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type Marqueur implements GeoArea {
+  commune: String
+  communeAssociee: String
+  description: String
+  geometry: GeoJSON!
+  id: ID!
+  ile: String
+  source: GeoAreaSource!
+}
+
 type MesriChampDescriptor implements ChampDescriptor {
   """
   Description des champs d’un bloc répétable.
@@ -3908,19 +3936,19 @@ type ParcelleCadastrale implements GeoArea {
   codeArr: String! @deprecated(reason: "Utilisez le champ `prefixe` à la place.")
   codeCom: String! @deprecated(reason: "Utilisez le champ `commune` à la place.")
   codeDep: String! @deprecated(reason: "Utilisez le champ `commune` à la place.")
-  commune: String!
-  communeAssociee: String!
+  commune: String
+  communeAssociee: String
   description: String
   feuille: Int! @deprecated(reason: "L’information n’est plus disponible.")
   geometry: GeoJSON!
   id: ID!
-  ile: String!
+  ile: String
   nomCom: String! @deprecated(reason: "Utilisez le champ `commune` à la place.")
-  numero: String!
-  prefixe: String!
-  section: String!
+  numero: String
+  prefixe: String
+  section: String
   source: GeoAreaSource!
-  surface: String!
+  surface: String
   surfaceIntersection: Float! @deprecated(reason: "L’information n’est plus disponible.")
   surfaceParcelle: Float! @deprecated(reason: "Utilisez le champ `surface` à la place.")
 }
@@ -4576,14 +4604,9 @@ type Row {
 }
 
 type SelectionUtilisateur implements GeoArea {
-  commune: String
-  communeAssociee: String
   description: String
   geometry: GeoJSON!
   id: ID!
-  ile: String
-  numero: String
-  section: String
   source: GeoAreaSource!
 }
 
@@ -4693,6 +4716,7 @@ type TeFenuaChamp implements Champ {
   Libellé du champ.
   """
   label: String!
+  position: GeoJSON
   prefilled: Boolean!
 
   """
@@ -5327,4 +5351,16 @@ type YesNoChampDescriptor implements ChampDescriptor {
   Type de la valeur du champ.
   """
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
+}
+
+type Zone implements GeoArea {
+  commune: String
+  communeAssociee: String
+  description: String
+  geometry: GeoJSON!
+  id: ID!
+  ile: String
+  source: GeoAreaSource!
+  surface: String
+  surfaceCalculee: Float
 }

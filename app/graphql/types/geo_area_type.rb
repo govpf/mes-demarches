@@ -21,9 +21,23 @@ module Types
       def resolve_type(object, context)
         case object.source
         when GeoArea.sources.fetch(:cadastre)
-          Types::GeoAreas::ParcelleCadastraleType
+          if object.is_building?
+            Types::GeoAreas::BatimentType
+          else
+            Types::GeoAreas::ParcelleCadastraleType
+          end
+        when GeoArea.sources.fetch(:batiment)
+          Types::GeoAreas::BatimentType
         when GeoArea.sources.fetch(:selection_utilisateur)
-          Types::GeoAreas::SelectionUtilisateurType
+          if object.champ.class.name == 'Champs::TeFenuaChamp'
+            if object.polygon? || object.multipolygon?
+              Types::GeoAreas::ZoneType
+            else
+              Types::GeoAreas::MarqueurType
+            end
+          else
+            Types::GeoAreas::SelectionUtilisateurType
+          end
         end
       end
     end

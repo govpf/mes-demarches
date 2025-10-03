@@ -463,9 +463,29 @@ class API::V2::StoredQuery
     }
     ... on ParcelleCadastrale {
       commune
+      communeAssociee
+      ile
       numero
       section
       prefixe
+      surface
+    }
+    ... on Batiment {
+      commune
+      communeAssociee
+      ile
+      nom
+      surface
+    }
+    ... on Marqueur {
+      commune
+      communeAssociee
+      ile
+    }
+    ... on Zone {
+      commune
+      communeAssociee
+      ile
       surface
     }
   }
@@ -479,6 +499,11 @@ class API::V2::StoredQuery
       }
     }
     ... on CarteChamp {
+      geoAreas {
+        ...GeoAreaFragment
+      }
+    }
+    ... on TeFenuaChamp {
       geoAreas {
         ...GeoAreaFragment
       }

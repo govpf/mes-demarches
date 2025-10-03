@@ -34,11 +34,13 @@ class GeoArea < ApplicationRecord
 
   enum :source, {
     cadastre: 'cadastre',
+    batiment: 'batiment',
     selection_utilisateur: 'selection_utilisateur'
   }
 
   scope :selections_utilisateur, -> { where(source: sources.fetch(:selection_utilisateur)) }
   scope :cadastres, -> { where(source: sources.fetch(:cadastre)) }
+  scope :batiments, -> { where(source: sources.fetch(:batiment)) }
 
   validates :geometry, geo_json: true, allow_nil: false
 
@@ -67,8 +69,8 @@ class GeoArea < ApplicationRecord
     when GeoArea.sources.fetch(:cadastre)
       I18n.t("cadastre", scope: 'geo_area.label', numero: numero, prefixe: prefixe, section: section, surface: surface&.round, commune: commune)
     when GeoArea.sources.fetch(:selection_utilisateur)
-      if polygon?
-        if area > 0
+      if polygon? || multipolygon?
+        if area && area > 0
           I18n.t("area", scope: 'geo_area.label', area: number_with_delimiter(area))
         else
           I18n.t("area_unknown", scope: 'geo_area.label')
@@ -86,7 +88,9 @@ class GeoArea < ApplicationRecord
   end
 
   def area
-    if polygon?
+    if polygon? || multipolygon?
+      coords = geometry['coordinates']
+      return nil if coords.blank? || coords.all?(&:blank?)
       GeojsonService.area(geometry.deep_symbolize_keys).round(1)
     end
   end
@@ -109,6 +113,10 @@ class GeoArea < ApplicationRecord
 
   def polygon?
     geometry['type'] == 'Polygon'
+  end
+
+  def multipolygon?
+    geometry['type'] == 'MultiPolygon'
   end
 
   def point?
@@ -142,7 +150,7 @@ class GeoArea < ApplicationRecord
     if legacy_cadastre?
       properties['code_dep']
     else
-      properties['commune'][0..1]
+      properties['commune']&.[](0..1)
     end
   end
 
@@ -150,7 +158,8 @@ class GeoArea < ApplicationRecord
     if legacy_cadastre?
       properties['code_com']
     else
-      properties['commune'][2...commune.size]
+      commune_val = properties['commune']
+      commune_val&.[](2...commune_val.size)
     end
   end
 
@@ -190,16 +199,23 @@ class GeoArea < ApplicationRecord
     api_surface = if legacy_cadastre?
       properties['surface_parcelle']
     else
-      properties['contenance']
+      properties['contenance'] || properties['surface']
     end
-    api_surface ? api_surface : area
+
+    # For TeFenua data (champ_id present), always use geometric calculation
+    # to ensure consistency across all features
+    if champ.class.name == 'Champs::TeFenuaChamp' && (polygon? || multipolygon?)
+      area
+    else
+      api_surface ? api_surface : area
+    end
   end
 
   def prefixe
     if legacy_cadastre?
       properties['code_arr']
     else
-      properties['prefixe']
+      properties['prefixe'] || ''
     end
   end
 
@@ -219,6 +235,39 @@ class GeoArea < ApplicationRecord
   # pf ile and commune associee are specific to French polynesia
   def ile
     properties['ile']
+  end
+
+  # Building-specific methods for TeFenua data
+  def nom
+    properties['nom']
+  end
+
+  def info_titre
+    properties['info_titre']
+  end
+
+  def info_texte
+    properties['info_texte']
+  end
+
+  def categorie
+    properties['categorie']
+  end
+
+  def sous_categorie
+    properties['sous_categorie']
+  end
+
+  def materiau
+    properties['materiau']
+  end
+
+  def is_building?
+    (cadastre? && properties['categorie'].present?) || source == GeoArea.sources.fetch(:batiment)
+  end
+
+  def is_parcelle?
+    cadastre? && properties['numero'].present? && properties['section'].present?
   end
 
   def cid
