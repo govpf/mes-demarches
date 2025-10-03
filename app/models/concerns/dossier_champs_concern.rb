@@ -258,6 +258,12 @@ module DossierChampsConcern
     en_construction? && !procedure.feature_enabled?(:user_buffer_stream)
   end
 
+  # pf: méthode publique nécessaire pour éviter boucle infinie dans les conditions
+  # voir ChampConditionalConcern#champs_for_condition
+  def champs_by_public_id_for_conditions
+    champs_by_public_id.values
+  end
+
   private
 
   def with_stream(stream)

@@ -307,7 +307,6 @@ module Instructeurs
 
       if annotation.save(context: :champs_private_value) && annotation_changed
         annotation.update_timestamps
-        dossier.index_search_terms_later
       end
 
       dossier.validate(context: :champs_private_value)

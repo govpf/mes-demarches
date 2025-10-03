@@ -7,6 +7,12 @@ describe Champs::SiretChamp do
   let(:value) { "" }
   let(:etablissement) { nil }
 
+  def with_value(value)
+    champ.tap do
+      _1.value = value
+    end
+  end
+
   describe '#validate' do
     subject { champ.tap { _1.validate(:champs_public_value) } }
 

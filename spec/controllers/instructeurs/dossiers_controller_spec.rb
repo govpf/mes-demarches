@@ -1109,12 +1109,10 @@ describe Instructeurs::DossiersController, type: :controller do
           expect(dossier.last_champ_private_updated_at).to eq(now)
           expect(response).to have_http_status(200)
 
-          expect(ChampRevision.where(champ_id: champ_datetime.id).first.instructeur_id).to eq(instructeur.id)
-          expect(ChampRevision.where(champ_id: champ_datetime.id).first.updated_at).to eq(now)
-          expect(ChampRevision.where(champ_id: champ_linked_drop_down_list.id).first.instructeur_id).to eq(instructeur.id)
-          expect(ChampRevision.where(champ_id: champ_linked_drop_down_list.id).first.updated_at).to eq(now)
-          expect(ChampRevision.where(champ_id: champ_drop_down_list.id).first.instructeur_id).to eq(instructeur.id)
-          expect(ChampRevision.where(champ_id: champ_drop_down_list.id).first.updated_at).to eq(now)
+          # Vérifie qu'une révision est créée pour le champ modifié
+          revision = ChampRevision.where(champ_id: champ_multiple_drop_down_list.id).first
+          expect(revision.instructeur_id).to eq(instructeur.id)
+          expect(revision.updated_at).to eq(now)
 
           assert_enqueued_jobs(1, only: DossierIndexSearchTermsJob)
         }

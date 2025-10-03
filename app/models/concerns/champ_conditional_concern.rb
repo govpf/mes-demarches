@@ -32,7 +32,7 @@ module ChampConditionalConcern
     def champs_for_condition
       # HOTFIX: Eviter la boucle infinie visible? -> filled_champs -> project_champs_public -> visible?
       # Utiliser directement champs_by_public_id pour éviter le recalcul des champs
-      dossier.champs_by_public_id.values.filter { _1.row_id.nil? || _1.row_id == row_id }
+      dossier.champs_by_public_id_for_conditions.filter { _1.row_id.nil? || _1.row_id == row_id }
     end
   end
 end
