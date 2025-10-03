@@ -236,6 +236,7 @@
       = render TypesDeChampEditor::SelectChampPositionComponent.new(revision:, coordinate:)
 
       .flex.right
+        = render TypesDeChampEditor::DuplicateChampButtonComponent.new(coordinate: coordinate, after_stable_id: type_de_champ.stable_id)
         - if coordinate.used_by_routing_rules?
           %span
             utilisé pour
@@ -248,5 +249,6 @@
           = button_to type_de_champ_path, class: 'fr-btn fr-btn--tertiary-no-outline fr-icon-delete-line', title: "Supprimer le champ", method: :delete, form: { data: { turbo_confirm: 'Êtes vous sûr de vouloir supprimer ce champ ?' } } do
             %span.sr-only Supprimer
 
-  .type-de-champ-add-button{ class: class_names(root: !coordinate.child?, flex: true) }
-    = render TypesDeChampEditor::AddChampButtonComponent.new(revision: coordinate.revision, parent: coordinate&.parent, is_annotation: coordinate.private?, after_stable_id: type_de_champ.stable_id)
+  .type-de-champ-buttons.fr-mb-2w{ class: class_names(root: !coordinate.child?, flex: true) }
+    .type-de-champ-add-button
+      = render TypesDeChampEditor::AddChampButtonComponent.new(revision: coordinate.revision, parent: coordinate&.parent, is_annotation: coordinate.private?, after_stable_id: type_de_champ.stable_id)
