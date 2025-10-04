@@ -138,5 +138,55 @@ describe ChampPresentations::RepetitionPresentation do
         expect(result["content"].first["content"].first["content"].first["content"].first["text"]).to eq("nom")
       end
     end
+
+    # pf: test avec pièces jointes (images et documents) dans les tableaux
+    context 'avec pièces jointes dans les cellules' do
+      let(:procedure_with_files) {
+        create(:procedure, types_de_champ_public: [
+          {
+            type: :repetition,
+            children: [
+              { type: :text, libelle: "description" },
+              { type: :piece_justificative, libelle: "document" }
+            ]
+          }
+        ])
+      }
+      let(:dossier_with_files) { create(:dossier, procedure: procedure_with_files) }
+      let(:champ_with_files) { dossier_with_files.project_champs_public.first }
+      let(:representation_with_files) { described_class.new("Documents", champ_with_files.rows) }
+
+      before do
+        row = champ_with_files.rows.first
+        description_champ, pj_champ = row
+        champ_for_update(description_champ).update(value: "Photo de test")
+        champ_for_update(pj_champ).piece_justificative_file.attach(
+          io: StringIO.new("fake image"),
+          filename: "test.png",
+          content_type: "image/png",
+          metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE }
+        )
+      end
+
+      it 'préserve les nœuds attachmentImage/attachmentLink dans les cellules' do
+        result = representation_with_files.to_tiptap_node
+
+        # Vérifier la structure du tableau
+        expect(result["type"]).to eq("table")
+        expect(result["content"].size).to eq(2) # header + 1 data row
+
+        # Récupérer la cellule avec la pièce jointe (2ème colonne)
+        data_row = result["content"][1]
+        pj_cell = data_row["content"][1]
+        cell_paragraph = pj_cell["content"].first
+
+        # pf: vérifier que le nœud attachmentImage est préservé (pas converti en texte)
+        expect(cell_paragraph["content"]).to be_an(Array)
+        attachment_node = cell_paragraph["content"].first
+        expect(attachment_node["type"]).to eq("attachmentImage")
+        expect(attachment_node["attrs"]).to include("src", "alt", "display")
+        expect(attachment_node["attrs"]["display"]).to eq("test.png")
+      end
+    end
   end
 end

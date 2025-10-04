@@ -51,8 +51,11 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
         if cell_content.respond_to?(:to_tiptap_node)
           node = cell_content.to_tiptap_node
           # Adapter le noeud pour qu'il soit inline dans la cellule
+          # pf: gérer les pièces jointes (images et liens) correctement dans les tableaux
           cell_node_content = if node['type'] == 'paragraph'
             node['content'] || [{ 'type' => 'text', 'text' => cell_content.to_s }]
+          elsif node['type'].in?(['attachmentImage', 'attachmentLink'])
+            [node] # pf: garder le nœud attachement intact pour affichage correct
           else
             [{ 'type' => 'text', 'text' => cell_content.to_s }]
           end
