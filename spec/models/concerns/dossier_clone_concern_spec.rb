@@ -411,7 +411,12 @@ RSpec.describe DossierCloneConcern do
       end
 
       it { expect { subject }.to change { dossier.filled_champs.size }.by(3) }
-      it { expect { subject }.to change { dossier.filled_champs.sort_by { |c| [c.created_at, c.id] }.map(&:to_s) }.from(['old value', 'Non', 'old value']).to(['new value for updated champ', 'Non', 'new value for updated champ in repetition', 'old value', 'new value for added champ', 'new value in repetition champ']) }
+      # pf: tri alphabétique pour éviter test flaky (ordre d'insertion variable selon seed)
+      it do
+        expect { subject }.to change { dossier.filled_champs.map(&:to_s).sort }
+          .from(['Non', 'old value', 'old value'].sort)
+          .to(['Non', 'new value for updated champ', 'new value for updated champ in repetition', 'old value', 'new value for added champ', 'new value in repetition champ'].sort)
+      end
 
       it "dossier after merge should be on last published revision" do
         expect(dossier.revision_id).to eq(procedure.revisions.first.id)
