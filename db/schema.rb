@@ -521,7 +521,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "mandataire_first_name"
     t.string "mandataire_last_name"
     t.text "motivation"
-    t.datetime "notified_soon_deleted_sent_at", precision: nil
     t.bigint "parent_dossier_id"
     t.string "prefill_token"
     t.boolean "prefilled"
