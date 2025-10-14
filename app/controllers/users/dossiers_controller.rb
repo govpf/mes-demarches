@@ -83,6 +83,9 @@ module Users
 
       @filter = DossiersFilter.new(current_user, params)
       @dossiers = @filter.filter_procedures(@dossiers).page(page)
+
+      dossiers_ids = @dossiers.map(&:id)
+      @rdvs_for_dossiers = Rdv.upcoming.where(dossier: dossiers_ids).group_by(&:dossier_id)
     end
 
     def show
@@ -106,6 +109,11 @@ module Users
     def messagerie
       @dossier = dossier
       @commentaire = Commentaire.new
+    end
+
+    def rendez_vous
+      @dossier = dossier
+      @rdvs = @dossier.rdvs.booked.by_starts_at
     end
 
     def attestation

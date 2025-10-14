@@ -5,7 +5,6 @@ class Instructeur < ApplicationRecord
   has_and_belongs_to_many :administrateurs
 
   has_many :agent_connect_information, dependent: :destroy
-
   has_many :assign_to, dependent: :destroy
   has_many :groupe_instructeurs, -> { order(:label) }, through: :assign_to
   has_many :unordered_groupe_instructeurs, through: :assign_to, source: :groupe_instructeur
@@ -15,7 +14,6 @@ class Instructeur < ApplicationRecord
   has_many :assign_to_with_email_notifications, -> { with_email_notifications }, class_name: 'AssignTo', inverse_of: :instructeur
   has_many :groupe_instructeur_with_email_notifications, through: :assign_to_with_email_notifications, source: :groupe_instructeur
   has_many :export_templates, through: :groupe_instructeurs
-
   has_many :commentaires, inverse_of: :instructeur, dependent: :nullify
   has_many :dossiers, -> { state_not_brouillon }, through: :unordered_groupe_instructeurs
   has_many :all_follows, class_name: 'Follow', inverse_of: :instructeur
@@ -27,8 +25,9 @@ class Instructeur < ApplicationRecord
   has_many :bulk_messages, dependent: :destroy
   has_many :exports, as: :user_profile
   has_many :archives, as: :user_profile
-
   has_many :instructeurs_procedures, dependent: :destroy
+
+  has_one :rdv_connection, dependent: :destroy
 
   belongs_to :user
 
@@ -336,6 +335,10 @@ class Instructeur < ApplicationRecord
 
   def export_templates_for(procedure)
     procedure.export_templates.where(groupe_instructeur: groupe_instructeurs).order(:name)
+  end
+
+  def groupe_instructeur_options_for(procedure)
+    groupe_instructeurs.filter_map { [_1.label, _1.id] if _1.procedure == procedure }
   end
 
   private

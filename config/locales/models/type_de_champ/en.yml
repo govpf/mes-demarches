@@ -59,6 +59,7 @@ en:
           expression_reguliere: 'Regular expression'
           table_row_selector: "Administrations' referential"
           referentiel_de_polynesie: "Administrations' referential"
+          formatted: 'Formatted field'
           referentiel: 'External data to configure (advanced)'
         default_libelle:
           annuaire_education: Educational institution

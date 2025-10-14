@@ -34,6 +34,7 @@ features = [
   :expression_reguliere_type_de_champ,
   :groupe_instructeur_api_hack,
   :qrcoded_pdf,
+  :rdv,
   :sva,
   :switch_domain,
   # :lexpol,
