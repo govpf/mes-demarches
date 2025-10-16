@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
+ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -150,6 +150,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   create_table "assign_tos", id: :serial, force: :cascade do |t|
     t.datetime "created_at"
     t.boolean "daily_email_notifications_enabled", default: false, null: false
+    t.boolean "deletion_email_notifications_enabled", default: true, null: false
     t.bigint "groupe_instructeur_id"
     t.boolean "instant_email_dossier_notifications_enabled", default: true, null: false
     t.boolean "instant_email_message_notifications_enabled", default: true, null: false
@@ -870,6 +871,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "color"
     t.datetime "created_at", null: false
     t.string "name"
+    t.bigint "procedure_id", null: false
+    t.datetime "updated_at", null: false
     t.integer "position"
     t.bigint "procedure_id", null: false
     t.datetime "updated_at", null: false
@@ -1249,6 +1252,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "instructeur_email"
     t.string "motivation"
     t.datetime "processed_at", precision: nil
+    t.bigint "revision_id"
     t.string "state"
     t.index ["dossier_id"], name: "index_traitements_on_dossier_id"
   end
@@ -1421,6 +1425,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   add_foreign_key "services", "administrateurs"
   add_foreign_key "targeted_user_links", "users"
   add_foreign_key "traitements", "dossiers"
+  add_foreign_key "traitements", "procedure_revisions", column: "revision_id"
   add_foreign_key "trusted_device_tokens", "instructeurs"
   add_foreign_key "types_de_champ", "referentiels"
   add_foreign_key "users", "users", column: "requested_merge_into_id"

@@ -434,12 +434,8 @@ module Users
       )
       dossier.build_default_values
       dossier.save!
-      # pf: feature flag pour activer les notifications différées uniquement sur certaines procédures
-      if dossier.procedure.feature_enabled?(:delayed_notifications)
-        DraftNotificationJob.schedule_for_dossier(dossier)
-      else
-        DossierMailer.with(dossier:).notify_new_draft.deliver_later(wait: 1.hour)
-      end
+      # pf: notifications différées pour réduire le spam (délai basé sur estimation de remplissage)
+      DraftNotificationJob.schedule_for_dossier(dossier)
 
       if dossier.procedure.for_individual
         redirect_to identite_dossier_path(dossier)
@@ -465,12 +461,8 @@ module Users
 
     def clone
       cloned_dossier = @dossier.clone
-      # pf: feature flag pour activer les notifications différées uniquement sur certaines procédures
-      if cloned_dossier.procedure.feature_enabled?(:delayed_notifications)
-        DraftNotificationJob.schedule_for_dossier(cloned_dossier)
-      else
-        DossierMailer.with(dossier: cloned_dossier).notify_new_draft.deliver_later
-      end
+      # pf: notifications différées pour réduire le spam (délai basé sur estimation de remplissage)
+      DraftNotificationJob.schedule_for_dossier(cloned_dossier)
       flash.notice = t('users.dossiers.cloned_success')
       redirect_to brouillon_dossier_path(cloned_dossier)
     rescue ActiveRecord::RecordInvalid => e
