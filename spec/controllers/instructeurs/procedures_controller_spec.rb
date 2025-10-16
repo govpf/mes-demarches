@@ -1094,7 +1094,7 @@ describe Instructeurs::ProceduresController, type: :controller do
       subject
       expect(response).to have_http_status(:success)
       expect(response.body).to include("Rendez-vous avec les usagers")
-      expect(response.body).to include("Dossier Nº\n#{dossier.id}")
+      expect(response.body).to match(/Dossier Nº\s*\n.*#{dossier.id}/m)
       expect(response.body).to include("lundi 17 février à 10h00")
     end
   end
