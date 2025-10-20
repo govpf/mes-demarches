@@ -64,7 +64,6 @@ fr:
           cojo: "Accréditation Paris 2024"
           lexpol: "Lexpol"
           expression_reguliere: 'Expression régulière'
-          table_row_selector: 'Référentiel des administrations'
           referentiel_de_polynesie: 'Référentiel des administrations'
           referentiel: 'Référentiel à configurer (avancé)'
         default_libelle:

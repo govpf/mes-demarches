@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
+ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -150,6 +150,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   create_table "assign_tos", id: :serial, force: :cascade do |t|
     t.datetime "created_at"
     t.boolean "daily_email_notifications_enabled", default: false, null: false
+    t.boolean "deletion_email_notifications_enabled", default: true, null: false
     t.bigint "groupe_instructeur_id"
     t.boolean "instant_email_dossier_notifications_enabled", default: true, null: false
     t.boolean "instant_email_message_notifications_enabled", default: true, null: false
@@ -521,7 +522,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "mandataire_first_name"
     t.string "mandataire_last_name"
     t.text "motivation"
-    t.datetime "notified_soon_deleted_sent_at", precision: nil
     t.bigint "parent_dossier_id"
     t.string "prefill_token"
     t.boolean "prefilled"
@@ -1051,6 +1051,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.boolean "procedure_expires_when_termine_enabled", default: true
     t.datetime "published_at"
     t.bigint "published_revision_id"
+    t.boolean "rdv_enabled", default: false, null: false
     t.bigint "replaced_by_procedure_id"
     t.boolean "routing_enabled"
     t.bigint "service_id"
@@ -1087,6 +1088,32 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.index ["zone_id"], name: "index_procedures_zones_on_zone_id"
   end
 
+  create_table "rdv_connections", force: :cascade do |t|
+    t.string "access_token"
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.bigint "instructeur_id", null: false
+    t.string "refresh_token"
+    t.datetime "updated_at", null: false
+    t.index ["instructeur_id"], name: "index_rdv_connections_on_instructeur_id", unique: true
+  end
+
+  create_table "rdvs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "dossier_id", null: false
+    t.bigint "instructeur_id", null: false
+    t.string "location_type"
+    t.string "rdv_external_id"
+    t.string "rdv_plan_external_id", null: false
+    t.datetime "starts_at"
+    t.string "status"
+    t.datetime "updated_at", null: false
+    t.index ["dossier_id", "rdv_external_id"], name: "index_rdvs_on_dossier_id_and_rdv_external_id"
+    t.index ["dossier_id", "starts_at"], name: "index_rdvs_on_dossier_id_and_starts_at"
+    t.index ["dossier_id"], name: "index_rdvs_on_dossier_id"
+    t.index ["instructeur_id"], name: "index_rdvs_on_instructeur_id"
+  end
+
   create_table "re_instructed_mails", force: :cascade do |t|
     t.text "body"
     t.datetime "created_at", null: false
@@ -1119,6 +1146,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.string "digest"
     t.string "headers", default: [], array: true
     t.string "hint"
+    t.jsonb "last_response"
     t.string "mode"
     t.string "name", null: false
     t.string "test_data"
@@ -1291,6 +1319,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
     t.datetime "current_sign_in_at"
     t.string "current_sign_in_ip"
     t.string "email", default: "", null: false
+    t.boolean "email_unsubscribed", default: false, null: false
     t.datetime "email_verified_at"
     t.string "encrypted_password", default: "", null: false
     t.integer "failed_attempts", default: 0, null: false
@@ -1416,6 +1445,9 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_25_181320) do
   add_foreign_key "procedures", "procedure_revisions", column: "published_revision_id"
   add_foreign_key "procedures", "services", name: "fk_procedures_services"
   add_foreign_key "procedures", "zones"
+  add_foreign_key "rdv_connections", "instructeurs"
+  add_foreign_key "rdvs", "dossiers"
+  add_foreign_key "rdvs", "instructeurs"
   add_foreign_key "received_mails", "procedures"
   add_foreign_key "referentiel_items", "referentiels"
   add_foreign_key "refused_mails", "procedures"

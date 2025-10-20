@@ -1,30 +1,42 @@
 .a4-container{ class: class_names("official-layout": @attestation_template.official_layout?) }
   .content
     %header.first-header
-      .left
+      -# pf: Structure 3 colonnes - gauche, centre, droite
+      .header-left
         - if @attestation_template.official_layout?
-          = image_tag('centered_marianne.svg', alt: '', class: 'marianne')
-          .bloc-marque
+          -# pf: Mode officiel - logo Polynésie + textes centrés
+          .bloc-marque-pf
+            = image_tag('polynesie.svg', alt: '', class: 'logo-polynesie')
             = simple_format @attestation_template.label_logo.presence || "INTITULE de\nVOTRE INSTITUTION", class: "intitule"
-            = image_tag('liberte2.svg', alt: '', class: 'devise')
+            - if @attestation_template.label_direction.present?
+              = simple_format @attestation_template.label_direction, class: "direction-pf"
         - elsif @attestation_template.logo.present?
+          -# Mode libre - logo personnalisé à gauche
           .bloc-marque.logo-free-layout
             = image_tag(@attestation_template.logo_url)
 
-      .right
+      .header-center
+        -# pf: Centre - logo personnalisé si présent ET en mode officiel
         - if @attestation_template.official_layout? && @attestation_template.logo.present?
           .logo-co-emetteur
             = image_tag(@attestation_template.logo_url)
 
-        - if @attestation_template.label_direction.present?
-          = simple_format @attestation_template.label_direction, class: "direction"
+      .header-right
+        -# pf: QR Code toujours présent à droite
+        - if @qrcode_svg.present?
+          .qrcode-container-header
+            .qrcode-image
+              = @qrcode_svg.html_safe
+            .qrcode-link
+              = link_to "Vérifier", @qrcode_url, target: "_blank", rel: "noopener"
 
     - if @attestation_template.footer.present?
       %footer
         = simple_format @attestation_template.footer
 
     .main
-      = sanitize(@body, attributes: %w[class style], tags: Rails.configuration.action_view.sanitized_allowed_tags + %w[header])
+      = attestation_v2_sanitize(@body)
+
       - if @signature&.attached?
         .signature
           = image_tag(Rails.application.routes.url_helpers.url_for(@signature))

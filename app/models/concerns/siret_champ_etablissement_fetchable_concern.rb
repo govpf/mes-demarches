@@ -38,16 +38,18 @@ module SiretChampEtablissementFetchableConcern
   # pf: Handle partial TAHITI numbers that may match multiple establishments
   # This is specific to PF where users can enter 6-char company numbers
   def handle_ambiguous_siret(siret, user)
-    @etablissements = APIEntrepriseService.list_etablissements(siret, procedure.id)
-    return clear_etablissement!(:not_found) if @etablissements.blank?
+    etablissements = APIEntrepriseService.list_etablissements(siret, procedure.id)
+    return clear_etablissement!(:not_found) if etablissements.blank? # i18n-tasks-use t('errors.messages.siret_not_found')
 
-    if @etablissements.size == 1
-      # pf: Auto-select when only one establishment matches
-      full_siret = "#{siret}#{format('%03d', @etablissements[0][:num_entreprise])}"
+    if etablissements.size == 1
+      # PF: Auto-select when only one establishment matches
+      full_siret = "#{siret}#{format('%03d', etablissements[0][:num_entreprise])}"
+      # Keep the etablissements list for auto-selection in the view
+      @etablissements = etablissements
       create_and_update_etablissement(full_siret, user)
     else
-      # pf: Multiple establishments found, return true (not an error)
       # The @etablissements array will be used by the view
+      @etablissements = etablissements
       true
     end
   end
