@@ -113,7 +113,7 @@
     "lint:types": "tsc",
     "lint:css": "prettier app/assets/stylesheets --check",
     "lint:css:fix": "prettier app/assets/stylesheets --write",
-    "lintfix": "bun run lint:js:fix && bun run lint:css:fix && bundle exec rubocop -A && bundle exec haml-lint -a app/views/ app/components/",
+    "lintfix": "bin/lintfix",
     "graphql:doc:build": "RAILS_ENV=production bin/rake graphql:schema:idl && spectaql spectaql_config.yml",
     "test": "vitest",
     "coverage": "vitest run --coverage",

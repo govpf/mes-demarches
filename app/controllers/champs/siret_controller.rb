@@ -21,7 +21,7 @@ class Champs::SiretController < Champs::ChampController
       @siret = siret
       @multiple_etablissements = true
     else
-      # Other cases
+      # PF: Multiple establishments found, need user selection
       @siret = siret
       @multiple_etablissements = false
     end

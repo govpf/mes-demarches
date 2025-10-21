@@ -74,6 +74,16 @@ describe InstructionNotificationJob, type: :job do
       end
     end
 
+    context 'quand le dossier est supprimé par l\'usager' do
+      before { dossier.update!(hidden_by_user_at: Time.zone.now) }
+
+      it 'n\'envoie pas l\'email instruction' do
+        expect(NotificationMailer).not_to receive(:send_en_instruction_notification)
+
+        described_class.new.perform(dossier.id)
+      end
+    end
+
     context 'quand le dossier n\'existe plus' do
       it 'ne lève pas d\'erreur' do
         expect { described_class.new.perform(999999) }.not_to raise_error

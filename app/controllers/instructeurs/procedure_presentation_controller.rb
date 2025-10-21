@@ -15,8 +15,24 @@ module Instructeurs
     end
 
     def refresh_column_filter
-      # According to the html, the selected filters is the last one
-      column = ColumnType.new.cast(params['filters'].last['id'])
+      # Find the new filter by counting occurrences in params vs existing filters
+      # This handles cases where:
+      # 1. Params order varies (filters grouped separately from ids)
+      # 2. Multiple filters on the same column are allowed
+      procedure_presentation = ProcedurePresentation.find(params[:id])
+      statut = params[:statut] || 'tous'
+
+      existing_filter_ids = procedure_presentation.filters_for(statut).map { |f| f.column.id }
+      param_filter_ids = params['filters'].filter_map { |f| (f['id'].presence) }
+
+      # Count occurrences of each id
+      existing_counts = existing_filter_ids.tally
+      param_counts = param_filter_ids.tally
+
+      # The new filter is the one that appears more times in params than in existing
+      new_filter_id = param_counts.find { |id, count| count > (existing_counts[id] || 0) }&.first
+
+      column = ColumnType.new.cast(new_filter_id)
 
       if column.groupe_instructeur?
         column.options_for_select = instructeur_groupes(procedure_id: column.h_id[:procedure_id])
