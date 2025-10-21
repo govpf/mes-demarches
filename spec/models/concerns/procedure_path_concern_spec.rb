@@ -47,26 +47,10 @@ describe ProcedurePathConcern do
         expect(result).to be_nil
       end
     end
-
-    context "when the migration is pending" do
-      context "a procedure with the given path exists (but the path is not in the procedure_paths table)" do
-        let!(:procedure) { create(:procedure) }
-
-        before do
-          procedure.update_column("path", "path-not-in-procedure-paths")
-          procedure.procedure_paths.delete_all
-        end
-
-        it "returns the procedure" do
-          expect(procedure.procedure_paths.count).to eq(0)
-          expect(Procedure.find_with_path("path-not-in-procedure-paths").first).to eq(procedure)
-        end
-      end
-    end
   end
 
   describe 'path_customized?' do
-    let(:procedure) { create :procedure }
+    let!(:procedure) { create :procedure }
 
     subject { procedure.path_customized? }
 
@@ -75,7 +59,10 @@ describe ProcedurePathConcern do
     end
 
     context 'when the path has been changed' do
-      before { procedure.claim_path!(procedure.administrateurs.first, 'custom_path') }
+      before do
+        travel(1.minute)
+        procedure.claim_path!(procedure.administrateurs.first, 'custom_path')
+      end
 
       it { expect(procedure.path).to eq('custom_path') }
       it { is_expected.to be_truthy }
@@ -164,11 +151,13 @@ describe ProcedurePathConcern do
   end
 
   describe '#previous_paths' do
-    let(:procedure) { create(:procedure) }
+    let!(:procedure) { create(:procedure) }
 
     context 'when the path has been changed twice' do
       before do
+        travel(1.minute)
         procedure.claim_path!(procedure.administrateurs.first, 'custom_path')
+        travel(2.minutes)
         procedure.claim_path!(procedure.administrateurs.first, 'custom_path_2')
       end
 

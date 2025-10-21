@@ -7,7 +7,7 @@ class Champs::DropDownListChamp < Champ
   OTHER = '__other__'
   delegate :options_without_empty_value_when_mandatory, to: :type_de_champ
   validate :validate_value_is_in_options, if: -> { validate_champ_value? && !(value.blank? || drop_down_other?) }
-  before_save :store_referentiel, if: :referentiel_mode?
+  before_save :store_referentiel, if: :drop_down_advanced?
 
   def render_as_radios?
     drop_down_options.size <= THRESHOLD_NB_OPTIONS_AS_RADIO
@@ -86,11 +86,18 @@ class Champs::DropDownListChamp < Champ
   private
 
   def referentiel_from(value)
-    if value.present?
-      referentiel_item = type_de_champ.referentiel.items.find(value)
-      headers = referentiel_item.referentiel.headers
-      { data: referentiel_item.data.merge(headers:) }
+    return if value.blank?
+
+    referentiel_item = type_de_champ.referentiel.items.find_by(id: value)
+
+    # When changing tdc type or simple/advanced mode, champ value is not an item id
+    if referentiel_item.blank?
+      self.value = nil
+      return
     end
+
+    headers = referentiel_item.referentiel.headers
+    { data: referentiel_item.data.merge(headers:) }
   end
 
   def validate_value_is_in_options
