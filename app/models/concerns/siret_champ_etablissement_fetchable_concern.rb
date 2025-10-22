@@ -66,12 +66,7 @@ module SiretChampEtablissementFetchableConcern
   end
 
   def create_and_update_etablissement(siret, user)
-    # Debug temporaire
-    Rails.logger.info "[DEBUG] Trying to create etablissement for SIRET: #{siret} (length: #{siret.length})"
-
     etablissement = APIEntrepriseService.create_etablissement(self, siret, user&.id)
-
-    Rails.logger.info "[DEBUG] Etablissement result: #{etablissement.inspect}"
 
     return clear_etablissement!(:not_found) unless etablissement
 
