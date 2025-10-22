@@ -450,7 +450,8 @@ class TypeDeChamp < ApplicationRecord
   def drop_down_options(simple: false)
     return Array.wrap(super()) if simple
     if referentiel_mode?
-      return if referentiel.nil?
+      # pf: retourner [] au lieu de nil pour éviter les crashs lors de la comparaison de révisions
+      return [] if referentiel.nil?
       header = referentiel.headers.first.parameterize.underscore
       Array.wrap(referentiel.items.map { [_1.data.values.first[header], _1.id] })
     else
