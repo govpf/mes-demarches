@@ -5016,6 +5016,7 @@ type Traitement {
   La date de la décision
   """
   processedAt: ISO8601DateTime!
+  revision: Revision
 
   """
   La décision sur le dossier.

@@ -1688,12 +1688,12 @@ describe Dossier, type: :model do
       context "and invalid SIRET" do
         before do
           champ_siret.update(value: "1234")
-          champ_siret.valid?
+          champ_siret.validate(:champs_public_value)
         end
 
         it 'should have errors' do
           expect(champ_siret.errors).not_to be_empty
-          expect(champ_siret.errors.first.full_message).to eq("doit avoir 9 chiffres. Selectionnez un établissement.")
+          expect(champ_siret.errors.first.full_message).to eq("doit avoir 9 chiffres. Sélectionnez un établissement.")
         end
       end
     end

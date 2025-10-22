@@ -5,7 +5,6 @@ class APIEntrepriseService
     # PF: Specific method for handling ambiguous TAHITI numbers (< 9 chars)
     # In French Polynesia, a 6-char TAHITI number can match multiple establishments
     # This method lists all possible establishments for user selection
-    # Upstream doesn't need this as French SIRET are always complete (14 chars)
     def list_etablissements(siret_prefix, procedure_id = nil)
       return nil unless siret_prefix.present? && siret_prefix.length < 9
 
@@ -29,7 +28,6 @@ class APIEntrepriseService
       procedure_id = dossier_or_champ.procedure.id
 
       # PF: Handle 9-char TAHITI numbers (6 chars company + 3 chars establishment)
-      # Upstream only uses EtablissementAdapter for 14-char SIRET
       etablissement_params = if siret.length == 9
         APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id).to_params
       elsif siret.length > 9
@@ -48,7 +46,6 @@ class APIEntrepriseService
 
       etablissement = dossier_or_champ.build_etablissement(etablissement_params)
       etablissement.save!
-      # <<<<<<< HEAD
 
       if dossier_or_champ.is_a?(Champ)
         dossier_or_champ.update!(value_json: APIGeoService.parse_etablissement_address(etablissement))

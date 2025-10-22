@@ -762,15 +762,17 @@ fr:
       dossier_not_found: "Le dossier n’existe pas ou vous n’y avez pas accès."
       # dossier_map_not_activated: "Le dossier n’a pas accès à la cartographie."
       targeted_user_link_expired: "Ce lien d’invitation n’est plus valable ou le dossier n’est plus accessible."
-      invalid_siret_length: "Le numéro TAHITI doit comporter exactement 9 ou 14 caractères."
-      invalid_siret_checksum: "Le format du numéro TAHITI est invalide."
+      invalid_siret_length: "Le numéro doit comporter 9 chiffres (Tahiti) ou 14 chiffres (SIRET)."
+      invalid_siret_checksum: "Le format du numéro est invalide."
       procedure_not_found: "La démarche n’existe pas"
-      siret_unknown: 'Nous n’avons pas trouvé d’établissement enregistré correspondant à ce numéro TAHITI.'
-      siret_network_error: 'Désolé, la récupération des informations des numéros TAHITI est temporairement indisponible. Veuillez réessayer dans quelques instants.'
-      siret_not_found: 'Nous n’avons pas trouvé d’établissement correspondant à ce numéro TAHITI.'
+      siret_not_found: "Nous n'avons pas trouvé d'établissement correspondant à ce numéro SIRET."
+      siret_unknown: 'Nous n’avons pas trouvé d’établissement enregistré correspondant à ce numéro.'
+      siret_network_error: 'Désolé, la récupération des informations est temporairement indisponible. Veuillez réessayer dans quelques instants.'
       cps_network_error: 'Désolé, la vérification du numéro DN est temporairement indisponible. Veuillez réessayer dans quelques instants.'
       api_entreprise_down: 'Notre fournisseur de données semble en panne, nous récupérerons les données plus tard.'
-      # etablissement_fail: 'Désolé, nous n’avons pas réussi à enregistrer l’établissement correspondant à ce numéro SIRET'
+      siret:
+        network_error: 'Désolé, la récupération des informations SIRET est temporairement indisponible. Veuillez réessayer dans quelques instants.'
+        not_found: 'Nous n’avons pas trouvé d’établissement correspondant à ce numéro SIRET.'
       france_connect:
         connexion: "Erreur lors de la connexion à France Connect."
         forbidden_html: "Seul-e-s les usagers peuvent se connecter via France Connect. En tant qu’instructeur ou administrateur, nous vous invitons à <a href='%{reset_link}'>réininitialiser votre mot de passe</a>."

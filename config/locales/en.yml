@@ -754,14 +754,16 @@ en:
       dossier_not_found: "The file does not exist or you do not have access to it."
       # # dossier_map_not_activated: "The file does not have access to the map."
       targeted_user_link_expired: "This invitation link or the file is no longer available."
-      invalid_siret_length: 'The TAHITI number must contain exactly 9 or 14 characters.'
-      invalid_siret_checksum: 'The TAHITI number is invalid.'
+      invalid_siret_length: 'The number must contain 9 digits (Tahiti) or 14 digits (SIRET).'
+      invalid_siret_checksum: 'The number format is invalid.'
       procedure_not_found: "The procedure does not exist"
-      siret_unknown: 'We did not find any establishment registered under this TAHITI number.'
-      siret_network_error: 'Sorry, TAHITI number retrieval is temporarily unavailable. Please try again shortly.'
-      siret_not_found: "We haven't found an establishment corresponding to this TAHITI number."
-      # # etablissement_fail: 'Désolé, nous n’avons pas réussi à enregistrer l’établissement correspondant à ce numéro SIRET'
+      siret_unknown: 'We did not find any establishment registered under this number.'
+      siret_network_error: 'Sorry, number retrieval is temporarily unavailable. Please try again shortly.'
+      api_entreprise_down: 'Our data provider seems to be down, we will retrieve the data later.'
       cps_network_error: 'Sorry, DN number verification is temporarily down. Please, check carefully your input'
+      siret:
+        network_error: 'Sorry, SIRET information retrieval is temporarily unavailable. Please try again shortly.'
+        not_found: "We haven't found an establishment corresponding to this SIRET number."
       france_connect:
         connexion: "Error trying to connect to France Connect."
         forbidden_html: "Only citizen can use FranceConnect. As an instructor or administrator, you should <a href='%{reset_link}'>reset your password</a>."

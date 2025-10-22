@@ -21048,6 +21048,18 @@
               "deprecationReason": null
             },
             {
+              "name": "revision",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Revision",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "state",
               "description": "La décision sur le dossier.",
               "args": [],

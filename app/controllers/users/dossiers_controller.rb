@@ -207,8 +207,6 @@ module Users
       sanitized_siret = siret_model.siret
 
       # PF: Handle ambiguous TAHITI numbers (< 9 chars)
-      # In PF, users can enter partial TAHITI numbers that match multiple establishments
-      # Upstream doesn't have this case as SIRET are always complete
       if sanitized_siret.length < 9
         @etablissements = begin
           APIEntrepriseService.list_etablissements(sanitized_siret, @dossier.procedure.id)
@@ -230,8 +228,30 @@ module Users
           redirect_to etablissements_dossier_path
         end
       else
-        # SIRET >= 9 chars, create directly
-        # For French SIRET, we want to propagate API errors with proper messaging
+        # SIRET >= 9 chars, create directly with enhanced error handling
+        etablissement = begin
+          APIEntrepriseService.create_etablissement(@dossier, sanitized_siret, current_user.id)
+                        rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
+                          if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
+                            APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, sanitized_siret, current_user.id)
+                          else
+                            Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: sanitized_siret })
+                            if sanitized_siret.length == 14
+                              return render_siret_error(t('errors.messages.siret.network_error'))
+                            else
+                              return render_siret_error(t('errors.messages.siret_network_error'))
+                            end
+                          end
+        end
+
+        if etablissement.nil?
+          if sanitized_siret.length == 14
+            return render_siret_error(t('errors.messages.siret.not_found'))
+          else
+            return render_siret_error(t('errors.messages.siret_unknown'))
+          end
+        end
+
         create_etablissement_and_redirect(sanitized_siret)
       end
     end
@@ -239,7 +259,6 @@ module Users
     # PF: New action for handling establishment selection
     # When a partial TAHITI number matches multiple establishments,
     # this page lets users choose the correct one
-    # Upstream doesn't need this as SIRET are always unambiguous
     def etablissements
       @dossier = dossier
       @siret_prefix = session[:siret_prefix] || params[:siret_prefix]
