@@ -81,7 +81,7 @@ module SiretChampEtablissementFetchableConcern
       false
     else
       Sentry.capture_exception(error, extra: { dossier_id:, siret: })
-      clear_etablissement!(:api_error)
+      clear_etablissement!(:api_entreprise_down)
     end
   end
 
