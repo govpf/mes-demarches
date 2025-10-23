@@ -24,6 +24,22 @@ module Champs
       redirect_back fallback_location: root_path
     end
 
+    def preview_variables
+      apilexpol = APILexpol.new(current_user.email, @champ.dossier&.procedure&.service&.siret, should_use_test_user?)
+      service = LexpolService.new(champ: @champ, dossier: @champ.dossier, apilexpol: apilexpol)
+
+      @variables = service.build_variables
+
+      # Informations sur les dossiers liés pour le groupement côté frontend
+      linked_service = LinkedDossierFieldsService.new(@champ.dossier)
+      linked_info = linked_service.linked_dossiers_info
+
+      render json: { variables: @variables.sort.to_h, linked_dossiers: linked_info }
+    rescue => e
+      Sentry.capture_exception(e)
+      render json: { error: "Impossible de générer la prévisualisation: #{e.message}" }, status: :unprocessable_entity
+    end
+
     private
 
     def should_use_test_user?

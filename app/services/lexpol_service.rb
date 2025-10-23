@@ -70,6 +70,10 @@ class LexpolService
       variables[target_field] = final_values.compact_blank.join(', ')
       variables
     end
+
+    # pf: Enrichissement avec les champs des dossiers liés
+    linked_service = LinkedDossierFieldsService.new(dossier)
+    linked_service.enrich_variables(variables)
   end
 
   def refresh_lexpol_data!
