@@ -7,18 +7,26 @@ class LinkedDossierFieldsService
   def initialize(dossier)
     @dossier = dossier
     @used_suffixes = [] # Pour détecter les collisions
+    @visited_dossier_ids = Set.new
   end
 
   def enrich_variables(base_variables)
     enriched = base_variables.dup
+    @visited_dossier_ids.add(@dossier.id)
 
-    linked_dossier_champs.each do |dossier_link_champ|
-      linked_dossier = find_linked_dossier(dossier_link_champ)
+    # pf: Précharger tous les dossiers liés pour éviter N+1
+    linked_ids = linked_dossier_champs.filter_map { |c| c.value.to_i if c.value.to_i > 0 }
+    linked_map = Dossier.where(id: linked_ids).index_by(&:id)
+
+    linked_dossier_champs.each do |champ|
+      dossier_id = champ.value.to_i
+      linked_dossier = linked_map[dossier_id]
       next unless linked_dossier
+      next if @visited_dossier_ids.include?(dossier_id) # Protection cycle
 
-      suffix = generate_suffix(dossier_link_champ.libelle)
+      @visited_dossier_ids.add(dossier_id)
+      suffix = generate_suffix(champ.libelle)
       linked_variables = extract_linked_dossier_variables(linked_dossier)
-
       merge_with_suffix(enriched, linked_variables, suffix)
     end
 
@@ -34,12 +42,7 @@ class LinkedDossierFieldsService
   private
 
   def linked_dossier_champs
-    @dossier.champs.filter { |c| c.is_a?(Champs::DossierLinkChamp) && c.value.present? }
-  end
-
-  def find_linked_dossier(dossier_link_champ)
-    dossier_id = dossier_link_champ.value.to_i
-    Dossier.find_by(id: dossier_id) if dossier_id > 0
+    @linked_champs ||= @dossier.champs.filter { |c| c.is_a?(Champs::DossierLinkChamp) && c.value.present? }
   end
 
   def extract_linked_dossier_variables(linked_dossier)
