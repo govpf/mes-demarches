@@ -110,6 +110,7 @@ export class LexpolPreviewController extends ApplicationController {
       html += `<div class="fr-mb-3w"><h4 class="fr-h6">📎 ${this.escapeHtml(dossier.libelle)} <span class="fr-badge fr-badge--sm fr-badge--info">${this.escapeHtml(suffix)}</span></h4>`;
       if (groups[suffix] && groups[suffix].length > 0) {
         html += '<ul class="fr-text--xs" style="list-style: none; padding: 0;">';
+
         groups[suffix].forEach((key) => {
           const value = allVars[key] || '(vide)';
           const displayValue =
@@ -119,6 +120,7 @@ export class LexpolPreviewController extends ApplicationController {
         html += '</ul>';
       } else {
         html += '<p class="fr-text--xs">Aucune donnée disponible pour ce dossier</p>';
+
       }
       html += '</div>';
     });
