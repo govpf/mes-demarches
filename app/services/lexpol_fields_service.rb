@@ -125,6 +125,18 @@ module LexpolFieldsService
     markdown.render(markdown_str).delete("\n")
   end
 
+  def self.format_as_html_list(options)
+    return '' if options.blank?
+
+    list_items = options.each_with_index.map do |opt, index|
+      # Dernier élément se termine par '.', les autres par ' ;'
+      punctuation = (index == options.size - 1) ? '.' : ' ;'
+      "<li>#{opt}#{punctuation}</li>"
+    end
+
+    "<ul>#{list_items.join}</ul>"
+  end
+
   def self.ignore_champ?(champ)
     champ.is_a?(Champs::HeaderSectionChamp) || champ.is_a?(Champs::ExplicationChamp)
   end
