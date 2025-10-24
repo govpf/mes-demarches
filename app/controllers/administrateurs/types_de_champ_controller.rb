@@ -5,7 +5,7 @@ module Administrateurs
     include ActiveSupport::NumberHelper
 
     before_action :retrieve_procedure
-    after_action :reset_procedure, only: [:create, :update, :destroy, :piece_justificative_template]
+    after_action :reset_procedure, only: [:create, :update, :destroy, :piece_justificative_template, :duplicate]
     before_action :reload_procedure_with_includes, only: [:destroy]
 
     CSV_MAX_SIZE = 1.megabyte
@@ -185,6 +185,33 @@ module Administrateurs
         end
         @coordinate = draft.coordinate_for(type_de_champ)
         @morphed = [champ_component_from(@coordinate)]
+      end
+    end
+
+    def duplicate
+      default_type_de_champ = draft.find_and_ensure_exclusive_use(params[:stable_id])
+      @coordinate = draft.coordinate_for(default_type_de_champ)
+
+      new_champ_params = {
+        type_champ: default_type_de_champ.type_champ,
+        libelle: default_type_de_champ.libelle.to_s,
+        description: default_type_de_champ.description,
+        mandatory: default_type_de_champ.mandatory,
+        options: default_type_de_champ.options,
+        condition: default_type_de_champ.condition,
+        private: default_type_de_champ.private,
+        after_stable_id: @coordinate.stable_id
+      }
+
+      type_de_champ = draft.add_type_de_champ(new_champ_params)
+
+      if type_de_champ.valid?
+        @coordinate = draft.coordinate_for(type_de_champ)
+        ProcedureRevisionPreloader.load_one(@coordinate.revision)
+        @created = champ_component_from(@coordinate, focused: true)
+        @morphed = champ_components_starting_at(@coordinate, 1)
+      else
+        flash.alert = type_de_champ.errors.full_messages
       end
     end
 
