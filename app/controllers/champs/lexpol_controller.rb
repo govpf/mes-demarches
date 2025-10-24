@@ -4,7 +4,7 @@ module Champs
   class LexpolController < Champs::ChampController
     def upsert
       apilexpol = APILexpol.new(current_user.email, @champ.dossier&.procedure&.service&.siret, should_use_test_user?)
-      service = LexpolService.new(champ: @champ, dossier: @champ.dossier, apilexpol: apilexpol)
+      service = LexpolService.new(champ: @champ, dossier: @champ.dossier, apilexpol: apilexpol, user: current_user)
 
       force_create = params[:force_create].present?
       service.upsert_dossier(force_create: force_create)
@@ -26,12 +26,12 @@ module Champs
 
     def preview_variables
       apilexpol = APILexpol.new(current_user.email, @champ.dossier&.procedure&.service&.siret, should_use_test_user?)
-      service = LexpolService.new(champ: @champ, dossier: @champ.dossier, apilexpol: apilexpol)
+      service = LexpolService.new(champ: @champ, dossier: @champ.dossier, apilexpol: apilexpol, user: current_user)
 
       @variables = service.build_variables
 
       # Informations sur les dossiers liés pour le groupement côté frontend
-      linked_service = LinkedDossierFieldsService.new(@champ.dossier)
+      linked_service = LinkedDossierFieldsService.new(@champ.dossier, current_user)
       linked_info = linked_service.linked_dossiers_info
 
       render json: { variables: @variables.sort.to_h, linked_dossiers: linked_info }

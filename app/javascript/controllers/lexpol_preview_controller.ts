@@ -107,16 +107,20 @@ export class LexpolPreviewController extends ApplicationController {
     // Dossiers liés
     linkedDossiers.forEach((dossier) => {
       const suffix = dossier.suffixe;
-      if (groups[suffix]) {
-        html += `<div class="fr-mb-3w"><h4 class="fr-h6">📎 ${this.escapeHtml(dossier.libelle)} <span class="fr-badge fr-badge--sm fr-badge--info">${this.escapeHtml(suffix)}</span></h4><ul class="fr-text--xs" style="list-style: none; padding: 0;">`;
+      html += `<div class="fr-mb-3w"><h4 class="fr-h6">📎 ${this.escapeHtml(dossier.libelle)} <span class="fr-badge fr-badge--sm fr-badge--info">${this.escapeHtml(suffix)}</span></h4>`;
+      if (groups[suffix] && groups[suffix].length > 0) {
+        html += '<ul class="fr-text--xs" style="list-style: none; padding: 0;">';
         groups[suffix].forEach((key) => {
           const value = allVars[key] || '(vide)';
           const displayValue =
             value.length > 80 ? value.substring(0, 80) + '...' : value;
           html += `<li style="margin-bottom: 0.5rem;"><strong>${this.escapeHtml(key)}</strong> : ${this.escapeHtml(displayValue)}</li>`;
         });
-        html += '</ul></div>';
+        html += '</ul>';
+      } else {
+        html += '<p class="fr-text--xs">Aucune donnée disponible pour ce dossier</p>';
       }
+      html += '</div>';
     });
 
     this.listTarget.innerHTML = html;

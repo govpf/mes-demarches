@@ -78,6 +78,30 @@ describe LinkedDossierFieldsService do
         # Mais pas ceux du dossier lié au 3ème (pas de récursion)
         expect(result.keys.filter { |k| k.include?('Prénom') }).to be_empty
       end
+
+      it 'ignore les champs DossierLink à l\'intérieur des dossiers liés (profondeur 1 uniquement)' do
+        # Dossier lié contient lui-même un DossierLinkChamp
+        nested_procedure = create(:procedure, types_de_champ_public: [
+          { type: :text, libelle: 'Info' },
+          { type: :dossier_link, libelle: 'Dossier imbriqué' }
+        ])
+        nested_dossier = create(:dossier, :en_construction, procedure: nested_procedure)
+        nested_dossier.champs.first.update(value: 'Donnée niveau 1')
+        nested_dossier.champs.last.update(value: '999') # Pointe vers un autre dossier
+
+        # Lier au dossier principal
+        dossier_link_champ = dossier.champs.find { |c| c.is_a?(Champs::DossierLinkChamp) }
+        dossier_link_champ.update(value: nested_dossier.id)
+
+        result = service.enrich_variables({})
+
+        # Vérifier qu'on a bien les données niveau 1
+        expect(result['Info candidature']).to eq('Donnée niveau 1')
+        # Mais pas le champ DossierLink lui-même
+        expect(result.keys).not_to include('Dossier imbriqué candidature')
+        # Et surtout pas de récursion vers le dossier 999
+        expect(result.keys.count).to be <= 10 # Pas d'explosion de variables
+      end
     end
 
     context 'avec plusieurs dossiers liés' do
@@ -109,6 +133,66 @@ describe LinkedDossierFieldsService do
 
         expect(result['Année annuel']).to eq('2024')
       end
+    end
+  end
+
+  describe 'robustesse - dossier lié supprimé' do
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :text, libelle: 'Nom' },
+        { type: :dossier_link, libelle: 'Dossier lié' }
+      ])
+    end
+
+    it 'ignore les dossiers liés qui n\'existent plus' do
+      dossier_link_champ = dossier.champs.find { |c| c.is_a?(Champs::DossierLinkChamp) }
+      dossier_link_champ.update(value: 99999) # ID inexistant
+
+      result = service.enrich_variables({})
+
+      # Ne doit pas crasher et ne pas inclure de variables du dossier inexistant
+      expect(result.keys.filter { |k| k.include?('lié') }).to be_empty
+    end
+  end
+
+  describe 'sécurité - permissions sur les dossiers liés' do
+    let(:instructeur) { create(:instructeur) }
+    let(:usager) { create(:user) }
+
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :text, libelle: 'Nom' },
+        { type: :dossier_link, libelle: 'Dossier lié' }
+      ])
+    end
+
+    let(:dossier_accessible) { create(:dossier, :en_construction, procedure: procedure, user: usager) }
+    let(:dossier_prive) { create(:dossier, :en_construction, procedure: linked_procedure, user: create(:user)) }
+
+    before do
+      # Dossier lié pointé mais appartenant à un autre usager
+      dossier_prive.champs.first.update(value: 'Donnée sensible')
+
+      # Lier les dossiers
+      dossier_link_champ = dossier_accessible.champs.find { |c| c.is_a?(Champs::DossierLinkChamp) }
+      dossier_link_champ.update(value: dossier_prive.id)
+    end
+
+    it 'ne révèle pas les données des dossiers d\'un autre usager' do
+      service = LinkedDossierFieldsService.new(dossier_accessible, usager)
+      result = service.enrich_variables({})
+
+      # Le dossier lié ne devrait pas apparaître car appartient à un autre user
+      expect(result.keys.filter { |k| k.include?('lié') }).to be_empty
+      expect(result.values).not_to include('Donnée sensible')
+    end
+
+    it 'fonctionne sans user (usage interne)' do
+      service = LinkedDossierFieldsService.new(dossier_accessible)
+      result = service.enrich_variables({})
+
+      # Sans user, tous les dossiers sont accessibles (fallback)
+      expect(result.values).to include('Donnée sensible')
     end
   end
 

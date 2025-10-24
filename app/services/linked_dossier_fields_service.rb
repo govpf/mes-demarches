@@ -4,8 +4,9 @@ class LinkedDossierFieldsService
   # Mots non-significatifs à filtrer
   STOP_WORDS = %w[de du des la le l d et ou].freeze
 
-  def initialize(dossier)
+  def initialize(dossier, user = nil)
     @dossier = dossier
+    @user = user
     @used_suffixes = [] # Pour détecter les collisions
     @visited_dossier_ids = Set.new
   end
@@ -16,11 +17,13 @@ class LinkedDossierFieldsService
 
     # pf: Précharger tous les dossiers liés pour éviter N+1
     linked_ids = linked_dossier_champs.filter_map { |c| c.value.to_i if c.value.to_i > 0 }
-    linked_map = Dossier.where(id: linked_ids).index_by(&:id)
+    linked_map = accessible_linked_dossiers(linked_ids).index_by(&:id)
 
     linked_dossier_champs.each do |champ|
       dossier_id = champ.value.to_i
       linked_dossier = linked_map[dossier_id]
+
+      # Si pas d'accès, ne rien ajouter (même pas l'ID)
       next unless linked_dossier
       next if @visited_dossier_ids.include?(dossier_id) # Protection cycle
 
@@ -34,22 +37,49 @@ class LinkedDossierFieldsService
   end
 
   def linked_dossiers_info
+    linked_ids = linked_dossier_champs.filter_map { |c| c.value.to_i if c.value.to_i > 0 }
+    accessible_ids = accessible_linked_dossiers(linked_ids).pluck(:id)
+
     linked_dossier_champs.map do |champ|
-      { libelle: champ.libelle, suffixe: generate_suffix(champ.libelle, track_collision: false) }
+      dossier_id = champ.value.to_i
+      {
+        libelle: champ.libelle,
+        suffixe: generate_suffix(champ.libelle, track_collision: false),
+        accessible: accessible_ids.include?(dossier_id),
+        dossier_id: dossier_id
+      }
     end
   end
 
   private
 
   def linked_dossier_champs
-    @linked_champs ||= @dossier.champs.filter { |c| c.is_a?(Champs::DossierLinkChamp) && c.value.present? }
+    @dossier.champs.filter { |c| c.is_a?(Champs::DossierLinkChamp) && c.value.present? }
+  end
+
+  def accessible_linked_dossiers(ids)
+    return Dossier.none if ids.empty?
+
+    # pf: Vérifier les permissions sur les dossiers liés
+    if @user&.instructeur
+      # Instructeur peut voir les dossiers des procédures auxquelles il est assigné
+      Dossier.where(id: ids)
+        .joins(:groupe_instructeur)
+        .where(groupe_instructeurs: { id: @user.instructeur.groupe_instructeur_ids })
+    elsif @user
+      # Usager ne voit que ses propres dossiers
+      DossierPolicy::Scope.new(@user, Dossier.where(id: ids)).resolve
+    else
+      # Fallback : tous les dossiers (usage interne sans user)
+      Dossier.where(id: ids)
+    end
   end
 
   def extract_linked_dossier_variables(linked_dossier)
     {}.tap do |variables|
       add_metadata(variables, linked_dossier)
-      add_public_champs(variables, linked_dossier)
-      add_private_annotations(variables, linked_dossier) if linked_dossier.has_annotations?
+      add_champs(variables, linked_dossier.champs.filter { |c| !c.child? && c.present? })
+      add_champs(variables, linked_dossier.filled_champs_private) if linked_dossier.has_annotations?
     end
   end
 
@@ -67,15 +97,7 @@ class LinkedDossierFieldsService
     end
   end
 
-  def add_public_champs(variables, dossier)
-    add_champs_to_variables(variables, dossier.champs.filter { |c| !c.child? && c.present? })
-  end
-
-  def add_private_annotations(variables, dossier)
-    add_champs_to_variables(variables, dossier.filled_champs_private)
-  end
-
-  def add_champs_to_variables(variables, champs)
+  def add_champs(variables, champs)
     champs.each do |champ|
       next if champ.is_a?(Champs::DossierLinkChamp) # Éviter la récursion
       variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ)

@@ -27,12 +27,13 @@ class LexpolService
     ["followers_instructeurs.last.email", 'Dossier instruit par']
   ].freeze
 
-  attr_reader :champ, :dossier, :apilexpol
+  attr_reader :champ, :dossier, :apilexpol, :user
 
-  def initialize(champ:, dossier:, apilexpol:)
+  def initialize(champ:, dossier:, apilexpol:, user: nil)
     @champ = champ
     @dossier = dossier
     @apilexpol = apilexpol
+    @user = user
   end
 
   def upsert_dossier(force_create: false)
@@ -60,7 +61,7 @@ class LexpolService
   end
 
   def build_variables
-    variables = dossier.champs.filter { |c| !c.child? }.reduce({}) do |variables, champ|
+    variables = dossier.champs.filter { |c| !c.child? && !c.is_a?(Champs::DossierLinkChamp) }.reduce({}) do |variables, champ|
       variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ) if champ.present?
       variables
     end
@@ -72,7 +73,7 @@ class LexpolService
     end
 
     # pf: Enrichissement avec les champs des dossiers liés
-    linked_service = LinkedDossierFieldsService.new(dossier)
+    linked_service = LinkedDossierFieldsService.new(dossier, user)
     linked_service.enrich_variables(variables)
   end
 
