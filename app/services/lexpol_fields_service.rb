@@ -58,7 +58,8 @@ module LexpolFieldsService
     list_items = options.each_with_index.map do |opt, index|
       # Dernier élément se termine par '.', les autres par ' ;'
       punctuation = (index == options.size - 1) ? '.' : ' ;'
-      "<li>#{opt}#{punctuation}</li>"
+      escaped_opt = ERB::Util.html_escape(opt.to_s)
+      "<li>#{escaped_opt}#{punctuation}</li>"
     end
 
     "<ul>#{list_items.join}</ul>"
