@@ -8,6 +8,7 @@ class LinkedDossierFieldsService
     @dossier = dossier
     @user = user
     @used_suffixes = [] # Pour détecter les collisions
+    @suffix_cache = {}
     @visited_dossier_ids = Set.new
   end
 
@@ -44,7 +45,7 @@ class LinkedDossierFieldsService
       dossier_id = champ.value.to_i
       {
         libelle: champ.libelle,
-        suffixe: generate_suffix(champ.libelle, track_collision: false),
+        suffixe: generate_suffix(champ.libelle),
         accessible: accessible_ids.include?(dossier_id),
         dossier_id: dossier_id
       }
@@ -105,11 +106,15 @@ class LinkedDossierFieldsService
   end
 
   def generate_suffix(libelle, track_collision: true)
+    # Si déjà calculé, retourner le même suffixe
+    return @suffix_cache[libelle] if @suffix_cache.key?(libelle)
+
     words = normalize_and_split(libelle)
     filtered = filter_stopwords(words)
     suffix = select_suffix(filtered, track_collision)
 
     @used_suffixes << suffix if track_collision
+    @suffix_cache[libelle] = suffix # Sauvegarder pour la prochaine fois
     suffix
   end
 
