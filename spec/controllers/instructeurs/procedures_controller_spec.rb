@@ -512,10 +512,10 @@ describe Instructeurs::ProceduresController, type: :controller do
       end
 
       describe 'statut' do
-        let!(:a_suivre_dossier) { Timecop.freeze(1.day.ago) { create(:dossier, :en_instruction, procedure: procedure) } }
-        let!(:new_followed_dossier) { Timecop.freeze(2.days.ago) { create(:dossier, :en_instruction, procedure: procedure) } }
-        let!(:termine_dossier) { Timecop.freeze(3.days.ago) { create(:dossier, :accepte, procedure: procedure) } }
-        let!(:archived_dossier) { Timecop.freeze(4.days.ago) { create(:dossier, :en_instruction, procedure: procedure, archived: true) } }
+        let!(:a_suivre_dossier) { travel_to(1.day.ago) { create(:dossier, :en_instruction, procedure: procedure) } }
+        let!(:new_followed_dossier) { travel_to(2.days.ago) { create(:dossier, :en_instruction, procedure: procedure) } }
+        let!(:termine_dossier) { travel_to(3.days.ago) { create(:dossier, :accepte, procedure: procedure) } }
+        let!(:archived_dossier) { travel_to(4.days.ago) { create(:dossier, :en_instruction, procedure: procedure, archived: true) } }
 
         before do
           instructeur.followed_dossiers << new_followed_dossier
@@ -786,7 +786,7 @@ describe Instructeurs::ProceduresController, type: :controller do
         let(:defaut_groupe_instructeur) { procedure.defaut_groupe_instructeur }
         let!(:dossier_in_group) { create(:dossier, :brouillon, procedure:, groupe_instructeur: defaut_groupe_instructeur) }
         let!(:dossier_without_groupe) { create(:dossier, :brouillon, procedure:, groupe_instructeur: nil) }
-
+        let!(:dossier_fork) { dossier_in_group.find_or_create_editing_fork(dossier_in_group.user) }
         before { defaut_groupe_instructeur.instructeurs << instructeur }
 
         it 'count brouillon per group and not in group' do
@@ -839,17 +839,18 @@ describe Instructeurs::ProceduresController, type: :controller do
       let!(:dossier_4) { create(:dossier, state: "brouillon", procedure: procedure, groupe_instructeur: nil) }
 
       context 'when groupe instructeur id is specified' do
+        subject do
+          post :create_multiple_commentaire,
+                params: {
+                  procedure_id: procedure.id,
+                  bulk_message: {
+                    body: body,
+                    groupe_instructeur_ids: { gi_p1_1.id => true, gi_p1_2.id => false }
+                  }
+                }
+        end
         it "creates a Bulk Message for given group_instructeur_ids" do
-          expect do
-            post :create_multiple_commentaire,
-            params: {
-              procedure_id: procedure.id,
-              bulk_message: {
-                body: body,
-                groupe_instructeur_ids: { gi_p1_1.id => true, gi_p1_2.id => false }
-              }
-            }
-          end.to change { Commentaire.count }.from(0).to(2)
+          expect { subject }.to change { Commentaire.count }.from(0).to(2)
           expect(dossier.commentaires.first.body).to eq(body)
           expect(dossier_2.commentaires.first.body).to eq(body)
           expect(dossier_3.commentaires.count).to eq(0)
@@ -858,21 +859,30 @@ describe Instructeurs::ProceduresController, type: :controller do
           expect(flash.notice).to eq("Tous les messages ont été envoyés avec succès")
           expect(response).to redirect_to instructeur_procedure_path(procedure)
         end
+
+        context 'when editing_fork exists' do
+          it 'skips fork notification' do
+            dossier.find_or_create_editing_fork(dossier_4.user)
+
+            expect { subject }.to change { Commentaire.count }.from(0).to(2)
+          end
+        end
       end
 
-      context 'when routing_enabled and without_group is specified' do
-        it "creates a Bulk Message for dossier without group_instructeur_ids" do
-          expect do
-            post :create_multiple_commentaire,
-            params: {
-              procedure_id: procedure.id,
-              bulk_message: {
-                body: body,
-                groupe_instructeur_ids: {},
-                without_group: "1"
-              }
+      context 'when without_group is specified' do
+        subject do
+          post :create_multiple_commentaire,
+          params: {
+            procedure_id: procedure.id,
+            bulk_message: {
+              body: body,
+              groupe_instructeur_ids: {},
+              without_group: "1"
             }
-          end.to change { Commentaire.count }.from(0).to(1)
+          }
+        end
+        it "creates a Bulk Message for dossier without group_instructeur_ids" do
+          expect { subject }.to change { Commentaire.count }.from(0).to(1)
           expect(dossier.commentaires.count).to eq(0)
           expect(dossier_2.commentaires.count).to eq(0)
           expect(dossier_3.commentaires.count).to eq(0)
@@ -880,6 +890,14 @@ describe Instructeurs::ProceduresController, type: :controller do
           expect(flash.notice).to be_present
           expect(flash.notice).to eq("Tous les messages ont été envoyés avec succès")
           expect(response).to redirect_to instructeur_procedure_path(procedure)
+        end
+
+        context 'when editing_fork exists' do
+          it 'skips fork notification' do
+            dossier_4.find_or_create_editing_fork(dossier_4.user)
+
+            expect { subject }.to change { Commentaire.count }.from(0).to(1)
+          end
         end
       end
     end

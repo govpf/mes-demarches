@@ -10,6 +10,12 @@ describe 'Instructing a dossier:', js: true do
 
   let!(:procedure) { create(:procedure, :published, instructeurs: [instructeur], types_de_champ_private: [{ type: 'checkbox', libelle: 'Yes/No', stable_id: 99 }, { libelle: 'Nom', condition: ds_eq(champ_value(99), constant(true)) }]) }
   let!(:dossier) { create(:dossier, :en_construction, :with_entreprise, procedure: procedure) }
+
+  scenario 'A instructeur can signin by email' do
+    log_in(instructeur.email, password, check_email: true)
+    expect(page).to have_current_path(instructeur_procedures_path)
+  end
+
   context 'the instructeur is also a user' do
     scenario 'a instructeur can fill a dossier' do
       visit commencer_path(path: procedure.path)
@@ -126,9 +132,7 @@ describe 'Instructing a dossier:', js: true do
   end
 
   scenario 'A instructeur can request an export' do
-    assert_performed_jobs 1 do
-      log_in(instructeur.email, password)
-    end
+    log_in(instructeur.email, password)
 
     click_on(procedure.libelle, visible: true)
     test_statut_bar(a_suivre: 1, tous_les_dossiers: 1)
@@ -154,7 +158,7 @@ describe 'Instructing a dossier:', js: true do
     expect(page).to have_text('Télécharger l’export')
   end
 
-  scenario 'A instructeur can see the personnes impliquées and statut is maintened over avis/personnes impliquee paths', chrome: true do
+  scenario 'A instructeur can see the personnes impliquées and statut is maintened over avis/personnes impliquee paths' do
     instructeur2 = create(:instructeur, password: password)
 
     log_in(instructeur.email, password, check_email: false)
@@ -204,7 +208,7 @@ describe 'Instructing a dossier:', js: true do
     expect(page).to have_text("Dossier envoyé")
   end
 
-  scenario 'A instructeur can ask for an Archive', chrome: true do
+  scenario 'A instructeur can ask for an Archive' do
     archivable_procedure = create(:procedure, :published, types_de_champ_public: [{ type: :piece_justificative }], instructeurs: [instructeur])
     create(:dossier, :accepte, procedure: archivable_procedure)
 
@@ -212,7 +216,8 @@ describe 'Instructing a dossier:', js: true do
     visit list_instructeur_archives_path(archivable_procedure)
 
     expect {
-      click_on "Demander la création"
+      page.first(".fr-table .fr-btn").click
+      expect(page).to have_text("Votre demande a été prise en compte")
     }.to have_enqueued_job(ArchiveCreationJob).with(archivable_procedure, an_instance_of(Archive), instructeur)
     expect(Archive.first.month).not_to be_nil
   end
@@ -316,17 +321,13 @@ describe 'Instructing a dossier:', js: true do
     end
   end
 
-  def log_in(email, password, check_email: true)
+  def log_in(email, password, check_email: false)
     visit new_user_session_path
     expect(page).to have_current_path(new_user_session_path)
 
     sign_in_with(email, password, check_email)
 
     expect(page).to have_current_path(instructeur_procedures_path)
-  end
-
-  def log_out
-    click_on 'Se déconnecter'
   end
 
   def ask_confidential_avis(to, introduction)

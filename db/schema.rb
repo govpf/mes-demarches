@@ -1002,6 +1002,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
     t.datetime "api_entreprise_token_expires_at", precision: nil
     t.text "api_particulier_scopes", default: [], array: true
     t.jsonb "api_particulier_sources", default: {}
+    t.string "api_particulier_token"
     t.boolean "ask_birthday", default: false, null: false
     t.date "auto_archive_on"
     t.string "cadre_juridique"

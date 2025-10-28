@@ -42,7 +42,7 @@ Vous pouvez aussi vous rendre dans votre circonscription ou dans un fare natira'
 
 ## 3. Compléter un dossier déjà créé
 
-Pour compléter un dossier, [connectez-vous sur votre espace %{application_name}](/users/sign_in) en renseignant l’adresse email et le mot de passe utilisés lors de la création de votre dossier.
+Pour compléter un dossier, [connectez-vous sur votre espace %{application_name}](/users/sign_in) en renseignant l’adresse électronique et le mot de passe utilisés lors de la création de votre dossier.
 
 ## 4. Je veux déposer un nouveau dossier
 

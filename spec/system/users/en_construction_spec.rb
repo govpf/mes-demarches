@@ -20,7 +20,8 @@ describe "Dossier en_construction", js: true do
     click_on "Supprimer le fichier toto.txt"
 
     wait_until { champ.reload.blank? }
-    expect(page).not_to have_text("toto.txt")
+    # pf: message simplifié sans nom de fichier pour éviter le scroll (#163)
+    expect(page).to have_text("La pièce jointe a bien été supprimée.")
   end
 
   context "with a mandatory piece justificative" do
@@ -32,7 +33,8 @@ describe "Dossier en_construction", js: true do
       visit_dossier(dossier)
 
       click_on "Supprimer le fichier toto.txt"
-      expect(page).not_to have_text("toto.txt")
+      # pf: message simplifié sans nom de fichier pour éviter le scroll (#163)
+      expect(page).to have_text("La pièce jointe a bien été supprimée.")
 
       input_selector = "#attachment-multiple-empty-#{champ.public_id}"
       expect(page).to have_selector(input_selector)
@@ -56,7 +58,8 @@ describe "Dossier en_construction", js: true do
       visit_dossier(dossier)
 
       click_on "Supprimer le fichier toto.png"
-      expect(page).not_to have_text("toto.png")
+      # pf: message simplifié sans nom de fichier pour éviter le scroll (#163)
+      expect(page).to have_text("La pièce jointe a bien été supprimée.")
 
       input_selector = "##{champ.input_id}"
       expect(page).to have_selector(input_selector)

@@ -22,9 +22,9 @@ describe Procedure do
       expect { procedure.compute_dossiers_count }.to change(procedure, :estimated_dossiers_count).from(nil).to(2)
       expect { create(:dossier, procedure: procedure).passer_en_construction! }.not_to change(procedure, :estimated_dossiers_count)
 
-      Timecop.freeze(Time.zone.now + Procedure::DOSSIERS_COUNT_EXPIRING)
+      travel_to(Time.zone.now + Procedure::DOSSIERS_COUNT_EXPIRING + 1.minute)
       expect { procedure.compute_dossiers_count }.to change(procedure, :estimated_dossiers_count).from(2).to(3)
-      Timecop.return
+      travel_back
     end
   end
 
@@ -1062,7 +1062,7 @@ describe Procedure do
 
     context 'when publishing a new procedure' do
       before do
-        Timecop.freeze(now) do
+        travel_to(now) do
           procedure.publish!
         end
       end
@@ -1090,7 +1090,7 @@ describe Procedure do
       let(:canonical_procedure) { create(:procedure, :published) }
 
       before do
-        Timecop.freeze(now) do
+        travel_to(now) do
           procedure.publish!(canonical_procedure)
         end
       end
@@ -1115,7 +1115,7 @@ describe Procedure do
 
     context 'when publishing over a previous canonical procedure' do
       before do
-        Timecop.freeze(now) do
+        travel_to(now) do
           procedure.publish_or_reopen!(administrateur, canonical_procedure.path)
         end
         procedure.reload
@@ -1152,7 +1152,7 @@ describe Procedure do
       before do
         parent_procedure.update!(canonical_procedure: canonical_procedure)
         parent_procedure.claim_path!(administrateur, canonical_path)
-        Timecop.freeze(now) do
+        travel_to(now) do
           procedure.publish_or_reopen!(administrateur, canonical_path)
         end
         parent_procedure.reload
@@ -1179,7 +1179,7 @@ describe Procedure do
 
       before do
         procedure.close!
-        Timecop.freeze(now) do
+        travel_to(now) do
           procedure.publish_or_reopen!(administrateur, procedure.path)
         end
       end
@@ -1218,7 +1218,7 @@ describe Procedure do
     end
 
     subject do
-      Timecop.freeze(publication_date) do
+      travel_to(publication_date) do
         procedure.publish_revision!
       end
     end
@@ -1250,6 +1250,21 @@ describe Procedure do
         expect(DossierRebaseJob).to have_been_enqueued.with(dossier_draft)
         expect(DossierRebaseJob).to have_been_enqueued.with(dossier_submitted)
         expect(DossierRebaseJob).not_to have_been_enqueued.with(dossier_termine)
+      end
+    end
+
+    context 'when a type de champ is transformed from a drop_down_list with referentiel to a textarea' do
+      let(:procedure) { create(:procedure, types_de_champ_public:) }
+      let(:types_de_champ_public) { [{ type: :drop_down_list, referentiel:, drop_down_mode: 'advanced' }] }
+      let(:referentiel) { create(:csv_referentiel, :with_items) }
+      let(:tdc) { procedure.draft_revision.types_de_champ_public.last }
+
+      before do
+        procedure.draft_revision.types_de_champ_public.last.update(type_champ: :textarea, options: { "character_limit" => "" })
+      end
+
+      it 'nullifies the referentiel' do
+        expect(procedure.draft_revision.types_de_champ_public.first.referentiel).to be_nil
       end
     end
   end
@@ -1312,7 +1327,7 @@ describe Procedure do
     let(:now) { Time.zone.now.beginning_of_minute }
 
     before do
-      Timecop.freeze(now) do
+      travel_to(now) do
         procedure.unpublish!
       end
     end
@@ -1395,7 +1410,7 @@ describe Procedure do
     let(:procedure) { create(:procedure, :published) }
     let(:now) { Time.zone.now.beginning_of_minute }
     before do
-      Timecop.freeze(now) do
+      travel_to(now) do
         procedure.close!
       end
       procedure.reload
