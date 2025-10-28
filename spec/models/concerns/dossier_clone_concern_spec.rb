@@ -406,6 +406,12 @@ RSpec.describe DossierCloneConcern do
         procedure.draft_revision.remove_type_de_champ(removed_champ.stable_id)
         procedure.draft_revision.find_and_ensure_exclusive_use(updated_champ.stable_id).update(libelle: "Un nouveau libelle")
         procedure.publish_revision!
+
+        # Forcer l'évaluation de forked_dossier AVANT travel pour que son created_at soit < updated_at
+        forked_dossier.reload
+
+        travel(1.second)
+
         added_champ.update(value: 'new value for added champ')
         added_repetition_champ.update(value: "new value in repetition champ")
 
