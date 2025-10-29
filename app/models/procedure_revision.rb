@@ -418,11 +418,15 @@ class ProcedureRevision < ApplicationRecord
           from_type_de_champ.referentiel,
           to_type_de_champ.referentiel)
       end
-      if from_type_de_champ.drop_down_options != to_type_de_champ.drop_down_options
+      # pf: normaliser la comparaison des drop_down_options pour ignorer les IDs des référentiels
+      # Permet d'éviter de signaler des changements lors du passage Manuel → CSV avec les mêmes labels
+      from_labels = normalize_drop_down_labels(from_type_de_champ.drop_down_options)
+      to_labels = normalize_drop_down_labels(to_type_de_champ.drop_down_options)
+      if from_labels != to_labels
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
           :drop_down_options,
-          from_type_de_champ.drop_down_options,
-          to_type_de_champ.drop_down_options)
+          from_labels,
+          to_labels)
       end
       if to_type_de_champ.linked_drop_down_list?
         if from_type_de_champ.drop_down_secondary_libelle != to_type_de_champ.drop_down_secondary_libelle
@@ -504,6 +508,13 @@ class ProcedureRevision < ApplicationRecord
       ineligibilite_rules.errors(types_de_champ_for(scope: :public).to_a)
         .each { errors.add(:ineligibilite_rules, :invalid) }
     end
+  end
+
+  # pf: normalise les options drop_down pour comparer uniquement les labels
+  # Gère le cas où les options sont nil (référentiel sans CSV) ou des tuples [label, id]
+  def normalize_drop_down_labels(options)
+    return [] if options.nil?
+    options.map { |opt| opt.is_a?(Array) ? opt.first : opt }
   end
 
   def replace_type_de_champ_by_clone(coordinate)
