@@ -248,6 +248,7 @@ Rails.application.routes.draw do
     get ':dossier_id/:stable_id/piece_justificative/download/:h/:i', to: 'piece_justificative#download', as: :piece_justificative_download
 
     post ':dossier_id/:stable_id/lexpol/upsert', to: 'lexpol#upsert', as: :lexpol_upsert_dossier
+    get ':dossier_id/:stable_id/lexpol/preview_variables', to: 'lexpol#preview_variables', as: :lexpol_preview_variables
   end
 
   resources :attachments, only: [:show, :destroy]
