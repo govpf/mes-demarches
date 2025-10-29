@@ -1,5 +1,5 @@
 import { matchInputElement } from '@coldwired/utils';
-import { ActionEvent } from '@hotwired/stimulus';
+import type { ActionEvent } from '@hotwired/stimulus';
 import { getConfig, httpRequest } from '@utils';
 
 import { AutoUpload } from '../shared/activestorage/auto-upload';
@@ -104,7 +104,7 @@ export class TypeDeChampEditorController extends ApplicationController {
       httpRequest(form.action, {
         method: form.getAttribute('method') ?? '',
         body: new FormData(form),
-        controller: controller
+        signal: controller.signal
       })
         .turbo()
         .catch(() => null)

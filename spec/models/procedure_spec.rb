@@ -1133,20 +1133,6 @@ describe Procedure do
       it 'raises an error' do
         expect { procedure.publish_or_reopen!(administrateur, other_procedure.path) }.to raise_error(ActiveRecord::RecordInvalid)
       end
-
-      context "before maintenance task" do
-        let(:other_procedure) do
-          p = create(:procedure, :published, administrateurs: [create(:administrateur)])
-          p.update_column(:path, 'other-path')
-          p.procedure_paths.delete_all
-          p
-        end
-
-        it 'raises an error' do
-          expect { procedure.publish_or_reopen!(administrateur, other_procedure.path) }.to raise_error(ActiveRecord::RecordInvalid)
-          expect(procedure.canonical_path).not_to eq(other_procedure.path)
-        end
-      end
     end
   end
 
@@ -1369,8 +1355,13 @@ describe Procedure do
   end
 
   describe 'suggested_path' do
-    let(:procedure) { create(:procedure, aasm_state: :publiee, libelle: 'Inscription au Collège', zones: [create(:zone)], path: path) }
+    let!(:procedure) { create(:procedure, aasm_state: :publiee, libelle: 'Inscription au Collège', zones: [create(:zone)]) }
     let(:path) { nil }
+
+    before do
+      travel(3.seconds)
+      procedure.claim_path!(procedure.administrateurs.first, path)
+    end
 
     subject { procedure.suggested_path }
 

@@ -43,10 +43,12 @@ export function ComboBox({
   inputRef,
   isLoading,
   isOpen,
+  placeholder,
   ...props
 }: ComboBoxProps & {
   inputRef?: RefObject<HTMLInputElement>;
   isOpen?: boolean;
+  placeholder?: string;
 }) {
   return (
     <AriaComboBox
@@ -69,6 +71,7 @@ export function ComboBox({
           className="fr-select fr-autocomplete"
           ref={inputRef}
           aria-busy={isLoading}
+          placeholder={placeholder || undefined}
         />
         <Button
           aria-haspopup="false"
@@ -107,11 +110,13 @@ export function SingleComboBox({
   const {
     items: defaultItems,
     selectedKey: defaultSelectedKey,
+    placeholder,
     emptyFilterKey,
     name,
     formValue,
     form,
     data,
+    maxItemsDisplay,
     ...props
   } = useMemo(() => s.create(maybeProps, SingleComboBoxProps), [maybeProps]);
 
@@ -121,12 +126,18 @@ export function SingleComboBox({
     defaultItems,
     defaultSelectedKey,
     emptyFilterKey,
-    onChange: dispatch
+    onChange: dispatch,
+    maxItemsDisplay
   });
 
   return (
     <>
-      <ComboBox menuTrigger="focus" {...comboBoxProps} {...props}>
+      <ComboBox
+        menuTrigger="focus"
+        placeholder={placeholder}
+        {...comboBoxProps}
+        {...props}
+      >
         {(item) => <ComboBoxItem id={item.value}>{item.label}</ComboBoxItem>}
       </ComboBox>
       {children || name ? (
@@ -159,6 +170,7 @@ export function MultiComboBox(maybeProps: MultiComboBoxProps) {
     allowsCustomValue,
     valueSeparator,
     className,
+    maxItemsDisplay,
     ...props
   } = useMemo(() => s.create(maybeProps, MultiComboBoxProps), [maybeProps]);
 
@@ -178,6 +190,7 @@ export function MultiComboBox(maybeProps: MultiComboBoxProps) {
     formValue,
     allowsCustomValue,
     valueSeparator,
+    maxItemsDisplay,
     focusInput: () => {
       inputRef.current?.focus();
     }
