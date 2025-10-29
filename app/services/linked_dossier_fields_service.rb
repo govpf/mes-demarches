@@ -55,7 +55,8 @@ class LinkedDossierFieldsService
   private
 
   def linked_dossier_champs
-    @dossier.champs.filter { |c| c.is_a?(Champs::DossierLinkChamp) && c.value.present? }
+    # pf: Filtrer les champs DossierLink parmi les champs publics uniquement
+    @dossier.project_champs_public_all.filter { |c| c.is_a?(Champs::DossierLinkChamp) && c.value.present? }
   end
 
   def accessible_linked_dossiers(ids)
