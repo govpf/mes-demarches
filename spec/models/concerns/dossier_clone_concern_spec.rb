@@ -290,20 +290,24 @@ RSpec.describe DossierCloneConcern do
 
       it do
         expect(subject).to eq(added: [], updated: [], removed: [])
-        expect(forked_dossier.forked_with_changes?).to be_truthy
+        expect(forked_dossier.user_buffer_changes?).to be_truthy
       end
     end
 
     context 'with updated champ' do
       let(:updated_champ) { forked_dossier.champs.find { _1.stable_id == 99 } }
 
-      before { updated_champ.update(value: 'new value') }
+      before do
+        updated_champ # force evaluation before travel
+        travel_to 1.second.from_now
+        updated_champ.update(value: 'new value')
+      end
 
-      it 'forked_with_changes? should reflect dossier state' do
+      it 'user_buffer_changes? should reflect dossier state' do
         expect(subject).to eq(added: [], updated: [updated_champ], removed: [])
-        expect(dossier.forked_with_changes?).to be_falsey
-        expect(forked_dossier.forked_with_changes?).to be_truthy
-        expect(updated_champ.forked_with_changes?).to be_truthy
+        expect(dossier.user_buffer_changes?).to be_truthy
+        expect(forked_dossier.user_buffer_changes?).to be_truthy
+        expect(updated_champ.user_buffer_changes?).to be_truthy
       end
     end
 
@@ -347,6 +351,9 @@ RSpec.describe DossierCloneConcern do
         dossier.champs.each do |champ|
           champ.update(value: 'old value')
         end
+        updated_champ # force evaluation before travel
+        updated_repetition_champs # force evaluation before travel
+        travel_to 1.second.from_now
         updated_champ.update(value: 'new value')
         updated_repetition_champs.each { _1.update(value: 'new value in repetition') }
         dossier.debounce_index_search_terms_flag.remove

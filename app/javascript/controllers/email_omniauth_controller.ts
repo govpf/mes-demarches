@@ -9,14 +9,14 @@ export class EmailOmniauthController extends ApplicationController {
     'form'
   ];
 
-  emailFieldTarget!: HTMLElement;
-  useProviderEmailTargets!: HTMLInputElement[];
-  submitTarget!: HTMLButtonElement;
-  emailInputTarget!: HTMLInputElement;
-  formTarget!: HTMLFormElement;
+  declare readonly emailFieldTarget: HTMLElement;
+  declare readonly useProviderEmailTargets: HTMLInputElement[];
+  declare readonly submitTarget: HTMLButtonElement;
+  declare readonly emailInputTarget: HTMLInputElement;
+  declare readonly formTarget: HTMLFormElement;
 
-  providerEmailPathValue!: string;
-  customEmailPathValue!: string;
+  declare readonly providerEmailPathValue: string;
+  declare readonly customEmailPathValue: string;
 
   static values = {
     providerEmailPath: String,

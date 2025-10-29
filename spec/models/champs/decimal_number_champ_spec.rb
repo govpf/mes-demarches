@@ -15,6 +15,7 @@ describe Champs::DecimalNumberChamp do
       allow(champ).to receive(:visible?).and_return(true)
       allow(champ).to receive(:in_dossier_revision?).and_return(true)
       allow(champ).to receive(:is_same_type_as_revision?).and_return(true)
+      allow(champ).to receive(:in_dossier_stream?).and_return(true)
       allow(champ).to receive(:row?).and_return(false)
       allow(champ).to receive(:in_discarded_row?).and_return(false)
       champ.run_callbacks(:validation)

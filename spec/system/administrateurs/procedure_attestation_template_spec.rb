@@ -124,9 +124,9 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
         first_content = body.dig("content").first&.dig("content")&.first&.dig("content")&.first&.dig("content")
 
         first_content == [
-          { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision" } }, # added by click above
-          { "type" => "text", "text" => " " },
-          { "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service" } } # defaut initial content
+          { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision", "mentionSuggestionChar" => "@" } }, # added by click above
+          { "text" => " ", "type" => "text" },
+          { "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service", "mentionSuggestionChar" => "@" } } # defaut initial content
         ]
       }
 

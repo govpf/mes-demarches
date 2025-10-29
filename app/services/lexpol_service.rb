@@ -62,7 +62,15 @@ class LexpolService
 
   def build_variables
     variables = dossier.champs.filter { |c| !c.child? && !c.is_a?(Champs::DossierLinkChamp) }.reduce({}) do |variables, champ|
-      variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ) if champ.present?
+      if champ.present?
+        # Variable standard
+        variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ)
+
+        # Variable avec format liste pour MultipleDropDownListChamp
+        if champ.is_a?(Champs::MultipleDropDownListChamp)
+          variables["#{champ.libelle} (liste)"] = LexpolFieldsService.format_as_html_list(champ.selected_options)
+        end
+      end
       variables
     end
     LexpolService.default_mapping(champ.type_de_champ, dossier.procedure).reduce(variables) do |variables, (source_field, target_field)|
@@ -92,7 +100,14 @@ class LexpolService
 
   def self.lexpol_variables(lexpol_type_de_champ, procedure)
     default_variables = default_mapping(lexpol_type_de_champ, procedure).values
-    champ_variables = procedure.draft_revision.types_de_champ.map(&:libelle)
+
+    champ_variables = procedure.draft_revision.types_de_champ.flat_map do |tdc|
+      base = [tdc.libelle]
+      # Ajouter la version (liste) pour les champs à choix multiples
+      base << "#{tdc.libelle} (liste)" if tdc.type_champ == 'multiple_drop_down_list'
+      base
+    end
+
     (default_variables + champ_variables).sort_by(&:downcase)
   end
 
