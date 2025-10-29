@@ -31,13 +31,18 @@ module Champs
       dossier = policy_scope(Dossier).includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
       type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
 
+      unless type_de_champ
+        return render json: { error: 'Type de champ introuvable' }, status: :not_found
+      end
+
       # Créer un champ temporaire pour le service (sans le sauvegarder)
+      # Note: instance_variable_set est utilisé car type_de_champ est une méthode calculée
+      # sans setter. Acceptable ici car le champ est temporaire et non persisté.
       temp_champ = Champs::LexpolChamp.new(
         dossier: dossier,
         stable_id: type_de_champ.stable_id,
         private: type_de_champ.private?
       )
-      # Associer le type_de_champ après la création
       temp_champ.instance_variable_set(:@type_de_champ, type_de_champ)
 
       apilexpol = APILexpol.new(current_user.email, dossier.procedure&.service&.siret, should_use_test_user_for_dossier?(dossier))
