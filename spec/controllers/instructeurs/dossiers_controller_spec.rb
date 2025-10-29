@@ -64,7 +64,7 @@ describe Instructeurs::DossiersController, type: :controller do
     let(:batch_operation) {}
 
     subject do
-      travel(1.minute)
+      travel_to 1.minute.from_now
       batch_operation
       patch :follow, params: { procedure_id: procedure.id, dossier_id: dossier.id, statut: 'a-suivre' }
     end
@@ -97,7 +97,7 @@ describe Instructeurs::DossiersController, type: :controller do
     before { instructeur.followed_dossiers << dossier }
 
     subject do
-      travel(1.minute)
+      travel_to 1.minute.from_now
       batch_operation
       patch :unfollow, params: { procedure_id: procedure.id, dossier_id: dossier.id, statut: 'a-suivre' }
     end

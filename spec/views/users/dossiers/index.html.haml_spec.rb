@@ -131,7 +131,7 @@ describe 'users/dossiers/index', type: :view do
       expect(user_dossiers).to receive(:present?).exactly(4).times
       render
 
-      travel(1.minute)
+      travel_to 1.minute.from_now
 
       dossier_termine.touch
       user.reload
@@ -164,7 +164,7 @@ describe 'users/dossiers/index', type: :view do
       expect(user_dossiers).to receive(:present?).exactly(4).times
       render
 
-      travel(1.minute)
+      travel_to 1.minute.from_now
 
       dossier_termine.hide_and_keep_track!(:automatic, :expired)
       user.reload

@@ -1359,7 +1359,7 @@ describe Procedure do
     let(:path) { nil }
 
     before do
-      travel(3.seconds)
+      travel_to 3.seconds.from_now
       procedure.claim_path!(procedure.administrateurs.first, path)
     end
 
