@@ -5,12 +5,14 @@ class ApplicationController < ActionController::Base
   include NavBarProfileConcern
   include Pundit::Authorization
   include Devise::StoreLocationExtension
-  include ApplicationController::LongLivedAuthenticityToken
+  include MigrateCsrfToken
   include ApplicationController::ErrorHandling
   # pf: ajout du concern pour la navigation contextuelle entre personas
   include ContextualNavigationConcern
 
   MAINTENANCE_MESSAGE = 'Le site est actuellement en maintenance. Il sera à nouveau disponible dans un court instant.'
+
+  protect_from_forgery with: :exception, store: :cookie # define same store in config/initializers/active_storage.rb
 
   before_action :set_sentry_user
   before_action :redirect_if_untrusted
@@ -205,7 +207,11 @@ class ApplicationController < ActionController::Base
 
   def setup_javascript_settings
     gon.autosave = Rails.application.config.ds_autosave
-    gon.autocomplete = Rails.application.secrets.autocomplete
+    gon.autocomplete = {
+      api_geo_url: API_GEO_URL,
+      api_adresse_url: API_ADRESSE_URL,
+      api_education_url: API_EDUCATION_URL
+    }
   end
 
   def setup_tracking

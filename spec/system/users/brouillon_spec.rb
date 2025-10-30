@@ -243,6 +243,9 @@ describe 'The user', js: true do
   end
 
   scenario 'fill address not in BAN' do
+    stub_request(:get, "https://api-adresse.data.gouv.fr/search?limit=10&q=2%20rue%20de%20la%20paix,%2092094%20Belgique")
+      .to_return(body: '{"type":"FeatureCollection","version":"draft","features":[]}')
+
     log_in(user, simple_procedure)
     fill_individual
 
@@ -663,7 +666,8 @@ describe 'The user', js: true do
       allow_any_instance_of(Users::DossiersController).to receive(:update).and_raise("Server is busy")
       fill_in('texte obligatoire', with: 'a valid user input')
       blur
-      expect(page).to have_text('Attention : Impossible d’enregistrer le brouillon.')
+      expect(page).to have_css('.autosave-state-failed')
+      expect(page).to have_button('Réessayer')
       # Test that retrying after a failure works
       retry_button = find('button', text: 'Réessayer', wait: 10)
       allow_any_instance_of(Users::DossiersController).to receive(:update).and_call_original
