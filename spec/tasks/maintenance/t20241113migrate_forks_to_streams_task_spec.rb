@@ -19,6 +19,7 @@ module Maintenance
       }
 
       it { expect { subject }.to change { dossier.reload.send(:champs_on_user_buffer_stream).count }.from(0).to(3) }
+      it { expect { subject }.not_to change { dossier.reload.send(:champs_on_main_stream).count } }
       it { expect { subject }.to change { Dossier.exists?(fork.id) }.from(true).to(false) }
       it do
         subject

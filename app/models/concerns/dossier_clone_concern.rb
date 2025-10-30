@@ -186,7 +186,7 @@ module DossierCloneConcern
     if updated_champs.present?
       champs_index = champs.index_by(&:public_id)
       updated_champs.each do |champ|
-        champs_index[champ.public_id]&.destroy!
+        champs_index[champ.public_id]&.destroy! if stream == 'main'
         champ.update_columns(dossier_id: id, stream:)
       end
     end
