@@ -16,6 +16,8 @@ module ChampConditionalConcern
       # Huge gain perf for cascade conditions
       return @visible if instance_variable_defined? :@visible
 
+      return false if parent_hidden?
+
       @visible = if conditional?
         type_de_champ.condition.compute(champs_for_condition)
       else
@@ -33,6 +35,21 @@ module ChampConditionalConcern
       # HOTFIX: Eviter la boucle infinie visible? -> filled_champs -> project_champs_public -> visible?
       # Utiliser directement champs_by_public_id pour éviter le recalcul des champs
       dossier.champs_by_public_id_for_conditions.filter { _1.row_id.nil? || _1.row_id == row_id }
+    end
+
+    def parent_hidden?
+      # if there is no row_id, it always has been a root champ
+      return false if !child?
+
+      # otherwise maybe the champ has been moved outside a repetition
+      parent_tdc = dossier.revision.parent_of(type_de_champ)
+
+      return false if parent_tdc.nil?
+
+      parent = dossier.project_champs
+        .find { it.type_de_champ == parent_tdc }
+
+      !parent.visible?
     end
   end
 end

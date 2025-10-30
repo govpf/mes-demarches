@@ -74,6 +74,8 @@ module Mutations
         TypeDeChamp.type_champs.fetch(:integer_number)
       when :piece_justificative
         TypeDeChamp.type_champs.fetch(:piece_justificative)
+      when :decimal_number
+        TypeDeChamp.type_champs.fetch(:decimal_number)
       when :drop_down_list
         TypeDeChamp.type_champs.fetch(:drop_down_list)
       end
