@@ -141,8 +141,8 @@ class TypeDeChamp < ApplicationRecord
   }.merge(INSTANCE_TYPE_CHAMPS)
 
   INSTANCE_OPTIONS_BY_TYPE = {
-    decimal_number: [:min, :max],
-    integer_number: [:min, :max],
+    decimal_number: [:positive_number, :min_number, :max_number, :range_number],
+    integer_number: [:positive_number, :min_number, :max_number, :range_number],
     date: [:min, :max],
     table_row_selector: [:table_id, :drop_down_other],
     referentiel_de_polynesie: [:table_id, :drop_down_other],
