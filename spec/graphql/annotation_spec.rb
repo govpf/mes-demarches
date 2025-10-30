@@ -5,7 +5,8 @@ RSpec.describe Mutations::DossierModifierAnnotation, type: :graphql do
   let(:procedure) { create(:procedure, :published, :for_individual, types_de_champ_private: [{ type: :repetition, children: [{ libelle: 'Nom' }, { type: :integer_number, libelle: 'Age' }, { type: :decimal_number, libelle: 'Montant' }] }, { type: :decimal_number, libelle: 'Montant' }, {}], administrateurs: [admin]) }
   let(:dossiers) { [] }
   let(:instructeur) { create(:instructeur, followed_dossiers: dossiers) }
-  let(:project_champs_private) { dossier.project_champs_private }
+  let(:champs_private) { dossier.project_champs_private }
+  let(:project_champs_private) { champs_private } # pf: alias for backward compatibility
 
   let(:query) { '' }
   let(:context) { { administrateur_id: admin.id, procedure_ids: admin.procedure_ids, write_access: true } }
