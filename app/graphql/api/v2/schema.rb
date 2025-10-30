@@ -140,7 +140,6 @@ class API::V2::Schema < GraphQL::Schema
     Types::Champs::Descriptor::VisaChampDescriptorType,
     Types::Champs::Descriptor::LexpolChampDescriptorType,
     Types::Champs::Descriptor::YesNoChampDescriptorType,
-    Types::Champs::Descriptor::ExpressionReguliereChampDescriptorType,
     Types::Champs::Descriptor::ReferentielChampDescriptorType,
     Types::Champs::Descriptor::FormattedChampDescriptorType,
     Types::Champs::Descriptor::EngagementJuridiqueChampDescriptorType

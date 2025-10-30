@@ -21,7 +21,6 @@ end
 features = [
   :administrateur_web_hook,
   :api_particulier,
-  :attestation_v2,
   :blocking_pending_correction,
   :cojo_type_de_champ,
   :delayed_notifications, # pf: feature flag pour les notifications différées par procédure
@@ -30,7 +29,6 @@ features = [
   :export_order_by_revision,
   :export_template,
   :referentiel_type_de_champ,
-  :expression_reguliere_type_de_champ,
   :groupe_instructeur_api_hack,
   :qrcoded_pdf,
   :rdv,

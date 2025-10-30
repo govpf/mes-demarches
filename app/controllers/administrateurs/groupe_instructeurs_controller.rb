@@ -93,6 +93,8 @@ module Administrateurs
         defaut.destroy!
       end
 
+      procedure.update!(routing_alert: true) if procedure.dossiers.state_en_construction_ou_instruction.any?
+
       flash[:routing_mode] = 'simple'
 
       redirect_to admin_procedure_groupe_instructeurs_path(@procedure)
@@ -113,6 +115,8 @@ module Administrateurs
 
       procedure.toggle_routing
 
+      procedure.update!(routing_alert: true) if procedure.dossiers.state_en_construction_ou_instruction.any?
+
       flash[:routing_mode] = 'custom'
 
       redirect_to admin_procedure_groupe_instructeurs_path(procedure)
@@ -121,7 +125,7 @@ module Administrateurs
     def destroy_all_groups_but_defaut
       reaffecter_all_dossiers_to_defaut_groupe
       procedure.groupe_instructeurs_but_defaut.each(&:destroy!)
-      procedure.update!(routing_enabled: false)
+      procedure.update!(routing_enabled: false, routing_alert: false)
       procedure.defaut_groupe_instructeur.update!(
         routing_rule: nil,
         label: GroupeInstructeur::DEFAUT_LABEL,
@@ -199,6 +203,7 @@ module Administrateurs
         @groupe_instructeur.destroy!
         if procedure.groupe_instructeurs.active.one?
           procedure.toggle_routing
+          procedure.update!(routing_alert: false)
           procedure.defaut_groupe_instructeur.update!(
             routing_rule: nil,
             label: GroupeInstructeur::DEFAUT_LABEL,
@@ -342,10 +347,7 @@ module Administrateurs
         flash[:alert] = "Importation impossible : le poids du fichier est supérieur à #{number_to_human_size(CSV_MAX_SIZE)}"
 
       else
-        file = csv_file.read
-        base_encoding = CharlockHolmes::EncodingDetector.detect(file)
-
-        csv_content = ACSV::CSV.new_for_ruby3(file.encode("UTF-8", base_encoding[:encoding], invalid: :replace, replace: ""), headers: true, header_converters: :downcase).map(&:to_h)
+        csv_content = SmarterCSV.process(csv_file, strings_as_keys: true, convert_values_to_numeric: false)
 
         if csv_content.first.has_key?("groupe") && csv_content.first.has_key?("email")
           groupes_emails = csv_content.map { |r| r.to_h.slice('groupe', 'email') }
@@ -390,6 +392,14 @@ module Administrateurs
       respond_to do |format|
         format.csv { send_data data, filename: "#{procedure.id}-groupe-instructeurs-#{Date.today}.csv" }
       end
+    end
+
+    def bulk_route
+      BulkRouteJob.perform_later(procedure)
+
+      flash[:notice] = "Le routage des dossiers est lancé."
+
+      redirect_to admin_procedure_groupe_instructeurs_path(procedure)
     end
 
     private

@@ -56,7 +56,6 @@ en:
           mesri: 'Data from Ministère de l’Enseignement Supérieur, de la Recherche et de l’Innovation'
           epci: 'EPCI'
           cojo: 'Accreditation Paris 2024'
-          expression_reguliere: 'Regular expression'
           table_row_selector: "Administrations' referential"
           referentiel_de_polynesie: "Administrations' referential"
           formatted: 'Formatted field'
