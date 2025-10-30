@@ -91,7 +91,7 @@ class TypeDeChamp < ApplicationRecord
     dgfip: REFERENTIEL_EXTERNE,
     pole_emploi: REFERENTIEL_EXTERNE,
     mesri: REFERENTIEL_EXTERNE,
-    cojo: REFERENTIEL_EXTERNE,
+    cojo: REFERENTIEL_EXTERNE
   }.merge(INSTANCE_TYPE_DE_CHAMP_TO_CATEGORIE)
 
   enum :type_champ, {
