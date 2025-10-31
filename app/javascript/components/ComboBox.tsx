@@ -46,7 +46,7 @@ export function ComboBox({
   placeholder,
   ...props
 }: ComboBoxProps & {
-  inputRef?: RefObject<HTMLInputElement>;
+  inputRef?: RefObject<HTMLInputElement | null>;
   isOpen?: boolean;
   placeholder?: string;
 }) {
@@ -69,7 +69,7 @@ export function ComboBox({
       <div className="fr-ds-combobox__input" style={{ position: 'relative' }}>
         <Input
           className="fr-select fr-autocomplete"
-          ref={inputRef}
+          ref={inputRef as RefObject<HTMLInputElement>}
           aria-busy={isLoading}
           placeholder={placeholder || undefined}
         />
@@ -175,7 +175,7 @@ export function MultiComboBox(maybeProps: MultiComboBoxProps) {
   } = useMemo(() => s.create(maybeProps, MultiComboBoxProps), [maybeProps]);
 
   const { ref, dispatch } = useDispatchChangeEvent();
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const {
     selectedItems,
