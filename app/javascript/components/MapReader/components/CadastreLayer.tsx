@@ -11,7 +11,7 @@ export function CadastreLayer({
   featureCollection: FeatureCollection;
 }) {
   const map = useMapLibre();
-  const selectedCadastresRef = useRef<Set<string>>(null);
+  const selectedCadastresRef = useRef<Set<string> | null>(null);
 
   useMapEvent('styledata', () => {
     selectedCadastresRef.current = new Set(

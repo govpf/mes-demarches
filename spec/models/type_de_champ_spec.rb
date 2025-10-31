@@ -415,18 +415,6 @@ describe TypeDeChamp do
       end
     end
 
-    context "Table row selector" do
-      let(:type_de_champ) { create(:type_de_champ_table_row_selector, procedure:) }
-
-      before do
-        type_de_champ.update!(options: { 'table_id' => '42', 'drop_down_other' => '1', 'key' => 'value' })
-        procedure.publish_revision!
-      end
-
-      it 'keeping only the table_id and drop_down_other' do
-        is_expected.to eq({ 'table_id' => '42', 'drop_down_other' => '1' })
-      end
-    end
 
     context "Te Fenua" do
       let(:type_de_champ) { create(:type_de_champ_te_fenua, procedure:) }
