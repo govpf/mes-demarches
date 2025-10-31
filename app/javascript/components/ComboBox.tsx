@@ -175,7 +175,7 @@ export function MultiComboBox(maybeProps: MultiComboBoxProps) {
   } = useMemo(() => s.create(maybeProps, MultiComboBoxProps), [maybeProps]);
 
   const { ref, dispatch } = useDispatchChangeEvent();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const {
     selectedItems,
