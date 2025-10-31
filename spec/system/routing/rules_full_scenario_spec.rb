@@ -59,7 +59,7 @@ describe 'The routing with rules', js: true do
     click_on 'Continuer'
 
     expect(page).to have_text('Gestion des groupes')
-    expect(page).to have_text('règle invalide')
+    expect(page).to have_text('aucune règle')
 
     # close modal - ensure it's present and force it to be opened
     expect(page).to have_selector("#routing-mode-modal")
