@@ -92,7 +92,7 @@ Dossier (1) ──→ (n) Champ ────────────────
 2. **Champs** (`app/models/champs/`)
    - Instances concrètes des champs avec leurs valeurs
    - Héritent de `Champs::TextChamp` ou autres classes de base
-   - Exemple : `Champs::TableRowSelectorChamp`, `Champs::VisaChamp`
+   - Exemple : `Champs::ReferentielDePolynesieChamp`, `Champs::VisaChamp`
    - Stockent les données dans les attributs `value`, `data`, `external_id`
 
 3. **Révisions et Procédures**
@@ -119,7 +119,7 @@ TYPE_DE_CHAMP_TO_CATEGORIE = {
 
 Chaque `TypeDeChamp` a un `dynamic_type` correspondant :
 - `TypesDeChamp::TextTypeDeChamp`
-- `TypesDeChamp::TableRowSelectorTypeDeChamp`
+- `TypesDeChamp::ReferentielDePolynesieTypeDeChamp`
 - etc.
 
 Ces classes gèrent la logique spécifique (validation, rendu, etc.)
@@ -128,12 +128,12 @@ Ces classes gèrent la logique spécifique (validation, rendu, etc.)
 
 1. **Types pour les Champs** (`app/graphql/types/champs/`)
    - `ChampType` : interface de base pour tous les champs
-   - `TextChampType`, `TableRowSelectorChampType`, etc.
+   - `TextChampType`, `ReferentielDePolynesieChampType`, etc.
    - Résolution automatique dans `ChampType.resolve_type`
 
 2. **Types pour les Descripteurs** (`app/graphql/types/champs/descriptor/`)
    - `ChampDescriptorType` : interface pour décrire la structure des champs
-   - `TextChampDescriptorType`, `TableRowSelectorChampDescriptorType`, etc.
+   - `TextChampDescriptorType`, `ReferentielDePolynesieChampDescriptorType`, etc.
    - Résolution dans `ChampDescriptorType.resolve_type`
 
 3. **Processus d'ajout d'un nouveau type**
@@ -145,21 +145,21 @@ Ces classes gèrent la logique spécifique (validation, rendu, etc.)
    - Ajouter les résolutions dans `ChampType` et `ChampDescriptorType`
    - Régénérer le schéma GraphQL avec `bin/rails graphql:schema:dump`
 
-### Exemple concret : TableRowSelector
+### Exemple concret : ReferentielDePolynesie
 
 ```ruby
 # Type enum
-table_row_selector: 'table_row_selector'
+referentiel_de_polynesie: 'referentiel_de_polynesie'
 
 # Classe du champ
-class Champs::TableRowSelectorChamp < Champs::TextChamp
+class Champs::ReferentielDePolynesieChamp < Champs::TextChamp
   def value
     external_id  # Pour l'API GraphQL
   end
 end
 
 # Type GraphQL du champ
-class Types::Champs::TableRowSelectorChampType < Types::BaseObject
+class Types::Champs::ReferentielDePolynesieChampType < Types::BaseObject
   implements Types::ChampType
   
   field :columns, [TableColumnType], null: false
@@ -167,7 +167,7 @@ class Types::Champs::TableRowSelectorChampType < Types::BaseObject
 end
 
 # Type GraphQL du descripteur
-class Types::Champs::Descriptor::TableRowSelectorChampDescriptorType < Types::BaseObject
+class Types::Champs::Descriptor::ReferentielDePolynesieChampDescriptorType < Types::BaseObject
   implements Types::ChampDescriptorType
   # Propriétés de configuration du champ
 end
@@ -233,11 +233,11 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 * Format : `- NomDeLaMigration : description`
 
 #### 6. Création de la release GitHub
-```bash
-# Créer le tag local
-git tag -a pf-AAAA-MM-JJ -m "Release pf-AAAA-MM-JJ"
 
-# Créer la GitHub release avec titre et notes formatées
+⚠️ **IMPORTANT** : Laisser GitHub créer le tag automatiquement. Ne PAS créer de tag local avant, sinon il faudra le pousser et cela cause des erreurs avec `gh release create`.
+
+```bash
+# Créer la GitHub release (elle créera le tag automatiquement)
 gh release create pf-AAAA-MM-JJ --title "JJ MMM AAAA" --notes "$(cat <<'EOF'
 ## Améliorations et correctifs
 
@@ -249,8 +249,8 @@ EOF
 ```
 
 #### 7. Vérification
-* Vérifier le tag local : `git tag -l pf-AAAA-MM-JJ`
 * Vérifier sur GitHub : https://github.com/govpf/mes-demarches/releases
+* Le tag sera automatiquement créé et visible dans `.git/refs/tags/`
 
 ### Erreurs critiques à éviter
 * **NE JAMAIS** mélanger des éléments de plusieurs releases upstream
@@ -260,29 +260,21 @@ EOF
 * **VÉRIFIER** que la release upstream identifiée correspond bien aux commits intégrés
 ## Procédure de Nettoyage du Code
 
-### Suppression du Code lié au TableRowSelector après Premier Déploiement
+### Migration TableRowSelector vers ReferentielDePolynesie
 
-- Après le premier déploiement réussi, suivre ces étapes précises pour supprimer le code lié au tableRowSelector :
-  1. Supprimer les fichiers spécifiques à `table_row_selector` dans les répertoires :
-     - `app/models/champs/table_row_selector_champ.rb`
-     - `app/graphql/types/champs/table_row_selector_champ_type.rb`
-     - `app/graphql/types/champs/descriptor/table_row_selector_champ_descriptor_type.rb`
-  
-  2. Retirer les références dans `app/models/type_de_champ.rb` :
-     - Supprimer l'entrée `table_row_selector` de l'enum `type_champs`
-     - Retirer toute logique conditionnelle liée à `table_row_selector`
-  
-  3. Nettoyer les migrations et seeds :
-     - Supprimer toute migration qui ajoute des colonnes ou configurations spécifiques à `table_row_selector`
-     - Retirer les références dans les fichiers de seed/fixtures
-  
-  4. Mise à jour des tests et specs :
-     - Supprimer les tests unitaires et d'intégration liés à `table_row_selector`
-     - Ajuster les fixtures et factories de test
+**✅ Migration terminée** : Le type `table_row_selector` a été complètement remplacé par `referentiel_de_polynesie`.
 
-  5. Vérifications finales :
-     - Lancer la suite de tests complète pour s'assurer de l'absence de régressions
-     - Valider que GraphQL ne référence plus le type `table_row_selector`
+**Changements effectués** :
+- Remplacement de `Champs::TableRowSelectorChamp` par `Champs::ReferentielDePolynesieChamp`
+- Migration des types GraphQL vers `ReferentielDePolynesieChampType`
+- Suppression de l'enum `table_row_selector` au profit de `referentiel_de_polynesie`
+- Nettoyage des controllers, components et API Baserow
+- Mise à jour des routes et schémas GraphQL
+
+**Vérifications de sécurité** :
+- Lancer la suite de tests : `bundle exec rspec`
+- Valider GraphQL : `bin/rails graphql:schema:dump`
+- S'assurer que les procédures existantes fonctionnent toujours
 
 ## Intégration Upstream
 
@@ -380,3 +372,4 @@ bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb
 - [ ] CI verte sur tous les environnements
 - [ ] Tests manuels des fonctionnalités PF
 - [ ] Release notes rédigées
+- Tous les messages et texte en français à destination de l'interface doivent utiliser la quote française "’" au lieu d'une quote normale "'". Les tests sur l'interface doivent donc ausi utiliser cette quote française.

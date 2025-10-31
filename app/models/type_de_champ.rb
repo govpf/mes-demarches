@@ -449,7 +449,9 @@ class TypeDeChamp < ApplicationRecord
 
   def drop_down_options
     if referentiel_mode?
-      Array.wrap(referentiel&.drop_down_options)
+      # pf: retourner [] au lieu de nil pour éviter les crashs lors de la comparaison de révisions
+      return [] if referentiel.nil?
+      Array.wrap(referentiel.drop_down_options)
     else
       Array.wrap(super)
     end
@@ -589,7 +591,7 @@ class TypeDeChamp < ApplicationRecord
 
   def self.referentiel_tables
     Rails.cache.fetch("referentiel_tables:#{Rails.env}", expires_in: 5.minutes) do
-      TableRowSelector::API.available_tables.map { [_1[:name], _1[:id]] }
+      ReferentielDePolynesie::API.available_tables.map { [_1[:name], _1[:id]] }
     end
   end
 
@@ -651,7 +653,7 @@ class TypeDeChamp < ApplicationRecord
       type_champs.fetch(:siret),
       type_champs.fetch(:numero_dn),
       type_champs.fetch(:te_fenua),
-      type_champs.fetch(:referentiel_de_polynesie)
+      type_champs.fetch(:referentiel_de_polynesie),
       false
     else
       true

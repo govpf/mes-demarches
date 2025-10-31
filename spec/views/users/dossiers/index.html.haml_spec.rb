@@ -131,6 +131,8 @@ describe 'users/dossiers/index', type: :view do
       expect(user_dossiers).to receive(:present?).exactly(4).times
       render
 
+      travel(1.minute)
+
       dossier_termine.touch
       user.reload
 
@@ -161,6 +163,8 @@ describe 'users/dossiers/index', type: :view do
     it "cache key depends on dossier deletion" do
       expect(user_dossiers).to receive(:present?).exactly(4).times
       render
+
+      travel(1.minute)
 
       dossier_termine.hide_and_keep_track!(:automatic, :expired)
       user.reload

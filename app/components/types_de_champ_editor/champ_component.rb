@@ -35,6 +35,10 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     'csv/modele-import-referentiel.csv'
   end
 
+  def filtered_upper_tdcs
+    @upper_coordinates.map(&:type_de_champ).filter { |tdc| tdc.private? == type_de_champ.private? }
+  end
+
   private
 
   delegate :type_de_champ, :revision, :procedure, to: :coordinate

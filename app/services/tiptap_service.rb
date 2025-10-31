@@ -11,7 +11,7 @@ class TiptapService
     in { content:, **rest } if content.is_a?(Array)
       content.each { used_tags_and_libelle_for(_1, tags) }
     in type:, **rest
-      # noop
+      # noopmdp_shell
     end
 
     tags
