@@ -415,7 +415,6 @@ describe TypeDeChamp do
       end
     end
 
-
     context "Te Fenua" do
       let(:type_de_champ) { create(:type_de_champ_te_fenua, procedure:) }
 
