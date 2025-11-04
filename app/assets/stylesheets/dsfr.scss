@@ -58,8 +58,8 @@ input[type='radio'] {
 }
 
 // dans le DSFR il est possible d'avoir un bouton seulement avec une icone mais j'ai du surcharger ici pour eviter d'avoir des marges de l'icone. Je n'ai pas bien compris pourquoi
-.fr-btns-group--sm.fr-btns-group--icon-right
-  .fr-btn[class*=' fr-icon-'].icon-only::after {
+.fr-btns-group--sm.fr-btns-group--icon-left
+  .fr-btn[class*=' fr-icon-'].icon-only::before {
   margin-left: 0;
   margin-right: 0;
 }
@@ -143,6 +143,11 @@ input[type='radio'] {
 .fr-badge--lowercase {
   text-transform: lowercase;
 }
+// We use the DSFR badge design to highlight a warning in the combobox
+// but as it is a two sentences warning, we want to keep the original case
+.fr-badge--no-text-transform {
+  text-transform: none;
+}
 
 // Caption is bold, but all-procedures table use fr-tag in caption
 .fr-table caption .fr-tag {
@@ -180,4 +185,21 @@ input[type='radio'] {
 // We want labels to be centered inside dossiers table
 .fr-table .fr-tags-group .fr-tag {
   margin-top: 0.5rem;
+}
+
+// Improve tabs alignment because we are not displaying the border around the page content
+.fr-tabs__list {
+  padding-left: 0;
+  margin-left: -4px;
+}
+
+.fr-header__tools .fr-btns-group .fr-btn {
+  margin-bottom: 0;
+}
+
+// We increase from 3rem the max-width to avoid truncating hint in header search
+@media (min-width: 62em) {
+  .fr-header__tools .fr-header__search {
+    max-width: 27rem;
+  }
 }

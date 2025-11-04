@@ -1197,15 +1197,18 @@ ActiveRecord::Schema[7.1].define(version: 2025_09_30_144334) do
   create_table "services", force: :cascade do |t|
     t.bigint "administrateur_id"
     t.text "adresse"
+    t.string "contact_link"
     t.datetime "created_at", null: false
     t.string "departement"
     t.string "email"
     t.jsonb "etablissement_infos", default: {}
     t.decimal "etablissement_lat", precision: 10, scale: 6
     t.decimal "etablissement_lng", precision: 10, scale: 6
+    t.string "faq_link"
     t.text "horaires"
     t.string "nom", null: false
     t.string "organisme"
+    t.text "other_contact_info"
     t.string "siret"
     t.string "telephone"
     t.string "type_organisme", null: false
@@ -1266,6 +1269,12 @@ ActiveRecord::Schema[7.1].define(version: 2025_09_30_144334) do
     t.bigint "user_id"
     t.index ["target_model_id"], name: "index_targeted_user_links_on_target_model_id"
     t.index ["user_id"], name: "index_targeted_user_links_on_user_id"
+  end
+
+  create_table "task_logs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "data"
+    t.datetime "updated_at", null: false
   end
 
   create_table "task_records", id: false, force: :cascade do |t|

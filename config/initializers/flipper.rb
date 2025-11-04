@@ -34,6 +34,7 @@ features = [
   :rdv,
   :sva,
   :switch_domain,
+  :export_avec_horodatage,
   # :lexpol,
   :visa,
   # pf: feature flag pour la navigation contextuelle entre personas
