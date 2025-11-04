@@ -8,14 +8,14 @@ class BillSignatureService
     bill.set_signature(signature, day)
     bill.save!
 
-    ensure_valid_signature(bill.reload)
+    ensure_valid_signature(bill.reload, day)
   rescue => error
     operations.each { |o| o.update(bill_signature: nil) }
     bill&.destroy
     raise error
   end
 
-  def self.ensure_valid_signature(bill)
+  def self.ensure_valid_signature(bill, day)
     Dir.mktmpdir do |dir|
       operations_path = File.join(dir, 'operations')
       File.write(operations_path, bill.serialized.download, mode: 'wb')
@@ -25,7 +25,7 @@ class BillSignatureService
 
       authorities_path = Rails.application.config.root.join('app', 'lib', 'certigna', 'authorities.crt').to_s
 
-      verify_cmd = "openssl ts -verify -CAfile #{authorities_path.shellescape} -data #{operations_path.shellescape} -in #{signature_path.shellescape} -token_in"
+      verify_cmd = "openssl ts -verify -CAfile #{authorities_path.shellescape} -data #{operations_path.shellescape} -in #{signature_path.shellescape} -token_in -attime #{day.to_time.to_i}"
 
       openssl_errors = nil
       openssl_output = nil
