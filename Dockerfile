@@ -12,12 +12,12 @@ RUN bun install --frozen-lockfile --production
 # Intermediate container to bundle all gems
 # Building gems requires dev librairies we don't need in production container
 #--------------------------------------------------
-FROM ruby:3.4.2-slim AS base
+FROM ruby:3.3.2-slim AS base
 FROM base AS builder
 
 RUN apt-get update && \
     curl -sL "https://deb.nodesource.com/setup_18.x" | bash - && \
-      apt-get install -y curl build-essential git libpq-dev libicu-dev zlib1g-dev gnupg zip nodejs
+      apt-get install -y curl build-essential git libpq-dev libicu-dev gnupg zip nodejs
 
 ENV INSTALL_PATH /app
 RUN mkdir -p ${INSTALL_PATH}
