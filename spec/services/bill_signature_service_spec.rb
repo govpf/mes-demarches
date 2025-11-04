@@ -1,11 +1,8 @@
 # frozen_string_literal: true
 
 describe BillSignatureService do
-  around do |example|
-    travel_to(Time.zone.local(2022, 12, 6)) { example.run }
-  end
   describe ".sign_operations" do
-    let(:date) { Time.zone.today }
+    let(:date) { Date.today }
 
     let(:operations_hash) { [['1', 'hash1'], ['2', 'hash2']] }
     let(:operations) do
