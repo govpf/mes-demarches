@@ -84,7 +84,8 @@ describe 'layouts/_header', type: :view do
     let(:profile) { :administrateur }
     let(:current_administrateur) { administrateur }
 
-    it { is_expected.to have_css(".fr-header__logo") }
+    # pf: le logo République Française est désactivé, on teste le logo operator à la place
+    it { is_expected.to have_css(".fr-header__operator") }
     it { is_expected.to have_selector(:button, user.email, class: "account-btn") }
     it { is_expected.to have_selector(:button, class: "lasuite-gaufre-btn") }
 
