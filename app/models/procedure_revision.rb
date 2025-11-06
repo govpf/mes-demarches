@@ -412,6 +412,7 @@ class ProcedureRevision < ApplicationRecord
           from_type_de_champ.drop_down_mode,
           to_type_de_champ.drop_down_mode)
       end
+
       if from_type_de_champ.referentiel != to_type_de_champ.referentiel
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
           :referentiel,
@@ -428,6 +429,7 @@ class ProcedureRevision < ApplicationRecord
           from_labels,
           to_labels)
       end
+
       if to_type_de_champ.linked_drop_down_list?
         if from_type_de_champ.drop_down_secondary_libelle != to_type_de_champ.drop_down_secondary_libelle
           changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
@@ -442,6 +444,7 @@ class ProcedureRevision < ApplicationRecord
             to_type_de_champ.drop_down_secondary_description)
         end
       end
+
       if from_type_de_champ.drop_down_other? != to_type_de_champ.drop_down_other?
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
           :drop_down_other,
