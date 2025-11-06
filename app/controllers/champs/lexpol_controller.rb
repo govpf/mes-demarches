@@ -2,9 +2,11 @@
 
 module Champs
   class LexpolController < Champs::ChampController
+    skip_before_action :set_champ, only: [:preview_variables]
+
     def upsert
       apilexpol = APILexpol.new(current_user.email, @champ.dossier&.procedure&.service&.siret, should_use_test_user?)
-      service = LexpolService.new(champ: @champ, dossier: @champ.dossier, apilexpol: apilexpol)
+      service = LexpolService.new(champ: @champ, dossier: @champ.dossier, apilexpol: apilexpol, user: current_user)
 
       force_create = params[:force_create].present?
       service.upsert_dossier(force_create: force_create)
@@ -24,6 +26,40 @@ module Champs
       redirect_back fallback_location: root_path
     end
 
+    def preview_variables
+      # pf: Récupérer le dossier et le type de champ sans passer par set_champ
+      dossier = policy_scope(Dossier).includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
+      type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
+
+      unless type_de_champ
+        return render json: { error: 'Type de champ introuvable' }, status: :not_found
+      end
+
+      # Créer un champ temporaire pour le service (sans le sauvegarder)
+      # Note: instance_variable_set est utilisé car type_de_champ est une méthode calculée
+      # sans setter. Acceptable ici car le champ est temporaire et non persisté.
+      temp_champ = Champs::LexpolChamp.new(
+        dossier: dossier,
+        stable_id: type_de_champ.stable_id,
+        private: type_de_champ.private?
+      )
+      temp_champ.instance_variable_set(:@type_de_champ, type_de_champ)
+
+      apilexpol = APILexpol.new(current_user.email, dossier.procedure&.service&.siret, should_use_test_user_for_dossier?(dossier))
+      service = LexpolService.new(champ: temp_champ, dossier: dossier, apilexpol: apilexpol, user: current_user)
+
+      variables = service.build_variables
+
+      # Informations sur les dossiers liés pour le groupement côté frontend
+      linked_service = LinkedDossierFieldsService.new(dossier, current_user)
+      linked_info = linked_service.linked_dossiers_info
+
+      render json: { variables: variables.sort.to_h, linked_dossiers: linked_info }
+    rescue => e
+      Sentry.capture_exception(e)
+      render json: { error: 'Impossible de générer la prévisualisation' }, status: :unprocessable_entity
+    end
+
     private
 
     def should_use_test_user?
@@ -31,6 +67,10 @@ module Champs
       # - Les super admins (tests en production)
       # - Les révisions brouillon (développement)
       super_admin_signed_in? || @champ.dossier&.revision&.draft?
+    end
+
+    def should_use_test_user_for_dossier?(dossier)
+      super_admin_signed_in? || dossier.revision&.draft?
     end
   end
 end

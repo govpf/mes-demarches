@@ -150,6 +150,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
   create_table "assign_tos", id: :serial, force: :cascade do |t|
     t.datetime "created_at"
     t.boolean "daily_email_notifications_enabled", default: false, null: false
+    t.boolean "deletion_email_notifications_enabled", default: true, null: false
     t.bigint "groupe_instructeur_id"
     t.boolean "instant_email_dossier_notifications_enabled", default: true, null: false
     t.boolean "instant_email_message_notifications_enabled", default: true, null: false
@@ -1045,11 +1046,12 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
     t.boolean "opendata", default: true
     t.string "organisation"
     t.bigint "parent_procedure_id"
-    t.string "path", null: false
+    t.string "path"
     t.boolean "piece_justificative_multiple", default: true, null: false
     t.boolean "procedure_expires_when_termine_enabled", default: true
     t.datetime "published_at"
     t.bigint "published_revision_id"
+    t.boolean "rdv_enabled", default: false, null: false
     t.bigint "replaced_by_procedure_id"
     t.boolean "routing_enabled"
     t.bigint "service_id"
@@ -1090,24 +1092,24 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
 
   create_table "rdv_connections", force: :cascade do |t|
     t.string "access_token"
-    t.string "refresh_token"
+    t.datetime "created_at", null: false
     t.datetime "expires_at"
     t.bigint "instructeur_id", null: false
-    t.datetime "created_at", null: false
+    t.string "refresh_token"
     t.datetime "updated_at", null: false
     t.index ["instructeur_id"], name: "index_rdv_connections_on_instructeur_id", unique: true
   end
 
   create_table "rdvs", force: :cascade do |t|
-    t.string "status"
+    t.datetime "created_at", null: false
+    t.bigint "dossier_id", null: false
+    t.bigint "instructeur_id", null: false
+    t.string "location_type"
     t.string "rdv_external_id"
     t.string "rdv_plan_external_id", null: false
     t.datetime "starts_at"
-    t.bigint "dossier_id", null: false
-    t.bigint "instructeur_id", null: false
-    t.datetime "created_at", null: false
+    t.string "status"
     t.datetime "updated_at", null: false
-    t.string "location_type"
     t.index ["dossier_id", "rdv_external_id"], name: "index_rdvs_on_dossier_id_and_rdv_external_id"
     t.index ["dossier_id", "starts_at"], name: "index_rdvs_on_dossier_id_and_starts_at"
     t.index ["dossier_id"], name: "index_rdvs_on_dossier_id"
@@ -1146,6 +1148,11 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "headers", default: [], array: true
+    t.string "hint"
+    t.jsonb "last_response"
+    t.string "mode"
+    t.string "name", null: false
+    t.string "test_data"
     t.string "type"
     t.string "url"
     t.string "test_data"
@@ -1318,6 +1325,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
     t.datetime "current_sign_in_at"
     t.string "current_sign_in_ip"
     t.string "email", default: "", null: false
+    t.boolean "email_unsubscribed", default: false, null: false
     t.datetime "email_verified_at"
     t.string "encrypted_password", default: "", null: false
     t.integer "failed_attempts", default: 0, null: false

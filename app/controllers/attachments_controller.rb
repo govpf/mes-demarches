@@ -40,7 +40,6 @@ class AttachmentsController < ApplicationController
 
     # pf #163 avoid screen scrolling to stay on the current champ
     # flash.notice = 'La pièce jointe a bien été supprimée.'
-    flash.notice = 'La pièce jointe a bien été supprimée.'
 
     respond_to do |format|
       format.turbo_stream
