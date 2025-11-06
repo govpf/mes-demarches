@@ -161,7 +161,7 @@ class Logic::ChampValue < Logic::Term
     elsif tdc.type_champ == MANAGED_TYPE_DE_CHAMP.fetch(:referentiel_de_polynesie)
       [['Autre', 'Autre']]
     else
-      tdc.drop_down_options_with_other.map { _1.is_a?(Array) ? _1 : [_1, _1] }
+      tdc.options_for_select_with_other
     end
   end
 
