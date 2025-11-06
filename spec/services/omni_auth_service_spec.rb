@@ -5,7 +5,7 @@ require 'spec_helper'
 describe OmniAuthService do
   describe '.retrieve_user_informations' do
     let(:code) { 'plop' }
-    let(:access_token) { instance_double('OAuth2::AccessToken') }
+    let(:access_token) { instance_double('OpenIDConnect::AccessToken') }
 
     let(:given_name) { 'plop1' }
     let(:family_name) { 'plop2' }

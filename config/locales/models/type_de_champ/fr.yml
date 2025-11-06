@@ -65,6 +65,7 @@ fr:
           lexpol: "Lexpol"
           expression_reguliere: 'Expression régulière'
           referentiel_de_polynesie: 'Référentiel des administrations'
+          formatted: Champ formaté
           referentiel: 'Référentiel à configurer (avancé)'
         default_libelle:
           annuaire_education: Établissement

@@ -71,6 +71,7 @@ class TypeDeChamp < ApplicationRecord
     number: STANDARD,
     decimal_number: STANDARD,
     integer_number: STANDARD,
+    formatted: STANDARD,
     date: STANDARD,
     datetime: STANDARD,
     piece_justificative: PIECES_JOINTES,
@@ -113,6 +114,7 @@ class TypeDeChamp < ApplicationRecord
     number: 'number',
     decimal_number: 'decimal_number',
     integer_number: 'integer_number',
+    formatted: 'formatted',
     date: 'date',
     datetime: 'datetime',
     piece_justificative: 'piece_justificative',
@@ -177,7 +179,14 @@ class TypeDeChamp < ApplicationRecord
                  :drop_down_secondary_description,
                  :drop_down_other,
                  :character_limit,
+                 :formatted_mode,
+                 :numbers_accepted,
+                 :letters_accepted,
+                 :special_characters_accepted,
+                 :min_character_length,
+                 :max_character_length,
                  :expression_reguliere,
+                 :expression_reguliere_indications,
                  :expression_reguliere_exemple_text,
                  :expression_reguliere_error_message,
                  :collapsible_explanation_enabled,
@@ -723,7 +732,11 @@ class TypeDeChamp < ApplicationRecord
     type_champs.fetch(:linked_drop_down_list) => [:drop_down_options, :drop_down_secondary_libelle, :drop_down_secondary_description],
     type_champs.fetch(:piece_justificative) => [:old_pj, :skip_pj_validation, :skip_content_type_pj_validation],
     type_champs.fetch(:titre_identite) => [:old_pj, :skip_pj_validation, :skip_content_type_pj_validation],
-    type_champs.fetch(:expression_reguliere) => [:expression_reguliere, :expression_reguliere_error_message, :expression_reguliere_exemple_text]
+    type_champs.fetch(:formatted) => [
+      :formatted_mode, :numbers_accepted, :letters_accepted, :special_characters_accepted,
+      :min_character_length, :max_character_length,
+      :expression_reguliere, :expression_reguliere_indications, :expression_reguliere_exemple_text, :expression_reguliere_error_message
+    ]
   }.merge(INSTANCE_OPTIONS_BY_TYPE.transform_keys { |k| type_champs.fetch(k) })
 
   def clean_options

@@ -15,7 +15,7 @@ module Instructeurs
     end
 
     def refresh_column_filter
-      # Find the new filter by counting occurrences in params vs existing filters
+      # pf: Find the new filter by counting occurrences in params vs existing filters
       # This handles cases where:
       # 1. Params order varies (filters grouped separately from ids)
       # 2. Multiple filters on the same column are allowed
@@ -33,9 +33,10 @@ module Instructeurs
       new_filter_id = param_counts.find { |id, count| count > (existing_counts[id] || 0) }&.first
 
       column = ColumnType.new.cast(new_filter_id)
+      procedure = current_instructeur.procedures.find(column.h_id[:procedure_id])
 
       if column.groupe_instructeur?
-        column.options_for_select = instructeur_groupes(procedure_id: column.h_id[:procedure_id])
+        column.options_for_select = current_instructeur.groupe_instructeur_options_for(procedure)
       end
 
       component = Instructeurs::ColumnFilterValueComponent.new(column:)
@@ -68,11 +69,6 @@ module Instructeurs
       @procedure_presentation = ProcedurePresentation
         .includes(:assign_to)
         .find_by!(id: params[:id], assign_to: { instructeur: current_instructeur })
-    end
-
-    def instructeur_groupes(procedure_id:)
-      current_instructeur.groupe_instructeurs
-        .filter_map { [_1.label, _1.id] if _1.procedure_id == procedure_id }
     end
   end
 end

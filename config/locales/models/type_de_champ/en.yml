@@ -58,6 +58,7 @@ en:
           cojo: 'Accreditation Paris 2024'
           expression_reguliere: 'Regular expression'
           referentiel_de_polynesie: "Administrations' referential"
+          formatted: 'Formatted field'
           referentiel: 'External data to configure (advanced)'
         default_libelle:
           annuaire_education: Educational institution

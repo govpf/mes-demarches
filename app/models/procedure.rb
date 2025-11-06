@@ -138,6 +138,8 @@ class Procedure < ApplicationRecord
   has_many :unordered_revisions, class_name: 'ProcedureRevision', inverse_of: :procedure, dependent: :destroy
   has_many :dossiers, through: :unordered_revisions, dependent: :restrict_with_exception
 
+  has_many :rdvs, through: :dossiers
+
   has_one :initiated_mail, class_name: "Mails::InitiatedMail", dependent: :destroy
   has_one :received_mail, class_name: "Mails::ReceivedMail", dependent: :destroy
   has_one :closed_mail, class_name: "Mails::ClosedMail", dependent: :destroy
@@ -229,6 +231,7 @@ class Procedure < ApplicationRecord
     'types_de_champ/header_section_consistency': true,
     'types_de_champ/no_empty_block': true,
     'types_de_champ/no_empty_drop_down': true,
+    'types_de_champ/formatted': true,
     on: [:types_de_champ_public_editor, :publication]
 
   validates :draft_types_de_champ_private,
@@ -236,6 +239,7 @@ class Procedure < ApplicationRecord
     'types_de_champ/header_section_consistency': true,
     'types_de_champ/no_empty_block': true,
     'types_de_champ/no_empty_drop_down': true,
+    'types_de_champ/formatted': true,
     on: [:types_de_champ_private_editor, :publication]
 
   validate :check_juridique, on: [:create, :publication]

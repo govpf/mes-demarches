@@ -846,7 +846,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
   create_table "instructeurs_procedures", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "instructeur_id", null: false
-    t.integer "position"
+    t.bigint "last_revision_seen_id"
+    t.integer "position", default: 99
     t.bigint "procedure_id", null: false
     t.datetime "updated_at", null: false
     t.index ["instructeur_id", "procedure_id"], name: "index_instructeurs_procedures_on_instructeur_and_procedure", unique: true
@@ -940,10 +941,10 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
     t.integer "assign_to_id"
     t.datetime "created_at"
     t.jsonb "displayed_columns", default: [], null: false, array: true
-    t.jsonb "displayed_fields", default: [{"label"=>"Demandeur", "table"=>"user", "column"=>"email"}], null: false
+    t.jsonb "displayed_fields", default: [{"label" => "Demandeur", "table" => "user", "column" => "email"}], null: false
     t.jsonb "expirant_filters", default: [], null: false, array: true
-    t.jsonb "filters", default: {"tous"=>[], "suivis"=>[], "traites"=>[], "a-suivre"=>[], "archives"=>[], "expirant"=>[], "supprimes"=>[]}, null: false
-    t.jsonb "sort", default: {"order"=>"desc", "table"=>"notifications", "column"=>"notifications"}, null: false
+    t.jsonb "filters", default: {"tous" => [], "suivis" => [], "traites" => [], "a-suivre" => [], "archives" => [], "expirant" => [], "supprimes" => []}, null: false
+    t.jsonb "sort", default: {"order" => "desc", "table" => "notifications", "column" => "notifications"}, null: false
     t.jsonb "sorted_column"
     t.jsonb "suivis_filters", default: [], null: false, array: true
     t.jsonb "supprimes_filters", default: [], null: false, array: true
@@ -1002,6 +1003,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
     t.datetime "api_entreprise_token_expires_at", precision: nil
     t.text "api_particulier_scopes", default: [], array: true
     t.jsonb "api_particulier_sources", default: {}
+    t.string "api_particulier_token"
     t.boolean "ask_birthday", default: false, null: false
     t.date "auto_archive_on"
     t.string "cadre_juridique"
@@ -1053,6 +1055,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
     t.bigint "published_revision_id"
     t.boolean "rdv_enabled", default: false, null: false
     t.bigint "replaced_by_procedure_id"
+    t.boolean "routing_alert", default: false, null: false
     t.boolean "routing_enabled"
     t.bigint "service_id"
     t.jsonb "sva_svr", default: {}, null: false
@@ -1194,15 +1197,18 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
   create_table "services", force: :cascade do |t|
     t.bigint "administrateur_id"
     t.text "adresse"
+    t.string "contact_link"
     t.datetime "created_at", null: false
     t.string "departement"
     t.string "email"
     t.jsonb "etablissement_infos", default: {}
     t.decimal "etablissement_lat", precision: 10, scale: 6
     t.decimal "etablissement_lng", precision: 10, scale: 6
+    t.string "faq_link"
     t.text "horaires"
     t.string "nom", null: false
     t.string "organisme"
+    t.text "other_contact_info"
     t.string "siret"
     t.string "telephone"
     t.string "type_organisme", null: false
@@ -1263,6 +1269,12 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
     t.bigint "user_id"
     t.index ["target_model_id"], name: "index_targeted_user_links_on_target_model_id"
     t.index ["user_id"], name: "index_targeted_user_links_on_user_id"
+  end
+
+  create_table "task_logs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "data"
+    t.datetime "updated_at", null: false
   end
 
   create_table "task_records", id: false, force: :cascade do |t|
