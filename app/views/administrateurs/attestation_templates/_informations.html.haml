@@ -21,9 +21,6 @@
       .item
         %code.tag{ style: "white-space: pre-wrap;" }
           = "--#{tag[:libelle]}--"
-        - if tag[:conditional]
-          %span.fr-badge.fr-badge--sm.fr-badge--info.fr-ml-1w
-            Champ conditionnel
         .description
           = tag[:description]
 
