@@ -460,8 +460,7 @@ class TypeDeChamp < ApplicationRecord
     if referentiel_mode?
       # pf: retourner [] au lieu de nil pour éviter les crashs lors de la comparaison de révisions
       return [] if referentiel.nil?
-      header = referentiel.headers.first.parameterize.underscore
-      Array.wrap(referentiel.items.map { [_1.data.values.first[header], _1.id] })
+      Array.wrap(referentiel.drop_down_options)
     else
       Array.wrap(super)
     end
