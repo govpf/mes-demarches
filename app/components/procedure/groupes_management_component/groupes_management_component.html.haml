@@ -33,7 +33,7 @@
           %tbody
             - @groupe_instructeurs.each do |gi|
               %tr
-                %td.fr-col-9{ scope: 'col' }
+                %td.fr-cell--multiline{ scope: 'col' }
                   = link_to admin_procedure_groupe_instructeur_path(@procedure, gi), class: 'fr-link' do
                     %span= gi.label
                   - if gi.closed
@@ -44,11 +44,11 @@
                     %p.fr-badge.fr-badge--warning.fr-badge--sm.fr-ml-1w règle déjà attribuée à #{gi.groups_with_same_rule}
                   %p= gi.routing_rule&.to_s(@procedure.active_revision.types_de_champ)
 
-                %td.fr-col-1{ scope: 'col' }
+                %td{ scope: 'col' }
                   %span.fr-mr-1w
                     #{gi.dossiers.visible_by_administration.size}
                   %span.fr-icon.fr-icon-folder-2-line.fr-mr-2w{ style: 'width: 25px; text-align: center;' }
-                %td.fr-col-2.fr-cell--right{ scope: 'col' }
+                %td.fr-cell--right{ scope: 'col' }
                   %span.fr-mr-1w
                     #{gi.instructeurs.count}
                   %span.fr-icon.fr-icon-user-line{ style: 'width: 25px; text-align: center;' }
@@ -56,9 +56,11 @@
   .fr-mt-1w
     = paginate @groupe_instructeurs
 
-= form_tag admin_procedure_update_defaut_groupe_instructeur_path,
+= form_for @procedure,
+  method: :patch,
+  url: admin_procedure_update_defaut_groupe_instructeur_path,
   class: 'fr-my-3w',
-  data: { controller: 'autosave' } do
+  data: { controller: 'autosubmit', turbo: 'true' } do
   = label_tag :defaut_groupe_instructeur_id, 'Et si aucune règle ne correspond, router vers :', class: 'fr-label'
   = select_tag :defaut_groupe_instructeur_id,
     options_for_select(@procedure.groupe_instructeurs.pluck(:label, :id), selected: @procedure.defaut_groupe_instructeur.id),
