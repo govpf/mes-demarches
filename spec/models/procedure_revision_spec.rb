@@ -668,6 +668,39 @@ describe ProcedureRevision do
           ])
         end
       end
+
+      # pf: tests pour la normalisation des drop_down_options lors de la comparaison
+      context 'when switching from manual to referentiel mode with same labels' do
+        let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :drop_down_list, libelle: 'Commune', drop_down_options: ['Papeete', 'Faaa', 'Punaauia'] }]) }
+
+        before do
+          tdc = new_draft.types_de_champ_public.first
+          # Simuler le passage en mode référentiel avec les mêmes labels mais des IDs
+          allow(tdc).to receive(:drop_down_options).and_return([['Papeete', '1'], ['Faaa', '2'], ['Punaauia', '3']])
+        end
+
+        it 'does not report changes in drop_down_options when labels are identical' do
+          # La normalisation doit ignorer les IDs et ne détecter aucun changement
+          drop_down_changes = subject.filter { |change| change[:attribute] == :drop_down_options }
+          expect(drop_down_changes).to be_empty
+        end
+      end
+
+      context 'when drop_down_options changes from filled to empty' do
+        let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :drop_down_list, libelle: 'Liste', drop_down_options: ['A', 'B'] }]) }
+
+        before do
+          tdc = new_draft.find_and_ensure_exclusive_use(new_draft.types_de_champ_public.first.stable_id)
+          tdc.update(drop_down_options: [])
+        end
+
+        it 'reports removal of all options' do
+          drop_down_changes = subject.filter { |change| change[:attribute] == :drop_down_options }
+          expect(drop_down_changes).not_to be_empty
+          expect(drop_down_changes.first[:from]).to eq(['A', 'B'])
+          expect(drop_down_changes.first[:to]).to eq([])
+        end
+      end
     end
   end
 

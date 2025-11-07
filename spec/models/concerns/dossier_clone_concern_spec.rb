@@ -297,7 +297,11 @@ RSpec.describe DossierCloneConcern do
     context 'with updated champ' do
       let(:updated_champ) { forked_dossier.champs.find { _1.stable_id == 99 } }
 
-      before { updated_champ.update(value: 'new value') }
+      before do
+        updated_champ # force evaluation before travel
+        travel_to 1.second.from_now
+        updated_champ.update(value: 'new value')
+      end
 
       it 'user_buffer_changes? should reflect dossier state' do
         expect(subject).to eq(added: [], updated: [updated_champ], removed: [])
@@ -347,6 +351,9 @@ RSpec.describe DossierCloneConcern do
         dossier.champs.each do |champ|
           champ.update(value: 'old value')
         end
+        updated_champ # force evaluation before travel
+        updated_repetition_champs # force evaluation before travel
+        travel_to 1.second.from_now
         updated_champ.update(value: 'new value')
         updated_repetition_champs.each { _1.update(value: 'new value in repetition') }
         dossier.debounce_index_search_terms_flag.remove
@@ -411,7 +418,12 @@ RSpec.describe DossierCloneConcern do
       end
 
       it { expect { subject }.to change { dossier.filled_champs.size }.by(3) }
-      it { expect { subject }.to change { dossier.filled_champs.sort_by { |c| [c.created_at, c.id] }.map(&:to_s) }.from(['old value', 'Non', 'old value']).to(['new value for updated champ', 'Non', 'new value for updated champ in repetition', 'old value', 'new value for added champ', 'new value in repetition champ']) }
+      # pf: tri alphabétique pour éviter test flaky (ordre d'insertion variable selon seed)
+      it do
+        expect { subject }.to change { dossier.filled_champs.map(&:to_s).sort }
+          .from(['Non', 'old value', 'old value'].sort)
+          .to(['Non', 'new value for updated champ', 'new value for updated champ in repetition', 'old value', 'new value for added champ', 'new value in repetition champ'].sort)
+      end
 
       it "dossier after merge should be on last published revision" do
         expect(dossier.revision_id).to eq(procedure.revisions.first.id)

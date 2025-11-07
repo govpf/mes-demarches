@@ -16,9 +16,19 @@
       = t('.label_statut_dossier')
       %strong
         = @champ.data&.[]('lexpol_status')
+
+  .lexpol-preview-wrapper{ data: { controller: 'lexpol-preview' } }
     .fr-btn-group{ style: "display:flex; gap:1rem; align-items:center;" }
       = link_to button_label, champs_lexpol_upsert_dossier_path(dossier_id: @champ.dossier.id, stable_id: @champ.stable_id),
         method: :post, class: 'fr-btn fr-btn--secondary'
       - if @champ.lexpol_status == "Annulé"
         = link_to t('.button_creer_nouveau'), champs_lexpol_upsert_dossier_path(dossier_id: @champ.dossier.id, stable_id: @champ.stable_id, force_create: true),
           method: :post, class: 'fr-btn fr-btn--secondary'
+      %button.fr-btn.fr-btn--tertiary{ type: "button", data: { action: 'click->lexpol-preview#toggle' }, id: 'lexpol-preview-btn' }
+        = t('.button_previsualiser')
+
+    #lexpol-variables-container.fr-mt-3w.hidden{ data: { lexpol_preview_target: 'container', url: champs_lexpol_preview_variables_path(dossier_id: @champ.dossier.id, stable_id: @champ.stable_id) } }
+      .fr-callout.fr-callout--blue-ecume
+        %h3.fr-h6.fr-mb-2w= t('.variables_title')
+        #lexpol-variables-list{ data: { lexpol_preview_target: 'list' } }
+          %p.text-center.fr-mt-2w Chargement...
