@@ -776,6 +776,7 @@ fr:
       invalid_siret_length: "Le numéro doit comporter 9 chiffres (Tahiti) ou 14 chiffres (SIRET)."
       invalid_siret_checksum: "Le format du numéro est invalide."
       procedure_not_found: "La démarche n’existe pas"
+      siret_not_found: "Nous n'avons pas trouvé d'établissement correspondant à ce numéro SIRET."
       siret_unknown: 'Nous n’avons pas trouvé d’établissement enregistré correspondant à ce numéro.'
       siret_network_error: 'Désolé, la récupération des informations est temporairement indisponible. Veuillez réessayer dans quelques instants.'
       cps_network_error: 'Désolé, la vérification du numéro DN est temporairement indisponible. Veuillez réessayer dans quelques instants.'

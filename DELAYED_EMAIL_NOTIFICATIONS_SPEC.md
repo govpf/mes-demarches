@@ -11,10 +11,12 @@ Réduire le nombre d'emails envoyés aux usagers en différant l'envoi de certai
 - Pour les démarches rapides : email brouillon + email dépôt en quelques minutes
 - Pour les instructions rapides : email instruction + email clôture en quelques minutes
 
-### Solution proposée
+### Solution implémentée (généralisée à toutes les procédures)
 Différer l'envoi de certains emails pour éviter le spam :
-1. **Email brouillon** : différé de `estimation_durée * 2` minutes
+1. **Email brouillon** : différé de `estimation_durée × 3` minutes (minimum 5 minutes)
 2. **Email instruction** : différé de `15 minutes` (constante fixe)
+
+**Important** : Cette fonctionnalité est désormais active pour **toutes les procédures**, sans feature flag.
 
 ## 🚀 User Stories
 
@@ -43,10 +45,19 @@ Différer l'envoi de certains emails pour éviter le spam :
 ### Constantes (sans variables d'environnement)
 ```ruby
 # Dans app/jobs/draft_notification_job.rb
-DRAFT_NOTIFICATION_DELAY_MULTIPLIER = 2
+DRAFT_NOTIFICATION_DELAY_MULTIPLIER = 3  # Coefficient multiplicateur
 
 # Dans app/jobs/instruction_notification_job.rb
-INSTRUCTION_NOTIFICATION_DELAY_MINUTES = 15
+INSTRUCTION_NOTIFICATION_DELAY_MINUTES = 15  # Délai fixe en minutes
+```
+
+### Protection contre l'envoi à des dossiers supprimés
+Les jobs vérifient maintenant `hidden_by_user_at` avant l'envoi :
+```ruby
+# pf: condition étendue avec hidden_by_user_at (inspiré de upstream PR #179)
+def should_send_notification?(dossier)
+  dossier.brouillon? && dossier.hidden_by_user_at.blank?
+end
 ```
 
 ### Jobs créés
@@ -54,13 +65,16 @@ INSTRUCTION_NOTIFICATION_DELAY_MINUTES = 15
 2. **InstructionNotificationJob** : Gère l'envoi différé des emails instruction
 
 ### Fichiers modifiés
-1. **app/controllers/users/dossiers_controller.rb** : Remplacer l'envoi immédiat par le job différé
-2. **app/controllers/users/commencer_controller.rb** : Idem pour les dossiers pré-remplis
-3. **app/models/concerns/dossier_state_concern.rb** : Remplacer l'envoi immédiat d'instruction par le job différé
+1. **app/controllers/users/dossiers_controller.rb** : Utilise `DraftNotificationJob` pour tous les dossiers
+2. **app/controllers/users/commencer_controller.rb** : Utilise `DraftNotificationJob` pour dossiers pré-remplis
+3. **app/models/concerns/dossier_state_concern.rb** : Utilise `InstructionNotificationJob` pour tous les dossiers
+4. **app/mailers/dossier_mailer.rb** : Suppression du check `AbortDeliveryError` (géré dans le job)
 
-### Nouveaux fichiers
-1. **app/jobs/draft_notification_job.rb** : Job pour emails brouillon
-2. **app/jobs/instruction_notification_job.rb** : Job pour emails instruction
+### Fichiers créés
+1. **app/jobs/draft_notification_job.rb** : Job pour emails brouillon avec check `hidden_by_user_at`
+2. **app/jobs/instruction_notification_job.rb** : Job pour emails instruction avec check `hidden_by_user_at`
+3. **spec/jobs/draft_notification_job_spec.rb** : Tests complets incluant suppression
+4. **spec/jobs/instruction_notification_job_spec.rb** : Tests complets incluant suppression
 
 ## 📝 Tests unitaires à implémenter
 
@@ -300,8 +314,25 @@ end
 
 ---
 
-**Constantes à retenir :**
-- Coefficient brouillon : **2** (estimation × 2)
-- Délai instruction : **15 minutes**
+## 📊 Déploiement
 
-Ces valeurs pourront être ajustées selon les retours terrain.
+### État actuel (2025-02)
+- ✅ **Généralisé à toutes les procédures** (feature flag supprimé)
+- ✅ Protection contre dossiers supprimés (`hidden_by_user_at`)
+- ✅ Tests complets avec cas limites
+- ✅ Intégration avec upstream PR #179
+
+### Constantes configurées
+- **Coefficient brouillon** : `3` (estimation × 3, minimum 5 minutes)
+- **Délai instruction** : `15 minutes`
+
+Ces valeurs peuvent être ajustées dans les fichiers de job selon les retours terrain.
+
+### Rollback si nécessaire
+Pour revenir au système immédiat, modifier les contrôleurs :
+```ruby
+# Remplacer
+DraftNotificationJob.schedule_for_dossier(dossier)
+# Par
+DossierMailer.with(dossier:).notify_new_draft.deliver_later
+```

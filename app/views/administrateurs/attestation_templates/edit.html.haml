@@ -6,12 +6,26 @@
                     ['Attestation']] }
 
 .fr-container
-  - if @procedure.feature_enabled?(:attestation_v2)
+  -# pf: affichage conditionnel du message de migration v1 → v2
+  -# Ne s'affiche que si on a une attestation v1 et que le feature flag v2 est activé
+  - if @attestation_template&.version == 1 && @procedure.feature_enabled?(:attestation_v2)
     .fr-mb-6w
-      = render Dsfr::AlertComponent.new(state: :info, title: "Nouvel éditeur d’attestation", heading_level: 'h3') do |c|
+      = render Dsfr::AlertComponent.new(state: :warning, title: "Migration requise avant le 1er novembre 2025", heading_level: 'h3') do |c|
         - c.with_body do
-          Cette page concerne l’attestation actuellement délivrée aux usagers.
-          = link_to("Suivez ce lien pour tester le nouvel éditeur d’attestation", edit_admin_procedure_attestation_template_v2_path(@procedure))
+          %p L'éditeur d'attestation actuel sera remplacé par un nouvel éditeur plus moderne le <strong>1er novembre 2025</strong>.
+          %p <strong>Une action est requise de votre part</strong> : testez dès maintenant le nouvel éditeur pour bénéficier des nouvelles fonctionnalités et éviter toute interruption de service.
+
+          %p
+            %strong Points d'attention :
+          %ul
+            %li L'attestation actuelle v1 reste active jusqu'à ce que vous décidiez de republier la démarche
+            %li Les balises HTML pour la couleur et/ou les tableaux ne sont pas gérées en v2
+
+          .fr-btns-group.fr-btns-group--inline
+            = link_to("Essayer le nouvel éditeur",
+                      migrate_admin_procedure_attestation_template_path(@procedure),
+                      class: "fr-btn fr-btn--primary", method: :post,
+                      data: { confirm: "Votre attestation sera automatiquement convertie vers le nouvel éditeur. L'attestation v1 restera active. Continuer ?" })
 
   .procedure-form#attestation-template-edit
     .procedure-form__columns
