@@ -642,6 +642,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_09_30_144334) do
   end
 
   create_table "export_templates", force: :cascade do |t|
+    t.jsonb "attestation"
     t.jsonb "content", default: {}
     t.datetime "created_at", null: false
     t.jsonb "dossier_folder", null: false
@@ -918,14 +919,6 @@ ActiveRecord::Schema[7.1].define(version: 2025_09_30_144334) do
     t.index ["procedure_id"], name: "index_module_api_cartos_on_procedure_id", unique: true
   end
 
-  create_table "path_rewrites", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "from", null: false
-    t.string "to", null: false
-    t.datetime "updated_at", null: false
-    t.index ["from"], name: "index_path_rewrites_on_from", unique: true
-  end
-
   create_table "procedure_paths", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "path"
@@ -941,10 +934,10 @@ ActiveRecord::Schema[7.1].define(version: 2025_09_30_144334) do
     t.integer "assign_to_id"
     t.datetime "created_at"
     t.jsonb "displayed_columns", default: [], null: false, array: true
-    t.jsonb "displayed_fields", default: [{"label"=>"Demandeur", "table"=>"user", "column"=>"email"}], null: false
+    t.jsonb "displayed_fields", default: [{"label" => "Demandeur", "table" => "user", "column" => "email"}], null: false
     t.jsonb "expirant_filters", default: [], null: false, array: true
-    t.jsonb "filters", default: {"tous"=>[], "suivis"=>[], "traites"=>[], "a-suivre"=>[], "archives"=>[], "expirant"=>[], "supprimes"=>[]}, null: false
-    t.jsonb "sort", default: {"order"=>"desc", "table"=>"notifications", "column"=>"notifications"}, null: false
+    t.jsonb "filters", default: {"tous" => [], "suivis" => [], "traites" => [], "a-suivre" => [], "archives" => [], "expirant" => [], "supprimes" => []}, null: false
+    t.jsonb "sort", default: {"order" => "desc", "table" => "notifications", "column" => "notifications"}, null: false
     t.jsonb "sorted_column"
     t.jsonb "suivis_filters", default: [], null: false, array: true
     t.jsonb "supprimes_filters", default: [], null: false, array: true
