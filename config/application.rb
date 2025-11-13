@@ -50,6 +50,8 @@ module TPS
     pf_allowed_attributes = Set.new(['target', 'rel', 'size,', 'face,', 'color', 'src'])
     config.action_view.sanitized_allowed_attributes = ActionView::Base.sanitized_allowed_attributes + pf_allowed_attributes
 
+    config.view_component.capture_compatibility_patch_enabled = true
+
     # ActionDispatch's IP spoofing detection is quite limited, and often rejects
     # legitimate requests from misconfigured proxies (such as mobile telcos).
     #

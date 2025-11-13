@@ -413,21 +413,21 @@ class ProcedureRevision < ApplicationRecord
           to_type_de_champ.drop_down_mode)
       end
 
-      if from_type_de_champ.referentiel != to_type_de_champ.referentiel
-        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
-          :referentiel,
-          from_type_de_champ.referentiel,
-          to_type_de_champ.referentiel)
-      end
-      # pf: normaliser la comparaison des drop_down_options pour ignorer les IDs des référentiels
-      # Permet d'éviter de signaler des changements lors du passage Manuel → CSV avec les mêmes labels
-      from_labels = normalize_drop_down_labels(from_type_de_champ.drop_down_options)
-      to_labels = normalize_drop_down_labels(to_type_de_champ.drop_down_options)
-      if from_labels != to_labels
-        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
-          :drop_down_options,
-          from_labels,
-          to_labels)
+      if to_type_de_champ.drop_down_advanced?
+        if from_type_de_champ.referentiel_id != to_type_de_champ.referentiel_id
+          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+            :referentiel,
+            from_type_de_champ.referentiel_id,
+            to_type_de_champ.referentiel_id)
+        end
+      else
+        from_drop_down_options = from_type_de_champ.drop_down_advanced? ? [] : from_type_de_champ.drop_down_options
+        if from_drop_down_options != to_type_de_champ.drop_down_options
+          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+            :drop_down_options,
+            from_drop_down_options,
+            to_type_de_champ.drop_down_options)
+        end
       end
 
       if to_type_de_champ.linked_drop_down_list?
