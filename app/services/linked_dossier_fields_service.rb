@@ -144,7 +144,7 @@ class LinkedDossierFieldsService
 
   def merge_with_suffix(enriched, linked_variables, suffix)
     linked_variables.each do |field_name, value|
-      suffixed_name = "#{field_name} #{suffix}"
+      suffixed_name = "#{field_name} (#{suffix})"
       enriched[suffixed_name] = value
     end
   end

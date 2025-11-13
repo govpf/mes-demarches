@@ -78,7 +78,7 @@ export class LexpolPreviewController extends ApplicationController {
     Object.keys(allVars).forEach((key) => {
       let grouped = false;
       for (const suffix of suffixes) {
-        if (key.endsWith(` ${suffix}`)) {
+        if (key.endsWith(` (${suffix})`)) {
           if (!groups[suffix]) groups[suffix] = [];
           groups[suffix].push(key);
           grouped = true;

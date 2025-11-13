@@ -41,16 +41,16 @@ describe LinkedDossierFieldsService do
         result = service.enrich_variables(base_variables)
 
         expect(result['Nom']).to eq('Carlsen')
-        expect(result['Prénom candidature']).to eq('Magnus')
-        expect(result['Numéro du dossier candidature']).to eq(linked_dossier.id.to_s)
+        expect(result['Prénom (candidature)']).to eq('Magnus')
+        expect(result['Numéro du dossier (candidature)']).to eq(linked_dossier.id.to_s)
       end
 
       it 'utilise le dernier mot significatif comme suffixe' do
         base_variables = {}
         result = service.enrich_variables(base_variables)
 
-        expect(result.keys).to include('Prénom candidature')
-        expect(result.keys).to include('Numéro du dossier candidature')
+        expect(result.keys).to include('Prénom (candidature)')
+        expect(result.keys).to include('Numéro du dossier (candidature)')
       end
 
       it 'ne suit pas récursivement les liens vers dossiers' do
@@ -74,7 +74,7 @@ describe LinkedDossierFieldsService do
         result = service.enrich_variables(base_variables)
 
         # On doit avoir les champs du 3ème dossier
-        expect(result['Ville candidature']).to eq('Amiens')
+        expect(result['Ville (candidature)']).to eq('Amiens')
         # Mais pas ceux du dossier lié au 3ème (pas de récursion)
         expect(result.keys.filter { |k| k.include?('Prénom') }).to be_empty
       end
@@ -96,9 +96,9 @@ describe LinkedDossierFieldsService do
         result = service.enrich_variables({})
 
         # Vérifier qu'on a bien les données niveau 1
-        expect(result['Info candidature']).to eq('Donnée niveau 1')
+        expect(result['Info (candidature)']).to eq('Donnée niveau 1')
         # Mais pas le champ DossierLink lui-même
-        expect(result.keys).not_to include('Dossier imbriqué candidature')
+        expect(result.keys).not_to include('Dossier imbriqué (candidature)')
         # Et surtout pas de récursion vers le dossier 999
         expect(result.keys.count).to be <= 10 # Pas d'explosion de variables
       end
@@ -129,9 +129,9 @@ describe LinkedDossierFieldsService do
         base_variables = {}
         result = service.enrich_variables(base_variables)
 
-        expect(result['Prénom candidature']).to eq('Magnus')
+        expect(result['Prénom (candidature)']).to eq('Magnus')
 
-        expect(result['Année annuel']).to eq('2024')
+        expect(result['Année (annuel)']).to eq('2024')
       end
     end
   end
