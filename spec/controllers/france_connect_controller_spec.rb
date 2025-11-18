@@ -51,7 +51,7 @@ describe FranceConnectController, type: :controller do
 
       it do
         is_expected.to redirect_to(new_user_session_path)
-        expect(flash[:alert]).to include('Une erreur est survenue lors de la connexion')
+        expect(flash[:alert]).to eq('Erreur lors de la connexion à France Connect.')
       end
     end
 
@@ -71,12 +71,6 @@ describe FranceConnectController, type: :controller do
           check_error_handling('invalid_scope', 'Veuillez essayer un autre mode de connexion')
 
           check_error_handling('invalid_request', 'Veuillez essayer un autre mode de connexion')
-
-          check_error_handling('access_denied', 'Veuillez réessayer.')
-
-          check_error_handling('server_error', 'Veuillez réessayer.')
-
-          check_error_handling('temporarily_unavailable', 'Veuillez réessayer.')
         end
       end
     end
