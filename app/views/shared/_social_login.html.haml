@@ -9,4 +9,4 @@
             = image_tag "icons/logo_#{provider}.svg", alt: "icone #{provider.camelize}"
             #{t("views.shared.social_login.#{provider}")}
     - if FranceConnectService.enabled?
-      = render partial: 'shared/france_connect_login', locals: { url: france_connect_particulier_path }
+      = render partial: 'shared/france_connect_login', locals: { url: france_connect_path }

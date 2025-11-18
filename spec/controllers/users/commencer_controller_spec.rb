@@ -355,7 +355,7 @@ describe Users::CommencerController, type: :controller do
         expect(controller.stored_location_for(:user)).to eq(commencer_path(path: published_procedure.path))
       end
 
-      it { expect(subject).to redirect_to(france_connect_particulier_path) }
+      it { expect(subject).to redirect_to(france_connect_path) }
 
       context 'when a prefill token is given' do
         subject { get :france_connect, params: { path: published_procedure.path, prefill_token: 'prefill_token' } }
@@ -372,7 +372,7 @@ describe Users::CommencerController, type: :controller do
         expect(controller.stored_location_for(:user)).to eq(commencer_path(path: draft_procedure.path))
       end
 
-      it { expect(subject).to redirect_to(france_connect_particulier_path) }
+      it { expect(subject).to redirect_to(france_connect_path) }
 
       context 'when a prefill token is given' do
         subject { get :france_connect, params: { path: draft_procedure.path, prefill_token: 'prefill_token' } }
