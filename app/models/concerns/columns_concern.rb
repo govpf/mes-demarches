@@ -75,7 +75,13 @@ module ColumnsConcern
       dossier_col(table: 'self', column: 'state', type: :enum, options_for_select:, displayable: false)
     end
 
-    def notifications_column = dossier_col(table: 'notifications', column: 'notifications', label: "notifications", filterable: false)
+    def notifications_column = dossier_col(table: 'notifications', column: 'notifications', label: "notifications", filterable: false, displayable: false)
+
+    def dossier_notifications_column
+      options_for_select = I18n.t('instructeurs.dossiers.filterable_notification').map(&:to_a).map(&:reverse)
+
+      dossier_col(table: 'dossier_notifications', column: 'notification_type', type: :enum, options_for_select:, displayable: false)
+    end
 
     def sva_svr_columns(for_export: false)
       scope = [:activerecord, :attributes, :procedure_presentation, :fields, :self]
@@ -112,6 +118,8 @@ module ColumnsConcern
     def user_france_connected_column = dossier_col(table: 'self', column: 'user_from_france_connect?', type: :boolean, filterable: false, displayable: false)
 
     def dossier_labels_column = dossier_col(table: 'dossier_labels', column: 'label_id', type: :enum, options_for_select: labels.map { [_1.name, _1.id] })
+
+    def traitements_email_column = dossier_col(table: 'traitements', column: 'instructeur_email', filterable: true, displayable: false)
 
     def procedure_chorus_columns
       ['domaine_fonctionnel', 'referentiel_prog', 'centre_de_cout']
@@ -154,7 +162,9 @@ module ColumnsConcern
         groupe_instructeurs_id_column,
         dossier_col(table: 'avis', column: 'question_answer', filterable: false),
         user_france_connected_column,
-        dossier_labels_column
+        dossier_labels_column,
+        dossier_notifications_column,
+        traitements_email_column
       ]
     end
 

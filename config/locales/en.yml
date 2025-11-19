@@ -338,15 +338,15 @@ en:
         modal_highlight: "Invited people can view and edit your file"
         title: Invite someone
         email: Email address
-        invite_message: Add a message to the person you invite (optional)
+        invite_message: Optional message for the person you invite
         send_invitation: Send an invitation
         withdraw_permission: "Withdraw the permission"
         want_to_withdraw_permission: "Would you like to withdraw the permission of %{email}?"
         edit_dossier_html:
-          zero: '<p class="fr-h6">No user can edit this file.</p>'
-          one: '<h5 class="fr-h6">1 user can edit this file</h5>'
-          other: '<h5 class="fr-h6">%{count} users can edit this file</h5>'
-        submit_dossier_yourself: "You must submit the file yourself when it is complete."
+          zero: '<p><em>No user can view and edit this file at this time.</em></p>'
+          one: '<h3 class="fr-h6">1 user invited</h3>'
+          other: '<h3 class="fr-h6">%{count} users invited</h3>'
+        submit_dossier_yourself: "Once your file is complete, you'll need to submit it yourself."
     pagination:
       next: Next
       last: Last
@@ -363,7 +363,12 @@ en:
         form:
           submitted_at: "Submitted on %{datetime}"
           updated_at: "Updated on %{datetime}"
+          switched_to_instruction_at: "Switched to instruction on %{datetime}"
+          revert_to_submitted_at: "Correction requested on on %{datetime}"
           download_attestation: "Download attestation"
+          acceptee_at: "Accepted on %{datetime}"
+          refuse_at: "Declined on %{datetime}"
+          closed_at: "Closed on %{datetime}"
         edit:
           autosave: Your file is automatically saved after each modification. You can close the window at any time and pick up where you left off later.
         messages:
@@ -372,6 +377,8 @@ en:
             write_message_placeholder: "Write your message here"
             write_message_to_administration_placeholder: "Write your message to the administration here"
         demande:
+          history: "File history"
+          en_construction_notice: "Unless otherwise indicated, fields were entered on the date the file was submitted."
           requester_identity: "Identity of the requester"
           mandataire_identity: "Identity of toe mandatary"
           requester_identity_updated_at: "updated on %{date}"
@@ -379,6 +386,7 @@ en:
           form: "Form"
           edit_siret: 'Edit Tahiti number'
           edit_identity: "Edit identity data"
+          edit_identity_html: 'Edit identity <span aria-hidden="true">data<span>'
           accuse_lecture: This procedure is subject to a reading receipt.
           accuse_lecture_with_agreement: The user has read the decision taken on his file on %{agreement}.
           accuse_lecture_without_agreement: The user has not yet learned of the decision on their file.
@@ -463,13 +471,16 @@ en:
           jdma_l2: Give us your feedback, it only takes 2 minutes.
         show:
           header:
-            summary: "Summary"
-            request: "Request"
-            mailbox: "Mailbox"
+            summary: "Follow-up on your file"
+            request: "Your file"
+            mailbox: "Administration messaging"
             rendez_vous: "Appointment"
+            dossier_number: "File number %{dossier_id}"
             dossier_number_html: "File <span class='visually-hidden'>number</span> <span aria-hidden='true'>n.</span> %{dossier_id}"
             created_date: "- Draft on %{date_du_dossier}"
             submit_date: "- Submit on %{date_du_dossier}"
+            download: "file-%{dossier_id}.pdf"
+            download_without_number: "DS-file.pdf"
           status_overview:
             status_draft: draft
             status_in_progress: in progress
@@ -482,6 +493,9 @@ en:
             delay_text_sva_svr: "You will receive a reply from the administration no later than %{date}."
             status_completed: completed
             use_mailbox_for_questions_html: "<strong>You have a question?</strong> Use the mailbox to <a href=\"%{mailbox_url}\">contact the administration directly</a>."
+            motivation: "Motivation :"
+            attestation: "Attestation :"
+            justificatif: "Justification of decision :"
             acceptee_html: "Your file had been <strong>accepted</strong>."
             accepte_motivation: "Reason"
             accepte_attestation: "Download the attestation"
@@ -497,7 +511,7 @@ en:
         rendez_vous:
           title: "Your next appointment"
         demande:
-          edit_dossier: Edit file
+          edit_dossier: Edit my file
           edit_dossier_title: "Edit my file - You can modify your file as long as it has not been sent for processing"
         search:
           search_file: Search a file (File number, keywords)
@@ -897,7 +911,7 @@ en:
       show:
         papertrail:
           get_papertrail: "Get a deposit receipt"
-          filename: "deposit-receipt.pdf"
+          filename: "deposit-receipt_file-%{dossier_id}.pdf"
       papertrail:
         receipt: "Deposit receipt"
         description: "This document attests that on the %{date}, %{user_name} submitted a file on the procedure “%{procedure}”."
