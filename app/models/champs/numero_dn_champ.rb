@@ -37,6 +37,12 @@ class Champs::NumeroDnChamp < Champ
     [numero_dn, displayed_date_de_naissance]
   end
 
+  # pf: pour les ancres d'erreur (#11420), pointer vers le premier input
+  def focusable_input_id
+    prefix = private? ? 'dossier_champs_private_attributes' : 'dossier_champs_public_attributes'
+    "#{prefix}_#{public_id}_numero_dn"
+  end
+
   private
 
   def pack_value(numero_dn, date_de_naissance)
