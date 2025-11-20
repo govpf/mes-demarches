@@ -93,36 +93,6 @@
                   - LexpolService.lexpol_variables(type_de_champ, procedure).map do |variable|
                     %li= variable
             -# ----- Polynesia options
-            - if type_de_champ.date?
-              .flex.width-33
-              .flex.column
-                .cell
-                  %label bornes
-                .flex.flex-grow.align-center
-                  .cell
-                    = form.label :min, 'Début', for: dom_id(type_de_champ, :min)
-                  .cell
-                    = form.date_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min), value: type_de_champ.min
-                  .cell
-                    = form.label :max, 'Fin', for: dom_id(type_de_champ, :max)
-                  .cell
-                    = form.date_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max), value: type_de_champ.max
-            - if type_de_champ.visa?
-              .flex.width-33
-              .flex.flex-grow.align-center
-                .cell.width-100
-                  = form.label :accredited_user_string, "Mails des personnes accréditées", for: dom_id(type_de_champ, :accredited_user_string)
-                  = form.text_area :accredited_user_string, class: 'fr-input small-margin small', rows: 7, id: dom_id(type_de_champ, :accredited_user_string), placeholder: 'Ecrire un email par ligne'
-            - if type_de_champ.table_row_selector? || type_de_champ.referentiel_de_polynesie?
-              .cell.flex.flex-gap
-                .flex.column
-                  .cell.fr-mt-1w
-                    = form.label :table_id, "Table de recherche", for: dom_id(type_de_champ, :table_id)
-                    = form.select :table_id, TypeDeChamp.referentiel_tables,
-                                 { prompt: 'Sélectionnez une table' },
-                                 { id: dom_id(type_de_champ, :table_id),
-                                   class: 'fr-select' }
-
             - if type_de_champ.integer_number? || type_de_champ.decimal_number?
               .vertical-border.fr-pl-2w.fr-mt-2w
                 .cell
@@ -151,6 +121,35 @@
                           = form.label :max_number, for: dom_id(type_de_champ, :max_number) do
                             valeur maximale
                           = form.number_field :max_number, class: "fr-input", id: dom_id(type_de_champ, :max_number)
+            - if type_de_champ.date?
+              .flex.width-33
+              .flex.column
+                .cell
+                  %label bornes
+                .flex.flex-grow.align-center
+                  .cell
+                    = form.label :min, 'Début', for: dom_id(type_de_champ, :min)
+                  .cell
+                    = form.date_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min), value: type_de_champ.min
+                  .cell
+                    = form.label :max, 'Fin', for: dom_id(type_de_champ, :max)
+                  .cell
+                    = form.date_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max), value: type_de_champ.max
+            - if type_de_champ.visa?
+              .flex.width-33
+              .flex.flex-grow.align-center
+                .cell.width-100
+                  = form.label :accredited_user_string, "Mails des personnes accréditées", for: dom_id(type_de_champ, :accredited_user_string)
+                  = form.text_area :accredited_user_string, class: 'fr-input small-margin small', rows: 7, id: dom_id(type_de_champ, :accredited_user_string), placeholder: 'Ecrire un email par ligne'
+            - if type_de_champ.referentiel_de_polynesie?
+              .cell.flex.flex-gap
+                .flex.column
+                  .cell.fr-mt-1w
+                    = form.label :table_id, "Table de recherche", for: dom_id(type_de_champ, :table_id)
+                    = form.select :table_id, TypeDeChamp.referentiel_tables,
+                                 { prompt: 'Sélectionnez une table' },
+                                 { id: dom_id(type_de_champ, :table_id),
+                                   class: 'fr-select' }
 
         .flex.justify-start.fr-mt-1w.flex-gap
           - if type_de_champ.any_drop_down_list? && !type_de_champ.drop_down_list?
@@ -222,26 +221,26 @@
                       = form.label name, for: dom_id(type_de_champ, "layer_#{name}") do
                         = form.check_box name, checked: checked, class: 'small-margin small', id: dom_id(type_de_champ, "layer_#{name}")
                         = t(".layers.#{name}")
-          - if type_de_champ.textarea?
-            .cell
-              = form.label :character_limit, for: dom_id(type_de_champ, :character_limit) do
-                Spécifier un nombre maximal conseillé de caractères :
-              = form.select :character_limit, options_for_character_limit, {}, { id: dom_id(type_de_champ, :character_limit), class: 'fr-select' }
-          - if type_de_champ.formatted?
-            .flex.justify-start.column.width-33
-              %fieldset.fr-segmented.fr-segmented
-                %legend.fr-segmented__legend.fr-mb-1w
-                  Spécifier le format requis
-                .fr-segmented__elements
-                  .fr-segmented__element
-                    = form.radio_button :formatted_mode, 'simple', checked: type_de_champ.formatted_simple?, id: dom_id(type_de_champ, :simple)
-                    = form.label :formatted_mode_simple, t('.kind.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
-                  .fr-segmented__element
-                    = form.radio_button :formatted_mode, 'advanced', id: dom_id(type_de_champ, :advanced)
-                    = form.label :formatted_mode_advanced, t('.kind.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
+        - if type_de_champ.textarea?
+          .cell
+            = form.label :character_limit, for: dom_id(type_de_champ, :character_limit) do
+              Spécifier un nombre maximal conseillé de caractères :
+            = form.select :character_limit, options_for_character_limit, {}, { id: dom_id(type_de_champ, :character_limit), class: 'fr-select' }
+        - if type_de_champ.formatted?
+          .flex.justify-start.column.width-33
+            %fieldset.fr-segmented.fr-segmented
+              %legend.fr-segmented__legend.fr-mb-1w
+                Spécifier le format requis
+              .fr-segmented__elements
+                .fr-segmented__element
+                  = form.radio_button :formatted_mode, 'simple', checked: type_de_champ.formatted_simple?, id: dom_id(type_de_champ, :simple)
+                  = form.label :formatted_mode_simple, t('.kind.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
+                .fr-segmented__element
+                  = form.radio_button :formatted_mode, 'advanced', id: dom_id(type_de_champ, :advanced)
+                  = form.label :formatted_mode_advanced, t('.kind.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
 
-            = render TypesDeChampEditor::ChampFormattedSimpleComponent.new(type_de_champ:, form:, procedure:)
-            = render TypesDeChampEditor::ChampFormattedAdvancedComponent.new(type_de_champ:, form:, procedure:)
+          = render TypesDeChampEditor::ChampFormattedSimpleComponent.new(type_de_champ:, form:, procedure:)
+          = render TypesDeChampEditor::ChampFormattedAdvancedComponent.new(type_de_champ:, form:, procedure:)
 
     - if type_de_champ.referentiel?
       = render(TypesDeChampEditor::InfoReferentielComponent.new(procedure:, type_de_champ:))
@@ -262,6 +261,7 @@
       = render TypesDeChampEditor::SelectChampPositionComponent.new(revision:, coordinate:)
 
       .flex.right
+        = render TypesDeChampEditor::DuplicateChampButtonComponent.new(coordinate: coordinate, after_stable_id: type_de_champ.stable_id)
         - if coordinate.used_by_routing_rules?
           %span
             utilisé pour

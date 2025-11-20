@@ -15,6 +15,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
   enable_extension "postgis"
+  disable_extension "postgis_tiger_geocoder"
+  enable_extension "sslinfo"
   enable_extension "unaccent"
 
   create_table "action_text_rich_texts", force: :cascade do |t|
@@ -283,6 +285,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
     t.string "value"
     t.jsonb "value_json"
     t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_dossier_id_and_stream_and_stable_id_and_row_id", unique: true
+    t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_stream_and_public_id", unique: true
     t.index ["dossier_id"], name: "index_champs_on_dossier_id"
     t.index ["etablissement_id"], name: "index_champs_on_etablissement_id"
     t.index ["row_id"], name: "index_champs_on_row_id"
@@ -440,6 +443,21 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
     t.index ["label_id"], name: "index_dossier_labels_on_label_id"
   end
 
+  create_table "dossier_notifications", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "display_at"
+    t.bigint "dossier_id", null: false
+    t.bigint "groupe_instructeur_id"
+    t.bigint "instructeur_id"
+    t.string "notification_type", null: false
+    t.datetime "updated_at", null: false
+    t.index ["dossier_id", "notification_type", "groupe_instructeur_id"], name: "unique_dossier_groupe_instructeur_notification", unique: true, where: "((groupe_instructeur_id IS NOT NULL) AND (instructeur_id IS NULL))"
+    t.index ["dossier_id", "notification_type", "instructeur_id"], name: "unique_dossier_instructeur_notification", unique: true, where: "((instructeur_id IS NOT NULL) AND (groupe_instructeur_id IS NULL))"
+    t.index ["dossier_id"], name: "index_dossier_notifications_on_dossier_id"
+    t.index ["groupe_instructeur_id"], name: "index_dossier_notifications_on_groupe_instructeur_id"
+    t.index ["instructeur_id"], name: "index_dossier_notifications_on_instructeur_id"
+  end
+
   create_table "dossier_operation_logs", force: :cascade do |t|
     t.boolean "automatic_operation", default: false, null: false
     t.bigint "bill_signature_id"
@@ -504,8 +522,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
     t.boolean "for_tiers", default: false, null: false
     t.boolean "forced_groupe_instructeur", default: false, null: false
     t.bigint "groupe_instructeur_id"
-    t.datetime "groupe_instructeur_updated_at"
-    t.datetime "hidden_by_administration_at"
+    t.datetime "groupe_instructeur_updated_at", precision: nil
+    t.datetime "hidden_by_administration_at", precision: nil
     t.datetime "hidden_by_expired_at"
     t.string "hidden_by_reason"
     t.datetime "hidden_by_user_at"
@@ -523,8 +541,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
     t.bigint "parent_dossier_id"
     t.string "prefill_token"
     t.boolean "prefilled"
-    t.text "private_search_terms"
-    t.datetime "processed_at"
+    t.string "private_search_terms"
+    t.datetime "processed_at", precision: nil
     t.bigint "revision_id"
     t.text "search_terms"
     t.string "state"
@@ -533,7 +551,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
     t.datetime "termine_close_to_expiration_notice_sent_at"
     t.datetime "updated_at"
     t.integer "user_id"
-    t.index "to_tsvector('french'::regconfig, (search_terms || private_search_terms))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
+    t.index "to_tsvector('french'::regconfig, (search_terms || (private_search_terms)::text))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
     t.index "to_tsvector('french'::regconfig, search_terms)", name: "index_dossiers_on_search_terms", using: :gin
     t.index ["archived"], name: "index_dossiers_on_archived"
     t.index ["batch_operation_id"], name: "index_dossiers_on_batch_operation_id"
@@ -640,6 +658,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
   end
 
   create_table "export_templates", force: :cascade do |t|
+    t.jsonb "attestation"
     t.jsonb "content", default: {}
     t.datetime "created_at", null: false
     t.jsonb "dossier_folder", null: false
@@ -917,10 +936,10 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
   end
 
   create_table "path_rewrites", force: :cascade do |t|
-    t.datetime "created_at", null: false
+    t.datetime "created_at", precision: nil, null: false
     t.string "from", null: false
     t.string "to", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["from"], name: "index_path_rewrites_on_from", unique: true
   end
 
@@ -1019,7 +1038,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
     t.string "description"
     t.string "description_pj"
     t.string "description_target_audience"
-    t.datetime "dossiers_count_computed_at"
+    t.datetime "dossiers_count_computed_at", precision: nil
     t.bigint "draft_revision_id"
     t.integer "duree_conservation_dossiers_dans_ds"
     t.boolean "duree_conservation_etendue_par_ds", default: false, null: false
@@ -1053,13 +1072,14 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
     t.bigint "published_revision_id"
     t.boolean "rdv_enabled", default: false, null: false
     t.bigint "replaced_by_procedure_id"
+    t.boolean "routing_alert", default: false, null: false
     t.boolean "routing_enabled"
     t.bigint "service_id"
     t.jsonb "sva_svr", default: {}, null: false
     t.text "tags", default: [], array: true
     t.boolean "template", default: false, null: false
-    t.datetime "unpublished_at"
-    t.datetime "updated_at", null: false
+    t.datetime "unpublished_at", precision: nil
+    t.datetime "updated_at", precision: nil, null: false
     t.string "web_hook_url"
     t.datetime "whitelisted_at"
     t.bigint "zone_id"
@@ -1194,15 +1214,18 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
   create_table "services", force: :cascade do |t|
     t.bigint "administrateur_id"
     t.text "adresse"
+    t.string "contact_link"
     t.datetime "created_at", null: false
     t.string "departement"
     t.string "email"
     t.jsonb "etablissement_infos", default: {}
     t.decimal "etablissement_lat", precision: 10, scale: 6
     t.decimal "etablissement_lng", precision: 10, scale: 6
+    t.string "faq_link"
     t.text "horaires"
     t.string "nom", null: false
     t.string "organisme"
+    t.text "other_contact_info"
     t.string "siret"
     t.string "telephone"
     t.string "type_organisme", null: false
@@ -1265,6 +1288,12 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
     t.index ["user_id"], name: "index_targeted_user_links_on_user_id"
   end
 
+  create_table "task_logs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "data"
+    t.datetime "updated_at", null: false
+  end
+
   create_table "task_records", id: false, force: :cascade do |t|
     t.string "version", null: false
   end
@@ -1276,7 +1305,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
     t.bigint "dossier_id"
     t.string "instructeur_email"
     t.string "motivation"
-    t.datetime "processed_at"
+    t.datetime "processed_at", precision: nil
     t.bigint "revision_id"
     t.string "state"
     t.index ["dossier_id"], name: "index_traitements_on_dossier_id"
@@ -1410,6 +1439,9 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_20_010124) do
   add_foreign_key "dossier_corrections", "dossiers"
   add_foreign_key "dossier_labels", "dossiers"
   add_foreign_key "dossier_labels", "labels"
+  add_foreign_key "dossier_notifications", "dossiers"
+  add_foreign_key "dossier_notifications", "groupe_instructeurs"
+  add_foreign_key "dossier_notifications", "instructeurs"
   add_foreign_key "dossier_operation_logs", "bill_signatures"
   add_foreign_key "dossier_transfer_logs", "dossiers"
   add_foreign_key "dossiers", "batch_operations"

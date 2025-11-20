@@ -52,6 +52,19 @@ module LexpolFieldsService
     end
   end
 
+  def self.format_as_html_list(options)
+    return '' if options.blank?
+
+    list_items = options.each_with_index.map do |opt, index|
+      # Dernier élément se termine par '.', les autres par ' ;'
+      punctuation = (index == options.size - 1) ? '.' : ' ;'
+      escaped_opt = ERB::Util.html_escape(opt.to_s)
+      "<li>#{escaped_opt}#{punctuation}</li>"
+    end
+
+    "<ul>#{list_items.join}</ul>"
+  end
+
   def self.format_date(date)
     return '' if date.blank?
     begin
