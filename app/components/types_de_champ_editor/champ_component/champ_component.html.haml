@@ -93,20 +93,6 @@
                   - LexpolService.lexpol_variables(type_de_champ, procedure).map do |variable|
                     %li= variable
             -# ----- Polynesia options
-            - if type_de_champ.integer_number? || type_de_champ.decimal_number?
-              .flex.width-33
-              .flex.column
-                .cell
-                  %label bornes
-                .flex.flex-grow.align-center
-                  .cell
-                    = form.label :min, 'Minimum', for: dom_id(type_de_champ, :min)
-                  .cell
-                    = form.number_field :min, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :min)
-                  .cell
-                    = form.label :max, 'Maximum', for: dom_id(type_de_champ, :max)
-                  .cell
-                    = form.number_field :max, class: 'fr-input small-margin small', id: dom_id(type_de_champ, :max)
             - if type_de_champ.date?
               .flex.width-33
               .flex.column

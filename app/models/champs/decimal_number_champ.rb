@@ -20,19 +20,6 @@ class Champs::DecimalNumberChamp < Champ
     }
   }, if: :validate_champ_value?
 
-  validate :min_max_validation, if: :validate_champ_value?
-
-  def min_max_validation
-    return if value.blank?
-
-    if type_de_champ.min.present? && value.to_i < type_de_champ.min.to_i
-      errors.add(:value, :greater_than_or_equal_to, value: value, count: type_de_champ.min.to_i)
-    end
-    if type_de_champ.max.present? && value.to_i > type_de_champ.max.to_i
-      errors.add(:value, :less_than_or_equal_to, value: value, count: type_de_champ.max.to_i)
-    end
-  end
-
   private
 
   def format_value
