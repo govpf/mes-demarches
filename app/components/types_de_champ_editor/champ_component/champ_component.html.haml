@@ -38,7 +38,7 @@
                 = form.text_area :description, class: 'fr-input small-margin small width-100 resize-y', rows: 3, id: dom_id(type_de_champ, :description)
             - if type_de_champ.header_section?
               .cell.fr-mt-1w
-                = render TypesDeChampEditor::HeaderSectionComponent.new(form: form, tdc: type_de_champ, upper_tdcs: @upper_coordinates.map(&:type_de_champ))
+                = render TypesDeChampEditor::HeaderSectionComponent.new(form: form, tdc: type_de_champ, upper_tdcs: filtered_upper_tdcs)
             - if type_de_champ.explication?
               .cell.fr-mt-2w
                 .fr-toggle
@@ -150,6 +150,20 @@
                                  { prompt: 'Sélectionnez une table' },
                                  { id: dom_id(type_de_champ, :table_id),
                                    class: 'fr-select' }
+            - if type_de_champ.formatted?
+              .flex.width-33
+              .flex.column.flex-grow
+                .cell
+                  %fieldset.fr-segmented.fr-segmented
+                    %legend.fr-segmented__legend.fr-mb-1w
+                      Spécifier le format requis
+                    .fr-segmented__elements
+                      .fr-segmented__element
+                        = form.radio_button :formatted_mode, 'simple', id: dom_id(type_de_champ, :simple), data: { action: 'segmented-control#toggle', 'mode-to-show': 'simple' }
+                        = form.label :formatted_mode_simple, t('.kind.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
+                      .fr-segmented__element
+                        = form.radio_button :formatted_mode, 'advanced', id: dom_id(type_de_champ, :advanced), data: { action: 'segmented-control#toggle', "mode-to-show": "advanced" }
+                        = form.label :formatted_mode_advanced, t('.kind.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
 
         .flex.justify-start.fr-mt-1w.flex-gap
           - if type_de_champ.any_drop_down_list? && !type_de_champ.drop_down_list?
@@ -274,5 +288,6 @@
           = button_to type_de_champ_path, class: 'fr-btn fr-btn--tertiary-no-outline fr-icon-delete-line', title: "Supprimer le champ", method: :delete, form: { data: { turbo_confirm: 'Êtes vous sûr de vouloir supprimer ce champ ?' } } do
             %span.sr-only Supprimer
 
-  .type-de-champ-add-button{ class: class_names(root: !coordinate.child?, flex: true) }
-    = render TypesDeChampEditor::AddChampButtonComponent.new(revision: coordinate.revision, parent: coordinate&.parent, is_annotation: coordinate.private?, after_stable_id: type_de_champ.stable_id)
+  .type-de-champ-buttons.fr-mb-2w{ class: class_names(root: !coordinate.child?, flex: true) }
+    .type-de-champ-add-button
+      = render TypesDeChampEditor::AddChampButtonComponent.new(revision: coordinate.revision, parent: coordinate&.parent, is_annotation: coordinate.private?, after_stable_id: type_de_champ.stable_id)
