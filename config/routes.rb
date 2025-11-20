@@ -178,9 +178,12 @@ Rails.application.routes.draw do
     get 'logout' => 'users/sessions#logout'
   end
 
+  # pf: support du paramètre :complexity pour la route GET (spécificité PF)
   get 'password_complexity/(:complexity)' => 'password_complexity#show', as: 'show_password_complexity'
   post 'password_complexity' => 'password_complexity#show', as: 'post_password_complexity'
-  get 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
+  post 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
+  # TODO remove in next release
+  get 'check_email' => 'email_checker#show'
 
   resources :targeted_user_links, only: [:show]
 
@@ -213,6 +216,7 @@ Rails.application.routes.draw do
     get 'confirm_email/:token', to: 'particulier#confirm_email', as: :confirm_email
   end
 
+  # pf: routes OpenID spécifiques (Tatou, SIPF, Microsoft) pour l'authentification PF
   get '/auth/:provider' => 'omniauth#login', as: :omniauth, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   get '/auth/:provider/callback', to: 'omniauth#callback', as: :omniauth_callback, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   get '/auth/:provider/merge/:merge_token' => 'omniauth#merge', as: :omniauth_merge, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
@@ -225,20 +229,25 @@ Rails.application.routes.draw do
   get '/auth/:provider/merge_using_email_link/:email_merge_token' => 'omniauth#merge_using_email_link', as: 'omniauth_merge_using_email_link', constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   get '/auth/confirm_email/:token', to: 'omniauth#confirm_email', as: :omniauth_confirm_email
 
-  namespace :agent_connect do
-    get '' => 'agent#index'
-    get 'login' => 'agent#login'
-    get 'callback' => 'agent#callback'
-  end
+  # upstream: ProConnect (remplace AgentConnect)
+  get 'pro_connect' => 'pro_connect#index'
+  get 'pro_connect/login' => 'pro_connect#login'
+  get 'pro_connect/callback' => 'pro_connect#callback'
+  # to be migrated
+  get 'agent_connect/callback' => 'pro_connect#callback'
 
   namespace :champs do
     post ':dossier_id/:stable_id/repetition', to: 'repetition#add', as: :repetition
     delete ':dossier_id/:stable_id/repetition', to: 'repetition#remove'
 
-    get ':dossier_id/:stable_id/siret', to: 'siret#show', as: :siret
-    get ':dossier_id/:stable_id/rna', to: 'rna#show', as: :rna
+    post ':dossier_id/:stable_id/siret', to: 'siret#show', as: :siret
+    post ':dossier_id/:stable_id/rna', to: 'rna#show', as: :rna
     delete ':dossier_id/:stable_id/options', to: 'options#remove', as: :options
+    # pf: route spécifique pour le champ Numéro DN (Polynésie)
     get ':dossier_id/:stable_id/dn', to: 'numero_dn#show', as: :dn
+    # TODO remove in next release
+    get ':dossier_id/:stable_id/siret', to: 'siret#show'
+    get ':dossier_id/:stable_id/rna', to: 'rna#show'
 
     get ':dossier_id/:stable_id/carte/features', to: 'carte#index', as: :carte_features
     post ':dossier_id/:stable_id/carte/features', to: 'carte#create'
@@ -718,7 +727,9 @@ Rails.application.routes.draw do
       put 'clone'
       put 'archive'
       get 'publication' => 'procedures#publication', as: :publication
-      get 'check_path' => 'procedures#check_path', as: :check_path
+      post 'check_path' => 'procedures#check_path', as: :check_path
+      # TODO remove in next release
+      get 'check_path' => 'procedures#check_path'
       get 'path'
       patch 'path', to: 'procedures#update_path', as: :update_path
       put 'publish' => 'procedures#publish', as: :publish

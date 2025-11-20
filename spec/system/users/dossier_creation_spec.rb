@@ -73,12 +73,12 @@ describe 'Creating a new dossier:', js: true do
             fill_in('Nom', with: 'nom')
           end
 
-          find('label', text: 'Par e-mail').click
+          find('label', text: 'Par adresse électronique').click
           fill_in('dossier_individual_attributes_email', with: 'prenom.nom@mail.com')
           find('label', text: 'Monsieur').click # force focus out
           within "#identite-form" do
             within '.suspect-email' do
-              expect(page).to have_content("L'adresse semble erronée Vouliez-vous écrire : prenom.nom@gmail.com ? Oui Non")
+              expect(page).to have_content("L'adresse électronique semble erronée Vouliez-vous écrire : prenom.nom@gmail.com ? Oui Non")
               click_button("Oui")
             end
             click_button("Continuer")
@@ -113,7 +113,7 @@ describe 'Creating a new dossier:', js: true do
       end
     end
 
-    context 'when identifying through TAHITI' do
+    context 'when identifying through SIRET' do
       let(:procedure) { create(:procedure, :published, :with_service, :with_type_de_champ) }
       let(:dossier) { procedure.dossiers.last }
 
@@ -133,17 +133,16 @@ describe 'Creating a new dossier:', js: true do
         allow_any_instance_of(APIEntrepriseToken).to receive(:roles).and_return([])
         allow_any_instance_of(APIEntrepriseToken).to receive(:expired?).and_return(false)
       end
-      before { Timecop.freeze(Time.zone.local(2020, 3, 14)) }
-      after { Timecop.return }
+      before { travel_to(Time.zone.local(2020, 3, 14)) }
 
-      scenario 'the user can enter the numéro TAHITI of its etablissement and create a new draft' do
+      scenario 'the user can enter the SIRET of its etablissement and create a new draft' do
         visit commencer_path(path: procedure.path)
         click_on 'Commencer la démarche'
 
         expect(page).to have_current_path siret_dossier_path(dossier)
         expect(page).to have_content(procedure.libelle)
 
-        fill_in 'Numéro TAHITI', with: siret
+        fill_in 'Numéro SIRET', with: siret
         click_on 'Continuer'
 
         expect(page).to have_current_path(etablissement_dossier_path(dossier))
@@ -153,19 +152,19 @@ describe 'Creating a new dossier:', js: true do
         expect(page).to have_current_path(brouillon_dossier_path(dossier))
       end
 
-      scenario 'the user is notified when its numéro TAHITI is invalid' do
+      scenario 'the user is notified when its SIRET is invalid' do
         visit commencer_path(path: procedure.path)
         click_on 'Commencer la démarche'
 
         expect(page).to have_current_path(siret_dossier_path(dossier))
         expect(page).to have_content(procedure.libelle)
 
-        fill_in 'Numéro TAHITI', with: '0000'
+        fill_in 'Numéro SIRET', with: '0000'
         click_on 'Continuer'
 
         expect(page).to have_current_path(siret_dossier_path(dossier))
-        expect(page).to have_content('Le champ « Siret » est invalide. Le numéro TAHITI doit commencer par une lettre ou un chiffre, suivi de 5 chiffres')
-        expect(page).to have_field('Numéro TAHITI', with: '0000')
+        expect(page).to have_content('Le champ « Siret » doit comporter exactement 14 chiffres. Exemple : 500 001 234 56789')
+        expect(page).to have_field('Numéro SIRET', with: '0000')
       end
     end
   end

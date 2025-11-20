@@ -40,55 +40,38 @@ describe 'The user', js: true do
     scroll_to(find_field('multiple_choice_drop_down_list_long'), align: :center)
     fill_in('multiple_choice_drop_down_list_long', with: 'alpha')
     find('.fr-menu__item', text: 'alpha').click
-    wait_for_autosave
-    wait_until { champ_value_for('multiple_choice_drop_down_list_long') == ['alpha'].to_json }
     fill_in('multiple_choice_drop_down_list_long', with: 'charly')
     find('.fr-menu__item', text: 'charly').click
-    wait_for_autosave
     wait_until { champ_value_for('multiple_choice_drop_down_list_long') == ['alpha', 'charly'].to_json }
 
     select('Australie', from: form_id_for('pays'))
     select('Martinique', from: form_id_for('regions'))
     select('02 – Aisne', from: form_id_for('departements'))
 
-    # pf uncomment this line when france release is less than 1 month
-    # scroll_to(find_field('communes'), align: :center)
-    # fill_in('communes', with: '60400')
-    # find_field('communes').send_keys(:enter)
-    # find('.fr-menu__item', text: 'Brétigny (60400)').click
-    # wait_until { champ_value_for('communes') == "Brétigny" }
+    scroll_to(find_field('communes'), align: :center)
+    fill_in('communes', with: '60400')
+    find('.fr-menu__item', text: 'Brétigny (60400)').click
+    wait_until { champ_value_for('communes') == "Brétigny" }
 
-    select('Australienne', from: form_id_for('nationalites'))
-    select('Mahina - Tahiti - 98709', from: form_id_for('commune_de_polynesie'))
-    select('98709 - Mahina - Tahiti', from: form_id_for('code_postal_de_polynesie'))
+    scroll_to(find_field('address'), align: :center)
+    fill_in('address', with: '78 Rue du Grés 30310 Vergè')
+    find('.fr-menu__item', text: '78 Rue du Grés 30310 Vergèze').click
+    wait_until { champ_value_for('address') == '78 Rue du Grés 30310 Vergèze' }
+    wait_until { champ_for('address').full_address? }
+    expect(champ_for('address').departement_code_and_name).to eq('30 – Gard')
 
-    # pf uncomment this line when france release is less than 1 month
-    # scroll_to(find_field('address'), align: :center)
-    # fill_in('address', with: '78 Rue du Grés 30310 Vergè')
-    # find('.fr-menu__item', text: '78 Rue du Grés 30310 Vergèze').click
-    # wait_until { champ_value_for('address') == '78 Rue du Grés 30310 Vergèze' }
-    # wait_until { champ_for('address').full_address? }
-    # expect(champ_for('address').departement_code_and_name).to eq('30 – Gard')
-
-    # pf uncomment this line when france release is less than 1 month
     # scroll_to(find_field('annuaire_education'), align: :center)
     # fill_in('annuaire_education', with: 'Moulin')
     # find('.fr-menu__item', text: 'Ecole primaire Jean Moulin, Moulins (0030323K)').click
     # wait_until { champ_for('annuaire_education').external_id == "0030323K" }
 
-    fill_in('dossier_link', with: dossier_to_link.id.to_s)
+    fill_in('dossier_link', with: '123')
     find('.editable-champ-piece_justificative input[type=file]').attach_file(Rails.root + 'spec/fixtures/files/file.pdf')
 
+    expect(page).to have_css('span', text: 'Votre brouillon est automatiquement enregistré', visible: true)
     wait_for_autosave
 
     # check data on the dossier
-    wait_until { champ_value_for('nationalites').present? }
-    expect(champ_value_for('nationalites')).to eq('Australienne')
-    wait_until { champ_value_for('commune_de_polynesie').present? }
-    expect(champ_value_for('commune_de_polynesie')).to eq('Mahina - Tahiti - 98709')
-    wait_until { champ_value_for('code_postal_de_polynesie').present? }
-    expect(champ_value_for('code_postal_de_polynesie')).to eq('98709 - Mahina - Tahiti')
-
     expect(user_dossier.brouillon?).to be true
     expect(champ_value_for('text')).to eq('super texte')
     expect(champ_value_for('textarea')).to eq('super textarea')
@@ -109,16 +92,11 @@ describe 'The user', js: true do
     expect(champ_value_for('pays')).to eq('Australie')
     expect(champ_value_for('regions')).to eq('Martinique')
     expect(champ_value_for('departements')).to eq('Aisne')
-    # pf uncomment this line when france release is less than 1 month
-    # expect(champ_value_for('communes')).to eq('Brétigny')
-    expect(champ_value_for('dossier_link')).to eq(dossier_to_link.id.to_s)
+    expect(champ_value_for('communes')).to eq('Brétigny')
+    expect(champ_value_for('dossier_link')).to eq('123')
     expect(champ_value_for('piece_justificative')).to be_nil # antivirus hasn't approved the file yet
 
     ## check data on the gui
-
-    expect(page).to have_selected_value('nationalites', selected: 'Australienne')
-    expect(page).to have_selected_value('commune_de_polynesie', selected: 'Mahina - Tahiti - 98709')
-    expect(page).to have_selected_value('code_postal_de_polynesie', selected: '98709 - Mahina - Tahiti')
 
     expect(page).to have_field('text', with: 'super texte')
     expect(page).to have_field('textarea', with: 'super textarea')
@@ -141,10 +119,9 @@ describe 'The user', js: true do
       expect(page).to have_text('alpha')
       expect(page).to have_text('charly')
     end
-    # pf uncomment this line when france release is less than 1 month
-    # expect(page).to have_field('communes', with: 'Brétigny (60400)')
+    expect(page).to have_field('communes', with: 'Brétigny (60400)')
     expect(page).to have_selected_value('pays', selected: 'Australie')
-    expect(page).to have_field('dossier_link', with: dossier_to_link.id.to_s)
+    expect(page).to have_field('dossier_link', with: '123')
     expect(page).to have_text('file.pdf')
   end
 
@@ -220,13 +197,13 @@ describe 'The user', js: true do
     fill_in('IBAN', with: 'FR')
     wait_until { champ_value_for('IBAN') == 'FR' }
 
-    expect(page).not_to have_content 'n’est pas au format IBAN'
+    expect(page).not_to have_content 'est invalide. Saisissez un numéro IBAN valide. Exemple (France) : 500 001 234 56789'
     blur
-    expect(page).to have_content 'n’est pas au format IBAN'
+    expect(page).to have_content 'est invalide. Saisissez un numéro IBAN valide. Exemple (France) : 500 001 234 56789'
 
     fill_in('IBAN', with: 'FR7630006000011234567890189')
     wait_until { champ_value_for('IBAN') == 'FR76 3000 6000 0112 3456 7890 189' }
-    expect(page).not_to have_content 'n’est pas au format IBAN'
+    expect(page).not_to have_content 'est invalide. Saisissez un numéro IBAN valide. Exemple (France) : 500 001 234 56789'
 
     # Check an incomplete dossier cannot be submitted when mandatory fields are missing
     click_on 'Déposer le dossier'
@@ -411,10 +388,7 @@ describe 'The user', js: true do
     expect(page).to have_text('white.png')
 
     click_on("Supprimer le fichier file.pdf")
-    expect(page).not_to have_text('file.pdf')
-
-    # pf #163 avoid screen scrolling to stay on the current champ
-    # expect(page).to have_text("La pièce jointe a bien été supprimée")
+    expect(page).to have_text("La pièce jointe (file.pdf) a bien été supprimée. Vous pouvez en ajouter une autre.")
 
     attach_file('Pièce justificative 1', Rails.root + 'spec/fixtures/files/black.png')
 

@@ -137,61 +137,6 @@ describe Users::DossiersController, type: :controller do
     end
   end
 
-  describe '#qrcode' do
-    let(:date) { Time.zone.now }
-    before {
-      Timecop.freeze(Time.zone.local(2018, 1, 2, 23, 11, 14))
-      sign_in(user)
-    }
-    after { Timecop.return }
-
-    context 'when the procedure has an attestation template' do
-      let(:another_user) { create(:user) }
-      let!(:dossier) { create(:dossier, :with_attestation, user: user) }
-
-      context 'when another user is connected' do
-        before { sign_in(another_user) }
-        after { sign_in(user) }
-
-        it 'shows attestation as HTML' do
-          get :qrcode, params: { id: dossier.id, created_at: dossier.encoded_date(:created_at) }
-          expect(response).to render_template(:qrcode)
-        end
-      end
-    end
-
-    context 'when the procedure no longer has an attestation template' do
-      let(:another_user) { create(:user) }
-      let!(:dossier) { create(:dossier, :with_attestation, user: user) }
-
-      context 'when another user is connected' do
-        before { sign_in(another_user) }
-        after { sign_in(user) }
-
-        it 'returns error' do
-          attestation_template = dossier.attestation_template
-          attestation_template.activated = false
-          attestation_template.save
-
-          get :qrcode, params: { id: dossier.id, created_at: dossier.encoded_date(:created_at) }
-          expect(response.headers["Location"]).to end_with ".pdf"
-        end
-      end
-    end
-
-    context 'when the dossier is no longer accepted' do
-      let(:another_user) { create(:user) }
-      let!(:dossier) { create(:dossier, :with_attestation, :followed, :accepte, user: user) }
-      before { sign_in(user) }
-
-      it 'display error message' do
-        dossier.repasser_en_instruction!(instructeur: dossier.followers_instructeurs.first)
-        get :qrcode, params: { id: dossier.id, created_at: dossier.encoded_date(:created_at) }
-        expect(response).to render_template(:qrcode)
-      end
-    end
-  end
-
   describe 'update_identite' do
     let(:procedure) { create(:procedure, :for_individual) }
     let(:dossier) { create(:dossier, user: user, procedure: procedure) }
@@ -206,7 +151,7 @@ describe Users::DossiersController, type: :controller do
       let(:dossier_params) { { individual_attributes: { gender: 'M', nom: 'Mouse', prenom: 'Mickey' } } }
       let(:now) { Time.zone.parse('01/01/2100') }
       before do
-        Timecop.freeze(now) do
+        travel_to(now) do
           subject
         end
       end
@@ -304,15 +249,6 @@ describe Users::DossiersController, type: :controller do
         stub_request(:get, "https://entreprise.api.gouv.fr/ping/insee/sirene")
           .to_return(body: api_insee_status_response)
       end
-
-      #----- Pf
-      stub_request(:get, Regexp.quote("#{API_ISPF_URL}/etablissements/Entreprise/#{siret}"))
-        .to_return(status: api_etablissement_status, body: api_etablissement_body)
-
-      if api_insee_status_response
-        has_issues = api_insee_status_response.include?("502") || api_insee_status_response.include?("HASISSUES")
-        stub_request(:get, API_ISPF_URL).to_return(status: has_issues ? 502 : 200)
-      end
     end
 
     subject! { post :update_siret, params: { id: dossier.id, user: { siret: params_siret } } }
@@ -346,9 +282,9 @@ describe Users::DossiersController, type: :controller do
     end
 
     context 'with an invalid SIRET' do
-      let(:params_siret) { '000 000 00' }
+      let(:params_siret) { '000 000' }
 
-      it_behaves_like 'the request fails with an error', ["Le champ « Siret » " + I18n.t('activemodel.errors.models.siret.attributes.siret.length')]
+      it_behaves_like 'the request fails with an error', ['Le champ « Siret » doit comporter exactement 14 chiffres. Exemple : 500 001 234 56789']
     end
 
     context 'with a valid SIRET' do
@@ -458,7 +394,6 @@ describe Users::DossiersController, type: :controller do
     let(:types_de_champ_public) { [{ type: :text, mandatory: false }] }
     let!(:dossier) { create(:dossier, user:, procedure:) }
     let(:first_champ) { dossier.project_champs_public.first }
-    let(:anchor_to_first_champ) { controller.helpers.link_to first_champ.libelle, brouillon_dossier_path(anchor: first_champ.labelledby_id), class: 'error-anchor' }
     let(:value) { 'beautiful value' }
     let(:now) { Time.zone.parse('01/01/2100') }
     let(:payload) { { id: dossier.id } }
@@ -505,7 +440,7 @@ describe Users::DossiersController, type: :controller do
       end
 
       it { expect(response).to render_template(:brouillon) }
-      it { expect(response.body).to have_link(first_champ.libelle, href: "##{first_champ.labelledby_id}") }
+      it { expect(response.body).to have_link(first_champ.libelle, href: "##{first_champ.focusable_input_id}") }
       it { expect(response.body).to have_content(error_message) }
 
       it 'does not send an email' do
@@ -523,7 +458,7 @@ describe Users::DossiersController, type: :controller do
       before { subject }
 
       it { expect(response).to render_template(:brouillon) }
-      it { expect(response.body).to have_link(first_champ.libelle, href: "##{first_champ.labelledby_id}") }
+      it { expect(response.body).to have_link(first_champ.libelle, href: "##{first_champ.focusable_input_id}") }
       it { expect(response.body).to have_content("doit être rempli") }
     end
 
@@ -554,9 +489,9 @@ describe Users::DossiersController, type: :controller do
       let!(:dossier) { create(:dossier, :brouillon, procedure:, user:) }
 
       it 'passe automatiquement en instruction' do
-        delivery = double.tap { expect(_1).to receive(:deliver_later).with(no_args) }
+        delivery = double.tap { expect(_1).to receive(:deliver_later).with(no_args).twice }
         expect(NotificationMailer).to receive(:send_en_construction_notification).and_return(delivery)
-        allow(InstructionNotificationJob).to receive(:schedule_for_dossier)
+        expect(NotificationMailer).to receive(:send_en_instruction_notification).and_return(delivery)
 
         subject
         dossier.reload
@@ -565,7 +500,6 @@ describe Users::DossiersController, type: :controller do
         expect(dossier.pending_correction?).to be_falsey
         expect(dossier.en_instruction_at).to within(5.seconds).of(Time.current)
         expect(dossier.traitements.last.browser_name).to eq('Unknown Browser')
-        expect(InstructionNotificationJob).to have_received(:schedule_for_dossier).with(dossier)
       end
     end
   end
@@ -576,7 +510,6 @@ describe Users::DossiersController, type: :controller do
     let(:types_de_champ_public) { [{ type: :text, mandatory: false }] }
     let(:dossier) { create(:dossier, :en_construction, procedure:, user: owner) }
     let(:first_champ) { dossier.owner_editing_fork.project_champs_public.first }
-    let(:anchor_to_first_champ) { controller.helpers.link_to I18n.t('views.users.dossiers.fix_champ'), modifier_dossier_path(anchor: first_champ.labelledby_id), class: 'error-anchor' }
     let(:value) { 'beautiful value' }
     let(:now) { Time.zone.parse('01/01/2100') }
     let(:payload) { { id: dossier.id } }
@@ -584,7 +517,7 @@ describe Users::DossiersController, type: :controller do
     before { dossier.owner_editing_fork }
 
     subject do
-      Timecop.freeze(now) do
+      travel_to(now) do
         post :submit_en_construction, params: payload
       end
     end
@@ -626,7 +559,7 @@ describe Users::DossiersController, type: :controller do
 
         it { expect(response).to render_template(:modifier) }
         it { expect(response.body).to have_content("doit être rempli") }
-        it { expect(response.body).to have_link(first_champ.libelle, href: "##{first_champ.labelledby_id}") }
+        it { expect(response.body).to have_link(first_champ.libelle, href: "##{first_champ.focusable_input_id}") }
       end
 
       context 'when dossier has no champ' do
@@ -757,7 +690,7 @@ describe Users::DossiersController, type: :controller do
     let(:payload) { submit_payload }
 
     subject do
-      Timecop.freeze(now) do
+      travel_to(now) do
         patch :update, params: payload, format: :turbo_stream
       end
     end
@@ -993,7 +926,7 @@ describe Users::DossiersController, type: :controller do
     let(:payload) { submit_payload }
 
     subject do
-      Timecop.freeze(now) do
+      travel_to(now) do
         patch :update, params: payload, format: :turbo_stream
       end
     end
@@ -1159,7 +1092,6 @@ describe Users::DossiersController, type: :controller do
     let(:first_champ_user_buffer) { dossier.with_update_stream(dossier.user) { dossier.project_champs_public.first } }
     let(:piece_justificative_champ) { dossier.project_champs_public.last }
     let(:piece_justificative_champ_user_buffer) { dossier.with_update_stream(dossier.user) { dossier.project_champs_public.last } }
-    let(:anchor_to_first_champ) { controller.helpers.link_to I18n.t('views.users.dossiers.fix_champ'), brouillon_dossier_path(anchor: first_champ.labelledby_id), class: 'error-anchor' }
     let(:value) { 'beautiful value' }
     let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
     let(:now) { Time.zone.parse('01/01/2100') }
@@ -1178,7 +1110,7 @@ describe Users::DossiersController, type: :controller do
     let(:payload) { submit_payload }
 
     subject do
-      Timecop.freeze(now) do
+      travel_to(now) do
         patch :update, params: payload, format: :turbo_stream
       end
     end
@@ -1446,10 +1378,10 @@ describe Users::DossiersController, type: :controller do
 
     describe 'sort order' do
       before do
-        Timecop.freeze(4.days.ago) { create(:dossier, user: user) }
-        Timecop.freeze(2.days.ago) { create(:dossier, user: user) }
-        Timecop.freeze(4.days.ago) { create(:invite, dossier: create(:dossier), user: user) }
-        Timecop.freeze(2.days.ago) { create(:invite, dossier: create(:dossier), user: user) }
+        travel_to(4.days.ago) { create(:dossier, user: user) }
+        travel_to(2.days.ago) { create(:dossier, user: user) }
+        travel_to(4.days.ago) { create(:invite, dossier: create(:dossier), user: user) }
+        travel_to(2.days.ago) { create(:invite, dossier: create(:dossier), user: user) }
         get(:index)
       end
 
@@ -1498,12 +1430,12 @@ describe Users::DossiersController, type: :controller do
       let(:procedure) { create(:procedure) }
       let(:dossier) do
         create(:dossier,
-               :accepte,
-               :with_populated_champs,
-               :with_motivation,
-               :with_commentaires,
-               procedure: procedure,
-               user: user)
+          :accepte,
+          :with_populated_champs,
+          :with_motivation,
+          :with_commentaires,
+          procedure: procedure,
+          user: user)
       end
 
       subject! { get(:show, params: { id: dossier.id, format: :pdf }) }
@@ -1555,7 +1487,7 @@ describe Users::DossiersController, type: :controller do
     }
 
     before do
-      Timecop.freeze(now)
+      travel_to(now)
       sign_in(user)
       allow(ClamavService).to receive(:safe_file?).and_return(scan_result)
       allow(DossierMailer).to receive(:notify_new_commentaire_to_instructeur).and_return(double(deliver_later: nil))
@@ -1564,8 +1496,6 @@ describe Users::DossiersController, type: :controller do
       create(:assign_to, instructeur: instructeur_with_instant_message, procedure: procedure, instant_email_message_notifications_enabled: true)
       create(:assign_to, instructeur: instructeur_without_instant_message, procedure: procedure, instant_email_message_notifications_enabled: false)
     end
-
-    after { Timecop.return }
 
     context 'commentaire creation' do
       it "creates a commentaire" do
@@ -1618,7 +1548,7 @@ describe Users::DossiersController, type: :controller do
       before 'instructeurs have no notification before the message' do
         expect(instructeur_with_instant_message.followed_dossiers.with_notifications).to eq([])
         expect(instructeur_without_instant_message.followed_dossiers.with_notifications).to eq([])
-        Timecop.travel(now + 1.day)
+        travel_to(now + 1.day)
         subject
       end
 

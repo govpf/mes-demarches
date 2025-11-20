@@ -7,12 +7,6 @@ describe Champs::SiretChamp do
   let(:value) { "" }
   let(:etablissement) { nil }
 
-  def with_value(value)
-    champ.tap do
-      _1.value = value
-    end
-  end
-
   describe '#validate' do
     subject { champ.tap { _1.validate(:champs_public_value) } }
 
@@ -22,47 +16,29 @@ describe Champs::SiretChamp do
       it { is_expected.to be_valid }
     end
 
-    context 'with invalid format - too short for both systems' do
-      before { with_value('12345') }
+    context 'with invalid format' do
+      let(:value) { "12345" }
 
-      it { expect(subject.errors[:value]).to include('doit avoir 9 chiffres. Sélectionnez un établissement.') }
+      it { subject.errors[:value].should include('doit comporter exactement 14 chiffres. Exemple : 500 001 234 56789') }
     end
 
-    context 'with invalid checksum for 14-char SIRET' do
-      before { with_value('12345678901234') }
+    context 'with invalid checksum' do
+      let(:value) { "12345678901234" }
 
-      it { expect(subject.errors[:value].any? { |msg| msg.include?('n’est pas valide') }).to be true }
+      it { subject.errors[:value].should include("comporte une erreur de saisie. Corrigez-la.") }
     end
 
-    context 'with valid 14-char format but no etablissement' do
-      before { with_value('12345678901245') }
+    context 'with valid format but no etablissement' do
+      let(:value) { "12345678901245" }
 
-      it { expect(subject.errors[:value].join(' ')).to match(/aucun.*établissement.*rattaché/) }
+      it { subject.errors[:value].should include("ne correspond pas à un établissement existant") }
     end
 
-    # pf: Add test for 9-char Tahiti number validation
-    context 'with valid 9-char Tahiti format but no etablissement' do
-      before { with_value('123456789') }
+    context 'with valid SIRET and etablissement' do
+      let(:value) { "12345678901245" }
+      let(:etablissement) { build(:etablissement, siret: value) }
 
-      it { expect(subject.errors[:value].join(' ')).to match(/aucun.*établissement.*rattaché/) }
-    end
-
-    context 'with valid 14-char SIRET and etablissement' do
-      before do
-        with_value('12345678901245')
-        champ.etablissement = build(:etablissement, siret: champ.value)
-      end
-
-      it { expect(subject).to be_valid }
-    end
-
-    context 'with valid 9-char Tahiti and etablissement' do
-      before do
-        with_value('123456789')
-        champ.etablissement = build(:etablissement, siret: champ.value)
-      end
-
-      it { expect(subject).to be_valid }
+      it { is_expected.to be_valid }
     end
   end
 end

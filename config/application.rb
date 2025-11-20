@@ -52,6 +52,8 @@ module TPS
 
     config.view_component.capture_compatibility_patch_enabled = true
 
+    config.view_component.capture_compatibility_patch_enabled = true
+
     # ActionDispatch's IP spoofing detection is quite limited, and often rejects
     # legitimate requests from misconfigured proxies (such as mobile telcos).
     #

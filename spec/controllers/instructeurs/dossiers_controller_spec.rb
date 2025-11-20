@@ -731,7 +731,7 @@ describe Instructeurs::DossiersController, type: :controller do
     let(:body) { "avant\napres" }
     let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
     let(:scan_result) { true }
-    let(:now) { Timecop.freeze("09/11/1989") }
+    let(:now) { DateTime.parse("12/02/2025 09:19") }
 
     subject {
       post :create_commentaire, params: {
@@ -748,10 +748,8 @@ describe Instructeurs::DossiersController, type: :controller do
     before do
       expect(controller.current_instructeur).to receive(:mark_tab_as_seen).with(dossier, :messagerie)
       allow(ClamavService).to receive(:safe_file?).and_return(scan_result)
-      Timecop.freeze(now)
+      travel_to(now)
     end
-
-    after { Timecop.return }
 
     it "creates a commentaire" do
       expect { subject }.to change(Commentaire, :count).by(1)
@@ -849,7 +847,7 @@ describe Instructeurs::DossiersController, type: :controller do
         before { subject }
 
         it { expect(response).to render_template :avis }
-        it { expect(flash.alert).to eq(["emaila.com : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com"]) }
+        it { expect(flash.alert).to eq(["emaila.com : Le champ « Email » est invalide. Saisissez une adresse électronique valide. Exemple : adresse@mail.com"]) }
         it { expect { subject }.not_to change(Avis, :count) }
         it { expect(dossier.last_avis_updated_at).to eq(nil) }
       end
@@ -871,7 +869,7 @@ describe Instructeurs::DossiersController, type: :controller do
         before { subject }
 
         it { expect(response).to render_template :avis }
-        it { expect(flash.alert).to eq(["toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com"]) }
+        it { expect(flash.alert).to eq(["toto.fr : Le champ « Email » est invalide. Saisissez une adresse électronique valide. Exemple : adresse@mail.com"]) }
         it { expect(flash.notice).to eq("Une demande d’avis a été envoyée à titi@titimail.com") }
         it { expect(Avis.count).to eq(old_avis_count + 1) }
         it { expect(saved_avis.expert.email).to eq("titi@titimail.com") }
@@ -1083,7 +1081,7 @@ describe Instructeurs::DossiersController, type: :controller do
         before do
           expect(controller.current_instructeur).to receive(:mark_tab_as_seen).with(dossier, :annotations_privees)
           another_instructeur.follow(dossier)
-          Timecop.freeze(now)
+          travel_to(now)
           patch :update_annotations, params: params, format: :turbo_stream
           dossier.reload
           champ_multiple_drop_down_list.reload
@@ -1094,7 +1092,6 @@ describe Instructeurs::DossiersController, type: :controller do
         end
 
         after do
-          Timecop.return
         end
         let(:champs_private_attributes) do
           {
@@ -1196,7 +1193,7 @@ describe Instructeurs::DossiersController, type: :controller do
         end
 
         it 'updates the annotations' do
-          Timecop.travel(now + 1.hour)
+          travel_to(now + 1.hour)
           expect(instructeur.followed_dossiers.with_notifications).to eq([])
           expect(another_instructeur.followed_dossiers.with_notifications).to eq([dossier.reload])
         end
@@ -1227,7 +1224,6 @@ describe Instructeurs::DossiersController, type: :controller do
     end
 
     after do
-      Timecop.return
     end
 
     context "without new values for project_champs_private" do

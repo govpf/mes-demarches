@@ -3,9 +3,9 @@ fr:
     dossiers:
       beneficiaire: '%{beneficiaire}, dossier rempli par %{mandataire}'
       france_connect_informations:
-        details_no_name: "Le dossier a été déposé par un compte %{provider}."
+        details_no_name: "Le dossier a été déposé par un compte FranceConnect."
         details: "Le dossier a été déposé par le compte de %{name}."
-        details_updated: "Le dossier a été déposé par le compte de %{name}, authentifié par %{provider} le %{date}."
+        details_updated: "Le dossier a été déposé par le compte de %{name}, authentifié par FranceConnect le %{date}."
       motivation:
         refused_by_svr: "Le service traitant n’a pas été en mesure de traiter votre demande dans le délai imparti par la règle du Silence Vaut Rejet."
       header:
@@ -19,9 +19,6 @@ fr:
 
 
     champs:
-      referentiel_de_polynesie:
-        show:
-          toggle_champ: "Afficher/Cacher les champs de « %{champ} »"
       cnaf:
         show:
           not_filled: non renseigné
@@ -32,6 +29,9 @@ fr:
         show:
           not_filled: non renseigné
           not_found: "RNA %{rna} (aucun établissement trouvé)"
+        association:
+          data_fetched: "Ce RNA correspond à : %{title}, %{address}"
+          invalid_number: "doit commencer par un W majuscule suivi de 9 chiffres ou lettres. Exemple : W503726238"
       rnf:
         show:
           not_found: "RNF %{rnf} (aucune fondation trouvée)"

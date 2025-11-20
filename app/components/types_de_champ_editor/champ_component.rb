@@ -10,6 +10,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     @errors = errors
   end
 
+  # pf: helpers pour les référentiels CSV (communes, codes postaux, etc.)
   def referentiel_max_size
     Administrateurs::TypesDeChampController::CSV_MAX_SIZE
   end
