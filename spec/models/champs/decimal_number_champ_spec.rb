@@ -39,7 +39,8 @@ describe Champs::DecimalNumberChamp do
 
       it 'is not valid and contains expected error' do
         expect(subject).to be_falsey
-        expect(champ.errors[:value]).to eq(["n'est pas un nombre", "doit comprendre entre 1 et 3 chiffres après le point"])
+        # pf: only one error message (regex accepts non-numeric to avoid duplicate error)
+        expect(champ.errors[:value]).to eq(["n'est pas un nombre"])
       end
     end
 

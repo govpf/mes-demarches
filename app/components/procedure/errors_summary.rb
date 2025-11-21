@@ -43,6 +43,8 @@ class Procedure::ErrorsSummary < ApplicationComponent
       tdc = error.options[:type_de_champ]
       annotations_admin_procedure_path(@procedure, anchor: dom_id(tdc.stable_self, :editor_error))
     when :attestation_template
+      # pf-v1-compat: routing intelligent basé sur la version de l'attestation en erreur
+      # À supprimer quand migration v2 sera complète
       if error.detail[:value].version == 1
         edit_admin_procedure_attestation_template_path(@procedure)
       else
