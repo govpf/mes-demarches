@@ -301,9 +301,21 @@ git tag -l "2024-*" | sort -V | tail -5
 # Merger le tag upstream
 git merge upstream/AAAA-MM-JJ-NN
 
-# Pour les locales : prendre upstream systématiquement
-git checkout --theirs config/locales/
+# ⚠️ NE JAMAIS utiliser --theirs ou --ours globalement !
+# Cela masque les vrais conflits et peut écraser du code important
 ```
+
+**❌ À NE JAMAIS FAIRE :**
+```bash
+git checkout --theirs config/locales/  # ❌ Cache les conflits, peut régresser
+git checkout --theirs app/             # ❌ Peut perdre du code PF
+git merge --strategy-option theirs     # ❌ Dangereux
+```
+
+**✅ Approche correcte :**
+- Résoudre **chaque conflit manuellement** en examinant le contexte
+- Utiliser les tags `# pf:` pour identifier les spécificités à préserver
+- Pour les locales : vérifier si des traductions PF doivent être gardées
 
 #### 3. **Stratégie des tags PF**
 
@@ -313,7 +325,10 @@ Tous les comportements spécifiques à la Polynésie française doivent être ma
 **Résolution de conflits :**
 1. **Chercher les tags `# pf:` voisins** pour comprendre le contexte de la spécificité
 2. **Si tag PF présent** : analyser si la spécificité doit être maintenue
-3. **Si aucun tag PF** : prendre la version upstream par défaut
+3. **Si aucun tag PF** : privilégier upstream **SAUF si cela casse une fonctionnalité PF**
+4. **En cas de doute** : tester localement ou demander validation
+
+**⚠️ Règle d'or** : Upstream est prioritaire **tant que cela ne remet pas en cause les développements PF**. Si un changement upstream impacte une fonctionnalité PF (même sans tag `# pf:`), il faut adapter intelligemment, pas simplement prendre upstream.
 
 **Exemples de tags PF :**
 ```ruby
@@ -344,7 +359,7 @@ bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb
 **🔧 Corrections typiques :**
 - Messages de validation changés → corriger les expectations des tests
 - Nouvelles règles de linting → `bundle exec rubocop -A`
-- Conflits de traductions → prendre upstream pour les locales
+- Conflits de traductions → examiner si PF a des spécificités avant de prendre upstream
 
 ### Bonnes pratiques
 
