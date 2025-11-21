@@ -51,9 +51,9 @@ describe 'Omni Auth Connexion' do
             end
 
             scenario 'he is redirected to user dossiers page', js: true do
-              expect(page).to have_content("Choisissez votre email de contact pour finaliser votre connexion")
+              expect(page).to have_content("Choisissez votre adresse électronique de contact pour finaliser votre connexion")
 
-              find('label', text: "Oui, utiliser #{email} comme email de contact").click
+              find('label', text: "Oui, utiliser #{email} comme adresse électronique de contact").click
               click_on 'Valider'
 
               expect(page).to have_content('Dossiers')
