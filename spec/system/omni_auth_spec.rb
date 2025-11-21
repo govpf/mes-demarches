@@ -87,7 +87,7 @@ describe 'Omni Auth Connexion' do
             scenario 'it uses another email that belongs to nobody' do
               page.find('#it-is-not-mine').click
               fill_in 'email', with: 'new_email@a.com'
-              click_on 'Utiliser ce mail'
+              click_on 'Utiliser cette adresse électronique'
 
               expect(page).to have_content('Dossiers')
             end
@@ -102,7 +102,7 @@ describe 'Omni Auth Connexion' do
 
                 within '.new-account' do
                   fill_in 'email', with: 'an_existing_email@a.com'
-                  click_on 'Utiliser ce mail'
+                  click_on 'Utiliser cette adresse électronique'
                 end
 
                 expect(page).to have_content('Nous venons de vous envoyer le mail de confirmation')
