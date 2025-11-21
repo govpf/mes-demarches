@@ -349,6 +349,8 @@ fr:
         save: Enregistrer
         edit: Modifier
         see: Voir
+      label:
+        email: Adresse électronique
       greetings:
         hello: Bonjour,
         best_regards: Cordialement,
@@ -568,6 +570,7 @@ fr:
           find_procedure: Trouvez votre démarche
           state_civil_servant: Vous êtes agent de la fonction publique d’État ?
           connect_with_agent_connect: Accédez à notre page dédiée
+          connect_with_pro_connect: Accédez à notre page dédiée
           subtitle: "Se connecter avec son compte"
           for_tiers_alert: Si vous remplissez un dossier pour un tiers, vous devez utiliser vos propres identifiants.
         link_sent:
@@ -612,6 +615,9 @@ fr:
       user:
         one: Utilisateur
         other: Utilisateurs
+      attachment:
+        successfully_deleted_with_anchor: 'La pièce jointe (%{attachment}) a été supprimée. Vous pouvez maintenant <a href="#%{champ}">en ajouter une autre</a>.'
+        successfully_deleted_without_anchor: 'La pièce jointe (%{attachment}) a été supprimée.'
 
     attributes:
       default_attributes: &default_attributes
