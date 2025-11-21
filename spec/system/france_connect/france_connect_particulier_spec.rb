@@ -47,7 +47,7 @@ describe 'France Connect Particulier Connexion' do
             scenario 'he is redirected to user dossiers page', js: true do
               expect(page).to have_content("Choisissez votre email de contact pour finaliser votre connexion")
 
-              find('label', text: "Oui, utiliser #{fc_email} comme adresse électronique de contact").click
+              find('label', text: "Oui, utiliser #{fc_email} comme email de contact").click
 
               click_on 'Valider'
               expect(User.find_by(email: fc_email).email_verified_at).to be_present
