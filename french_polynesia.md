@@ -154,4 +154,15 @@ Cette section documente les modifications techniques spécifiques à la Polynés
 7. **Navigation contextuelle** : Navigation intelligente entre personas avec feature flag utilisateur
 8. **Tests** : Adaptations des tests pour les fonctionnalités spécifiques PF
 
+## Développement : WeasyPrint local
+L'attestation v2 utilise **WeasyPrint** pour générer les PDF. Par défaut, le service n'est pas activé dans [`Procfile.dev`](Procfile.dev ) pour éviter de bloquer le démarrage de [`bin/dev`](bin/dev ) si WeasyPrint n'est pas installé.
 
+Pour l'installation, veuillez suivre les étapes dans le fichier [`specs_attestation_v2_pf_complet.md`](specs_attestation_v2_pf_complet.md ) lignes 884-897. 
+
+Une fois l'installation terminée :
+1. Décommentez la ligne suivante dans [`Procfile.dev`](Procfile.dev ) :
+   ```
+   # weasyprint: cd /tmp/weasyprint-server && . venv/bin/activate && python3 app.py
+   ```
+2. Vérifiez que le chemin `/tmp/weasyprint-server` correspond à votre installation
+3. Relancez [`bin/dev`](bin/dev )

@@ -11,7 +11,7 @@ describe 'users/activate/new.html.haml', type: :view do
 
     it "where password form show complexity bar with at least complexity of #{complexity}" do
       expect(rendered).to have_selector('#user_email[disabled]')
-      expect(rendered).to have_selector("input[id=user_password][data-turbo-input-url-value='#{show_password_complexity_path}']")
+      expect(rendered).to have_selector("input[id=user_password][data-turbo-input-url-value='#{show_password_complexity_path(complexity: complexity)}']")
       expect(rendered).to have_selector('.fr-alert')
       expect(rendered).to have_selector('#password_complexity')
       expect(rendered).to have_selector('input[type=submit]')

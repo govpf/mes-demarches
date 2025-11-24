@@ -580,6 +580,13 @@ class ProcedureRevision < ApplicationRecord
     end
   end
 
+  # pf: normalise les options drop_down pour comparer uniquement les labels
+  # Gère le cas où les options sont nil (référentiel sans CSV) ou des tuples [label, id]
+  def normalize_drop_down_labels(options)
+    return [] if options.nil?
+    options.map { |opt| opt.is_a?(Array) ? opt.first : opt }
+  end
+
   def replace_type_de_champ_by_clone(coordinate)
     transaction do
       cloned_type_de_champ = coordinate.type_de_champ.deep_clone do |original, kopy|

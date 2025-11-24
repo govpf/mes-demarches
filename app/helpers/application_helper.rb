@@ -174,4 +174,14 @@ module ApplicationHelper
       pdf.fill_color "000000"
     end
   end
+
+  # pf: sanitization HTML spécifique pour attestation v2
+  def attestation_v2_sanitize(html)
+    config = Rails.application.config.attestation_v2
+    ActionController::Base.helpers.sanitize(
+      html,
+      tags: config[:allowed_tags],
+      attributes: config[:allowed_attributes]
+    )
+  end
 end
