@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 describe Champs::IntegerNumberChamp do
-  let(:min) { nil }
-  let(:max) { nil }
-  let(:type_de_champ) { create(:type_de_champ, min:, max:) }
+  let(:min_number) { nil }
+  let(:max_number) { nil }
+  let(:range_number) { nil }
+  let(:type_de_champ) { create(:type_de_champ, min_number:, max_number:, range_number:) }
 
   let(:champ) { Champs::IntegerNumberChamp.new(value:, dossier: build(:dossier)) }
   before do
@@ -62,8 +63,12 @@ describe Champs::IntegerNumberChamp do
     end
 
     context "when max is specified" do
-      let(:max) { 10 }
-      before { champ.type_de_champ.max = max }
+      let(:max_number) { 10 }
+      let(:range_number) { '1' }
+      before do
+        champ.type_de_champ.max_number = max_number
+        champ.type_de_champ.range_number = range_number
+      end
 
       context 'when the value is equal to max' do
         let(:value) { '10' }
@@ -76,14 +81,18 @@ describe Champs::IntegerNumberChamp do
 
         it do
           is_expected.to be_falsey
-          expect(champ.errors[:value]).to eq(["doit être inférieur ou égal à 10"])
+          expect(champ.errors[:value]).to eq(["doit être un nombre inférieur ou égal à 10"])
         end
       end
     end
 
     context "when min is specified" do
-      let(:min) { 10 }
-      before { champ.type_de_champ.min = min }
+      let(:min_number) { 10 }
+      let(:range_number) { '1' }
+      before do
+        champ.type_de_champ.min_number = min_number
+        champ.type_de_champ.range_number = range_number
+      end
 
       context 'when the value is equal to min' do
         let(:value) { '10' }
@@ -96,8 +105,78 @@ describe Champs::IntegerNumberChamp do
 
         it do
           is_expected.to be_falsey
-          expect(champ.errors[:value]).to eq(["doit être supérieur ou égal à 10"])
+          expect(champ.errors[:value]).to eq(["doit être un nombre supérieur ou égal à 10"])
         end
+      end
+    end
+
+    context 'when the value is negative' do
+      context 'negative values are accepted' do
+        let(:value) { -1 }
+
+        it { is_expected.to be_truthy }
+      end
+
+      context 'negative values are not accepted' do
+        before { champ.type_de_champ.update(options: { positive_number: '1' }) }
+        let(:value) { -1 }
+
+        it 'is not valid and contains errors' do
+          is_expected.to be_falsey
+          expect(champ.errors[:value]).to eq(["doit être un nombre positif"])
+        end
+      end
+    end
+
+    context 'when there is a range' do
+      before { champ.type_de_champ.update(options: { range_number: '1', min_number: '2', max_number: '18' }) }
+      context 'the value is in the range' do
+        let(:value) { 4 }
+
+        it { is_expected.to be_truthy }
+      end
+
+      context 'the value is not in the range' do
+        let(:value) { 19 }
+
+        it 'is not valid and contains errors' do
+          is_expected.to be_falsey
+          expect(champ.errors[:value]).to eq(["doit être un nombre compris entre 2 et 18"])
+        end
+      end
+
+      context 'the value is bigger than max' do
+        before { champ.type_de_champ.update(options: { range_number: '1', min_number: '', max_number: '18' }) }
+        let(:value) { 19 }
+
+        it 'is not valid and contains errors' do
+          is_expected.to be_falsey
+          expect(champ.errors[:value]).to eq(["doit être un nombre inférieur ou égal à 18"])
+        end
+      end
+
+      context 'the value is smaller than min' do
+        before { champ.type_de_champ.update(options: { range_number: '1', min_number: '2', max_number: '' }) }
+        let(:value) { 1 }
+
+        it 'is not valid and contains errors' do
+          is_expected.to be_falsey
+          expect(champ.errors[:value]).to eq(["doit être un nombre supérieur ou égal à 2"])
+        end
+      end
+
+      context 'the range is not activated' do
+        before { champ.type_de_champ.update(options: { range_number: '0', min_number: '2', max_number: '18' }) }
+        let(:value) { 19 }
+
+        it { is_expected.to be_truthy }
+      end
+
+      context 'the range is activated but min and max values are not defined' do
+        before { champ.type_de_champ.update(options: { range_number: '0', min_number: '', max_number: '' }) }
+        let(:value) { 19 }
+
+        it { is_expected.to be_truthy }
       end
     end
   end

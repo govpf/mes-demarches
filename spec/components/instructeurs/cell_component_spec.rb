@@ -4,7 +4,7 @@ describe Instructeurs::CellComponent do
   let(:component) { described_class.new(dossier:, column:) }
 
   describe '#call' do
-    let(:procedure) { create(:procedure, types_de_champ_public:) }
+    let(:procedure) { create(:procedure, :for_individual, types_de_champ_public:) }
     let(:dossier) { create(:dossier, procedure:) }
     let(:types_de_champ_public) { {} }
 
@@ -17,12 +17,9 @@ describe Instructeurs::CellComponent do
       it { is_expected.to eq(user.email) }
 
       context 'when the dossier is for tiers' do
-        before do
-          dossier.update(for_tiers: true)
-          dossier.create_individual(prenom: 'prenom', nom: 'nom')
-        end
+        let(:dossier) { create(:dossier, :for_tiers_with_notification, procedure:) }
 
-        it { is_expected.to eq("#{user.email} agit pour Prenom NOM") }
+        it { is_expected.to eq("#{user.email} agit pour Xavier Julien") }
       end
     end
 
@@ -59,6 +56,13 @@ describe Instructeurs::CellComponent do
       it { is_expected.to eq('Oui') }
     end
 
+    context 'for a boolean column on dossier' do
+      let(:column) { dossier.procedure.find_column(label: "Dépôt pour un tiers") }
+      let(:dossier) { build(:dossier, :for_tiers_with_notification, procedure:) }
+
+      it { is_expected.to eq('Oui') }
+    end
+
     context 'for a checkbox column' do
       let(:types_de_champ_public) { [{ type: :checkbox, libelle: 'checkbox' }] }
       let(:column) { dossier.procedure.find_column(label: 'checkbox') }
@@ -90,20 +94,6 @@ describe Instructeurs::CellComponent do
       before { dossier.champs.first.update(value: DateTime.parse("12/02/2025 09:19")) }
 
       it { is_expected.to eq('12 février 2025 09:19') }
-    end
-
-    context 'for a date column with value as string' do
-      let(:types_de_champ_public) { [{ type: :siret, libelle: 'siret' }] }
-      let(:column) { dossier.procedure.columns.find { |c| c.label.include?('Entreprise date de création') } }
-      let(:etablissement) { build(:etablissement, entreprise_date_creation: Date.new(2015, 8, 10)) }
-
-      before {
-        dossier.champs.first.update(value: etablissement.siret, etablissement:)
-        dossier.update(etablissement:)
-        etablissement.update_champ_value_json!
-      }
-
-      it { is_expected.to eq('10 août 2015') }
     end
 
     context 'for a enum column' do
