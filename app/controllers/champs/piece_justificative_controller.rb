@@ -62,6 +62,8 @@ class Champs::PieceJustificativeController < Champs::ChampController
       save_succeed = @champ.save(context:)
     end
 
+    # pf: track revisions for private champs (annotations) modified by instructeurs
+    # Note: current_instructeur must be present when modifying private champs
     if @champ.private?
       ChampRevision.create_or_update_revision(@champ, current_instructeur.id)
     end
