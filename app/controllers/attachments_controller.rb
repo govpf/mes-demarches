@@ -28,18 +28,19 @@ class AttachmentsController < ApplicationController
         champ.update_timestamps
       end
       champ.piece_justificative_file.reload
+      # pf #163: message flash supprimé pour éviter le scroll
+      # flash.notice = t("activerecord.models.attachment.successfully_deleted_with_anchor", attachment: @attachment.blob.filename, champ: @champ.input_id)
     else
       @attachment.purge_later
       @attachment_options = attachment_options
+      # pf #163: message flash supprimé pour éviter le scroll
+      # flash.notice = t("activerecord.models.attachment.successfully_deleted_without_anchor", attachment: @attachment.blob.filename)
     end
 
     # Handle ChampRevision for private champs (fork-specific)
     if champ? && champ.private?
       ChampRevision.create_or_update_revision(champ, current_instructeur.id)
     end
-
-    # pf #163 avoid screen scrolling to stay on the current champ
-    # flash.notice = 'La pièce jointe a bien été supprimée.'
 
     respond_to do |format|
       format.turbo_stream

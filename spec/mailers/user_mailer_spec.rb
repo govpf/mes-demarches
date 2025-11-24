@@ -107,7 +107,7 @@ RSpec.describe UserMailer, type: :mailer do
     let(:mail) { UserMailer.custom_confirmation_instructions(user, token) }
 
     it 'renders the headers' do
-      expect(mail.subject).to eq('Confirmez votre email')
+      expect(mail.subject).to eq('Confirmez votre adresse électronique')
       expect(mail.to).to eq([user.email])
       expect(mail.from).to eq(['mes-demarches@modernisation.gov.pf'])
     end

@@ -11,5 +11,5 @@ fr:
           attributes:
             siret:
               length: 'est invalide. Le numéro TAHITI doit commencer par une lettre ou un chiffre, suivi de 5 chiffres'
-              checksum: 'comporte une erreur, vérifiez les chiffres composant le numéro'
+              checksum: 'comporte une erreur de saisie. Corrigez-la.'
               invalid: 'ne correspond pas à un établissement existant'

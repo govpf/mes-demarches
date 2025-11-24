@@ -251,8 +251,7 @@ describe Experts::AvisController, type: :controller do
     end
 
     describe '#update' do
-      before { Timecop.freeze(now) }
-      after { Timecop.return }
+      before { travel_to(now) }
 
       let(:avis) { avis_without_answer }
 
@@ -328,10 +327,8 @@ describe Experts::AvisController, type: :controller do
 
       before do
         allow(ClamavService).to receive(:safe_file?).and_return(scan_result)
-        Timecop.freeze(now)
+        travel_to(now)
       end
-
-      after { Timecop.return }
 
       it do
         subject
@@ -380,12 +377,10 @@ describe Experts::AvisController, type: :controller do
       let(:question_label) { '' }
 
       before do
-        Timecop.freeze(now)
+        travel_to(now)
         post :create_avis, params: { id: previous_avis.id, procedure_id:, avis: { emails:, introduction:, experts_procedure:, confidentiel:, invite_linked_dossiers:, introduction_file:, question_label: } }
         created_avis.reload
       end
-
-      after { Timecop.return }
 
       context 'from a revoked avis' do
         let(:previous_revoked_at) { Time.zone.now }
@@ -401,7 +396,7 @@ describe Experts::AvisController, type: :controller do
 
         it do
           expect(response).to render_template :instruction
-          expect(flash.alert).to eq(["toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com"])
+          expect(flash.alert).to eq(["toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com"])
           expect(Avis.last).to eq(previous_avis)
           expect(dossier.last_avis_updated_at).to eq(nil)
         end
@@ -432,7 +427,7 @@ describe Experts::AvisController, type: :controller do
 
         it do
           expect(response).to render_template :instruction
-          expect(flash.alert).to eq(["toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com"])
+          expect(flash.alert).to eq(["toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com"])
           expect(flash.notice).to eq("Une demande d’avis a été envoyée à titi@titimail.com")
           expect(Avis.count).to eq(old_avis_count + 1)
         end

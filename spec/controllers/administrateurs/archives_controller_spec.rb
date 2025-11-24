@@ -28,14 +28,24 @@ describe Administrateurs::ArchivesController, type: :controller do
       end
 
       it 'counts only dossiers visible by administration' do
-        travel_to Date.new(2025, 1, 29)
-        create(:dossier, :accepte, procedure:, hidden_by_expired_at: nil)
-        create(:dossier, :accepte, :hidden_by_expired, procedure:)
-        create(:dossier, :accepte, :hidden_by_user, procedure:)
-        create(:dossier, :accepte, :hidden_by_administration, procedure:)
+        travel_to Date.new(2025, 2, 01)
+        # pf: les dossiers doivent avoir processed_at explicitement en janvier (pas le mois courant)
+        january_date = Date.new(2025, 1, 15)
+        create(:dossier, :accepte, procedure:, hidden_by_expired_at: nil, processed_at: january_date)
+        create(:dossier, :accepte, :hidden_by_expired, procedure:, processed_at: january_date)
+        create(:dossier, :accepte, :hidden_by_user, procedure:, processed_at: january_date)
+        create(:dossier, :accepte, :hidden_by_administration, procedure:, processed_at: january_date)
 
         subject
         expect(assigns(:count_dossiers_termines_by_month)).to eq({ Date.new(2025, 1, 1) => 2 })
+      end
+
+      it 'does not suggest an archive for the current month' do
+        travel_to Date.new(2025, 2, 15)
+        create(:dossier, :accepte, procedure:, processed_at: Date.new(2025, 2, 10))
+
+        subject
+        expect(assigns(:count_dossiers_termines_by_month)).to eq({})
       end
     end
 

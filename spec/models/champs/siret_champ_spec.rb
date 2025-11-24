@@ -31,20 +31,20 @@ describe Champs::SiretChamp do
     context 'with invalid checksum for 14-char SIRET' do
       before { with_value('12345678901234') }
 
-      it { expect(subject.errors[:value].any? { |msg| msg.include?('n’est pas valide') }).to be true }
+      it { subject.errors[:value].should include("comporte une erreur de saisie. Corrigez-la.") }
     end
 
     context 'with valid 14-char format but no etablissement' do
       before { with_value('12345678901245') }
 
-      it { expect(subject.errors[:value].join(' ')).to match(/aucun.*établissement.*rattaché/) }
+      it { subject.errors[:value].should include("ne correspond pas à un établissement existant") }
     end
 
     # pf: Add test for 9-char Tahiti number validation
     context 'with valid 9-char Tahiti format but no etablissement' do
       before { with_value('123456789') }
 
-      it { expect(subject.errors[:value].join(' ')).to match(/aucun.*établissement.*rattaché/) }
+      it { subject.errors[:value].should include("ne correspond pas à un établissement existant") }
     end
 
     context 'with valid 14-char SIRET and etablissement' do

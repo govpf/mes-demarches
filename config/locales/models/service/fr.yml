@@ -7,7 +7,7 @@ fr:
     attributes:
       service: &service
         adresse: 'Adresse postale'
-        email: 'Email de contact'
+        email: 'Adresse électronique de contact'
         telephone: 'Téléphone'
         nom: Nom du service
         organisme: Organisme(s)
@@ -22,7 +22,7 @@ fr:
             Exemple : Ministère de la Santé, chargé de la Prévention et de la Protection sociale généralisée
             Exemple : Raiatea, Iles sous le vent
           email: |
-            Indiquez une adresse email valide qui permettra de recevoir et de répondre aux questions des usagers.
+            Indiquez une adresse électronique valide qui permettra de recevoir et de répondre aux questions des usagers.
             Exemple : contact.service@administration.gov.pf
           telephone: "Indiquez le numéro de téléphone du service valide le plus à même de fournir des réponses pertinentes à vos usagers. Exemple : 40 41 42 43"
           horaires: |
@@ -38,7 +38,7 @@ fr:
             siret:
               format: 'Le numéro TAHITI %{message}'
               length: 'doit commencer par une lettre ou un chiffre, suivi de 5 chiffres'
-              checksum: 'est invalide'
+              checksum: 'comporte une erreur de saisie. Corrigez-la.'
               not_prefillable: 'Impossible de préremplir les informations pour ce numéro TAHITI, veuillez les saisir manuellement'
   type_organisme:
     administration_centrale: 'Administration centrale'

@@ -1,0 +1,14 @@
+en:
+  pro_connect:
+    index:
+      cta: Connect with Microsoft 365
+      explanation: Microsoft 365 is the platform being deployed for French Polynesia agents
+      old_mail: If you dont't have an @administration.gov.pf account
+      # full_deploy_title: ProConnect is now fully deployed
+      # full_deploy_body: All ministries and operators can use it today
+      you_are_a_citizen: Are you a citizen?
+      citizen_page: Connect to your space
+      signin_with: "Sign in with"
+      whats_proconnect: 'What is ProConnect?'
+      whats_ds: '%{application_name}, the platform to dematerialize administrative procedures for French Polynesia'
+      pro_email: Professional email address
