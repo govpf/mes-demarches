@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_09_30_144334) do
+ActiveRecord::Schema[7.1].define(version: 2025_11_20_010124) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -104,8 +104,10 @@ ActiveRecord::Schema[7.1].define(version: 2025_09_30_144334) do
     t.string "siret"
     t.string "sub", null: false
     t.datetime "updated_at", null: false
+    t.bigint "user_id"
     t.string "usual_name"
     t.index ["instructeur_id"], name: "index_agent_connect_informations_on_instructeur_id"
+    t.index ["user_id"], name: "index_agent_connect_informations_on_user_id"
   end
 
   create_table "api_tokens", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -284,7 +286,6 @@ ActiveRecord::Schema[7.1].define(version: 2025_09_30_144334) do
     t.text "updated_by"
     t.string "value"
     t.jsonb "value_json"
-    t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_dossier_id_and_stream_and_stable_id_and_row_id", unique: true
     t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_stream_and_public_id", unique: true
     t.index ["dossier_id"], name: "index_champs_on_dossier_id"
     t.index ["etablissement_id"], name: "index_champs_on_etablissement_id"
@@ -1414,6 +1415,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_09_30_144334) do
   add_foreign_key "administrateurs_procedures", "administrateurs"
   add_foreign_key "administrateurs_procedures", "procedures"
   add_foreign_key "agent_connect_informations", "instructeurs"
+  add_foreign_key "agent_connect_informations", "users"
   add_foreign_key "api_tokens", "administrateurs"
   add_foreign_key "archives_groupe_instructeurs", "archives"
   add_foreign_key "archives_groupe_instructeurs", "groupe_instructeurs"

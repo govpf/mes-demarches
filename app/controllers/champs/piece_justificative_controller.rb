@@ -67,7 +67,7 @@ class Champs::PieceJustificativeController < Champs::ChampController
     end
 
     @champ.dossier.update(last_champ_updated_at: Time.zone.now.utc) if save_succeed
-    if save_succeed && dossier.brouillon?
+    if save_succeed
       @champ.update_timestamps
     end
 

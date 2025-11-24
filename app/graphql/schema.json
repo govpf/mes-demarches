@@ -47,6 +47,30 @@
               "deprecationReason": null
             },
             {
+              "name": "countryCode",
+              "description": "code ISO du pays",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "countryName",
+              "description": "nom du pays",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "departmentCode",
               "description": "n° de département",
               "args": [],

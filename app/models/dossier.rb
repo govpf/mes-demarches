@@ -398,10 +398,12 @@ class Dossier < ApplicationRecord
       .distinct
   end
 
-  scope :with_notifications_v2, -> do
+  scope :with_notifications_v2, -> (instructeur) {
     joins(:dossier_notifications)
+      .where(dossier_notifications: { instructeur_id: [instructeur.id, nil] })
+      .merge(DossierNotification.to_display)
       .distinct
-  end
+  }
 
   scope :order_by_notifications_importance, -> do
     includes(:dossier_notifications)
@@ -1133,7 +1135,7 @@ class Dossier < ApplicationRecord
           type_de_champ.build_champ(dossier: self, row_id: ULID.generate)
         end
       else
-        type_de_champ.build_champ(dossier: self, row_id: Champ::NULL_ROW_ID)
+        type_de_champ.build_champ(dossier: self, row_id: nil)
       end
     end
   end

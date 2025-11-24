@@ -194,6 +194,16 @@ describe Champs::PieceJustificativeController, type: :controller do
       end
     end
 
+    context 'when the champ is private and the dossier is not brouillon' do
+      let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
+      let!(:dossier) { create(:dossier, :en_construction, user: user, procedure: procedure) }
+      let!(:champ) { dossier.project_champs_private.first }
+
+      it 'updates dossier.last_champ_private_updated_at' do
+        expect { subject }.to change { dossier.reload.last_champ_private_updated_at }
+      end
+    end
+
     context 'when the file is invalid' do
       let(:file) { fixture_file_upload('spec/fixtures/files/invalid_file_format.json', 'bad/bad') }
 
