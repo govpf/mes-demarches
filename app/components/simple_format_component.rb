@@ -39,7 +39,7 @@ class SimpleFormatComponent < ApplicationComponent
     @text = (text || "").gsub(/\R(?=\S)/, "\n\n")
 
     @renderer = Redcarpet::Markdown.new(
-      Redcarpet::BareRenderer.new(class_names_map:),
+      Redcarpet::BareRenderer.new(class_names_map: class_names_map.merge(list: 'fr-ol-content--override')),
       REDCARPET_EXTENSIONS.merge(autolink: @allow_a)
     )
   end
