@@ -59,7 +59,7 @@ module MailerDefaultsConfigurableConcern
       Current.application_name = "demarches.numerique.gouv.fr"
       Current.host = "demarches.numerique.gouv.fr"
       Current.contact_email = "contact@demarches.numerique.gouv.fr"
-      Current.no_reply_email = NO_REPLY_EMAIL.sub(/@[a-z.-]+/, "demarches.numerique.gouv.fr")
+      Current.no_reply_email = NO_REPLY_EMAIL.sub(/@[a-z.-]+/, "@demarches.numerique.gouv.fr")
     end
 
     def set_currents_for_legacy
