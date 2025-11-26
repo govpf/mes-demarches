@@ -1,32 +1,6 @@
 # frozen_string_literal: true
 
 class LexpolService
-  FIXED_METADATA_INDIVIDUEL = [
-    ["individual.nom", "Demandeur nom"],
-    ["individual.prenom", "Demandeur prénom"],
-    ["individual.gender", "Demandeur civilité"],
-    ["mandataire_full_name", "Mandataire"],
-    ["user.email", "Demandeur email"]
-  ].freeze
-
-  FIXED_METADATA_ENTREPRISE =
-    [
-      ["etablissement.entreprise_forme_juridique", "Entreprise forme juridique"],
-      ["etablissement.entreprise_nom_commercial", "Entreprise nom commercial"],
-      ["etablissement.entreprise_raison_sociale", "Entreprise raison sociale"],
-      ["etablissement.siret", "Etablissement numéro TAHITI"],
-      ["etablissement.adresse", "Etablissement adresse"]
-    ].freeze
-  # %w[entreprise_forme_juridique entreprise_nom_commercial entreprise_raison_sociale entreprise_numero_tahiti entreprise_adresse etablissement_code_postal etablissement_adresse etablissement_numero_tahiti].map { |v| [v, v] }.freeze
-
-  FIXED_META_DATA = [
-    ["id", 'Numéro du dossier'],
-    ["depose_at", 'Dossier déposé le'],
-    ["en_instruction_at", 'Dossier passé en instruction le'],
-    ["processed_at", 'Dossier traité le'],
-    ["followers_instructeurs.last.email", 'Dossier instruit par']
-  ].freeze
-
   attr_reader :champ, :dossier, :apilexpol, :user
 
   def initialize(champ:, dossier:, apilexpol:, user: nil)
@@ -61,7 +35,46 @@ class LexpolService
   end
 
   def build_variables
-    variables = dossier.champs.filter { |c| !c.child? && !c.is_a?(Champs::DossierLinkChamp) }.reduce({}) do |variables, champ|
+    variables = {}
+
+    # Utilisation des colonnes d'export comme source de vérité pour les variables dossier/usager
+    # Cela garantit que Lexpol reçoit les mêmes données enrichies que les exports
+    procedure = dossier.procedure
+
+    procedure.dossier_columns_for_export.each do |column|
+      value = column_value_for_lexpol(column, dossier)
+      variables[column.label] = value if value.present?
+    end
+
+    procedure.usager_columns_for_export.each do |column|
+      value = column_value_for_lexpol(column, dossier)
+      variables[column.label] = value if value.present?
+    end
+
+    # Variables spécifiques qui n'existent pas dans les colonnes d'export
+    # mais qui étaient présentes dans l'ancien système pour compatibilité
+    if procedure.for_individual?
+      mandataire_name = [dossier.mandataire_first_name, dossier.mandataire_last_name].compact_blank.join(' ')
+      variables['Mandataire'] = mandataire_name if mandataire_name.present?
+    end
+
+    last_instructeur_email = dossier.followers_instructeurs.last&.email
+    variables['Dossier instruit par'] = last_instructeur_email if last_instructeur_email.present?
+
+    # Alias pour compatibilité avec les anciens modèles Lexpol
+    if procedure.for_individual?
+      variables['Demandeur nom'] = variables['Nom'] if variables['Nom'].present?
+      variables['Demandeur prénom'] = variables['Prénom'] if variables['Prénom'].present?
+      variables['Demandeur civilité'] = variables['Civilité'] if variables['Civilité'].present?
+    end
+    variables['Demandeur email'] = variables['Adresse électronique'] if variables['Adresse électronique'].present?
+    variables['Numéro du dossier'] = variables['Nº dossier'] if variables['Nº dossier'].present?
+    variables['Dossier déposé le'] = variables['Date de dépôt'] if variables['Date de dépôt'].present?
+    variables['Dossier traité le'] = variables['Date de traitement'] if variables['Date de traitement'].present?
+    variables['Dossier passé en instruction le'] = variables['Date de passage en instruction'] if variables['Date de passage en instruction'].present?
+
+    # Variables des champs avec leur formatage spécial
+    dossier.champs.filter { |c| !c.child? && !c.is_a?(Champs::DossierLinkChamp) }.each do |champ|
       if champ.present?
         # Variable standard
         variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ)
@@ -71,13 +84,13 @@ class LexpolService
           variables["#{champ.libelle} (liste)"] = LexpolFieldsService.format_as_html_list(champ.selected_options)
         end
       end
-      variables
     end
-    LexpolService.default_mapping(champ.type_de_champ, dossier.procedure).reduce(variables) do |variables, (source_field, target_field)|
+
+    # Mapping personnalisé (ancienne méthode, maintenue pour compatibilité)
+    LexpolService.user_mapping(champ.type_de_champ).each do |(source_field, target_field)|
       raw_values = LexpolFieldsService.object_field_values(dossier, source_field)
       final_values = raw_values.map { |val| LexpolFieldsService.format_lexpol_value(val) }
       variables[target_field] = final_values.compact_blank.join(', ')
-      variables
     end
 
     # pf: Enrichissement avec les champs des dossiers liés
@@ -99,7 +112,11 @@ class LexpolService
   end
 
   def self.lexpol_variables(lexpol_type_de_champ, procedure)
-    default_variables = default_mapping(lexpol_type_de_champ, procedure).values
+    # Utilisation des colonnes d'export pour avoir la liste complète des variables disponibles
+    column_variables = (
+      procedure.dossier_columns_for_export.map(&:label) +
+      procedure.usager_columns_for_export.map(&:label)
+    )
 
     champ_variables = procedure.draft_revision.types_de_champ.flat_map do |tdc|
       base = [tdc.libelle]
@@ -108,15 +125,25 @@ class LexpolService
       base
     end
 
-    (default_variables + champ_variables).sort_by(&:downcase)
+    custom_variables = user_mapping(lexpol_type_de_champ).map(&:last)
+
+    # Variables spécifiques qui n'existent pas dans les colonnes d'export
+    # mais qui étaient disponibles dans l'ancien système
+    legacy_variables = ['Mandataire', 'Dossier instruit par']
+
+    (column_variables + champ_variables + custom_variables + legacy_variables).uniq.sort_by(&:downcase)
   end
 
   private
 
-  def self.default_mapping(lexpol_type_de_champ, procedure)
-    demandeur_mapping = procedure.for_individual? ? FIXED_METADATA_INDIVIDUEL : FIXED_METADATA_ENTREPRISE
+  def column_value_for_lexpol(column, dossier)
+    value = column.value(dossier)
+    return '' if value.nil?
 
-    [*demandeur_mapping, *FIXED_META_DATA, *user_mapping(lexpol_type_de_champ)].to_h
+    LexpolFieldsService.format_lexpol_value(value)
+  rescue StandardError => e
+    Rails.logger.warn("Lexpol: impossible de récupérer la valeur de '#{column.label}': #{e.message}")
+    ''
   end
 
   def self.user_mapping(lexpol_type_de_champ)
