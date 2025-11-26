@@ -379,10 +379,10 @@ module TagsSubstitutionConcern
     types_de_champ_tags(types_de_champ, Dossier::INSTRUCTION_COMMENCEE)
   end
 
-  def types_de_champ_tags(types_de_champ, available_for_states)
+  def types_de_champ_tags(types_de_champ, available_for_states, dossier: nil)
     tags = types_de_champ.flat_map do |tdc|
       tdc.tags_for_template.map do |tag|
-        tag.merge(conditional: tdc.condition?)
+        tag.merge(conditional: tdc.condition?, stable_id: tdc.stable_id)
       end
     end
     tags.each do |tag|
@@ -398,7 +398,7 @@ module TagsSubstitutionConcern
 
     @escape_unsafe_tags = escape
 
-    tokens = parse_tags(text)
+    tokens = parse_tags(text, dossier: dossier)
 
     tags_and_datas = available_tags(dossier).filter_map do |tags|
       dossier && [tags_for_dossier_state(tags).index_by { _1[:id] }, dossier]
@@ -417,14 +417,22 @@ module TagsSubstitutionConcern
         end
       end
     end.map do |token|
-      # Get tokens text representation
-      case token
-      in { tag: tag }
-        "--#{tag}--"
-      in { text: text }
-        text
-      end
-    end.join('')
+        # Check if champ is conditional and visible
+        case token
+        in { tag: _, id: _id, conditional: true, stable_id: stable_id } if dossier
+          champ = dossier.champs.find { |c| c.stable_id == stable_id }
+          if champ&.visible?
+            "--#{token[:tag]}--"
+          else
+            ''
+          end
+        # Get tokens text representation
+        in { tag: tag }
+          "--#{tag}--"
+        in { text: text }
+          text
+        end
+      end.join('')
   end
 
   def replace_tag(tag, dossier)
@@ -441,21 +449,47 @@ module TagsSubstitutionConcern
     @escape_unsafe_tags
   end
 
-  def procedure_types_de_champ_tags
-    tags_for_dossier_state(types_de_champ_tags(procedure.types_de_champ_public_for_tags, Dossier::SOUMIS) +
-      types_de_champ_tags(procedure.types_de_champ_private_for_tags, Dossier::INSTRUCTION_COMMENCEE) +
+  def procedure_types_de_champ_tags(dossier: nil)
+    tags_for_dossier_state(types_de_champ_tags(procedure.types_de_champ_public_for_tags, Dossier::SOUMIS, dossier: dossier) +
+      types_de_champ_tags(procedure.types_de_champ_private_for_tags, Dossier::INSTRUCTION_COMMENCEE, dossier: dossier) +
       identity_tags + dossier_tags + ROUTAGE_TAGS)
   end
 
-  def parse_tags(text)
-    tags = procedure_types_de_champ_tags.index_by { _1[:libelle] }
+  def parse_tags(text, dossier: nil)
+    all_tags = procedure_types_de_champ_tags(dossier: dossier)
+
+    # Group tags by libelle to handle duplicates (such as multiple fields with the same name)
+    # Sort by stable_id in descending order to match visual order in templates
+    tags_by_libelle = all_tags.group_by { _1[:libelle] }.transform_values do |tag_list|
+      if tag_list.all? { |tag| tag[:stable_id].present? }
+        tag_list.sort_by { |tag| -tag[:stable_id] }
+      else
+        tag_list
+      end
+    end
 
     # MD5 should be enough and it avoids long key
     tokens = Rails.cache.fetch(["parse_tags_v2", Digest::MD5.hexdigest(text)], expires_in: 1.day) { TagsParser.parse(text) }
+
+    # Count how many times we've seen each tag libelle to handle duplicates
+    libelle_count = Hash.new(0)
+
     tokens.map do |token|
       case token
-      in { tag: tag } if tags.key?(tag)
-        { tag: tag, id: tags.fetch(tag).fetch(:id) }
+      in { tag: tag } if tags_by_libelle.key?(tag)
+        # Use counter to get the correct tag in case of duplicates
+        # The first tag uses index 0, the second index 1, etc.
+        index = libelle_count[tag]
+        libelle_count[tag] += 1
+
+        available_tags = tags_by_libelle[tag]
+        tag_info = available_tags[index] || available_tags.last
+        {
+          tag: tag,
+          id: tag_info.fetch(:id),
+          conditional: tag_info[:conditional],
+          stable_id: tag_info[:stable_id]
+        }
       else
         token
       end
