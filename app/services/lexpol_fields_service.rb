@@ -43,6 +43,8 @@ module LexpolFieldsService
       object.selected_options.to_sentence(last_word_connector: ' et ')
     when Champs::TextareaChamp
       format_markdown(object.value)
+    when Champs::IntegerNumberChamp, Champs::DecimalNumberChamp
+      object.value.present? ? object.value.to_s : "0"
     when Date
       format_date(object)
     when DateTime, Time
