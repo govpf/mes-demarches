@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_11_24_154531) do
+ActiveRecord::Schema[7.0].define(version: 2025_09_30_144334) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -104,10 +104,8 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_24_154531) do
     t.string "siret"
     t.string "sub", null: false
     t.datetime "updated_at", null: false
-    t.bigint "user_id"
     t.string "usual_name"
     t.index ["instructeur_id"], name: "index_agent_connect_informations_on_instructeur_id"
-    t.index ["user_id"], name: "index_agent_connect_informations_on_user_id"
   end
 
   create_table "api_tokens", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -286,7 +284,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_24_154531) do
     t.text "updated_by"
     t.string "value"
     t.jsonb "value_json"
-    t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_stream_and_public_id", unique: true
+    t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_dossier_id_and_stream_and_stable_id_and_row_id", unique: true
     t.index ["dossier_id"], name: "index_champs_on_dossier_id"
     t.index ["etablissement_id"], name: "index_champs_on_etablissement_id"
     t.index ["row_id"], name: "index_champs_on_row_id"
@@ -442,21 +440,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_24_154531) do
     t.datetime "updated_at", null: false
     t.index ["dossier_id"], name: "index_dossier_labels_on_dossier_id"
     t.index ["label_id"], name: "index_dossier_labels_on_label_id"
-  end
-
-  create_table "dossier_notifications", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.datetime "display_at"
-    t.bigint "dossier_id", null: false
-    t.bigint "groupe_instructeur_id"
-    t.bigint "instructeur_id"
-    t.string "notification_type", null: false
-    t.datetime "updated_at", null: false
-    t.index ["dossier_id", "notification_type", "groupe_instructeur_id"], name: "unique_dossier_groupe_instructeur_notification", unique: true, where: "((groupe_instructeur_id IS NOT NULL) AND (instructeur_id IS NULL))"
-    t.index ["dossier_id", "notification_type", "instructeur_id"], name: "unique_dossier_instructeur_notification", unique: true, where: "((instructeur_id IS NOT NULL) AND (groupe_instructeur_id IS NULL))"
-    t.index ["dossier_id"], name: "index_dossier_notifications_on_dossier_id"
-    t.index ["groupe_instructeur_id"], name: "index_dossier_notifications_on_groupe_instructeur_id"
-    t.index ["instructeur_id"], name: "index_dossier_notifications_on_instructeur_id"
   end
 
   create_table "dossier_operation_logs", force: :cascade do |t|
@@ -659,7 +642,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_24_154531) do
   end
 
   create_table "export_templates", force: :cascade do |t|
-    t.jsonb "attestation"
     t.jsonb "content", default: {}
     t.datetime "created_at", null: false
     t.jsonb "dossier_folder", null: false
@@ -937,10 +919,10 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_24_154531) do
   end
 
   create_table "path_rewrites", force: :cascade do |t|
-    t.datetime "created_at", precision: nil, null: false
+    t.datetime "created_at", null: false
     t.string "from", null: false
     t.string "to", null: false
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "updated_at", null: false
     t.index ["from"], name: "index_path_rewrites_on_from", unique: true
   end
 
@@ -1415,7 +1397,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_24_154531) do
   add_foreign_key "administrateurs_procedures", "administrateurs"
   add_foreign_key "administrateurs_procedures", "procedures"
   add_foreign_key "agent_connect_informations", "instructeurs"
-  add_foreign_key "agent_connect_informations", "users"
   add_foreign_key "api_tokens", "administrateurs"
   add_foreign_key "archives_groupe_instructeurs", "archives"
   add_foreign_key "archives_groupe_instructeurs", "groupe_instructeurs"
@@ -1441,9 +1422,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_24_154531) do
   add_foreign_key "dossier_corrections", "dossiers"
   add_foreign_key "dossier_labels", "dossiers"
   add_foreign_key "dossier_labels", "labels"
-  add_foreign_key "dossier_notifications", "dossiers"
-  add_foreign_key "dossier_notifications", "groupe_instructeurs"
-  add_foreign_key "dossier_notifications", "instructeurs"
   add_foreign_key "dossier_operation_logs", "bill_signatures"
   add_foreign_key "dossier_transfer_logs", "dossiers"
   add_foreign_key "dossiers", "batch_operations"

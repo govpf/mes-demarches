@@ -43,12 +43,12 @@ class LexpolService
 
     procedure.dossier_columns_for_export.each do |column|
       value = column_value_for_lexpol(column, dossier)
-      variables[column.label] = value if value.present?
+      variables[column.label] = value
     end
 
     procedure.usager_columns_for_export.each do |column|
       value = column_value_for_lexpol(column, dossier)
-      variables[column.label] = value if value.present?
+      variables[column.label] = value
     end
 
     # Variables spécifiques qui n'existent pas dans les colonnes d'export
