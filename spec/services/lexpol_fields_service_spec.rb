@@ -40,4 +40,34 @@ describe LexpolFieldsService do
       expect(result).to eq('<ul><li>Option &lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt; ;</li><li>A &amp; B ;</li><li>&quot;Quotes&quot; ;</li><li>L&#39;apostrophe.</li></ul>')
     end
   end
+
+  describe '.format_lexpol_value' do
+    it 'retourne 0 si un champ IntegerNumberChamp ou DecimalNumberChamp est vide' do
+      champ1 = Champs::IntegerNumberChamp.new(value: '')
+      champ2 = Champs::DecimalNumberChamp.new(value: '')
+      expect(LexpolFieldsService.format_lexpol_value(champ1)).to eq("0")
+      expect(LexpolFieldsService.format_lexpol_value(champ2)).to eq("0")
+    end
+
+    it 'retourne la valeur saisie si un champ IntegerNumberChamp ou DecimalNumberChamp est rempli' do
+      champ1 = Champs::IntegerNumberChamp.new(value: '20')
+      champ2 = Champs::DecimalNumberChamp.new(value: '20.5')
+      expect(LexpolFieldsService.format_lexpol_value(champ1)).to eq('20')
+      expect(LexpolFieldsService.format_lexpol_value(champ2)).to eq('20.5')
+    end
+
+    it 'retourne 0 si un champ IntegerNumberChamp ou DecimalNumberChamp est nil' do
+      champ1 = Champs::IntegerNumberChamp.new(value: nil)
+      champ2 = Champs::DecimalNumberChamp.new(value: nil)
+      expect(LexpolFieldsService.format_lexpol_value(champ1)).to eq("0")
+      expect(LexpolFieldsService.format_lexpol_value(champ2)).to eq("0")
+    end
+
+    it 'retourne 0 si la valeur saisie est 0' do
+      champ1 = Champs::IntegerNumberChamp.new(value: '0')
+      champ2 = Champs::DecimalNumberChamp.new(value: '0')
+      expect(LexpolFieldsService.format_lexpol_value(champ1)).to eq('0')
+      expect(LexpolFieldsService.format_lexpol_value(champ2)).to eq('0')
+    end
+  end
 end
