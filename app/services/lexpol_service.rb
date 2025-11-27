@@ -3,6 +3,14 @@
 class LexpolService
   attr_reader :champ, :dossier, :apilexpol, :user
 
+  # Liste des champs n'envoyant pas de valeur
+  EXCLUDED_CHAMP_TYPES = [
+    :piece_justificative,
+    :titre_identite,
+    :header_section,
+    :explication
+  ].freeze
+
   def initialize(champ:, dossier:, apilexpol:, user: nil)
     @champ = champ
     @dossier = dossier
@@ -73,18 +81,23 @@ class LexpolService
     variables['Dossier traité le'] = variables['Date de traitement'] if variables['Date de traitement'].present?
     variables['Dossier passé en instruction le'] = variables['Date de passage en instruction'] if variables['Date de passage en instruction'].present?
 
-    # Variables des champs avec leur formatage spécial
-    dossier.champs.filter { |c| !c.child? && !c.is_a?(Champs::DossierLinkChamp) }.each do |champ|
-      if champ.present?
-        # Variable standard
-        variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ)
+    excluded_champ_classes = EXCLUDED_CHAMP_TYPES.map { |t| "Champs::#{t.to_s.camelize}Champ".constantize }
 
-        # Variable avec format liste pour MultipleDropDownListChamp
-        if champ.is_a?(Champs::MultipleDropDownListChamp)
-          variables["#{champ.libelle} (liste)"] = LexpolFieldsService.format_as_html_list(champ.selected_options)
+    # Variables des champs avec leur formatage spécial
+    dossier.champs
+      .filter { |c| !c.child? && !c.is_a?(Champs::DossierLinkChamp) }
+      .reject { |c| excluded_champ_classes.any? { |klass| c.is_a?(klass) } }
+      .each do |champ|
+        if champ.present?
+          # Variable standard
+          variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ)
+
+          # Variable avec format liste pour MultipleDropDownListChamp
+          if champ.is_a?(Champs::MultipleDropDownListChamp)
+            variables["#{champ.libelle} (liste)"] = LexpolFieldsService.format_as_html_list(champ.selected_options)
+          end
         end
       end
-    end
 
     # Mapping personnalisé (ancienne méthode, maintenue pour compatibilité)
     LexpolService.user_mapping(champ.type_de_champ).each do |(source_field, target_field)|
@@ -118,12 +131,16 @@ class LexpolService
       procedure.usager_columns_for_export.map(&:label)
     )
 
-    champ_variables = procedure.draft_revision.types_de_champ.flat_map do |tdc|
-      base = [tdc.libelle]
-      # Ajouter la version (liste) pour les champs à choix multiples
-      base << "#{tdc.libelle} (liste)" if tdc.type_champ == 'multiple_drop_down_list'
-      base
-    end
+    excluded_types = EXCLUDED_CHAMP_TYPES.map { |t| TypeDeChamp.type_champs.fetch(t) }
+
+    champ_variables = procedure.draft_revision.types_de_champ
+      .reject { |tdc| tdc.type_champ.in?(excluded_types) }
+      .flat_map do |tdc|
+        base = [tdc.libelle]
+        # Ajouter la version (liste) pour les champs à choix multiples
+        base << "#{tdc.libelle} (liste)" if tdc.type_champ == 'multiple_drop_down_list'
+        base
+      end
 
     custom_variables = user_mapping(lexpol_type_de_champ).map(&:last)
 

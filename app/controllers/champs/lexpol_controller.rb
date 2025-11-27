@@ -31,10 +31,24 @@ module Champs
       dossier = policy_scope(Dossier).includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
       type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
 
-      unless type_de_champ
-        return render json: { error: 'Type de champ introuvable' }, status: :not_found
-      end
+      return render json: { error: 'Type de champ introuvable' }, status: :not_found unless type_de_champ
 
+      temp_champ = build_temp_champ(dossier, type_de_champ)
+      apilexpol = APILexpol.new(current_user.email, dossier.procedure&.service&.siret, should_use_test_user_for_dossier?(dossier))
+      service = LexpolService.new(champ: temp_champ, dossier: dossier, apilexpol: apilexpol, user: current_user)
+
+      variables = service.build_variables
+      grouped = group_variables(variables, dossier)
+
+      render json: { grouped_variables: grouped }
+    rescue => e
+      Sentry.capture_exception(e)
+      render json: { error: 'Impossible de générer la prévisualisation' }, status: :unprocessable_entity
+    end
+
+    private
+
+    def build_temp_champ(dossier, type_de_champ)
       # Créer un champ temporaire pour le service (sans le sauvegarder)
       # Note: instance_variable_set est utilisé car type_de_champ est une méthode calculée
       # sans setter. Acceptable ici car le champ est temporaire et non persisté.
@@ -44,23 +58,29 @@ module Champs
         private: type_de_champ.private?
       )
       temp_champ.instance_variable_set(:@type_de_champ, type_de_champ)
-
-      apilexpol = APILexpol.new(current_user.email, dossier.procedure&.service&.siret, should_use_test_user_for_dossier?(dossier))
-      service = LexpolService.new(champ: temp_champ, dossier: dossier, apilexpol: apilexpol, user: current_user)
-
-      variables = service.build_variables
-
-      # Informations sur les dossiers liés pour le groupement côté frontend
-      linked_service = LinkedDossierFieldsService.new(dossier, current_user)
-      linked_info = linked_service.linked_dossiers_info
-
-      render json: { variables: variables.sort.to_h, linked_dossiers: linked_info }
-    rescue => e
-      Sentry.capture_exception(e)
-      render json: { error: 'Impossible de générer la prévisualisation' }, status: :unprocessable_entity
+      temp_champ
     end
 
-    private
+    def group_variables(variables, dossier)
+      procedure = dossier.procedure
+      column_labels = (procedure.dossier_columns_for_export + procedure.usager_columns_for_export).map(&:label)
+
+      linked_service = LinkedDossierFieldsService.new(dossier, current_user)
+      # Ne garder que les suffixes des dossiers accessibles
+      linked_suffixes = linked_service.linked_dossiers_info
+        .filter { |info| info[:accessible] }
+        .map { |info| info[:suffixe] }
+
+      metadonnees = variables.filter { |k, _v| column_labels.include?(k) }
+      dossiers_lies = variables.filter { |k, _v| linked_suffixes.any? { |suffix| k.end_with?(" (#{suffix})") } }
+      champs_formulaire = variables.except(*metadonnees.keys, *dossiers_lies.keys)
+
+      {
+        metadonnees: metadonnees.sort.to_h,
+        champs_formulaire: champs_formulaire.sort.to_h,
+        dossiers_lies: dossiers_lies.sort.to_h
+      }
+    end
 
     def should_use_test_user?
       # Utilise un compte de service pour :

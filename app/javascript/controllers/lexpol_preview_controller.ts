@@ -65,67 +65,56 @@ export class LexpolPreviewController extends ApplicationController {
   }
 
   private displayGroupedVariables(data: {
-    variables?: Record<string, string>;
-    linked_dossiers?: Array<{ libelle: string; suffixe: string }>;
+    grouped_variables?: {
+      metadonnees: Record<string, string>;
+      champs_formulaire: Record<string, string>;
+      dossiers_lies: Record<string, string>;
+    };
   }) {
-    const allVars = data.variables || {};
-    const linkedDossiers = data.linked_dossiers || [];
+    const grouped = data.grouped_variables;
 
-    // Grouper les variables
-    const groups: Record<string, string[]> = { main: [] };
-    const suffixes = linkedDossiers.map((d) => d.suffixe);
-
-    Object.keys(allVars).forEach((key) => {
-      let grouped = false;
-      for (const suffix of suffixes) {
-        if (key.endsWith(` (${suffix})`)) {
-          if (!groups[suffix]) groups[suffix] = [];
-          groups[suffix].push(key);
-          grouped = true;
-          break;
-        }
-      }
-      if (!grouped) groups.main.push(key);
-    });
-
-    // Afficher
-    let html = '';
-
-    // Dossier principal
-    if (groups.main.length > 0) {
-      html +=
-        '<div class="fr-mb-3w"><h4 class="fr-h6">📂 Dossier principal</h4><ul class="fr-text--xs" style="list-style: none; padding: 0;">';
-      groups.main.forEach((key) => {
-        const value = allVars[key] || '(vide)';
-        const displayValue =
-          value.length > 80 ? value.substring(0, 80) + '...' : value;
-        html += `<li style="margin-bottom: 0.5rem;"><strong>${this.escapeHtml(key)}</strong> : ${this.escapeHtml(displayValue)}</li>`;
-      });
-      html += '</ul></div>';
+    if (!grouped) {
+      this.displayError('Aucune variable disponible');
+      return;
     }
 
-    // Dossiers liés
-    linkedDossiers.forEach((dossier) => {
-      const suffix = dossier.suffixe;
-      html += `<div class="fr-mb-3w"><h4 class="fr-h6">📎 ${this.escapeHtml(dossier.libelle)} <span class="fr-badge fr-badge--sm fr-badge--info">${this.escapeHtml(suffix)}</span></h4>`;
-      if (groups[suffix] && groups[suffix].length > 0) {
-        html +=
-          '<ul class="fr-text--xs" style="list-style: none; padding: 0;">';
-        groups[suffix].forEach((key) => {
-          const value = allVars[key] || '(vide)';
-          const displayValue =
-            value.length > 80 ? value.substring(0, 80) + '...' : value;
-          html += `<li style="margin-bottom: 0.5rem;"><strong>${this.escapeHtml(key)}</strong> : ${this.escapeHtml(displayValue)}</li>`;
-        });
-        html += '</ul>';
-      } else {
-        html +=
-          '<p class="fr-text--xs">Aucune donnée disponible pour ce dossier</p>';
-      }
-      html += '</div>';
-    });
+    const sections = [
+      { title: 'Métadonnées', vars: grouped.metadonnees },
+      { title: 'Champs du formulaire', vars: grouped.champs_formulaire },
+      { title: 'Dossiers liés', vars: grouped.dossiers_lies }
+    ];
+
+    const html = sections
+      .filter((s) => Object.keys(s.vars).length > 0)
+      .map((s) => this.renderSection(s.title, s.vars))
+      .join('');
 
     this.listTarget.innerHTML = html;
+  }
+
+  private renderSection(
+    title: string,
+    variables: Record<string, string>
+  ): string {
+    const items = Object.entries(variables)
+      .map(([key, value]) => {
+        const displayValue =
+          value === ''
+            ? '<em style="color: #999;">(vide)</em>'
+            : value.length > 80
+              ? this.escapeHtml(value.substring(0, 80)) + '...'
+              : this.escapeHtml(value);
+
+        return `<li><strong>${this.escapeHtml(key)}</strong> : ${displayValue}</li>`;
+      })
+      .join('');
+
+    return `
+      <div class="fr-mb-3w">
+        <h4 class="fr-h6">${title}</h4>
+        <ul class="fr-text--xs" style="list-style: none; padding: 0;">${items}</ul>
+      </div>
+    `;
   }
 
   private displayError(message: string) {
