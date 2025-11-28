@@ -66,10 +66,8 @@ module Champs
       column_labels = (procedure.dossier_columns_for_export + procedure.usager_columns_for_export).map(&:label)
 
       linked_service = LinkedDossierFieldsService.new(dossier, current_user)
-      # Ne garder que les suffixes des dossiers accessibles
-      linked_suffixes = linked_service.linked_dossiers_info
-        .filter { |info| info[:accessible] }
-        .map { |info| info[:suffixe] }
+      # Tous les suffixes (accessibles ou non) pour grouper correctement
+      linked_suffixes = linked_service.linked_dossiers_info.map { |info| info[:suffixe] }
 
       metadonnees = variables.filter { |k, _v| column_labels.include?(k) }
       dossiers_lies = variables.filter { |k, _v| linked_suffixes.any? { |suffix| k.end_with?(" (#{suffix})") } }
