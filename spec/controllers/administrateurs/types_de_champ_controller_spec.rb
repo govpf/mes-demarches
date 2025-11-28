@@ -339,4 +339,40 @@ describe Administrateurs::TypesDeChampController, type: :controller do
       end
     end
   end
+
+  describe '#duplicate' do
+    let(:params) do
+      {
+        procedure_id: procedure.id,
+        stable_id: second_coordinate.stable_id
+      }
+    end
+
+    subject { post :duplicate, params: params, format: :turbo_stream }
+
+    context 'duplicate type_de_champ text' do
+      let(:type_champ) { TypeDeChamp.type_champs.fetch(:text) }
+
+      # l1, l2, l3 => l1, l2, l2, l3
+      # created: (l2, [l1, l2]), morphed: (l3, [l1, l2, l2])
+      it do
+        is_expected.to have_http_status(:ok)
+        expect(flash.alert).to eq(nil)
+        expect(extract_libelle(assigns(:created))).to eq(['l2', ['l1', 'l2']])
+        expect(morpheds).to eq([['l3', ['l1', 'l2', 'l2']]])
+      end
+    end
+
+    context 'duplicate with options' do
+      before do
+        second_coordinate.type_de_champ.update(options: { min: 10, max: 100 })
+      end
+
+      it 'copies the options' do
+        is_expected.to have_http_status(:ok)
+        created_champ = assigns(:created).coordinate.type_de_champ
+        expect(created_champ.options).to eq({ 'min' => 10, 'max' => 100 })
+      end
+    end
+  end
 end

@@ -159,7 +159,7 @@ def add_single_champ(pdf, champ)
   return if champ.conditional? && !champ.visible?
 
   case champ.type
-  when 'Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp'
+  when 'Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp', 'Champs::ExplicationChamp'
     return
   when 'Champs::HeaderSectionChamp'
     libelle = if @dossier.auto_numbering_section_headers_for?(tdc)
@@ -169,8 +169,6 @@ def add_single_champ(pdf, champ)
     end
 
     add_section_title(pdf, libelle)
-  when 'Champs::ExplicationChamp'
-    format_in_2_lines(pdf, tdc.libelle, strip_tags(tdc.description))
   when 'Champs::CarteChamp'
     pdf.pad_bottom(4) do
       pdf.font 'marianne', style: :bold, size: 12 do
