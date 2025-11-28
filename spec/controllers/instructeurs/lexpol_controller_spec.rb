@@ -147,7 +147,9 @@ RSpec.describe Champs::LexpolController, type: :controller do
 
       it 'filtre selon les droits d\'accès' do
         expect(json_response['dossiers_lies'].keys.any? { |k| k.include?('OK') }).to be true
-        expect(json_response['dossiers_lies'].keys.none? { |k| k.include?('KO') }).to be true
+        # Le dossier KO doit avoir un message d'erreur
+        ko_key = json_response['dossiers_lies'].keys.find { |k| k.include?('KO') }
+        expect(json_response['dossiers_lies'][ko_key]).to eq('⚠️ Dossier lié non accessible')
       end
     end
   end
