@@ -216,5 +216,21 @@ describe LexpolService do
       expect(variables).to include('Mandataire')
       expect(variables).to include('Dossier instruit par')
     end
+
+    context 'avec des champs à exclure' do
+      let!(:excluded_tdcs) do
+        [
+          create(:type_de_champ_piece_justificative, libelle: 'Pièce jointe', procedure: draft_procedure),
+          create(:type_de_champ_titre_identite, libelle: 'Titre d\'identité', procedure: draft_procedure),
+          create(:type_de_champ_header_section, libelle: 'Section', procedure: draft_procedure),
+          create(:type_de_champ_explication, libelle: 'Explication', procedure: draft_procedure)
+        ]
+      end
+
+      it 'exclut les types sans valeur transférable' do
+        variables = described_class.lexpol_variables(draft_lexpol_tdc, draft_procedure)
+        expect(variables).not_to include('Pièce jointe', 'Titre d\'identité', 'Section', 'Explication')
+      end
+    end
   end
 end

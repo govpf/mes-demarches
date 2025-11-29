@@ -23,13 +23,17 @@ class LinkedDossierFieldsService
     linked_dossier_champs.each do |champ|
       dossier_id = champ.value.to_i
       linked_dossier = linked_map[dossier_id]
+      suffix = generate_suffix(champ.libelle)
 
-      # Si pas d'accès, ne rien ajouter (même pas l'ID)
-      next unless linked_dossier
+      # Si pas d'accès, ajouter un message explicite pour l'indiquer à l'instructeur
+      unless linked_dossier
+        enriched["#{champ.libelle} (#{suffix})"] = "⚠️ Dossier lié non accessible"
+        next
+      end
+
       next if @visited_dossier_ids.include?(dossier_id) # Protection cycle
 
       @visited_dossier_ids.add(dossier_id)
-      suffix = generate_suffix(champ.libelle)
       linked_variables = extract_linked_dossier_variables(linked_dossier)
       merge_with_suffix(enriched, linked_variables, suffix)
     end

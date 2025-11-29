@@ -144,14 +144,14 @@ describe LinkedDossierFieldsService do
       ])
     end
 
-    it 'ignore les dossiers liés qui n\'existent plus' do
+    it 'ajoute un message pour les dossiers liés qui n\'existent plus' do
       dossier_link_champ = dossier.champs.find { |c| c.is_a?(Champs::DossierLinkChamp) }
       dossier_link_champ.update(value: 99999) # ID inexistant
 
       result = service.enrich_variables({})
 
-      # Ne doit pas crasher et ne pas inclure de variables du dossier inexistant
-      expect(result.keys.filter { |k| k.include?('lié') }).to be_empty
+      # Ne doit pas crasher et doit afficher un message d'erreur
+      expect(result['Dossier lié (lié)']).to eq('⚠️ Dossier lié non accessible')
     end
   end
 
@@ -182,8 +182,8 @@ describe LinkedDossierFieldsService do
       service = LinkedDossierFieldsService.new(dossier_accessible, usager)
       result = service.enrich_variables({})
 
-      # Le dossier lié ne devrait pas apparaître car appartient à un autre user
-      expect(result.keys.filter { |k| k.include?('lié') }).to be_empty
+      # Le dossier lié affiche un message d'erreur au lieu des données
+      expect(result['Dossier lié (lié)']).to eq('⚠️ Dossier lié non accessible')
       expect(result.values).not_to include('Donnée sensible')
     end
 
