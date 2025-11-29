@@ -14,15 +14,9 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
     Typhoeus.stub(WEASYPRINT_URL).and_return(response)
   end
 
-  def find_attestation_card(with_nested_selector: nil)
-    # pf-v1-compat: logique de routage conditionnel v1/v2 pour les tests
-    # Identique à la logique dans AttestationComponent pour cohérence
-    attestation_path = if procedure.attestation_template&.version == 2 || procedure.feature_enabled?(:attestation_v2)
-      edit_admin_procedure_attestation_template_v2_path(procedure)
-    else
-      # pf-v1-compat: routing v1 maintenu pour tests de compatibilité
-      edit_admin_procedure_attestation_template_path(procedure)
-    end
+  def find_attestation_card(v2: true, with_nested_selector: nil)
+    attestation_path = v2 ? edit_admin_procedure_attestation_template_v2_path(procedure)
+                          : edit_admin_procedure_attestation_template_path(procedure)
 
     full_selector = [
       "a[href=\"#{attestation_path}\"]",
@@ -31,16 +25,7 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
     page.find(full_selector)
   end
 
-  def attestation_edit_path
-    # pf-v1-compat: helper temporaire pour routage conditionnel dans les tests
-    if procedure.attestation_template&.version == 2 || procedure.feature_enabled?(:attestation_v2)
-      edit_admin_procedure_attestation_template_v2_path(procedure)
-    else
-      edit_admin_procedure_attestation_template_path(procedure)
-    end
-  end
-
-  context 'Enable, publish, Disable' do
+  context 'Update or disable v1' do
     let(:procedure) do
       create(:procedure, :published,
         administrateurs: [administrateur],
@@ -179,168 +164,6 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
         expect(page).not_to have_content("Attestation en erreur")
         expect(page).not_to have_content("Le champ « Contenu de l’attestation » contient la balise \"age\"")
       end
-    end
-  end
-
-  context 'Routage conditionnel v1/v2' do
-    context 'avec attestation v1 existante' do
-      let(:procedure) do
-        create(:procedure, :draft,
-          administrateurs: [administrateur],
-          libelle: 'Procédure avec v1',
-          attestation_template: create(:attestation_template, version: 1))
-      end
-
-      before do
-        # pf-v1-compat: désactiver v2 pour tester le routage v1
-        Flipper.disable(:attestation_v2)
-      end
-
-      scenario 'redirige vers l\'éditeur v1' do
-        visit admin_procedure_path(procedure)
-
-        # Le lien doit pointer vers l'éditeur v1
-        link = find("a[href=\"#{edit_admin_procedure_attestation_template_path(procedure)}\"]")
-        expect(link).to be_present
-
-        link.click
-        expect(current_path).to eq(edit_admin_procedure_attestation_template_path(procedure))
-        expect(page).to have_content("Titre de l’attestation")
-      end
-    end
-
-    context 'avec attestation v2 existante' do
-      let(:procedure) do
-        create(:procedure, :draft,
-          administrateurs: [administrateur],
-          libelle: 'Procédure avec v2',
-          attestation_template: create(:attestation_template, version: 2))
-      end
-
-      before do
-        Flipper.enable(:attestation_v2)
-
-        # pf: stub WeasyPrint pour les tests system v2 (PDF généré lors du show)
-        response = Typhoeus::Response.new(code: 200, body: 'Hello world')
-        Typhoeus.stub(WEASYPRINT_URL).and_return(response)
-      end
-
-      scenario 'redirige vers l\'éditeur v2' do
-        visit admin_procedure_path(procedure)
-
-        # Le lien doit pointer vers l'éditeur v2
-        link = find("a[href=\"#{edit_admin_procedure_attestation_template_v2_path(procedure)}\"]")
-        expect(link).to be_present
-
-        link.click
-        expect(current_path).to eq(edit_admin_procedure_attestation_template_v2_path(procedure))
-      end
-    end
-
-    context 'sans attestation avec feature v2 activée' do
-      let(:procedure) do
-        create(:procedure, :draft,
-          administrateurs: [administrateur],
-          libelle: 'Procédure sans attestation')
-      end
-
-      before do
-        Flipper.enable(:attestation_v2)
-
-        # pf: stub WeasyPrint pour les tests system v2 (PDF généré lors du show)
-        response = Typhoeus::Response.new(code: 200, body: 'Hello world')
-        Typhoeus.stub(WEASYPRINT_URL).and_return(response)
-      end
-
-      scenario 'redirige vers l\'éditeur v2 par défaut' do
-        visit admin_procedure_path(procedure)
-
-        # Le lien doit pointer vers l'éditeur v2
-        link = find("a[href=\"#{edit_admin_procedure_attestation_template_v2_path(procedure)}\"]")
-        expect(link).to be_present
-
-        link.click
-        expect(current_path).to eq(edit_admin_procedure_attestation_template_v2_path(procedure))
-      end
-    end
-
-    context 'sans attestation et sans feature v2' do
-      let(:procedure) do
-        create(:procedure, :draft,
-          administrateurs: [administrateur],
-          libelle: 'Procédure sans attestation')
-      end
-
-      before do
-        # pf-v1-compat: désactiver v2 pour tester le fallback v1
-        Flipper.disable(:attestation_v2)
-      end
-
-      scenario 'redirige vers l\'éditeur v1 par défaut' do
-        visit admin_procedure_path(procedure)
-
-        # Le lien doit pointer vers l'éditeur v1
-        link = find("a[href=\"#{edit_admin_procedure_attestation_template_path(procedure)}\"]")
-        expect(link).to be_present
-
-        link.click
-        expect(current_path).to eq(edit_admin_procedure_attestation_template_path(procedure))
-      end
-    end
-  end
-
-  context 'Migration v1 vers v2' do
-    let(:v1_procedure) do
-      create(:procedure, :draft,
-        administrateurs: [administrateur],
-        libelle: 'Procédure v1',
-        attestation_template: create(:attestation_template,
-          version: 1,
-          title: 'Titre <b>formaté</b>',
-          body: 'Corps avec <i>italique</i>',
-          activated: true))
-    end
-
-    before do
-      Flipper.enable(:attestation_v2)
-
-      # pf: stub WeasyPrint pour les tests system v2 (PDF généré lors du show)
-      response = Typhoeus::Response.new(code: 200, body: 'Hello world')
-      Typhoeus.stub(WEASYPRINT_URL).and_return(response)
-    end
-
-    scenario 'migration automatique via interface' do
-      visit edit_admin_procedure_attestation_template_path(v1_procedure)
-
-      # Interface de migration doit être visible
-      expect(page).to have_content('Migration requise avant le 1er novembre 2025')
-      expect(page).to have_link('Essayer le nouvel éditeur')
-
-      # Le lien doit pointer vers la route migrate
-      migrate_link = find('a', text: 'Essayer le nouvel éditeur')
-      expect(migrate_link['href']).to include(migrate_admin_procedure_attestation_template_path(v1_procedure))
-    end
-
-    scenario 'retour arrière possible' do
-      # D'abord migrer via controller direct (l'UI de migration est testée dans le scenario précédent)
-      # Test du scénario complet après migration
-      skip "Test d'intégration complexe - la migration UI est validée dans le test précédent"
-
-      # Vérifier que le retour arrière est proposé
-      expect(page).to have_link('Revenir à l\'ancienne version')
-
-      # Clic sur retour arrière
-      click_link 'Revenir à l\'ancienne version'
-
-      # Retour sur v1
-      expect(current_path).to eq(edit_admin_procedure_attestation_template_path(v1_procedure))
-      expect(page).to have_content('Titre de l\'attestation')
-
-      # V1 doit encore être présente et utilisable
-      fill_in 'Titre de l\'attestation', with: 'Titre modifié'
-      click_button 'Enregistrer'
-
-      expect(page).to have_content('modèle de l\'attestation a bien été')
     end
   end
 end
