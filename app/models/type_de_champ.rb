@@ -139,7 +139,7 @@ class TypeDeChamp < ApplicationRecord
   INSTANCE_OPTIONS_BY_TYPE = {
     decimal_number: [:positive_number, :min_number, :max_number, :range_number],
     integer_number: [:positive_number, :min_number, :max_number, :range_number],
-    date: [:min, :max],
+    date: [], # Options gérées par OPTS_BY_TYPE (date_in_past, range_date, start_date, end_date)
     referentiel_de_polynesie: [:table_id, :drop_down_other],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
