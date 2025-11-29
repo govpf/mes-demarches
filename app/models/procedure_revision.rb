@@ -588,6 +588,19 @@ class ProcedureRevision < ApplicationRecord
           from_type_de_champ.max_character_length,
           to_type_de_champ.max_character_length)
       end
+    elsif to_type_de_champ.lexpol?
+      if from_type_de_champ.lexpol_modele != to_type_de_champ.lexpol_modele
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :lexpol_modele,
+          from_type_de_champ.lexpol_modele,
+          to_type_de_champ.lexpol_modele)
+      end
+      if from_type_de_champ.lexpol_mapping != to_type_de_champ.lexpol_mapping
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :lexpol_mapping,
+          from_type_de_champ.lexpol_mapping,
+          to_type_de_champ.lexpol_mapping)
+      end
     end
     changes
   end
