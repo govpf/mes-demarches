@@ -25,7 +25,9 @@ class ActiveStorage::DownloadableFile
       else
         service = file.blob.service
         begin
-          client.head_object(service.container, file.blob.key)
+          OpenStackStorage.with_client do |client|
+            client.head_object(service.container, file.blob.key)
+          end
           true
         rescue Fog::OpenStack::Storage::NotFound
           false
@@ -35,13 +37,6 @@ class ActiveStorage::DownloadableFile
   end
 
   private
-
-  def self.client
-    credentials = Rails.application.config.active_storage
-      .service_configurations['openstack']['credentials']
-
-    Fog::OpenStack::Storage.new(credentials)
-  end
 
   def self.bill_and_path(bill)
     [

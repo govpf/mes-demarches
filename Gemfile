@@ -5,7 +5,6 @@ source 'https://rubygems.org'
 gem 'rails', '~> 7.0.8' # allows update to security fixes at any time
 
 gem 'aasm'
-gem 'acsv'
 gem 'active_model_serializers'
 gem 'activestorage-openstack'
 gem 'active_storage_validations'
@@ -26,6 +25,7 @@ gem 'chartkick'
 gem 'chunky_png'
 gem 'clamav-client', require: 'clamav/client'
 gem "concurrent-ruby", "< 1.3.5" # force version to avoid https://github.com/rails/rails/pull/54264, should be removed after rails 7.2.x
+gem 'connection_pool'
 gem 'daemons'
 gem 'deep_cloneable' # Enable deep clone of active record models
 gem 'delayed_cron_job', require: false # Cron jobs
@@ -109,6 +109,7 @@ gem 'sib-api-v3-sdk'
 gem 'sidekiq', '< 7.3' # 7.3 needs to migrate to sidekiq-cron 2.0
 gem 'sidekiq-cron', '< 2.0' # wait for a release without "keys command"
 gem 'skylight'
+gem 'smarter_csv'
 gem 'spreadsheet_architect'
 gem 'string-similarity'
 gem 'strong_migrations' # lint database migrations

@@ -89,8 +89,7 @@ class TypeDeChamp < ApplicationRecord
     dgfip: REFERENTIEL_EXTERNE,
     pole_emploi: REFERENTIEL_EXTERNE,
     mesri: REFERENTIEL_EXTERNE,
-    cojo: REFERENTIEL_EXTERNE,
-    expression_reguliere: STANDARD
+    cojo: REFERENTIEL_EXTERNE
   }.merge(INSTANCE_TYPE_DE_CHAMP_TO_CATEGORIE)
 
   enum :type_champ, {
@@ -134,14 +133,13 @@ class TypeDeChamp < ApplicationRecord
     mesri: 'mesri',
     epci: 'epci',
     cojo: 'cojo',
-    expression_reguliere: 'expression_reguliere',
     referentiel: 'referentiel'
   }.merge(INSTANCE_TYPE_CHAMPS)
 
   INSTANCE_OPTIONS_BY_TYPE = {
     decimal_number: [:positive_number, :min_number, :max_number, :range_number],
     integer_number: [:positive_number, :min_number, :max_number, :range_number],
-    date: [:min, :max],
+    date: [], # Options gérées par OPTS_BY_TYPE (date_in_past, range_date, start_date, end_date)
     referentiel_de_polynesie: [:table_id, :drop_down_other],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
@@ -182,6 +180,10 @@ class TypeDeChamp < ApplicationRecord
                  :min_number,
                  :max_number,
                  :range_number,
+                 :date_in_past,
+                 :range_date,
+                 :start_date,
+                 :end_date,
                  :character_limit,
                  :formatted_mode,
                  :numbers_accepted,
@@ -345,6 +347,14 @@ class TypeDeChamp < ApplicationRecord
 
   def range_number?
     range_number == "1"
+  end
+
+  def date_in_past?
+    date_in_past == "1"
+  end
+
+  def range_date?
+    range_date == "1"
   end
 
   def character_limit?
@@ -751,6 +761,8 @@ class TypeDeChamp < ApplicationRecord
     type_champs.fetch(:textarea) => [:character_limit],
     type_champs.fetch(:integer_number) => [:positive_number, :min_number, :max_number, :range_number],
     type_champs.fetch(:decimal_number) => [:positive_number, :min_number, :max_number, :range_number],
+    type_champs.fetch(:date) => [:date_in_past, :start_date, :end_date, :range_date],
+    type_champs.fetch(:datetime) => [:date_in_past, :start_date, :end_date, :range_date],
     type_champs.fetch(:carte) => TypesDeChamp::CarteTypeDeChamp::LAYERS,
     type_champs.fetch(:drop_down_list) => [:drop_down_other, :drop_down_options, :drop_down_mode],
     type_champs.fetch(:multiple_drop_down_list) => [:drop_down_options],

@@ -13,7 +13,6 @@
     attestation_logo_attachment_free_label_value: AttestationTemplate.human_attribute_name(:logo) } do |f|
 
   #attestation-edit.fr-container.fr-my-4w{ data: { controller: 'tiptap', tiptap_insert_after_tag_value: ' ' } }
-
     - if @procedure.attestation_templates.v1.published.any?
       .fr-mb-6w
         = render Dsfr::AlertComponent.new(state: :info, title: "Nouvel éditeur d’attestation", heading_level: 'h3') do |c|
@@ -135,9 +134,7 @@
             = link_to("créez-vous un dossier", new_dossier_path(procedure_id: @procedure, brouillon: true), **external_link_attributes)
             et acceptez-le : l’aperçu l’utilisera.
 
-  -# pf: affichage conditionnel du header pour édition v2
-  -# Ne s'affiche que si feature flag v2 activé et template en brouillon
-  - if @procedure.feature_enabled?(:attestation_v2) && @attestation_template.draft?
+  - if @attestation_template.draft?
     - content_for(:sticky_header) do
       = render partial: "sticky_header"
 
