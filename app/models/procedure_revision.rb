@@ -386,22 +386,45 @@ class ProcedureRevision < ApplicationRecord
             to_type_de_champ.accredited_user_list)
         end
       end
-      if from_type_de_champ.integer_number? || from_type_de_champ.decimal_number?
-        if from_type_de_champ.min != to_type_de_champ.min
-          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ, :min, from_type_de_champ.min, to_type_de_champ.min)
+      if from_type_de_champ.date? || from_type_de_champ.datetime?
+        # Tracking de date_in_past
+        if from_type_de_champ.date_in_past? != to_type_de_champ.date_in_past?
+          changes << ProcedureRevisionChange::UpdateChamp.new(
+            from_type_de_champ,
+            :date_in_past,
+            from_type_de_champ.date_in_past,
+            to_type_de_champ.date_in_past
+          )
         end
-        if from_type_de_champ.max != to_type_de_champ.max
-          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ, :max, from_type_de_champ.max, to_type_de_champ.max)
+
+        # Tracking de range_date
+        if from_type_de_champ.range_date? != to_type_de_champ.range_date?
+          changes << ProcedureRevisionChange::UpdateChamp.new(
+            from_type_de_champ,
+            :range_date,
+            from_type_de_champ.range_date,
+            to_type_de_champ.range_date
+          )
         end
-      end
-      if from_type_de_champ.date?
-        if from_type_de_champ.min != to_type_de_champ.min
-          to_date = to_type_de_champ.min.present? ? Date.iso8601(to_type_de_champ.min) : ''
-          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ, :min, nil, to_date)
+
+        # Tracking de start_date (seulement si range_date est activé)
+        if to_type_de_champ.range_date? && from_type_de_champ.start_date != to_type_de_champ.start_date
+          changes << ProcedureRevisionChange::UpdateChamp.new(
+            from_type_de_champ,
+            :start_date,
+            from_type_de_champ.start_date,
+            to_type_de_champ.start_date
+          )
         end
-        if from_type_de_champ.max != to_type_de_champ.max
-          to_date = to_type_de_champ.max.present? ? Date.iso8601(to_type_de_champ.max) : ''
-          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ, :max, nil, to_date)
+
+        # Tracking de end_date (seulement si range_date est activé)
+        if to_type_de_champ.range_date? && from_type_de_champ.end_date != to_type_de_champ.end_date
+          changes << ProcedureRevisionChange::UpdateChamp.new(
+            from_type_de_champ,
+            :end_date,
+            from_type_de_champ.end_date,
+            to_type_de_champ.end_date
+          )
         end
       end
     end
@@ -480,13 +503,13 @@ class ProcedureRevision < ApplicationRecord
           to_type_de_champ.character_limit)
       end
     elsif to_type_de_champ.integer_number? || to_type_de_champ.decimal_number?
-      if from_type_de_champ.positive_number != to_type_de_champ.positive_number
+      if from_type_de_champ.positive_number? != to_type_de_champ.positive_number?
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
           :positive_number,
           from_type_de_champ.positive_number,
           to_type_de_champ.positive_number)
       end
-      if from_type_de_champ.range_number != to_type_de_champ.range_number
+      if from_type_de_champ.range_number? != to_type_de_champ.range_number?
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
           :range_number,
           from_type_de_champ.range_number,
@@ -564,6 +587,19 @@ class ProcedureRevision < ApplicationRecord
           :max_character_length,
           from_type_de_champ.max_character_length,
           to_type_de_champ.max_character_length)
+      end
+    elsif to_type_de_champ.lexpol?
+      if from_type_de_champ.lexpol_modele != to_type_de_champ.lexpol_modele
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :lexpol_modele,
+          from_type_de_champ.lexpol_modele,
+          to_type_de_champ.lexpol_modele)
+      end
+      if from_type_de_champ.lexpol_mapping != to_type_de_champ.lexpol_mapping
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :lexpol_mapping,
+          from_type_de_champ.lexpol_mapping,
+          to_type_de_champ.lexpol_mapping)
       end
     end
     changes
