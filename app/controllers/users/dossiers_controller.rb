@@ -11,7 +11,7 @@ module Users
     INSTANCE_ACTIONS_ALLOWED_TO_ANY_USER = [:qrcode]
     INSTANCE_ACIONS_ALLOWED_TO_OWNER_OR_INVITE = []
 
-    ACTIONS_ALLOWED_TO_ANY_USER = [:index, :new, :transferer_all, :deleted_dossiers] + INSTANCE_ACTIONS_ALLOWED_TO_ANY_USER
+    ACTIONS_ALLOWED_TO_ANY_USER = [:index, :new, :deleted_dossiers] + INSTANCE_ACTIONS_ALLOWED_TO_ANY_USER
     ACTIONS_ALLOWED_TO_OWNER_OR_INVITE = [:show, :destroy, :demande, :messagerie, :brouillon, :modifier, :update, :create_commentaire, :papertrail, :restore, :champ] + INSTANCE_ACIONS_ALLOWED_TO_OWNER_OR_INVITE
 
     before_action :ensure_ownership!, except: ACTIONS_ALLOWED_TO_ANY_USER + ACTIONS_ALLOWED_TO_OWNER_OR_INVITE
