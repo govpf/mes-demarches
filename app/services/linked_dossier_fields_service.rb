@@ -84,8 +84,10 @@ class LinkedDossierFieldsService
   def extract_linked_dossier_variables(linked_dossier)
     {}.tap do |variables|
       add_metadata(variables, linked_dossier)
-      add_champs(variables, linked_dossier.champs.filter { |c| !c.child? && c.present? })
-      add_champs(variables, linked_dossier.filled_champs_private) if linked_dossier.has_annotations?
+      # pf: Utiliser project_champs pour avoir TOUS les champs de la révision (même non touchés)
+      # et éviter les champs orphelins (stable_id supprimé de la révision)
+      add_champs(variables, linked_dossier.project_champs_public)
+      add_champs(variables, linked_dossier.project_champs_private) if linked_dossier.has_annotations?
     end
   end
 
