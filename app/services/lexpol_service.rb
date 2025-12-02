@@ -84,8 +84,10 @@ class LexpolService
     excluded_champ_classes = EXCLUDED_CHAMP_TYPES.map { |t| "Champs::#{t.to_s.camelize}Champ".constantize }
 
     # Variables des champs avec leur formatage spécial
-    dossier.champs
-      .filter { |c| !c.child? && !c.is_a?(Champs::DossierLinkChamp) }
+    # pf: Utiliser project_champs pour avoir TOUS les champs de la révision (même non touchés)
+    # et éviter les champs orphelins (stable_id supprimé de la révision)
+    (dossier.project_champs_public + dossier.project_champs_private)
+      .filter { |c| !c.is_a?(Champs::DossierLinkChamp) }
       .reject { |c| excluded_champ_classes.any? { |klass| c.is_a?(klass) } }
       .each do |champ|
         if champ.present?
