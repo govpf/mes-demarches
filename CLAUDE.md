@@ -387,4 +387,114 @@ bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb
 - [ ] CI verte sur tous les environnements
 - [ ] Tests manuels des fonctionnalités PF
 - [ ] Release notes rédigées
-- Tous les messages et texte en français à destination de l'interface doivent utiliser la quote française "’" au lieu d'une quote normale "'". Les tests sur l'interface doivent donc ausi utiliser cette quote française.
+- Tous les messages et texte en français à destination de l'interface doivent utiliser la quote française "'" au lieu d'une quote normale "'". Les tests sur l'interface doivent donc ausi utiliser cette quote française.
+
+### Stratégie alternative : Cherry-pick pour PRs cascadées
+
+#### **📌 Contexte du problème**
+
+Lorsque les PRs sont construites en cascade (PR X basée sur PR Y basée sur PR Z), et que devpf évolue entre temps, les PRs héritent de code obsolète de leur base.
+
+**Exemple** : Si devpf supprime `table_row_selector` entre la création de PR Y et PR Z, alors PR Z contiendra toujours `table_row_selector` car elle est basée sur PR Y qui date d'avant la suppression.
+
+#### **✅ Solution : Cherry-pick pour reconstruire proprement**
+
+Au lieu de merger, **cherry-picker uniquement les commits spécifiques à la PR** depuis le devpf actuel.
+
+**Étapes** :
+
+```bash
+# 1. Identifier le point de divergence (dernier commit de la PR précédente mergée dans devpf)
+git log devpf --oneline | grep "PR #222"  # Trouver le dernier commit de la PR précédente
+DIVERGENCE_POINT="a81e14ddd6"  # Hash du dernier commit de PR #222 dans devpf
+
+# 2. Identifier les commits à cherry-picker
+git log ${DIVERGENCE_POINT}..origin/feature/bump-2025-04-03-01 --oneline --no-merges
+
+# 3. Créer une nouvelle branche depuis devpf actuel
+git checkout devpf
+git pull origin devpf
+git checkout -b feature/bump-2025-04-03-01-clean
+
+# 4. Cherry-picker les commits (SANS les merge commits)
+git log ${DIVERGENCE_POINT}..origin/feature/bump-2025-04-03-01 --oneline --no-merges --reverse | \
+  awk '{print $1}' | \
+  while read commit; do
+    git cherry-pick $commit || echo "Conflict or empty commit: $commit"
+  done
+
+# 5. Gérer les commits vides ou conflits
+# - Skip empty commits : git cherry-pick --skip
+# - Résoudre conflits manuellement
+# - Utiliser --ours pour Gemfile.lock, régénérer à la fin
+```
+
+#### **⚠️ WARNINGS CRITIQUES**
+
+##### 1. **Commits "empty" perdus**
+
+**Problème** : Un commit peut devenir "empty" si son contexte a changé dans devpf.
+
+**Exemple vécu (PR #256)** :
+- Commit upstream `0e74d8afe4` (2 avril 2025) ajoute `Capybara.page.current_window.resize_to(1440, 900)` dans un test
+- Commit PF `390382ac26` (18 novembre 2025) refactorise massivement le même fichier de test
+- Lors du cherry-pick : git considère le commit comme "empty" car le contexte n'existe plus
+- **Résultat** : Le fix est perdu silencieusement
+
+**Solution** :
+```bash
+# Après cherry-pick, comparer les fichiers critiques avec upstream
+git diff origin/feature/bump-2025-04-03-01 -- spec/system/
+
+# Si des différences importantes apparaissent, investiguer manuellement
+```
+
+##### 2. **Tests system particulièrement sensibles**
+
+Les tests Playwright/Capybara sont **très sensibles au contexte** :
+- Changements de layout UI
+- Modifications de sélecteurs CSS
+- Refactorisation de composants React
+
+**Règle** : TOUJOURS lancer les tests system complets après cherry-pick :
+```bash
+bundle exec rspec spec/system/ --format documentation
+```
+
+##### 3. **Validation obligatoire**
+
+Le cherry-pick **n'est PAS magique** :
+- ✅ Fonctionne bien pour les commits indépendants
+- ❌ Échoue silencieusement quand le contexte change
+- ⚠️ Ne garantit PAS la cohérence fonctionnelle
+
+**Checklist de validation cherry-pick** :
+- [ ] Tous les unit tests passent : `bundle exec rspec spec/models spec/controllers spec/services`
+- [ ] Tous les system tests passent : `bundle exec rspec spec/system`
+- [ ] Comparer avec la PR upstream : `git diff origin/feature/original-pr`
+- [ ] Tester manuellement les fonctionnalités critiques
+- [ ] Vérifier qu'aucun commit n'a été "skippé" silencieusement
+
+#### **🎯 Quand utiliser cherry-pick vs merge**
+
+| Situation | Méthode recommandée |
+|-----------|---------------------|
+| PR basée directement sur devpf | ✅ Merge classique |
+| PR basée sur une autre PR (cascade) | ✅ Cherry-pick |
+| devpf a beaucoup évolué depuis la base | ✅ Cherry-pick |
+| Première intégration d'un tag upstream | ✅ Merge classique |
+
+#### **📝 Exemple réel : PR #223 → PR #256**
+
+**Contexte** :
+- PR #223 basée sur PR #222 (qui elle-même était basée sur PR #221, etc.)
+- devpf a évolué : PR #251 mergée entre temps
+- Résultat : PR #223 contenait du code obsolète de PR #222
+
+**Solution appliquée** :
+1. Cherry-picked 37 commits non-merge de PR #223
+2. Résolu les conflits (Gemfile.lock, secrets.yml, etc.)
+3. **Découvert** : commit `0e74d8afe4` perdu (test Capybara)
+4. **Correction manuelle** : Réappliqué le fix upstream
+
+**Leçon** : Le cherry-pick élimine le code obsolète, mais nécessite une validation approfondie des tests.
