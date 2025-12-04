@@ -20,7 +20,6 @@ class TypeDeChamp < ApplicationRecord
     commune_de_polynesie: 'commune_de_polynesie',
     code_postal_de_polynesie: 'code_postal_de_polynesie',
     numero_dn: 'numero_dn',
-    table_row_selector: 'table_row_selector',
     referentiel_de_polynesie: 'referentiel_de_polynesie',
     te_fenua: 'te_fenua',
     lexpol: 'lexpol',
@@ -45,7 +44,6 @@ class TypeDeChamp < ApplicationRecord
     numero_dn: REFERENTIEL_EXTERNE,
     te_fenua: REFERENTIEL_EXTERNE,
     lexpol: REFERENTIEL_EXTERNE,
-    table_row_selector: REFERENTIEL_EXTERNE,
     referentiel_de_polynesie: REFERENTIEL_EXTERNE,
     visa: STRUCTURE
   }
@@ -141,8 +139,7 @@ class TypeDeChamp < ApplicationRecord
   INSTANCE_OPTIONS_BY_TYPE = {
     decimal_number: [:positive_number, :min_number, :max_number, :range_number],
     integer_number: [:positive_number, :min_number, :max_number, :range_number],
-    date: [:min, :max],
-    table_row_selector: [:table_id, :drop_down_other],
+    date: [], # Options gérées par OPTS_BY_TYPE (date_in_past, range_date, start_date, end_date)
     referentiel_de_polynesie: [:table_id, :drop_down_other],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
@@ -445,10 +442,6 @@ class TypeDeChamp < ApplicationRecord
     type_champ == TypeDeChamp.type_champs.fetch(:visa)
   end
 
-  def table_row_selector?
-    type_champ == TypeDeChamp.type_champs.fetch(:table_row_selector)
-  end
-
   def referentiel_de_polynesie?
     type_champ == TypeDeChamp.type_champs.fetch(:referentiel_de_polynesie)
   end
@@ -641,7 +634,7 @@ class TypeDeChamp < ApplicationRecord
 
   def self.referentiel_tables
     Rails.cache.fetch("referentiel_tables:#{Rails.env}", expires_in: 5.minutes) do
-      TableRowSelector::API.available_tables.map { [_1[:name], _1[:id]] }
+      ReferentielDePolynesie::API.available_tables.map { [_1[:name], _1[:id]] }
     end
   end
 
@@ -703,7 +696,6 @@ class TypeDeChamp < ApplicationRecord
       type_champs.fetch(:siret),
       type_champs.fetch(:numero_dn),
       type_champs.fetch(:te_fenua),
-      type_champs.fetch(:table_row_selector)
       false
     else
       true
