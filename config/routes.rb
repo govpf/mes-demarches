@@ -662,6 +662,7 @@ Rails.application.routes.draw do
         post 'search'
         get 'all' if Rails.application.config.ds_zonage_enabled
         get 'administrateurs' if Rails.application.config.ds_zonage_enabled
+        get 'select_procedure'
       end
 
       member do
