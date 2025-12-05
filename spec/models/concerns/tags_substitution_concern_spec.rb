@@ -590,7 +590,7 @@ describe TagsSubstitutionConcern, type: :model do
       end
 
       it { is_expected.to include(include({ libelle: 'public' })) }
-      it { is_expected.not_to include(include({ libelle: 'conditional' })) }
+      it { is_expected.to include(include({ libelle: 'conditional' })) }
     end
   end
 

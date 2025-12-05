@@ -17,9 +17,6 @@ en:
           refuse: 'Expires on %{date} (%{duree_conservation_totale} months after this file was processed)'
           sans_suite: 'Expires on %{date} (%{duree_conservation_totale} months after this file was processed)'
     champs:
-      table_row_selector:
-        show:
-          toggle_champ: "Show/hide fields of « %{champ} »"
       cnaf:
         show:
           not_filled: not filled
