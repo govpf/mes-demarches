@@ -92,7 +92,7 @@ Dossier (1) ──→ (n) Champ ────────────────
 2. **Champs** (`app/models/champs/`)
    - Instances concrètes des champs avec leurs valeurs
    - Héritent de `Champs::TextChamp` ou autres classes de base
-   - Exemple : `Champs::TableRowSelectorChamp`, `Champs::VisaChamp`
+   - Exemple : `Champs::ReferentielDePolynesieChamp`, `Champs::VisaChamp`
    - Stockent les données dans les attributs `value`, `data`, `external_id`
 
 3. **Révisions et Procédures**
@@ -119,7 +119,7 @@ TYPE_DE_CHAMP_TO_CATEGORIE = {
 
 Chaque `TypeDeChamp` a un `dynamic_type` correspondant :
 - `TypesDeChamp::TextTypeDeChamp`
-- `TypesDeChamp::TableRowSelectorTypeDeChamp`
+- `TypesDeChamp::ReferentielDePolynesieTypeDeChamp`
 - etc.
 
 Ces classes gèrent la logique spécifique (validation, rendu, etc.)
@@ -128,12 +128,12 @@ Ces classes gèrent la logique spécifique (validation, rendu, etc.)
 
 1. **Types pour les Champs** (`app/graphql/types/champs/`)
    - `ChampType` : interface de base pour tous les champs
-   - `TextChampType`, `TableRowSelectorChampType`, etc.
+   - `TextChampType`, `ReferentielDePolynesieChampType`, etc.
    - Résolution automatique dans `ChampType.resolve_type`
 
 2. **Types pour les Descripteurs** (`app/graphql/types/champs/descriptor/`)
    - `ChampDescriptorType` : interface pour décrire la structure des champs
-   - `TextChampDescriptorType`, `TableRowSelectorChampDescriptorType`, etc.
+   - `TextChampDescriptorType`, `ReferentielDePolynesieChampDescriptorType`, etc.
    - Résolution dans `ChampDescriptorType.resolve_type`
 
 3. **Processus d'ajout d'un nouveau type**
@@ -145,21 +145,21 @@ Ces classes gèrent la logique spécifique (validation, rendu, etc.)
    - Ajouter les résolutions dans `ChampType` et `ChampDescriptorType`
    - Régénérer le schéma GraphQL avec `bin/rails graphql:schema:dump`
 
-### Exemple concret : TableRowSelector
+### Exemple concret : ReferentielDePolynesie
 
 ```ruby
 # Type enum
-table_row_selector: 'table_row_selector'
+referentiel_de_polynesie: 'referentiel_de_polynesie'
 
 # Classe du champ
-class Champs::TableRowSelectorChamp < Champs::TextChamp
+class Champs::ReferentielDePolynesieChamp < Champs::TextChamp
   def value
     external_id  # Pour l'API GraphQL
   end
 end
 
 # Type GraphQL du champ
-class Types::Champs::TableRowSelectorChampType < Types::BaseObject
+class Types::Champs::ReferentielDePolynesieChampType < Types::BaseObject
   implements Types::ChampType
   
   field :columns, [TableColumnType], null: false
@@ -167,7 +167,7 @@ class Types::Champs::TableRowSelectorChampType < Types::BaseObject
 end
 
 # Type GraphQL du descripteur
-class Types::Champs::Descriptor::TableRowSelectorChampDescriptorType < Types::BaseObject
+class Types::Champs::Descriptor::ReferentielDePolynesieChampDescriptorType < Types::BaseObject
   implements Types::ChampDescriptorType
   # Propriétés de configuration du champ
 end
@@ -233,11 +233,11 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 * Format : `- NomDeLaMigration : description`
 
 #### 6. Création de la release GitHub
-```bash
-# Créer le tag local
-git tag -a pf-AAAA-MM-JJ -m "Release pf-AAAA-MM-JJ"
 
-# Créer la GitHub release avec titre et notes formatées
+⚠️ **IMPORTANT** : Laisser GitHub créer le tag automatiquement. Ne PAS créer de tag local avant, sinon il faudra le pousser et cela cause des erreurs avec `gh release create`.
+
+```bash
+# Créer la GitHub release (elle créera le tag automatiquement)
 gh release create pf-AAAA-MM-JJ --title "JJ MMM AAAA" --notes "$(cat <<'EOF'
 ## Améliorations et correctifs
 
@@ -249,8 +249,8 @@ EOF
 ```
 
 #### 7. Vérification
-* Vérifier le tag local : `git tag -l pf-AAAA-MM-JJ`
 * Vérifier sur GitHub : https://github.com/govpf/mes-demarches/releases
+* Le tag sera automatiquement créé et visible dans `.git/refs/tags/`
 
 ### Erreurs critiques à éviter
 * **NE JAMAIS** mélanger des éléments de plusieurs releases upstream
@@ -260,29 +260,21 @@ EOF
 * **VÉRIFIER** que la release upstream identifiée correspond bien aux commits intégrés
 ## Procédure de Nettoyage du Code
 
-### Suppression du Code lié au TableRowSelector après Premier Déploiement
+### Migration TableRowSelector vers ReferentielDePolynesie
 
-- Après le premier déploiement réussi, suivre ces étapes précises pour supprimer le code lié au tableRowSelector :
-  1. Supprimer les fichiers spécifiques à `table_row_selector` dans les répertoires :
-     - `app/models/champs/table_row_selector_champ.rb`
-     - `app/graphql/types/champs/table_row_selector_champ_type.rb`
-     - `app/graphql/types/champs/descriptor/table_row_selector_champ_descriptor_type.rb`
-  
-  2. Retirer les références dans `app/models/type_de_champ.rb` :
-     - Supprimer l'entrée `table_row_selector` de l'enum `type_champs`
-     - Retirer toute logique conditionnelle liée à `table_row_selector`
-  
-  3. Nettoyer les migrations et seeds :
-     - Supprimer toute migration qui ajoute des colonnes ou configurations spécifiques à `table_row_selector`
-     - Retirer les références dans les fichiers de seed/fixtures
-  
-  4. Mise à jour des tests et specs :
-     - Supprimer les tests unitaires et d'intégration liés à `table_row_selector`
-     - Ajuster les fixtures et factories de test
+**✅ Migration terminée** : Le type `table_row_selector` a été complètement remplacé par `referentiel_de_polynesie`.
 
-  5. Vérifications finales :
-     - Lancer la suite de tests complète pour s'assurer de l'absence de régressions
-     - Valider que GraphQL ne référence plus le type `table_row_selector`
+**Changements effectués** :
+- Remplacement de `Champs::TableRowSelectorChamp` par `Champs::ReferentielDePolynesieChamp`
+- Migration des types GraphQL vers `ReferentielDePolynesieChampType`
+- Suppression de l'enum `table_row_selector` au profit de `referentiel_de_polynesie`
+- Nettoyage des controllers, components et API Baserow
+- Mise à jour des routes et schémas GraphQL
+
+**Vérifications de sécurité** :
+- Lancer la suite de tests : `bundle exec rspec`
+- Valider GraphQL : `bin/rails graphql:schema:dump`
+- S'assurer que les procédures existantes fonctionnent toujours
 
 ## Intégration Upstream
 
@@ -309,9 +301,21 @@ git tag -l "2024-*" | sort -V | tail -5
 # Merger le tag upstream
 git merge upstream/AAAA-MM-JJ-NN
 
-# Pour les locales : prendre upstream systématiquement
-git checkout --theirs config/locales/
+# ⚠️ NE JAMAIS utiliser --theirs ou --ours globalement !
+# Cela masque les vrais conflits et peut écraser du code important
 ```
+
+**❌ À NE JAMAIS FAIRE :**
+```bash
+git checkout --theirs config/locales/  # ❌ Cache les conflits, peut régresser
+git checkout --theirs app/             # ❌ Peut perdre du code PF
+git merge --strategy-option theirs     # ❌ Dangereux
+```
+
+**✅ Approche correcte :**
+- Résoudre **chaque conflit manuellement** en examinant le contexte
+- Utiliser les tags `# pf:` pour identifier les spécificités à préserver
+- Pour les locales : vérifier si des traductions PF doivent être gardées
 
 #### 3. **Stratégie des tags PF**
 
@@ -321,7 +325,10 @@ Tous les comportements spécifiques à la Polynésie française doivent être ma
 **Résolution de conflits :**
 1. **Chercher les tags `# pf:` voisins** pour comprendre le contexte de la spécificité
 2. **Si tag PF présent** : analyser si la spécificité doit être maintenue
-3. **Si aucun tag PF** : prendre la version upstream par défaut
+3. **Si aucun tag PF** : privilégier upstream **SAUF si cela casse une fonctionnalité PF**
+4. **En cas de doute** : tester localement ou demander validation
+
+**⚠️ Règle d'or** : Upstream est prioritaire **tant que cela ne remet pas en cause les développements PF**. Si un changement upstream impacte une fonctionnalité PF (même sans tag `# pf:`), il faut adapter intelligemment, pas simplement prendre upstream.
 
 **Exemples de tags PF :**
 ```ruby
@@ -352,7 +359,7 @@ bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb
 **🔧 Corrections typiques :**
 - Messages de validation changés → corriger les expectations des tests
 - Nouvelles règles de linting → `bundle exec rubocop -A`
-- Conflits de traductions → prendre upstream pour les locales
+- Conflits de traductions → examiner si PF a des spécificités avant de prendre upstream
 
 ### Bonnes pratiques
 
@@ -380,3 +387,114 @@ bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb
 - [ ] CI verte sur tous les environnements
 - [ ] Tests manuels des fonctionnalités PF
 - [ ] Release notes rédigées
+- Tous les messages et texte en français à destination de l'interface doivent utiliser la quote française "'" au lieu d'une quote normale "'". Les tests sur l'interface doivent donc ausi utiliser cette quote française.
+
+### Stratégie alternative : Cherry-pick pour PRs cascadées
+
+#### **📌 Contexte du problème**
+
+Lorsque les PRs sont construites en cascade (PR X basée sur PR Y basée sur PR Z), et que devpf évolue entre temps, les PRs héritent de code obsolète de leur base.
+
+**Exemple** : Si devpf supprime `table_row_selector` entre la création de PR Y et PR Z, alors PR Z contiendra toujours `table_row_selector` car elle est basée sur PR Y qui date d'avant la suppression.
+
+#### **✅ Solution : Cherry-pick pour reconstruire proprement**
+
+Au lieu de merger, **cherry-picker uniquement les commits spécifiques à la PR** depuis le devpf actuel.
+
+**Étapes** :
+
+```bash
+# 1. Identifier le point de divergence (dernier commit de la PR précédente mergée dans devpf)
+git log devpf --oneline | grep "PR #222"  # Trouver le dernier commit de la PR précédente
+DIVERGENCE_POINT="a81e14ddd6"  # Hash du dernier commit de PR #222 dans devpf
+
+# 2. Identifier les commits à cherry-picker
+git log ${DIVERGENCE_POINT}..origin/feature/bump-2025-04-03-01 --oneline --no-merges
+
+# 3. Créer une nouvelle branche depuis devpf actuel
+git checkout devpf
+git pull origin devpf
+git checkout -b feature/bump-2025-04-03-01-clean
+
+# 4. Cherry-picker les commits (SANS les merge commits)
+git log ${DIVERGENCE_POINT}..origin/feature/bump-2025-04-03-01 --oneline --no-merges --reverse | \
+  awk '{print $1}' | \
+  while read commit; do
+    git cherry-pick $commit || echo "Conflict or empty commit: $commit"
+  done
+
+# 5. Gérer les commits vides ou conflits
+# - Skip empty commits : git cherry-pick --skip
+# - Résoudre conflits manuellement
+# - Utiliser --ours pour Gemfile.lock, régénérer à la fin
+```
+
+#### **⚠️ WARNINGS CRITIQUES**
+
+##### 1. **Commits "empty" perdus**
+
+**Problème** : Un commit peut devenir "empty" si son contexte a changé dans devpf.
+
+**Exemple vécu (PR #256)** :
+- Commit upstream `0e74d8afe4` (2 avril 2025) ajoute `Capybara.page.current_window.resize_to(1440, 900)` dans un test
+- Commit PF `390382ac26` (18 novembre 2025) refactorise massivement le même fichier de test
+- Lors du cherry-pick : git considère le commit comme "empty" car le contexte n'existe plus
+- **Résultat** : Le fix est perdu silencieusement
+
+**Solution** :
+```bash
+# Après cherry-pick, comparer les fichiers critiques avec upstream
+git diff origin/feature/bump-2025-04-03-01 -- spec/system/
+
+# Si des différences importantes apparaissent, investiguer manuellement
+```
+
+##### 2. **Tests system particulièrement sensibles**
+
+Les tests Playwright/Capybara sont **très sensibles au contexte** :
+- Changements de layout UI
+- Modifications de sélecteurs CSS
+- Refactorisation de composants React
+
+**Règle** : TOUJOURS lancer les tests system complets après cherry-pick :
+```bash
+bundle exec rspec spec/system/ --format documentation
+```
+
+##### 3. **Validation obligatoire**
+
+Le cherry-pick **n'est PAS magique** :
+- ✅ Fonctionne bien pour les commits indépendants
+- ❌ Échoue silencieusement quand le contexte change
+- ⚠️ Ne garantit PAS la cohérence fonctionnelle
+
+**Checklist de validation cherry-pick** :
+- [ ] Tous les unit tests passent : `bundle exec rspec spec/models spec/controllers spec/services`
+- [ ] Tous les system tests passent : `bundle exec rspec spec/system`
+- [ ] Comparer avec la PR upstream : `git diff origin/feature/original-pr`
+- [ ] Tester manuellement les fonctionnalités critiques
+- [ ] Vérifier qu'aucun commit n'a été "skippé" silencieusement
+
+#### **🎯 Quand utiliser cherry-pick vs merge**
+
+| Situation | Méthode recommandée |
+|-----------|---------------------|
+| PR basée directement sur devpf | ✅ Merge classique |
+| PR basée sur une autre PR (cascade) | ✅ Cherry-pick |
+| devpf a beaucoup évolué depuis la base | ✅ Cherry-pick |
+| Première intégration d'un tag upstream | ✅ Merge classique |
+
+#### **📝 Exemple réel : PR #223 → PR #256**
+
+**Contexte** :
+- PR #223 basée sur PR #222 (qui elle-même était basée sur PR #221, etc.)
+- devpf a évolué : PR #251 mergée entre temps
+- Résultat : PR #223 contenait du code obsolète de PR #222
+
+**Solution appliquée** :
+1. Cherry-picked 37 commits non-merge de PR #223
+2. Résolu les conflits (Gemfile.lock, secrets.yml, etc.)
+3. **Découvert** : commit `0e74d8afe4` perdu (test Capybara)
+4. **Correction manuelle** : Réappliqué le fix upstream
+
+**Leçon** : Le cherry-pick élimine le code obsolète, mais nécessite une validation approfondie des tests.

@@ -311,11 +311,18 @@
     // pf: on hérite la couleur et l'interlignage de fr-hint-text mais garde les spécificités PF
     line-height: inherit;
     color: inherit;
-    // pf: garde margin inherit pour permettre aux listes imbriquées de fonctionner
-    margin: inherit;
+    margin: 0;
     // pf: taille fixe 14px pour lisibilité mobile (plus grande que la fonte par défaut)
     font-size: 14px;
     // pf: padding disabled pour permettre aux sous ul/ol de fonctionner
+    padding: 0;
+  }
+
+  // pf: Sélecteur robuste pour tous les <li> dans les descriptions de champs
+  // Fonctionne pour champs normaux ET blocs répétables, y compris sous-listes
+  .fr-hint-text li {
+    font-size: 14px;
+    margin: 0;
     padding: 0;
   }
 

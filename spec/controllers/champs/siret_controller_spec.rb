@@ -106,7 +106,7 @@ describe Champs::SiretController, type: :controller do
 
         # pf: Test API unavailable error message
         it 'displays API unavailable error message' do
-          expect(response.body).to include('informations')
+          expect(response.body).to include('fournisseur de données')
         end
       end
 
