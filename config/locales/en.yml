@@ -778,6 +778,7 @@ en:
       procedure_not_found: "The procedure does not exist"
       siret_unknown: 'We did not find any establishment registered under this number.'
       siret_network_error: 'Sorry, number retrieval is temporarily unavailable. Please try again shortly.'
+      api_entreprise_down: 'Our data provider seems to be down, we will retrieve the data later.'
       cps_network_error: 'Sorry, DN number verification is temporarily down. Please, check carefully your input'
       siret:
         network_error: 'Sorry, SIRET information retrieval is temporarily unavailable. Please try again shortly.'

@@ -103,4 +103,54 @@ RSpec.describe Champs::LexpolController, type: :controller do
       end
     end
   end
+
+  describe 'GET #preview_variables' do
+    def json_response
+      response.parsed_body['grouped_variables']
+    end
+
+    before do
+      procedure.draft_revision.add_type_de_champ(create(:type_de_champ_text, libelle: 'Nom', procedure: procedure))
+      procedure.draft_revision.add_type_de_champ(create(:type_de_champ_piece_justificative, libelle: 'Document', procedure: procedure))
+      dossier.reload
+      dossier.champs.find { |c| c.libelle == 'Nom' }.update(value: 'Dupont')
+
+      get :preview_variables, params: { dossier_id: dossier.id, stable_id: champ.stable_id }, format: :json
+    end
+
+    it 'retourne les 3 sections' do
+      expect(json_response.keys).to match_array(['metadonnees', 'champs_formulaire', 'dossiers_lies'])
+    end
+
+    it 'inclut les champs remplis et exclut les types sans valeur' do
+      expect(json_response['champs_formulaire']).to include('Nom' => 'Dupont')
+      expect(json_response['champs_formulaire']).not_to have_key('Document')
+    end
+
+    context 'avec dossiers liés' do
+      let(:accessible_procedure) { create(:procedure, :published, instructeurs: [instructeur]) }
+      let(:accessible_dossier) { create(:dossier, procedure: accessible_procedure, user: dossier.user) }
+      let(:inaccessible_procedure) { create(:procedure, :published, instructeurs: [create(:instructeur)]) }
+      let(:inaccessible_dossier) { create(:dossier, procedure: inaccessible_procedure, user: create(:user)) }
+
+      before do
+        link_tdc = create(:type_de_champ_dossier_link, libelle: 'OK', procedure: procedure)
+        link_tdc2 = create(:type_de_champ_dossier_link, libelle: 'KO', procedure: procedure)
+        procedure.draft_revision.add_type_de_champ(link_tdc)
+        procedure.draft_revision.add_type_de_champ(link_tdc2)
+        dossier.reload
+        dossier.project_champs_public_all.find { |c| c.libelle == 'OK' }.update(value: accessible_dossier.id.to_s)
+        dossier.project_champs_public_all.find { |c| c.libelle == 'KO' }.update(value: inaccessible_dossier.id.to_s)
+
+        get :preview_variables, params: { dossier_id: dossier.id, stable_id: champ.stable_id }, format: :json
+      end
+
+      it 'filtre selon les droits d\'accès' do
+        expect(json_response['dossiers_lies'].keys.any? { |k| k.include?('OK') }).to be true
+        # Le dossier KO doit avoir un message d'erreur
+        ko_key = json_response['dossiers_lies'].keys.find { |k| k.include?('KO') }
+        expect(json_response['dossiers_lies'][ko_key]).to eq('⚠️ Dossier lié non accessible')
+      end
+    end
+  end
 end
