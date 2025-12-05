@@ -159,8 +159,10 @@ def add_single_champ(pdf, champ)
   return if champ.conditional? && !champ.visible?
 
   case champ.type
-  when 'Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp', 'Champs::ExplicationChamp'
+  when 'Champs::ExplicationChamp'
     return
+  when 'Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp'
+    format_in_2_lines(pdf, tdc.libelle, champ.piece_justificative_file.map { |pj| "- #{pj.filename}" }.join("\n"))
   when 'Champs::HeaderSectionChamp'
     libelle = if @dossier.auto_numbering_section_headers_for?(tdc)
       "#{@dossier.index_for_section_header(tdc)}. #{tdc.libelle}"

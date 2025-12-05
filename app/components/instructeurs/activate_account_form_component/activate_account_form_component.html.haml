@@ -6,10 +6,10 @@
     %fieldset.fr-mb-0.fr-fieldset{ aria: { labelledby: 'activate-account-legend' } }
 
       %legend.fr-fieldset__legend#activate-account-legend
-        %h2.fr-h6.fr-mb-0= t('.activate', email: user.email)
+        %h2.fr-h6= t('.activate', email: user.email)
 
       .fr-fieldset__element
-        %p.fr-text--sm= t('utils.mandatory_champs')
+        %p= t('asterisk_html', scope: [:utils])
 
       .fr-fieldset__element
         = render Dsfr::InputComponent.new(form: f, attribute: :email, input_type: :email_field, opts: { disabled: :disabled, class: 'fr-input-group--disabled' })
