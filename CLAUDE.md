@@ -208,10 +208,80 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 * Analyser les commits depuis ce tag via `.git/logs/refs/heads/masterpf`
 
 #### 2. Identification des releases upstream intégrées
-* **CRITIQUE** : Identifier précisément quelle(s) release(s) upstream ont été intégrées
-* Les noms des releases upstream sont de la forme `AAAA-MM-JJ-NN` (ex: 2024-10-17-01)
-* Récupérer le contenu exact de ces releases depuis https://github.com/demarches-simplifiees/demarches-simplifiees.fr/releases/tag/AAAA-MM-JJ-NN
-* **NE PAS** inclure d'éléments de releases postérieures à celle intégrée
+
+⚠️ **PIÈGE MAJEUR** : Une PR `feature/bump-AAAA-MM-JJ-NN` peut contenir **PLUSIEURS** releases upstream, et la description de la PR peut être **incomplète** !
+
+**Méthode correcte (OBLIGATOIRE) :**
+
+```bash
+# Étape 1: Identifier toutes les PRs feature/bump-* depuis le dernier tag PF
+git log pf-AAAA-MM-DD..HEAD --merges --oneline | grep -E "Feature/bump"
+
+# Exemple de sortie :
+# 146364e1d4 Feature/bump 2025 04 30 01 (#231)
+# e97c6d4392 Feature/bump 2025 04 23 01 (#229)
+
+# Étape 2: Pour CHAQUE PR identifiée, lire sa description
+gh pr view 229 --json body --jq '.body'
+
+# Exemple de sortie :
+# [Release du 2025-04-16-01](https://github.com/...)
+# [Release du 2025-04-16-02](https://github.com/...)
+# [Release du 2025-04-17-01](https://github.com/...)
+# [Release du 2025-04-23-01](https://github.com/...)
+
+# ⚠️ ATTENTION : La description peut être incomplète !
+
+# Étape 3: VÉRIFICATION MANUELLE obligatoire du contenu réel de la PR
+# Récupérer le hash du merge commit de la PR
+PR_MERGE_COMMIT=$(git log --merges --oneline --grep="#229" | head -1 | awk '{print $1}')
+
+# Examiner les commits de la PR (entre le parent et le merge)
+git log ${PR_MERGE_COMMIT}^..${PR_MERGE_COMMIT}^2 --oneline | grep "Merge pull request" | head -20
+
+# Comparer avec les releases upstream de la période pour identifier les manquantes
+gh release list --repo demarches-simplifiees/demarches-simplifiees.fr --limit 50 | grep "2025-04"
+
+# Étape 4: Pour CHAQUE release upstream identifiée, récupérer son contenu
+gh release view 2025-04-16-01 --repo demarches-simplifiees/demarches-simplifiees.fr
+gh release view 2025-04-16-02 --repo demarches-simplifiees/demarches-simplifiees.fr
+# etc.
+```
+
+**⚠️ Erreurs critiques à éviter lors de l'identification :**
+
+1. **Se fier uniquement à la description de la PR** → Peut être incomplète
+   - ❌ Erreur : PR #229 listait 4 releases mais en contenait 5
+   - ✅ Solution : Toujours vérifier manuellement le contenu réel de la PR
+
+2. **Chercher uniquement "Merge tag" dans les commits** → Rate les releases intégrées via d'autres chemins
+   - ❌ Erreur : `git log | grep "Merge tag"` ne trouve pas toutes les releases
+   - ✅ Solution : Examiner tous les merge commits dans chaque PR
+
+3. **Inclure des releases déjà présentes dans le tag PF précédent** → Duplication
+   - ❌ Erreur : Inclure 2025-04-10-01 qui était déjà dans pf-2025-12-04
+   - ✅ Solution : Vérifier le contenu du tag PF précédent :
+     ```bash
+     gh release view pf-2025-12-04 --json body --jq '.body' | grep "2025-04-10"
+     ```
+
+4. **Oublier de vérifier la continuité des releases** → Trous dans la séquence
+   - ❌ Erreur : Avoir 2025-04-16-01, sauter 2025-04-16-02, puis 2025-04-17-01
+   - ✅ Solution : Lister chronologiquement toutes les releases upstream intégrées
+
+**Checklist de validation de l'identification :**
+- [ ] Toutes les PRs feature/bump-* depuis le dernier tag PF ont été examinées
+- [ ] Pour chaque PR, le contenu réel (pas juste la description) a été vérifié
+- [ ] Aucune release upstream n'est en doublon avec le tag PF précédent
+- [ ] Les releases sont listées dans l'ordre chronologique
+- [ ] Aucun "trou" dans la séquence des releases (ex: -01, -02, -03)
+
+**Exemple réel de piège évité :**
+- Tag précédent : pf-2025-12-04
+- PR #229 s'appelle "Feature/bump 2025 04 23 01" → Laisse penser qu'elle contient 1 release
+- En réalité, elle contenait 5 releases : 2025-04-16-01, -02, 2025-04-17-01, 2025-04-23-01, **2025-04-24-01**
+- La 5ème (2025-04-24-01) n'était **pas listée** dans la description de la PR !
+- Méthode correcte : `git log <pr>^..<pr>^2` a révélé tous les merge commits upstream
 
 #### 3. Structure du texte de release (format obligatoire)
 * Titre : `# Release pf-AAAA-MM-JJ`
@@ -253,11 +323,74 @@ EOF
 * Le tag sera automatiquement créé et visible dans `.git/refs/tags/`
 
 ### Erreurs critiques à éviter
-* **NE JAMAIS** mélanger des éléments de plusieurs releases upstream
+
+#### Lors de l'identification des releases
+* **NE JAMAIS** se fier uniquement à la description de la PR (peut être incomplète)
+* **NE JAMAIS** utiliser uniquement `git log | grep "Merge tag"` (rate des releases)
+* **TOUJOURS** vérifier manuellement le contenu réel de chaque PR avec `git log <pr>^..<pr>^2`
+* **TOUJOURS** vérifier qu'une release n'est pas déjà dans le tag PF précédent (éviter les doublons)
+* **VÉRIFIER** la continuité chronologique des releases (pas de trous dans la séquence)
+
+#### Lors de la rédaction
+* **NE JAMAIS** mélanger des éléments de plusieurs releases upstream dans une même section
 * **NE JAMAIS** inventer ou modifier les numéros d'issues upstream
 * **TOUJOURS** respecter le chapitrage exact : Administrateur, Instructeur, Usager, API, Technique
 * **TOUJOURS** utiliser le format "ETQ" (En Tant Que) des releases upstream
-* **VÉRIFIER** que la release upstream identifiée correspond bien aux commits intégrés
+* **COPIER EXACTEMENT** le texte des releases upstream (y compris la ponctuation et les fautes)
+
+### Exemple complet pas-à-pas
+
+**Contexte :** Créer la release pf-2025-12-05 depuis le dernier tag pf-2025-12-04
+
+```bash
+# 1. Identifier les PRs feature/bump-* mergées
+git log pf-2025-12-04..HEAD --merges --oneline | grep "Feature/bump"
+# Résultat :
+# 146364e1d4 Feature/bump 2025 04 30 01 (#231)
+# e97c6d4392 Feature/bump 2025 04 23 01 (#229)
+
+# 2. Examiner la PR #229
+gh pr view 229 --json body --jq '.body'
+# Résultat : Liste 4 releases (2025-04-16-01, -02, 2025-04-17-01, 2025-04-23-01)
+
+# 3. Vérifier le contenu réel de la PR #229 (CRUCIAL !)
+PR_MERGE=$(git log --merges --oneline --grep="#229" | head -1 | awk '{print $1}')
+git log ${PR_MERGE}^..${PR_MERGE}^2 --oneline | grep "Merge pull request"
+# ⚠️ Découverte : Contient aussi 2025-04-24-01 (non listé dans la description !)
+
+# 4. Examiner la PR #231
+gh pr view 231 --json body --jq '.body'
+# Résultat : Aucune liste (description vide) → Examiner manuellement
+PR_MERGE=$(git log --merges --oneline --grep="#231" | head -1 | awk '{print $1}')
+git log ${PR_MERGE}^..${PR_MERGE}^2 --oneline | grep "Merge tag"
+# Résultat : Contient 2025-04-30-01
+
+# 5. Vérifier qu'aucune de ces releases n'est déjà dans pf-2025-12-04
+gh release view pf-2025-12-04 --json body --jq '.body' | grep -E "2025-04-(16|17|23|24|30)"
+# Résultat : Aucune correspondance → OK, aucune duplication
+
+# 6. Lister chronologiquement toutes les releases identifiées
+# - 2025-04-16-01
+# - 2025-04-16-02
+# - 2025-04-17-01
+# - 2025-04-23-01
+# - 2025-04-24-01
+# - 2025-04-30-01
+
+# 7. Récupérer le contenu de CHAQUE release
+for release in 2025-04-16-01 2025-04-16-02 2025-04-17-01 2025-04-23-01 2025-04-24-01 2025-04-30-01; do
+  echo "=== $release ==="
+  gh release view $release --repo demarches-simplifiees/demarches-simplifiees.fr
+done
+
+# 8. Rédiger la release en copiant exactement le contenu de chaque release upstream
+
+# 9. Créer la release GitHub
+gh release create pf-2025-12-05 --title "5 Déc 2025" --notes "$(cat release_notes.md)"
+```
+
+**Résultat :** Release complète avec les 6 releases upstream correctement identifiées et documentées.
+
 ## Procédure de Nettoyage du Code
 
 ### Migration TableRowSelector vers ReferentielDePolynesie
