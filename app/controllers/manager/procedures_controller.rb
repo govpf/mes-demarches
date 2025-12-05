@@ -157,7 +157,7 @@ module Manager
         flash[:alert] = "Importation impossible : le poids du fichier est supérieur à #{number_to_human_size(CSV_MAX_SIZE)}"
 
       else
-        procedure_tags = SmarterCSV.process(tags_csv_file, strings_as_keys: true, convert_values_to_numeric: false)
+        procedure_tags = SmarterCSV.process(tags_csv_file, strings_as_keys: true, convert_values_to_numeric: false, force_utf8: true)
           .map { |r| r.to_h.slice('demarche', 'tag') }
 
         invalid_ids = []
@@ -183,6 +183,14 @@ module Manager
     end
 
     private
+
+    def find_resource(param)
+      procedure = super
+
+      procedure.preload_draft_and_published_revisions
+
+      procedure
+    end
 
     def procedure
       @procedure ||= Procedure.with_discarded.find(params[:id])
