@@ -12,11 +12,7 @@ class Champs::PieceJustificativeController < Champs::ChampController
   end
 
   def download_path
-    if params[:dossier_id].present?
-      champs_piece_justificative_download_path({ dossier_id: params[:dossier_id], stable_id: params[:stable_id], row_id: params[:row_id], h: params[:h], i: "0" })
-    else
-      champs_legacy_piece_justificative_download_path({ champ_id: params[:champ_id], h: params[:h], i: "0" })
-    end
+    champs_piece_justificative_download_path({ dossier_id: params[:dossier_id], stable_id: params[:stable_id], row_id: params[:row_id], h: params[:h], i: "0" })
   end
 
   def update
@@ -78,13 +74,9 @@ class Champs::PieceJustificativeController < Champs::ChampController
     h = params[:h]
     return super if h.blank?
 
-    champ = if params[:champ_id].present? # pf : after 01/09/2025, keep only access with dossier_id
-      Champ.find(params[:champ_id])
-    else
-      dossier = Dossier.includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
-      type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
-      dossier.project_champ(type_de_champ, row_id: params_row_id)
-    end
+    dossier = Dossier.includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
+    type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
+    champ = dossier.project_champ(type_de_champ, row_id: params_row_id)
     champ&.match_encoded_date?(:created_at, h) ? champ : nil
   end
 

@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# Script de linting parallèle avec fail-fast
+# Exécute tous les linters en parallèle mais retourne un code d'erreur si l'un d'eux échoue
+
+echo "🔍 Lancement automatique des linters..."
+echo "📦 bun lintfix..."
+
+# Lancer tous les linters en parallèle
+bun run lint:js:fix &
+PID_JS=$!
+
+bun run lint:css:fix &
+PID_CSS=$!
+
+/home/clautier/.rbenv/shims/bundle exec rubocop -A &
+PID_RUBOCOP=$!
+
+/home/clautier/.rbenv/shims/bundle exec haml-lint -a app/views/ app/components/ &
+PID_HAML=$!
+
+# Attendre que tous les processus se terminent
+wait $PID_JS
+EXIT_JS=$?
+
+wait $PID_CSS
+EXIT_CSS=$?
+
+wait $PID_RUBOCOP
+EXIT_RUBOCOP=$?
+
+wait $PID_HAML
+EXIT_HAML=$?
+
+# Vérifier si tous les linters ont réussi
+if [ $EXIT_JS -eq 0 ] && [ $EXIT_CSS -eq 0 ] && [ $EXIT_RUBOCOP -eq 0 ] && [ $EXIT_HAML -eq 0 ]; then
+    echo "✅ Linting terminé avec succès !"
+    exit 0
+else
+    echo "❌ Erreur lors du linting :"
+    [ $EXIT_JS -ne 0 ] && echo "  - JS linting a échoué (code $EXIT_JS)"
+    [ $EXIT_CSS -ne 0 ] && echo "  - CSS linting a échoué (code $EXIT_CSS)"
+    [ $EXIT_RUBOCOP -ne 0 ] && echo "  - Rubocop a échoué (code $EXIT_RUBOCOP)"
+    [ $EXIT_HAML -ne 0 ] && echo "  - HAML linting a échoué (code $EXIT_HAML)"
+    exit 1
+fi
