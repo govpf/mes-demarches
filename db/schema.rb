@@ -642,6 +642,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
   end
 
   create_table "export_templates", force: :cascade do |t|
+    t.jsonb "attestation"
     t.jsonb "content", default: {}
     t.datetime "created_at", null: false
     t.jsonb "dossier_folder", null: false
@@ -916,14 +917,6 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.datetime "updated_at"
     t.boolean "use_api_carto", default: false
     t.index ["procedure_id"], name: "index_module_api_cartos_on_procedure_id", unique: true
-  end
-
-  create_table "path_rewrites", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "from", null: false
-    t.string "to", null: false
-    t.datetime "updated_at", null: false
-    t.index ["from"], name: "index_path_rewrites_on_from", unique: true
   end
 
   create_table "procedure_paths", force: :cascade do |t|

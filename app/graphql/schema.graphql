@@ -5045,25 +5045,15 @@ enum TitreIdentiteGrantType {
 }
 
 type Traitement {
-  """
-  La date de la décision
-  """
   dateTraitement: ISO8601DateTime!
-
-  """
-  L'instructeur ayant pris la décision.
-  """
   emailAgentTraitant: String
+  event: TraitementEvent!
   id: ID!
 
   """
   L'instructeur ayant pris la décision.
   """
   instructeurEmail: String
-
-  """
-  La motivation de la décision.
-  """
   motivation: String
 
   """
@@ -5071,11 +5061,69 @@ type Traitement {
   """
   processedAt: ISO8601DateTime!
   revision: Revision
+  state: DossierState! @deprecated(reason: "Utilisez le champ `event` à la place.")
+}
+
+enum TraitementEvent {
+  """
+  Accepte
+  """
+  accepte
 
   """
-  La décision sur le dossier.
+  Accepte automatiquement
   """
-  state: DossierState!
+  accepte_automatiquement
+
+  """
+  Classe sans suite
+  """
+  classe_sans_suite
+
+  """
+  Depose
+  """
+  depose
+
+  """
+  Depose correction instructeur
+  """
+  depose_correction_instructeur
+
+  """
+  Depose correction usager
+  """
+  depose_correction_usager
+
+  """
+  Passe en instruction
+  """
+  passe_en_instruction
+
+  """
+  Passe en instruction automatiquement
+  """
+  passe_en_instruction_automatiquement
+
+  """
+  Refuse
+  """
+  refuse
+
+  """
+  Refuse automatiquement
+  """
+  refuse_automatiquement
+
+  """
+  Repasse en construction
+  """
+  repasse_en_construction
+
+  """
+  Repasse en instruction
+  """
+  repasse_en_instruction
 }
 
 enum TypeDeChamp {

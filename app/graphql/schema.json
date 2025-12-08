@@ -21160,7 +21160,7 @@
           "fields": [
             {
               "name": "dateTraitement",
-              "description": "La date de la décision",
+              "description": null,
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -21176,12 +21176,28 @@
             },
             {
               "name": "emailAgentTraitant",
-              "description": "L'instructeur ayant pris la décision.",
+              "description": null,
               "args": [],
               "type": {
                 "kind": "SCALAR",
                 "name": "String",
                 "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "event",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "TraitementEvent",
+                  "ofType": null
+                }
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -21216,7 +21232,7 @@
             },
             {
               "name": "motivation",
-              "description": "La motivation de la décision.",
+              "description": null,
               "args": [],
               "type": {
                 "kind": "SCALAR",
@@ -21256,7 +21272,7 @@
             },
             {
               "name": "state",
-              "description": "La décision sur le dossier.",
+              "description": null,
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -21267,13 +21283,96 @@
                   "ofType": null
                 }
               },
-              "isDeprecated": false,
-              "deprecationReason": null
+              "isDeprecated": true,
+              "deprecationReason": "Utilisez le champ `event` à la place."
             }
           ],
           "inputFields": null,
           "interfaces": [],
           "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "TraitementEvent",
+          "description": null,
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": [
+            {
+              "name": "depose",
+              "description": "Depose",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "depose_correction_usager",
+              "description": "Depose correction usager",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "depose_correction_instructeur",
+              "description": "Depose correction instructeur",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "passe_en_instruction",
+              "description": "Passe en instruction",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "accepte",
+              "description": "Accepte",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "refuse",
+              "description": "Refuse",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "classe_sans_suite",
+              "description": "Classe sans suite",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "repasse_en_construction",
+              "description": "Repasse en construction",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "repasse_en_instruction",
+              "description": "Repasse en instruction",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "passe_en_instruction_automatiquement",
+              "description": "Passe en instruction automatiquement",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "accepte_automatiquement",
+              "description": "Accepte automatiquement",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "refuse_automatiquement",
+              "description": "Refuse automatiquement",
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
           "possibleTypes": null
         },
         {
