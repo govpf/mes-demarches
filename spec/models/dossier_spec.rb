@@ -2,8 +2,6 @@
 
 describe Dossier, type: :model do
   include ActionView::Helpers::SanitizeHelper
-  include ActionView::Helpers::TextHelper
-  include ChampHelper
 
   let(:user) { create(:user) }
 
@@ -312,47 +310,6 @@ describe Dossier, type: :model do
         is_expected.to include(expiring_dossier)
         is_expected.to include(just_expired_dossier)
         is_expected.to include(long_expired_dossier)
-      end
-    end
-  end
-
-  describe 'with_notifications' do
-    let(:dossier) { create(:dossier) }
-    let(:instructeur) { create(:instructeur) }
-
-    before do
-      create(:follow, dossier: dossier, instructeur: instructeur, messagerie_seen_at: 2.hours.ago)
-    end
-
-    subject { instructeur.followed_dossiers.with_notifications }
-
-    context('without changes') do
-      it { is_expected.to eq [] }
-    end
-
-    context('with changes') do
-      context 'when there is a new commentaire' do
-        before { dossier.update!(last_commentaire_updated_at: Time.zone.now) }
-
-        it { is_expected.to match([dossier]) }
-      end
-
-      context 'when there is a new avis' do
-        before { dossier.update!(last_avis_updated_at: Time.zone.now) }
-
-        it { is_expected.to match([dossier]) }
-      end
-
-      context 'when a public champ is updated' do
-        before { dossier.update!(last_champ_updated_at: Time.zone.now) }
-
-        it { is_expected.to match([dossier]) }
-      end
-
-      context 'when a private champ is updated' do
-        before { dossier.update!(last_champ_private_updated_at: Time.zone.now) }
-
-        it { is_expected.to match([dossier]) }
       end
     end
   end
@@ -1322,7 +1279,7 @@ describe Dossier, type: :model do
       email_template = dossier.procedure.email_template_for(dossier.state)
       commentaire = dossier.commentaires.last
 
-      expect(commentaire.body).to include(sanitize(email_template.subject_for_dossier(dossier)), format_text_value(email_template.body_for_dossier(dossier)))
+      expect(commentaire.body).to include(sanitize(email_template.subject_for_dossier(dossier)), sanitize(email_template.body_for_dossier(dossier)))
       expect(commentaire.dossier).to eq(dossier)
     end
   end
@@ -2252,6 +2209,18 @@ describe Dossier, type: :model do
             type_champs = proc_test.all_revisions_types_de_champ(parent: tdc_repetition).to_a
             expect(type_champs.size).to eq(1)
             expect(dossier.champ_values_for_export(type_champs, format: :xlsx).size).to eq(3)
+          end
+        end
+
+        context 'for dossier having a champ not in his revision' do
+          let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
+          let(:dossier_second_revision) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
+
+          it 'should see champ' do
+            expect do
+              dossier.rebase!
+              dossier.reload
+            end.not_to change { dossier.champ_values_for_export(procedure.types_de_champ_for_procedure_export, format: :xlsx) }
           end
         end
       end

@@ -264,6 +264,10 @@ class Champ < ApplicationRecord
     update!(data: data, fetch_external_data_exceptions: [])
   end
 
+  def prefillable_champs
+    []
+  end
+
   def status_message?
     false
   end
@@ -277,6 +281,8 @@ class Champ < ApplicationRecord
       if original.is_a?(Champ)
         kopy.write_attribute(:stable_id, original.stable_id)
         kopy.write_attribute(:stream, 'main')
+        # TODO: overwrite row_id "N" with nil
+        kopy.write_attribute(:row_id, kopy.row_id)
       end
       ClonePiecesJustificativesService.clone_attachments(original, kopy) if fork || !private?
     end

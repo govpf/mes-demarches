@@ -290,6 +290,10 @@ module DossierChampsConcern
     @champs_by_public_id ||= champs_on_stream.index_by(&:public_id)
   end
 
+  def discarded_champs_by_public_id
+    @discarded_champs_by_public_id ||= discarded_champs_on_main_stream.index_by(&:public_id)
+  end
+
   def champs_on_stream
     @champs_on_stream ||= case stream
     when Champ::USER_BUFFER_STREAM
@@ -307,6 +311,10 @@ module DossierChampsConcern
     champs.filter { stable_id_in_revision?(_1.stable_id) }
   end
 
+  def discarded_champs_on_main_stream
+    champs.filter(&:main_stream?).reject { stable_id_in_revision?(_1.stable_id) }
+  end
+
   def champs_on_main_stream
     champs_in_revision.filter(&:main_stream?)
   end
@@ -315,9 +323,19 @@ module DossierChampsConcern
     champs_in_revision.filter(&:user_buffer_stream?)
   end
 
-  def filled_champ(type_de_champ, row_id: nil)
-    champ = champs_by_public_id[type_de_champ.public_id(row_id)]
-    if type_de_champ.champ_blank?(champ) || !champ.visible?
+  def filled_champ(type_de_champ, row_id: nil, with_discarded: false)
+    champ_public_id = type_de_champ.public_id(row_id)
+    champ = champs_by_public_id[champ_public_id]
+
+    if champ.nil? && with_discarded
+      champ = discarded_champs_by_public_id[champ_public_id]
+    end
+
+    return nil if type_de_champ.champ_blank?(champ)
+
+    if discarded_champs_by_public_id.key?(champ_public_id)
+      champ
+    elsif !champ.visible?
       nil
     else
       champ
@@ -398,6 +416,7 @@ module DossierChampsConcern
 
   def reset_champs_cache
     @champs_by_public_id = nil
+    @discarded_champs_by_public_id = nil
     @filled_champs_public = nil
     @filled_champs_private = nil
     @project_champs_public = nil
