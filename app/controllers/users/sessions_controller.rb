@@ -4,6 +4,7 @@ class Users::SessionsController < Devise::SessionsController
   include ProcedureContextConcern
   include TrustedDeviceConcern
   include ActionView::Helpers::DateHelper
+  include FranceConnectConcern
 
   layout 'login', only: [:new, :create]
 
@@ -15,6 +16,7 @@ class Users::SessionsController < Devise::SessionsController
     user = User.find_by(email: params[:user][:email])
 
     if user&.valid_password?(params[:user][:password])
+      delete_france_connect_cookies
       user.update(loged_in_with_france_connect: nil)
       user.update_preferred_domain(Current.host) if helpers.switch_domain_enabled?(request)
     end
@@ -47,6 +49,7 @@ class Users::SessionsController < Devise::SessionsController
   # DELETE /resource/sign_out
   def destroy
     if user_signed_in?
+      # pf: stocker le fournisseur d'authentification avant sign_out pour gérer les différents fournisseurs
       connected_with_france_connect = current_user.loged_in_with_france_connect
       pro_connect_id_token = current_user&.instructeur&.pro_connect_id_token
 
@@ -55,18 +58,19 @@ class Users::SessionsController < Devise::SessionsController
 
       sign_out :user
 
+      # pf: gestion des différents fournisseurs d'authentification (France Connect + fournisseurs PF)
       case connected_with_france_connect
       when User.loged_in_with_france_connects.fetch(:particulier)
-        redirect_to FRANCE_CONNECT[:particulier][:logout_endpoint], allow_other_host: true
-        return
+        # utilise la nouvelle logique upstream pour France Connect particulier
+        return redirect_to france_connect_logout_url(callback: root_url), allow_other_host: true if logged_in_with_france_connect?
       when User.loged_in_with_france_connects.fetch(:sipf), User.loged_in_with_france_connects.fetch(:tatou)
         params = { redirect_uri: root_url }
         redirect_to "#{Rails.application.secrets[connected_with_france_connect][:logout_endpoint]}?#{params.to_query}", allow_other_host: true
         return
-        # when User.loged_in_with_france_connects.fetch(:microsoft)
-        #   params = { post_logout_redirect_uri: root_url }
-        #   redirect_to "#{Rails.application.secrets.microsoft[:logout_endpoint]}?#{params.to_query}"
-        #   return
+      when User.loged_in_with_france_connects.fetch(:microsoft)
+        params = { post_logout_redirect_uri: root_url }
+        redirect_to "#{Rails.application.secrets.microsoft[:logout_endpoint]}?#{params.to_query}", allow_other_host: true
+        return
       end
 
       if pro_connect_id_token.present?
