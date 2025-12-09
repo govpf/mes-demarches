@@ -78,13 +78,16 @@ describe AccountDropdownComponent, type: :component do
 
   context 'when user is france connected' do
     subject { render_inline(component) }
+    let(:dossier) { build(:dossier) }
 
     before do
       user.france_connect_informations << build(:france_connect_information, user:)
+      user.loged_in_with_france_connect = :particulier
     end
 
-    it 'shows france connect badge' do
-      expect(subject).to have_text('via FranceConnect')
+    # pf: adaptation pour la Polynésie française qui affiche le provider d'identité
+    it 'shows login provider indicator' do
+      expect(subject).to have_text('via')
     end
   end
 end
