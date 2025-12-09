@@ -173,11 +173,23 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     Rails.cache.fetch(cache_key, expires_in: 15.minutes) do
       begin
         APILexpol.new(email, service_siret, use_test_user).get_models
+      rescue APILexpol::LexpolAccessDenied => e
+        # pf: Stocker l'erreur d'accès pour affichage différencié dans le template
+        Rails.logger.error "Lexpol: Accès refusé pour #{e.email_used}"
+        @lexpol_error = { type: :access_denied, email: e.email_used }
+        []
       rescue => e
+        # pf: Autres erreurs (réseau, parsing, etc.)
         Rails.logger.error "Erreur lors de la récupération des modèles Lexpol: #{e.message}"
+        @lexpol_error = { type: :generic, message: e.message }
         []
       end
     end
+  end
+
+  # pf: Permet au template d'afficher un message d'erreur adapté
+  def lexpol_error
+    @lexpol_error
   end
 
   def lexpol_service_configured?

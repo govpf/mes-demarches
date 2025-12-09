@@ -5,23 +5,49 @@ module Champs
     skip_before_action :set_champ, only: [:preview_variables]
 
     def upsert
-      apilexpol = APILexpol.new(current_user.email, @champ.dossier&.procedure&.service&.siret, should_use_test_user?)
+      use_service_account = should_use_service_account?
+      apilexpol = APILexpol.new(current_user.email, service_siret, use_service_account)
       service = LexpolService.new(champ: @champ, dossier: @champ.dossier, apilexpol: apilexpol, user: current_user)
 
       force_create = params[:force_create].present?
       service.upsert_dossier(force_create: force_create)
-      flash[:notice] = "Dossier Lexpol #{@champ.value.blank? ? 'créé' : 'mis à jour'} avec succès"
+
+      # pf: Message adapté selon le mode utilisé
+      if use_service_account
+        flash[:notice] = "Dossier Lexpol #{@champ.value.blank? ? 'créé' : 'mis à jour'} avec succès (compte de service)"
+      else
+        flash[:notice] = "Dossier Lexpol #{@champ.value.blank? ? 'créé' : 'mis à jour'} avec succès"
+      end
+
     rescue JSON::ParserError => e
       Sentry.capture_message("Invalid Json received from Lexpol : #{e.message}")
       flash[:alert] = "Erreur de communication avec Lexpol"
 
-    rescue => e
-      if e.message.include?('401')
-        flash[:alert] = "Accès non autorisé - Vérifiez votre enregistrement sur Lexpol"
+    rescue APILexpol::LexpolAccessDenied => e
+      # pf: Tentative de fallback si l'utilisateur n'a pas accès mais qu'on est super-admin
+      if !use_service_account && super_admin_signed_in?
+        Rails.logger.warn("Lexpol: fallback to service account for super-admin #{current_user.email}")
+
+        begin
+          apilexpol_fallback = APILexpol.new(current_user.email, service_siret, true)
+          service_fallback = LexpolService.new(champ: @champ, dossier: @champ.dossier, apilexpol: apilexpol_fallback, user: current_user)
+          service_fallback.upsert_dossier(force_create: force_create)
+
+          flash[:notice] = "Dossier Lexpol #{@champ.value.blank? ? 'créé' : 'mis à jour'} avec succès (compte de service)"
+        rescue APILexpol::LexpolAccessDenied => fallback_error
+          Sentry.capture_exception(fallback_error)
+          flash[:alert] = "Accès refusé à Lexpol. Votre compte (#{e.email_used}) et le compte de service (#{fallback_error.email_used}) " \
+                          "n'ont pas les permissions nécessaires. Contactez votre administrateur."
+        end
       else
-        Sentry.capture_exception(e)
-        flash[:alert] = "Impossible de #{@champ.value.blank? ? "créer" : "mettre à jour"} le dossier Lexpol. #{e.message}"
+        flash[:alert] = "Accès refusé à Lexpol avec le compte : #{e.email_used}. " \
+                        "Vérifiez que ce compte est habilité dans Lexpol ou contactez votre administrateur."
       end
+
+    rescue => e
+      Sentry.capture_exception(e)
+      mode = use_service_account ? "compte de service" : "votre compte (#{current_user.email})"
+      flash[:alert] = "Impossible de #{@champ.value.blank? ? 'créer' : 'mettre à jour'} le dossier Lexpol avec #{mode}. #{e.message}"
     ensure
       redirect_back fallback_location: root_path
     end
@@ -89,6 +115,19 @@ module Champs
 
     def should_use_test_user_for_dossier?(dossier)
       super_admin_signed_in? || dossier.revision&.draft?
+    end
+
+    # pf: Détermine si on doit utiliser le compte de service pour upsert
+    # Utilise la révision du DOSSIER, pas de la procédure (un dossier peut être en test même si la procédure est publiée)
+    # Pour les révisions draft : toujours utiliser le compte de service
+    # Pour les révisions publiées : utiliser le compte personnel (fallback pour super-admins géré dans le rescue)
+    def should_use_service_account?
+      @champ.dossier&.revision&.draft?
+    end
+
+    # pf: Récupère le SIRET du service de la procédure
+    def service_siret
+      @champ.dossier&.procedure&.service&.siret
     end
   end
 end
