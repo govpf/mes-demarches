@@ -511,6 +511,8 @@ describe 'The user', js: true do
           fill_in('UNIQ_LABEL', with: 20)
 
           fill_in('nom', with: "got it")
+          wait_for_autosave
+
           click_on 'Déposer le dossier'
           expect(page).to have_current_path(merci_dossier_path(user_dossier))
         end

@@ -31,12 +31,14 @@ class DossierNotification < ApplicationRecord
   def self.create_notification(dossier, notification_type, instructeur: nil, except_instructeur: nil)
     case notification_type
     when :dossier_depose
-      DossierNotification.find_or_create_by!(
-        dossier:,
-        notification_type:,
-        groupe_instructeur_id: dossier.groupe_instructeur_id
-      ) do |notification|
-        notification.display_at = dossier.depose_at + DELAY_DOSSIER_DEPOSE
+      if !dossier.procedure.declarative? && !dossier.procedure.sva_svr_enabled?
+        DossierNotification.find_or_create_by!(
+          dossier:,
+          notification_type:,
+          groupe_instructeur_id: dossier.groupe_instructeur_id
+        ) do |notification|
+          notification.display_at = dossier.depose_at + DELAY_DOSSIER_DEPOSE
+        end
       end
 
     when :dossier_modifie, :attente_correction, :attente_avis, :message_usager, :annotation_instructeur, :avis_externe
@@ -129,18 +131,25 @@ class DossierNotification < ApplicationRecord
   end
 
   def self.notifications_sticker_for_instructeur_dossier(instructeur, dossier)
+    types = {
+      demande: :dossier_modifie,
+      annotations_instructeur: :annotation_instructeur,
+      avis_externe: :avis_externe,
+      messagerie: :message_usager
+    }
+
+    return types.transform_values { false } if dossier.archived
+
     notifications = DossierNotification.where(dossier:, instructeur:)
 
-    {
-      demande: notifications.exists?(notification_type: :dossier_modifie),
-      annotations_instructeur: notifications.exists?(notification_type: :annotation_instructeur),
-      avis_externe: notifications.exists?(notification_type: :avis_externe),
-      messagerie: notifications.exists?(notification_type: :message_usager)
-    }
+    types.transform_values { |type| notifications.exists?(notification_type: type) }
   end
 
   def self.notifications_counts_for_instructeur_procedures(groupe_instructeur_ids, instructeur)
-    dossiers = Dossier.where(groupe_instructeur_id: groupe_instructeur_ids)
+    dossiers = Dossier
+      .where(groupe_instructeur_id: groupe_instructeur_ids)
+      .visible_by_administration
+      .not_archived
 
     dossier_ids_by_procedure = dossiers
       .joins(:revision)
@@ -170,9 +179,7 @@ class DossierNotification < ApplicationRecord
     dossiers_by_statut = {
       'a-suivre' => dossiers.by_statut('a-suivre'),
       'suivis' => dossiers.by_statut('suivis', instructeur:),
-      'traites' => dossiers.by_statut('traites'),
-      'archives' => dossiers.by_statut('archives'),
-      'supprimes' => dossiers.by_statut('supprimes')
+      'traites' => dossiers.by_statut('traites')
     }
 
     notifications_by_dossier_id = DossierNotification
@@ -194,6 +201,8 @@ class DossierNotification < ApplicationRecord
 
   def self.notifications_for_instructeur_dossiers(instructeur, dossier_ids)
     DossierNotification
+      .joins(:dossier)
+      .merge(Dossier.not_archived)
       .where(dossier_id: dossier_ids, instructeur_id: [instructeur.id, nil])
       .to_display
       .order_by_importance
@@ -201,6 +210,8 @@ class DossierNotification < ApplicationRecord
   end
 
   def self.notifications_for_instructeur_dossier(instructeur, dossier)
+    return [] if dossier.archived
+
     DossierNotification
       .where(dossier:, groupe_instructeur_id: dossier.groupe_instructeur_id)
       .or(DossierNotification.where(dossier:, instructeur:))
