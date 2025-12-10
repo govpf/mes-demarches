@@ -16,7 +16,7 @@ class Instructeurs::RdvCardComponent < ApplicationComponent
   end
 
   def starts_at
-    DateTime.parse(@rdv["starts_at"])
+    Time.zone.parse(@rdv["starts_at"])
   end
 
   def location_type
