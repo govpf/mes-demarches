@@ -38,9 +38,13 @@ describe TypesDeChamp::ReferentielDePolynesieTypeDeChamp do
   end
 
   describe '#champ_value_for_export' do
-    it 'uses same logic as champ_value_for_tag' do
-      expect(type_de_champ.champ_value_for_export(champ, :code_postal))
-        .to eq(type_de_champ.champ_value_for_tag(champ, :code_postal))
+    it 'exports main value' do
+      expect(type_de_champ.champ_value_for_export(champ, :value)).to eq('Papeete')
+    end
+
+    it 'exports custom column values' do
+      expect(type_de_champ.champ_value_for_export(champ, :code_postal)).to eq('98714')
+      expect(type_de_champ.champ_value_for_export(champ, :archipel)).to eq('Iles du Vent')
     end
   end
 end
