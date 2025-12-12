@@ -218,7 +218,7 @@ describe FranceConnectController, type: :controller do
       it 'redirects to root_path with an alert' do
         subject
         expect(response).to redirect_to(root_path)
-        expect(flash[:alert]).to eq(I18n.t('france_connect.particulier.flash.merger_token_expired', application_name: Current.application_name))
+        expect(flash[:alert]).to eq(I18n.t('france_connect.flash.merger_token_expired', application_name: Current.application_name))
       end
     end
 
@@ -233,7 +233,7 @@ describe FranceConnectController, type: :controller do
         subject
 
         expect(response).to redirect_to(root_path)
-        expect(flash[:alert]).to eq(I18n.t('france_connect.particulier.flash.merger_token_expired', application_name: Current.application_name))
+        expect(flash[:alert]).to eq(I18n.t('france_connect.flash.merger_token_expired', application_name: Current.application_name))
       end
     end
   end
@@ -363,7 +363,7 @@ describe FranceConnectController, type: :controller do
         else
           expect(subject).to redirect_to root_path
         end
-        expect(flash.alert).to eq(I18n.t('france_connect.particulier.flash.merger_token_expired', application_name: Current.application_name))
+        expect(flash.alert).to eq(I18n.t('france_connect.flash.merger_token_expired', application_name: Current.application_name))
       end
     end
   end
