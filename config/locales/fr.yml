@@ -1023,7 +1023,6 @@ fr:
       subtitle_html: "Bonjour,<br /><br />Votre compte FranceConnect utilise <b class='bold'>%{email}</b> comme adresse électronique de contact.<br />Or il existe un compte sur %{application_name} avec cette adresse électronique."
       label_select_merge_flow: Ce compte %{email} vous appartient-il ?
       title_fill_in_password:  Pour les fusionner, entrez votre mot de passe
-      button_merge: Fusionner les comptes
       title_fill_in_email: Donnez-nous alors l'adresse électronique que %{application_name} utilisera pour vous contacter
       button_use_this_email: Utiliser cette adresse électronique
       link_confirm_by_email: Confirmer mon compte par email
