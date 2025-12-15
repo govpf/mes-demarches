@@ -63,9 +63,32 @@
                                   models.map { |k,v| [k.truncate(80), v] },
                                   { prompt: 'Sélectionnez un modèle' },
                                   { class: 'fr-select small-margin small', id: dom_id(type_de_champ, :lexpol_modele) }
+                  - elsif lexpol_error && lexpol_error[:type] == :access_denied
+                    - if type_de_champ.options&.[]('lexpol_modele').present?
+                      .fr-message.fr-message--info
+                        %p.fr-mb-1w
+                          %strong Modèle configuré :
+                          = type_de_champ.options['lexpol_modele']
+                        %p.fr-text--sm.fr-mb-0
+                          Vous ne pouvez pas modifier le modèle car votre compte (#{lexpol_error[:email]}) n'a pas accès à Lexpol.
+                          %br
+                          Contactez votre administrateur pour obtenir les permissions nécessaires.
+                      = form.hidden_field :lexpol_modele
+                    - else
+                      .fr-message.fr-message--error
+                        %p.fr-mb-1w
+                          Votre compte (#{lexpol_error[:email]}) n'a pas accès à Lexpol.
+                        %p.fr-text--sm.fr-mb-0
+                          Pour configurer un champ Lexpol, vous devez soit :
+                          %br
+                          • Être habilité dans Lexpol avec ce compte
+                          %br
+                          • Demander à un collègue ayant accès de configurer le modèle
                   - else
                     .fr-message.fr-message--error
                       %p Erreur lors de la récupération des modèles Lexpol.
+                      - if lexpol_error && lexpol_error[:message]
+                        %p.fr-text--sm.fr-mb-0= lexpol_error[:message]
                 - else
                   .fr-message.fr-message--info
                     %p

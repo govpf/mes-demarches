@@ -67,7 +67,8 @@ RSpec.describe Champs::LexpolController, type: :controller do
 
       it 'redirects to annotations page with error message for creation' do
         expect(response).to redirect_to(root_path)
-        expect(flash[:alert]).to eq('Impossible de créer le dossier Lexpol. test')
+        expect(flash[:alert]).to include('Impossible de créer le dossier Lexpol')
+        expect(flash[:alert]).to include('test')
       end
     end
 
@@ -85,7 +86,114 @@ RSpec.describe Champs::LexpolController, type: :controller do
 
       it 'redirects to annotations page with error message for update' do
         expect(response).to redirect_to(root_path)
-        expect(flash[:alert]).to eq('Impossible de mettre à jour le dossier Lexpol. test')
+        expect(flash[:alert]).to include('Impossible de mettre à jour le dossier Lexpol')
+        expect(flash[:alert]).to include('test')
+      end
+    end
+
+    context 'when access is denied (LexpolAccessDenied)' do
+      before do
+        allow_any_instance_of(LexpolService).to receive(:upsert_dossier).and_raise(
+          APILexpol::LexpolAccessDenied.new("instructeur@example.com", 401)
+        )
+      end
+
+      context 'for a regular instructeur' do
+        before do
+          post :upsert, params: {
+            dossier_id: dossier.id,
+            stable_id: champ.stable_id
+          }
+        end
+
+        it 'shows access denied error with email' do
+          expect(response).to redirect_to(root_path)
+          expect(flash[:alert]).to include('Accès refusé à Lexpol avec le compte : instructeur@example.com')
+        end
+      end
+
+      context 'for a super-admin with fallback' do
+        let(:super_admin) { create(:super_admin) }
+
+        before do
+          sign_in super_admin
+          allow(controller).to receive(:super_admin_signed_in?).and_return(true)
+
+          # First call fails, second call (fallback) succeeds
+          call_count = 0
+          allow_any_instance_of(LexpolService).to receive(:upsert_dossier) do
+            call_count += 1
+            if call_count == 1
+              raise APILexpol::LexpolAccessDenied.new("admin@example.com", 401)
+            else
+              'NOR-FALLBACK'
+            end
+          end
+
+          post :upsert, params: {
+            dossier_id: dossier.id,
+            stable_id: champ.stable_id
+          }
+        end
+
+        it 'successfully creates dossier with service account' do
+          expect(response).to redirect_to(root_path)
+          expect(flash[:notice]).to include('compte de service')
+        end
+      end
+
+      context 'for a super-admin when fallback also fails' do
+        let(:super_admin) { create(:super_admin) }
+
+        before do
+          sign_in super_admin
+          allow(controller).to receive(:super_admin_signed_in?).and_return(true)
+
+          # Both calls fail - first with admin email, second with service email
+          call_count = 0
+          allow_any_instance_of(LexpolService).to receive(:upsert_dossier) do
+            call_count += 1
+            if call_count == 1
+              raise APILexpol::LexpolAccessDenied.new("admin@example.com", 401)
+            else
+              raise APILexpol::LexpolAccessDenied.new("service@example.com", 401)
+            end
+          end
+
+          post :upsert, params: {
+            dossier_id: dossier.id,
+            stable_id: champ.stable_id
+          }
+        end
+
+        it 'shows error for both accounts' do
+          expect(response).to redirect_to(root_path)
+          expect(flash[:alert]).to include('Votre compte')
+          expect(flash[:alert]).to include('compte de service')
+          expect(flash[:alert]).to include('admin@example.com')
+          expect(flash[:alert]).to include('service@example.com')
+        end
+      end
+    end
+
+    context 'with service account for draft revision' do
+      let(:draft_procedure) { create(:procedure, types_de_champ_public: [{ type: :lexpol }], instructeurs: [instructeur]) }
+      let(:draft_dossier) { create(:dossier, procedure: draft_procedure) }
+      let(:draft_tdc) { draft_procedure.draft_revision.types_de_champ.first }
+      let(:draft_champ) { draft_dossier.champ_for_update(draft_tdc, row_id: nil, updated_by: instructeur).tap(&:save!) }
+
+      before do
+        allow_any_instance_of(LexpolService).to receive(:upsert_dossier).and_return('NOR-TEST')
+
+        post :upsert, params: {
+          dossier_id: draft_dossier.id,
+          stable_id: draft_champ.stable_id
+        }
+      end
+
+      it 'indicates service account was used' do
+        expect(response).to redirect_to(root_path)
+        expect(flash[:notice]).to include('compte de service')
       end
     end
 

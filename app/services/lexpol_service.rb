@@ -115,10 +115,22 @@ class LexpolService
 
   def refresh_lexpol_data!
     return if champ.value.blank?
+
     dossier_info = apilexpol.get_dossier_infos(champ.value)
-    champ.lexpol_status = dossier_info['statut_libelle']
-    champ.lexpol_dossier_url = dossier_info['lienDossier']
-    champ.lexpol_arrete_lien = dossier_info['elements']&.first&.dig('lienLexpol')
+
+    # pf: Mise à jour du statut et lien dossier
+    champ.lexpol_status = dossier_info['statut_libelle'] if dossier_info['statut_libelle'].present?
+    champ.lexpol_dossier_url = dossier_info['lienDossier'] if dossier_info['lienDossier'].present?
+
+    # pf: Chercher le lien arrêté publié au JOPF (lienLexpol)
+    # Le lien est dans l'élément de type "Arrêté"
+    # Note: lienBC et lienElement nécessitent une authentification agent, donc inutiles pour l'email usager
+    # Une fois présent, ce lien est immuable (publication JOPF définitive)
+    arrete_element = dossier_info['elements']&.find { |el| el['typeElement'] == 'Arrêté' }
+    if arrete_element && arrete_element['lienLexpol'].present?
+      champ.lexpol_arrete_lien = arrete_element['lienLexpol']
+    end
+
     champ.save!
   end
 
