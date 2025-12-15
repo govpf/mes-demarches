@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_11_24_154531) do
+ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -47,6 +47,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_24_154531) do
     t.string "filename", null: false
     t.string "key", null: false
     t.text "metadata"
+    t.jsonb "ocr"
     t.string "service_name", null: false
     t.string "virus_scan_result"
     t.datetime "virus_scanned_at"
