@@ -1099,6 +1099,10 @@ class Dossier < ApplicationRecord
       attributes[:last_champ_piece_jointe_updated_at] = updated_at
     end
     update_columns(attributes)
+
+    if changed_champs.any?(&:public?)
+      DossierModificationNotificationJob.schedule_for_dossier(self)
+    end
   end
 
   private

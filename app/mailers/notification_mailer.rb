@@ -83,6 +83,10 @@ class NotificationMailer < ApplicationMailer
     false
   end
 
+  def self.send_dossier_modification_notification(dossier)
+    with(dossier: dossier, state: Dossier.states.fetch(:modification_notification)).send_notification
+  end
+
   private
 
   def set_services_publics_plus
