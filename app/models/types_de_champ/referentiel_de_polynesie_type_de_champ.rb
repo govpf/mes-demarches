@@ -29,7 +29,7 @@ class TypesDeChamp::ReferentielDePolynesieTypeDeChamp < TypesDeChamp::TypeDeCham
   private
 
   def fetch_instructeur_fields
-    return [] if table_id.to_i <= 0
+    return [] if table_id.blank? || table_id.to_i <= 0
 
     Rails.cache.fetch("referentiel_de_polynesie/instructeur_fields/#{table_id}", expires_in: 1.hour) do
       fetch_instructeur_fields_from_baserow
@@ -38,14 +38,26 @@ class TypesDeChamp::ReferentielDePolynesieTypeDeChamp < TypesDeChamp::TypeDeCham
 
   def fetch_instructeur_fields_from_baserow
     engine = ReferentielDePolynesie::API.engine
-    return [] unless engine
+    unless engine
+      Rails.logger.warn("ReferentielDePolynesie: Baserow non configuré (table_id=#{table_id})")
+      return []
+    end
 
     config = engine.config(table_id)
-    return [] unless config
+    unless config
+      Rails.logger.error("ReferentielDePolynesie: config introuvable (table_id=#{table_id})")
+      return []
+    end
 
     model = engine.fields(config)
-    return [] unless model
+    unless model
+      Rails.logger.error("ReferentielDePolynesie: échec récupération fields (table_id=#{table_id})")
+      return []
+    end
 
     engine.field_names(model, config['Champs instructeur']) || []
+  rescue StandardError => e
+    Rails.logger.error("ReferentielDePolynesie: erreur inattendue (table_id=#{table_id}): #{e.class} - #{e.message}")
+    []
   end
 end

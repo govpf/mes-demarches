@@ -47,4 +47,32 @@ describe TypesDeChamp::ReferentielDePolynesieTypeDeChamp do
       expect(type_de_champ.champ_value_for_export(champ, :archipel)).to eq('Iles du Vent')
     end
   end
+
+  describe 'error handling' do
+    context 'with nil data' do
+      before { champ.update(data: nil) }
+
+      it 'returns empty string for custom columns' do
+        expect(type_de_champ.champ_value_for_tag(champ, :code_postal)).to eq('')
+        expect(type_de_champ.champ_value_for_export(champ, :archipel)).to eq('')
+      end
+
+      it 'still returns main value' do
+        expect(type_de_champ.champ_value_for_tag(champ, :value)).to eq('Papeete')
+      end
+    end
+
+    context 'with Baserow API error' do
+      before do
+        allow_any_instance_of(TypesDeChamp::ReferentielDePolynesieTypeDeChamp)
+          .to receive(:fetch_instructeur_fields_from_baserow)
+          .and_raise(StandardError, 'Connection timeout')
+      end
+
+      it 'handles error gracefully in paths' do
+        expect { type_de_champ.dynamic_type.paths }.not_to raise_error
+        expect(type_de_champ.dynamic_type.paths.size).to eq(1) # Only :value
+      end
+    end
+  end
 end

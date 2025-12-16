@@ -300,11 +300,15 @@ describe TagsSubstitutionConcern, type: :model do
 
     # pf: test support des colonnes personnalisées pour référentiels Baserow
     context 'when the procedure has a referentiel_de_polynesie type de champ' do
-      let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, libelle: 'Commune' }] }
+      let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, libelle: 'Commune', options: { table_id: 99999 } }] }
       let(:template) { "--tdc#{commune_tdc.stable_id}-- (code postal : --tdc#{commune_tdc.stable_id}/code_postal--, archipel : --tdc#{commune_tdc.stable_id}/archipel--)" }
       let(:commune_tdc) { procedure.active_revision.types_de_champ.first }
 
       before do
+        allow_any_instance_of(TypesDeChamp::ReferentielDePolynesieTypeDeChamp)
+          .to receive(:fetch_instructeur_fields)
+          .and_return(['code_postal', 'archipel'])
+
         champ = dossier.project_champs_public.first
         champ.update!(
           value: 'Papeete',
