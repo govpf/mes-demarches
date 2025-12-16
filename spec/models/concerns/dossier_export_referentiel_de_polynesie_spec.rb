@@ -3,12 +3,16 @@
 describe DossierExportConcern do
   describe 'export with referentiel_de_polynesie multi-columns' do
     let(:procedure) { create(:procedure, types_de_champ_public:) }
-    let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, libelle: 'Commune' }] }
+    let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, libelle: 'Commune', options: { table_id: 123 } }] }
     let(:dossier) { create(:dossier, :en_instruction, procedure:) }
     let(:type_de_champ) { procedure.active_revision.types_de_champ.first }
     let(:champ) { dossier.project_champs_public.first }
 
     before do
+      allow_any_instance_of(TypesDeChamp::ReferentielDePolynesieTypeDeChamp)
+        .to receive(:fetch_instructeur_fields)
+        .and_return(['code_postal', 'archipel', 'ile'])
+
       champ.update!(value: 'Papeete', external_id: '12345')
       champ.update_with_external_data!(data: {
         'row' => { 'code_postal' => '98714', 'archipel' => 'Iles du Vent', 'ile' => 'Tahiti' },
