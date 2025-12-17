@@ -141,7 +141,8 @@ describe Champs::ReferentielChamp, type: :model do
 
       it 'casts and stores displayable datetime value for usager' do
         referentiel_champ.update_with_external_data!(data: data)
-        expect(referentiel_champ.value_json.with_indifferent_access["$.datetime"]).to eq("2024-06-19T15:30:00+02:00")
+        # pf: timezone Pacific/Tahiti (UTC-10) au lieu de Europe/Paris (UTC+2)
+        expect(referentiel_champ.value_json.with_indifferent_access["$.datetime"]).to eq("2024-06-19T15:30:00-10:00")
       end
     end
 
