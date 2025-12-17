@@ -548,6 +548,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.bigint "revision_id"
     t.text "search_terms"
     t.string "state"
+    t.bigint "submitted_revision_id"
     t.date "sva_svr_decision_on"
     t.datetime "sva_svr_decision_triggered_at"
     t.datetime "termine_close_to_expiration_notice_sent_at"
@@ -1064,11 +1065,13 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.string "lien_site_web"
     t.integer "max_duree_conservation_dossiers_dans_ds", default: 12, null: false
     t.text "monavis_embed"
+    t.boolean "no_gender", default: false, null: false
     t.boolean "opendata", default: true
     t.string "organisation"
     t.bigint "parent_procedure_id"
     t.string "path"
     t.boolean "piece_justificative_multiple", default: true, null: false
+    t.boolean "pro_connect_restricted", default: false, null: false
     t.boolean "procedure_expires_when_termine_enabled", default: true
     t.datetime "published_at"
     t.bigint "published_revision_id"
@@ -1164,6 +1167,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
   end
 
   create_table "referentiels", force: :cascade do |t|
+    t.jsonb "authentication_data", default: {}
+    t.string "authentication_method"
     t.datetime "created_at", null: false
     t.string "digest"
     t.string "headers", default: [], array: true

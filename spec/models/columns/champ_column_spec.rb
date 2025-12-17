@@ -158,6 +158,80 @@ describe Columns::ChampColumn do
     end
   end
 
+  describe '#filtered_ids' do
+    subject { column.filtered_ids(dossiers, search_terms) }
+
+    context "with a yes no champ not mandatory" do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :yes_no, mandatory: false, libelle: "oui/non" }]) }
+      let(:dossier_with_yes) { create(:dossier, :en_instruction, procedure:) }
+      let(:dossier_with_no) { create(:dossier, :en_instruction, procedure:) }
+      let(:dossier_not_filled) { create(:dossier, :en_instruction, procedure:) }
+
+      let(:column) { procedure.find_column(label: "oui/non") }
+      let(:dossiers) { procedure.dossiers }
+
+      before do
+        dossier_with_yes.champs.first.update!(value: "true")
+        dossier_with_no.champs.first.update!(value: "false")
+        dossier_not_filled.champs.first.destroy!
+      end
+
+      context "when searching for a yes" do
+        let(:search_terms) { ["true"] }
+
+        it "returns the correct ids" do
+          expect(subject).to eq([dossier_with_yes.id])
+        end
+      end
+
+      context "when searching for a no" do
+        let(:search_terms) { ["false"] }
+
+        it "returns the correct ids" do
+          expect(subject).to eq([dossier_with_no.id])
+        end
+      end
+
+      context "when searching for a nil" do
+        let(:search_terms) { [Column::NOT_FILLED_VALUE] }
+
+        it "returns the correct ids" do
+          expect(subject).to eq([dossier_not_filled.id])
+        end
+      end
+    end
+
+    context "with a checkbox champ not mandatory" do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :checkbox, mandatory: false, libelle: "checkbox" }]) }
+      let(:dossier_with_checked) { create(:dossier, :en_instruction, procedure:) }
+      let(:dossier_not_checked) { create(:dossier, :en_instruction, procedure:) }
+
+      before do
+        dossier_with_checked.champs.first.update!(value: "true")
+        dossier_not_checked.champs.first.destroy!
+      end
+
+      let(:column) { procedure.find_column(label: "checkbox") }
+      let(:dossiers) { procedure.dossiers }
+
+      context "when searching for a checked" do
+        let(:search_terms) { ["true"] }
+
+        it "returns the correct ids" do
+          expect(subject).to eq([dossier_with_checked.id])
+        end
+      end
+
+      context "when searching for a not checked" do
+        let(:search_terms) { ["false"] }
+
+        it "returns the correct ids" do
+          expect(subject).to eq([dossier_not_checked.id])
+        end
+      end
+    end
+  end
+
   private
 
   def expect_type_de_champ_values(type, assertion)

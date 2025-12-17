@@ -81,7 +81,9 @@ module ProcedureCloneConcern
     'api_entreprise_token_expires_at',
     'rdv_enabled',
     'routing_alert',
-    'api_particulier_token'
+    'api_particulier_token',
+    'no_gender',
+    'pro_connect_restricted'
   ]
 
   NEW_MAX_DUREE_CONSERVATION = Expired::DEFAULT_DOSSIER_RENTENTION_IN_MONTH
@@ -93,6 +95,9 @@ module ProcedureCloneConcern
 
     procedure = self.deep_clone(include: cloneable_associations(options, admin)) do |original, kopy|
       ClonePiecesJustificativesService.clone_attachments(original, kopy)
+      if original.is_a?(TypeDeChamp) && original.type_champ == 'referentiel'
+        CloneReferentielService.clone_referentiel(original, kopy, same_admin?(admin))
+      end
     end
 
     procedure = initialize_clone_defaults(procedure, admin)
@@ -251,7 +256,7 @@ module ProcedureCloneConcern
   def cloneable_associations(options, admin)
     associations = {
       draft_revision: {
-        revision_types_de_champ: [:type_de_champ],
+        revision_types_de_champ: :type_de_champ,
         dossier_submitted_message: []
       }
     }
