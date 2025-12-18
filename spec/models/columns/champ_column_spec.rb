@@ -19,7 +19,6 @@ describe Columns::ChampColumn do
         expect_type_de_champ_values('pays', eq(['France']))
         expect_type_de_champ_values('epci', eq([nil]))
         expect_type_de_champ_values('iban', eq(["FR76 3000 1007 9412 3456 7890 185"]))
-        expect_type_de_champ_values('siret', eq(["44011762001530"]))
         # pf: Siret includes etablissement columns but not address columns (not filled for Numéro Tahiti)
         expect_type_de_champ_values('siret', match_array(
           [
