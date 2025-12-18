@@ -371,18 +371,20 @@ module TagsSubstitutionConcern
 
   def champ_public_tags(dossier: nil)
     types_de_champ = (dossier || procedure.active_revision).types_de_champ_public
-    types_de_champ_tags(types_de_champ, Dossier::SOUMIS)
+    types_de_champ_tags(types_de_champ, Dossier::SOUMIS, dossier: dossier)
   end
 
   def champ_private_tags(dossier: nil)
     types_de_champ = (dossier || procedure.active_revision).types_de_champ_private
-    types_de_champ_tags(types_de_champ, Dossier::INSTRUCTION_COMMENCEE)
+    types_de_champ_tags(types_de_champ, Dossier::INSTRUCTION_COMMENCEE, dossier: dossier)
   end
 
   def types_de_champ_tags(types_de_champ, available_for_states, dossier: nil)
+    revision = dossier&.revision || procedure.active_revision
     tags = types_de_champ.flat_map do |tdc|
+      revision_tdc = revision.revision_types_de_champ.find { |rtdc| rtdc.type_de_champ_id == tdc.id }
       tdc.tags_for_template.map do |tag|
-        tag.merge(conditional: tdc.condition?, stable_id: tdc.stable_id)
+        tag.merge(conditional: tdc.condition?, stable_id: tdc.stable_id, order: revision_tdc&.position)
       end
     end
     tags.each do |tag|
@@ -458,15 +460,7 @@ module TagsSubstitutionConcern
   def parse_tags(text, dossier: nil)
     all_tags = procedure_types_de_champ_tags(dossier: dossier)
 
-    # Group tags by libelle to handle duplicates (such as multiple fields with the same name)
-    # Sort by stable_id in descending order to match visual order in templates
-    tags_by_libelle = all_tags.group_by { _1[:libelle] }.transform_values do |tag_list|
-      if tag_list.all? { |tag| tag[:stable_id].present? }
-        tag_list.sort_by { |tag| -tag[:stable_id] }
-      else
-        tag_list
-      end
-    end
+    tags_by_libelle = all_tags.group_by { _1[:libelle] }
 
     # MD5 should be enough and it avoids long key
     tokens = Rails.cache.fetch(["parse_tags_v2", Digest::MD5.hexdigest(text)], expires_in: 1.day) { TagsParser.parse(text) }
@@ -488,7 +482,8 @@ module TagsSubstitutionConcern
           tag: tag,
           id: tag_info.fetch(:id),
           conditional: tag_info[:conditional],
-          stable_id: tag_info[:stable_id]
+          stable_id: tag_info[:stable_id],
+          order: tag_info[:order]
         }
       else
         token

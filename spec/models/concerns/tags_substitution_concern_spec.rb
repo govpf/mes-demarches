@@ -708,4 +708,180 @@ describe TagsSubstitutionConcern, type: :model do
       ])
     end
   end
+
+  describe 'replace_tags with conditional fields' do
+    include Logic
+
+    let(:for_individual) { false }
+    let(:etablissement) { create(:etablissement) }
+    let(:state) { Dossier.states.fetch(:accepte) }
+
+    context 'when procedure has conditional fields with same libelle' do
+      let(:types_de_champ_public) do
+        [
+          {
+            type: :drop_down_list,
+            libelle: 'Commune',
+            drop_down_options: ['Papeete (98714)', 'Faaa (98704)', 'Punaauia (98717)']
+          },
+          { type: :text, libelle: 'Montant subvention' },
+          { type: :text, libelle: 'Montant subvention' }
+        ]
+      end
+
+      let!(:procedure_instance) { procedure }
+      let!(:dossier) { create(:dossier, :en_construction, procedure: procedure_instance, etablissement: etablissement) }
+      let!(:commune_tdc) { procedure_instance.draft_revision.types_de_champ.find { |tdc| tdc.libelle == 'Commune' } }
+      let!(:montant_papeete_tdc) { procedure_instance.draft_revision.types_de_champ.find { |tdc| tdc.libelle == 'Montant subvention' } }
+      let!(:montant_faaa_tdc) { procedure_instance.draft_revision.types_de_champ.filter { |tdc| tdc.libelle == 'Montant subvention' }[1] }
+
+      before do
+        montant_papeete_tdc.update!(condition: ds_eq(champ_value(commune_tdc.stable_id), constant('Papeete (98714)')))
+        montant_faaa_tdc.update!(condition: ds_eq(champ_value(commune_tdc.stable_id), constant('Faaa (98704)')))
+        dossier.reload
+      end
+
+      let(:commune_champ) { dossier.project_champs_public.find { |c| c.libelle == 'Commune' } }
+      let(:montant_papeete) { dossier.project_champs_public.find { |c| c.stable_id == montant_papeete_tdc.stable_id } }
+      let(:montant_faaa) { dossier.project_champs_public.find { |c| c.stable_id == montant_faaa_tdc.stable_id } }
+
+      context '1. champ conditionnel visible → balise substituée' do
+        let(:template) { 'Commune : --Commune--, Montant : --Montant subvention--' }
+
+        before do
+          commune_champ.update(value: 'Papeete (98714)')
+          montant_papeete.update(value: '500000')
+        end
+
+        subject { template_concern.send(:replace_tags, template, dossier) }
+
+        it 'remplace la valeur du champ visible' do
+          expect(subject).to eq('Commune : Papeete (98714), Montant : 500000')
+        end
+      end
+
+      context '2. champ conditionnel non rempli → string vide' do
+        let(:template) { 'Montant Papeete: --Montant subvention--, Montant Faaa: --Montant subvention--' }
+
+        before do
+          commune_champ.update(value: 'Papeete (98714)')
+          montant_papeete.update(value: '500000')
+        end
+
+        subject { template_concern.send(:replace_tags, template, dossier) }
+
+        it 'remplace le champ non rempli par une string vide' do
+          expect(subject).to eq('Montant Papeete: 500000, Montant Faaa: ')
+        end
+      end
+    end
+
+    context 'when dossier is nil with conditional fields' do
+      let(:types_de_champ_public) do
+        [
+          { type: :text, libelle: 'Montant subvention' },
+          { type: :text, libelle: 'Montant subvention' }
+        ]
+      end
+
+      context '3. dossier nil avec balise conditionnelle' do
+        let(:template) { 'Montant : --Montant subvention--' }
+        let(:dossier) { nil }
+
+        subject { template_concern.send(:replace_tags, template, dossier) }
+
+        it 'garde les balises intactes quand aucun dossier n\'est fourni' do
+          expect(subject).to eq('Montant : --Montant subvention--')
+        end
+      end
+    end
+
+    context '4. plusieurs champs conditionnels avec même libellé (archipels)' do
+  let(:types_de_champ_public) do
+    [
+      {
+        type: :drop_down_list,
+        libelle: 'Archipel',
+        drop_down_options: ['Iles du Vent', 'Iles Sous-le-Vent', 'Marquises']
+      },
+      { type: :text, libelle: 'Responsable' },
+      { type: :text, libelle: 'Responsable' }
+    ]
+  end
+
+  let!(:procedure_instance) { procedure }
+  let!(:dossier) { create(:dossier, :en_construction, procedure: procedure_instance, etablissement: etablissement) }
+  let!(:archipel_tdc) { procedure_instance.draft_revision.types_de_champ.find { |tdc| tdc.libelle == 'Archipel' } }
+  let!(:resp_idv_tdc) { procedure_instance.draft_revision.types_de_champ.find { |tdc| tdc.libelle == 'Responsable' } }
+  let!(:resp_islv_tdc) { procedure_instance.draft_revision.types_de_champ.filter { |tdc| tdc.libelle == 'Responsable' }[1] }
+
+  before do
+    resp_idv_tdc.update!(condition: ds_eq(champ_value(archipel_tdc.stable_id), constant('Iles du Vent')))
+    resp_islv_tdc.update!(condition: ds_eq(champ_value(archipel_tdc.stable_id), constant('Iles Sous-le-Vent')))
+    dossier.reload
+  end
+
+  let(:archipel_champ) { dossier.project_champs_public.find { |c| c.libelle == 'Archipel' } }
+  let(:resp_idv) { dossier.project_champs_public.find { |c| c.stable_id == resp_idv_tdc.stable_id } }
+  let(:template) { 'IDV: --Responsable--, ISLV: --Responsable--' }
+
+  before do
+    archipel_champ.update(value: 'Iles du Vent')
+    resp_idv.update(value: 'Jean Dupont')
+  end
+
+  subject { template_concern.send(:replace_tags, template, dossier) }
+
+  it 'affiche uniquement le champ conditionnel visible' do
+    expect(subject).to eq('IDV: Jean Dupont, ISLV: ')
+  end
+end
+
+    context 'when procedure has mix of normal and conditional fields' do
+      let(:types_de_champ_public) do
+        [
+          { type: :text, libelle: 'Nom du projet' },
+          {
+            type: :drop_down_list,
+            libelle: 'Type de financement',
+            drop_down_options: ['Subvention territoriale', 'Subvention communale']
+          },
+          { type: :number, libelle: 'Montant' },
+          { type: :number, libelle: 'Montant' }
+        ]
+      end
+
+      let!(:procedure_instance) { procedure }
+      let!(:dossier) { create(:dossier, :en_construction, procedure: procedure_instance, etablissement: etablissement) }
+      let!(:type_financement_tdc) { procedure_instance.draft_revision.types_de_champ.find { |tdc| tdc.libelle == 'Type de financement' } }
+      let!(:montant_territorial_tdc) { procedure_instance.draft_revision.types_de_champ.find { |tdc| tdc.libelle == 'Montant' } }
+      let!(:montant_communal_tdc) { procedure_instance.draft_revision.types_de_champ.filter { |tdc| tdc.libelle == 'Montant' }[1] }
+
+      before do
+        montant_territorial_tdc.update!(condition: ds_eq(champ_value(type_financement_tdc.stable_id), constant('Subvention territoriale')))
+        montant_communal_tdc.update!(condition: ds_eq(champ_value(type_financement_tdc.stable_id), constant('Subvention communale')))
+        dossier.reload
+      end
+
+      let(:nom_champ) { dossier.project_champs_public.find { |c| c.libelle == 'Nom du projet' } }
+      let(:type_champ) { dossier.project_champs_public.find { |c| c.libelle == 'Type de financement' } }
+      let(:montant_territorial) { dossier.project_champs_public.find { |c| c.stable_id == montant_territorial_tdc.stable_id } }
+
+      context '5. mix de champs normaux et conditionnels' do
+        let(:template) { 'Projet: --Nom du projet--, Type: --Type de financement--, Montant: --Montant--' }
+
+        before do
+          nom_champ.update(value: 'Construction fare potee')
+          type_champ.update(value: 'Subvention territoriale')
+          montant_territorial.update(value: '1500000')
+        end
+
+        subject { template_concern.send(:replace_tags, template, dossier) }
+
+        it 'substitue correctement les champs normaux et conditionnels' do
+          expect(subject).to eq('Projet: Construction fare potee, Type: Subvention territoriale, Montant: 1500000')
+        end
+      end
+    end
+  end
 end
