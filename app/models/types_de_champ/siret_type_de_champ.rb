@@ -11,7 +11,8 @@ class TypesDeChamp::SiretTypeDeChamp < TypesDeChamp::TypeDeChampBase
   def champ_blank_or_invalid?(champ) = Siret.new(siret: champ.value).invalid?
 
   def columns(procedure:, displayable: true, prefix: nil)
-    # pf: pas de addressable_columns car commune, code postal, department, region ne sont pas remplis pour Numéro Tahiti
+    # pf: Include etablissement columns (raison sociale, SIREN, ...) but not addressable columns
+    # commune, code postal, department, region are not filled for Numéro Tahiti
     super.concat(etablissement_columns(procedure:, displayable:, prefix:))
   end
 

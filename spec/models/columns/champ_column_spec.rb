@@ -20,25 +20,18 @@ describe Columns::ChampColumn do
         expect_type_de_champ_values('epci', eq([nil]))
         expect_type_de_champ_values('iban', eq(["FR76 3000 1007 9412 3456 7890 185"]))
         expect_type_de_champ_values('siret', eq(["44011762001530"]))
-        # TODO : checkback
-        # =======
-        #         expect_type_de_champ_values('iban', eq([nil]))
-        #         expect_type_de_champ_values('siret', match_array(
-        #           [
-        #             "44011762001530",
-        #             "SA à conseil d'administration (s.a.i.)",
-        #             "440117620",
-        #             "GRTGAZ",
-        #             "GRTGAZ",
-        #             "1990-04-24",
-        #             "Transports par conduites",
-        #             "92270",
-        #             "Bois-Colombes",
-        #             "92",
-        #             "Île-de-France"
-        #           ]
-        #         ))
-        # >>>>>>> 2024-12-09-01
+        # pf: Siret includes etablissement columns but not address columns (not filled for Numéro Tahiti)
+        expect_type_de_champ_values('siret', match_array(
+          [
+            "44011762001530",
+            "GRTGAZ",
+            "440117620",
+            "GRTGAZ",
+            "SA à conseil d'administration (s.a.i.)",
+            "1990-04-24",
+            "Transports par conduites"
+          ]
+        ))
         expect_type_de_champ_values('text', eq(['text']))
         expect_type_de_champ_values('textarea', eq(['textarea']))
         expect_type_de_champ_values('number', eq(['42']))
