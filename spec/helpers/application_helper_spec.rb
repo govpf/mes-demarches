@@ -118,16 +118,17 @@ describe ApplicationHelper do
   describe "#human_date" do
     subject { human_date(date) }
 
+    # pf: use Date.current instead of Date.today to respect Pacific/Tahiti timezone
     describe 'human_date for today' do
-      let(:date) { Date.today }
+      let(:date) { Date.current }
       it { is_expected.to eq("Aujourd’hui") }
     end
     describe 'human_date for yesterday' do
-      let(:date) { Date.yesterday }
+      let(:date) { Date.current - 1 }
       it { is_expected.to eq("Hier") }
     end
     describe 'human_date for before yesterday' do
-      let(:date) { Date.yesterday - 1 }
+      let(:date) { Date.current - 2 }
       it { is_expected.to eq("Il y a 2 jours") }
     end
     describe 'human_date for 24/01/2019' do
