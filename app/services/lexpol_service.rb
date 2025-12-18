@@ -51,12 +51,12 @@ class LexpolService
 
     procedure.dossier_columns_for_export.each do |column|
       value = column_value_for_lexpol(column, dossier)
-      variables[column.label] = value
+      variables[self.class.normalize_variable_name(column.label)] = value
     end
 
     procedure.usager_columns_for_export.each do |column|
       value = column_value_for_lexpol(column, dossier)
-      variables[column.label] = value
+      variables[self.class.normalize_variable_name(column.label)] = value
     end
 
     # Variables spécifiques qui n'existent pas dans les colonnes d'export
@@ -92,11 +92,11 @@ class LexpolService
       .each do |champ|
         if champ.present?
           # Variable standard
-          variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ)
+          variables[self.class.normalize_variable_name(champ.libelle)] = LexpolFieldsService.format_lexpol_value(champ)
 
           # Variable avec format liste pour MultipleDropDownListChamp
           if champ.is_a?(Champs::MultipleDropDownListChamp)
-            variables["#{champ.libelle} (liste)"] = LexpolFieldsService.format_as_html_list(champ.selected_options)
+            variables["#{self.class.normalize_variable_name(champ.libelle)} (liste)"] = LexpolFieldsService.format_as_html_list(champ.selected_options)
           end
         end
       end
@@ -105,7 +105,7 @@ class LexpolService
     LexpolService.user_mapping(champ.type_de_champ).each do |(source_field, target_field)|
       raw_values = LexpolFieldsService.object_field_values(dossier, source_field)
       final_values = raw_values.map { |val| LexpolFieldsService.format_lexpol_value(val) }
-      variables[target_field] = final_values.compact_blank.join(', ')
+      variables[self.class.normalize_variable_name(target_field)] = final_values.compact_blank.join(', ')
     end
 
     # pf: Enrichissement avec les champs des dossiers liés
@@ -163,6 +163,11 @@ class LexpolService
     legacy_variables = ['Mandataire', 'Dossier instruit par']
 
     (column_variables + champ_variables + custom_variables + legacy_variables).uniq.sort_by(&:downcase)
+  end
+
+  def self.normalize_variable_name(name)
+    return '' if name.blank?
+    name.gsub("\u00A0", ' ')
   end
 
   private
