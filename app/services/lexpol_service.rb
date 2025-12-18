@@ -167,7 +167,7 @@ class LexpolService
 
   def self.normalize_variable_name(name)
     return '' if name.blank?
-    name.gsub("\u00A0", ' ')
+    name.tr("\u00A0", ' ')
   end
 
   private
