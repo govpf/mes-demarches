@@ -255,8 +255,8 @@ describe Champ do
       end
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_piece_justificative)) }
       before { allow(champ).to receive(:dossier).and_return(build(:dossier)) }
-      # pf: nouveau comportement avec objet Presentation
-      it { expect(champ.type_de_champ.champ_value_for_tag(champ).to_s).to include('<img src="http://') }
+      # pf: nouveau comportement avec data URI pour embedding dans PDF
+      it { expect(champ.type_de_champ.champ_value_for_tag(champ).to_s).to include('<img src="data:image/') }
     end
 
     context 'when type_de_champ is numero_dn' do

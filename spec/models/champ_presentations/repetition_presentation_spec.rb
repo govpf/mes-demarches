@@ -49,59 +49,59 @@ describe ChampPresentations::RepetitionPresentation do
     # pf: test adapté pour la nouvelle logique tableau vs liste descriptive
     context 'avec champs fillables (format tableau PF)' do
       it 'génère une structure de tableau' do
-        # pf: nouveau format tableau pour champs simples
+        # pf: nouveau format tableau pour champs simples (avec clés symbols)
         expected_node = {
-          "type" => "table",
-          "content" => [
+          type: "table",
+          content: [
             {
-              "type" => "tableRow",
-              "content" => [
+              type: "tableRow",
+              content: [
                 {
-                  "type" => "tableHeader",
-                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "nom" }] }]
+                  type: "tableHeader",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "nom" }] }]
                 },
                 {
-                  "type" => "tableHeader",
-                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "stars" }] }]
+                  type: "tableHeader",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "stars" }] }]
                 }
               ]
             },
             {
-              "type" => "tableRow",
-              "content" => [
+              type: "tableRow",
+              content: [
                 {
-                  "type" => "tableCell",
-                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "ruby" }] }]
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "ruby" }] }]
                 },
                 {
-                  "type" => "tableCell",
-                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "5" }] }]
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "5" }] }]
                 }
               ]
             },
             {
-              "type" => "tableRow",
-              "content" => [
+              type: "tableRow",
+              content: [
                 {
-                  "type" => "tableCell",
-                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "js" }] }]
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "js" }] }]
                 },
                 {
-                  "type" => "tableCell",
-                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "" }] }]
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }]
                 }
               ]
             },
             {
-              "type" => "tableRow",
-              "content" => [
+              type: "tableRow",
+              content: [
                 {
-                  "type" => "tableCell",
-                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "rust" }] }]
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "rust" }] }]
                 },
                 {
-                  "type" => "tableCell",
-                  "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "4" }] }]
+                  type: "tableCell",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "4" }] }]
                 }
               ]
             }
@@ -132,10 +132,24 @@ describe ChampPresentations::RepetitionPresentation do
       it 'génère tableau avec seulement les champs fillables' do
         result = representation_with_headers.to_tiptap_node
         # pf: toujours tableau maintenant, avec seulement les champs fillables filtrés
-        expect(result["type"]).to eq("table")
+        expect(result[:type]).to eq("table")
         # Une seule colonne "nom" (header_section filtré)
-        expect(result["content"].first["content"].size).to eq(1)
-        expect(result["content"].first["content"].first["content"].first["content"].first["text"]).to eq("nom")
+        expect(result[:content].first[:content].size).to eq(1)
+        expect(result[:content].first[:content].first[:content].first[:content].first[:text]).to eq("nom")
+      end
+    end
+
+    # pf: test avec tableau vide (aucune ligne)
+    context 'avec tableau vide' do
+      let(:empty_representation) { described_class.new(libelle, []) }
+
+      it 'retourne un paragraphe vide (ne pas afficher "Aucune donnée")' do
+        result = empty_representation.to_tiptap_node
+        expect(result).to eq({ type: 'paragraph', content: [] })
+      end
+
+      it 'to_s retourne une chaîne vide' do
+        expect(empty_representation.to_s).to eq('')
       end
     end
 
@@ -172,20 +186,24 @@ describe ChampPresentations::RepetitionPresentation do
         result = representation_with_files.to_tiptap_node
 
         # Vérifier la structure du tableau
-        expect(result["type"]).to eq("table")
-        expect(result["content"].size).to eq(2) # header + 1 data row
+        expect(result[:type]).to eq("table")
+        expect(result[:content].size).to eq(2) # header + 1 data row
 
         # Récupérer la cellule avec la pièce jointe (2ème colonne)
-        data_row = result["content"][1]
-        pj_cell = data_row["content"][1]
-        cell_paragraph = pj_cell["content"].first
+        data_row = result[:content][1]
+        pj_cell = data_row[:content][1]
+        cell_paragraph = pj_cell[:content].first
 
         # pf: vérifier que le nœud attachmentImage est préservé (pas converti en texte)
-        expect(cell_paragraph["content"]).to be_an(Array)
-        attachment_node = cell_paragraph["content"].first
-        expect(attachment_node["type"]).to eq("attachmentImage")
-        expect(attachment_node["attrs"]).to include("src", "alt", "display")
-        expect(attachment_node["attrs"]["display"]).to eq("test.png")
+        expect(cell_paragraph[:content]).to be_an(Array)
+        attachment_node = cell_paragraph[:content].first
+        # pf: upstream utilise des clés symbols
+        expect(attachment_node[:type]).to eq('attachmentImage')
+        expect(attachment_node[:attrs]).to include(:src, :alt, :display)
+        # pf: display contient "Télécharger" (pas le nom du fichier)
+        expect(attachment_node[:attrs][:display]).to eq('Télécharger')
+        # pf: nom du fichier dans alt pour accessibilité
+        expect(attachment_node[:attrs][:alt]).to eq('test.png')
       end
     end
   end

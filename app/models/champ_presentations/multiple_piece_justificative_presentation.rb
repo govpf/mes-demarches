@@ -26,19 +26,18 @@ class ChampPresentations::MultiplePieceJustificativePresentation < ChampPresenta
       # Une seule PJ → structure simple
       @presentations.first.to_tiptap_node
     else
-      # Plusieurs PJ → liste
+      # pf: Plusieurs PJ → afficher côte à côte dans un paragraphe (plus compact et esthétique)
       {
-        type: 'bulletList',
-        content: @presentations.map do |presentation|
-          {
-            type: 'listItem',
-            content: [
-              {
-                type: 'paragraph',
-                            content: [presentation.to_tiptap_node]
-              }
-            ]
-          }
+        type: 'paragraph',
+        attrs: { textAlign: 'center' }, # pf: centrer les images
+        content: @presentations.flat_map.with_index do |presentation, i|
+          node = presentation.to_tiptap_node
+          # pf: ajouter un espace entre les images (sauf après la dernière)
+          if i < @presentations.size - 1
+            [node, { type: 'text', text: ' ' }]
+          else
+            [node]
+          end
         end
       }
     end
