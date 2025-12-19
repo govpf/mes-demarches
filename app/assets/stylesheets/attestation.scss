@@ -244,7 +244,8 @@
 
   // Pièces jointes - Images
   .attachment-image {
-    margin: 1rem 0;
+    display: inline-block; // pf: afficher côte à côte quand plusieurs images dans même paragraphe
+    margin: 0.5rem 16px; // pf: espacement horizontal pour images côte à côte
     text-align: center;
     page-break-inside: avoid;
 
