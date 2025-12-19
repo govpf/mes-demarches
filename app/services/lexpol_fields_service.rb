@@ -19,7 +19,6 @@ module LexpolFieldsService
             results += select_champ(all_champs, segment)
           else
             results += select_champ(object.champs, segment) if object.respond_to?(:champs)
-            results += select_champ(object.annotations, segment) if object.respond_to?(:annotations)
           end
 
           results += attributes(object, segment) if object.respond_to?(:segment)
