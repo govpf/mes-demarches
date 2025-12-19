@@ -31,14 +31,16 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
   # pf: génère un nœud tableau avec seulement les champs fillables
   def to_table_node
     fillable_rows = filter_fillable_champs
-    return { 'type' => 'paragraph', 'content' => [{ 'type' => 'text', 'text' => 'Aucune donnée' }] } if fillable_rows.empty?
+    # pf: retourner paragraphe vide si aucune donnée (au lieu de "Aucune donnée")
+    # pour éviter d'afficher des tableaux vides quand plusieurs tableaux optionnels
+    return { type: 'paragraph', content: [] } if fillable_rows.empty?
 
     # En-têtes (seulement les champs fillables de la première ligne)
     headers = fillable_rows.first.map { |champ| champ.type_de_champ.libelle }
     header_cells = headers.map do |header|
       {
-        'type' => 'tableHeader',
-        'content' => [{ 'type' => 'paragraph', 'content' => [{ 'type' => 'text', 'text' => header }] }]
+        type: 'tableHeader',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: header }] }]
       }
     end
 
@@ -52,34 +54,33 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
           node = cell_content.to_tiptap_node
           # Adapter le noeud pour qu'il soit inline dans la cellule
           # pf: gérer les pièces jointes (images et liens) correctement dans les tableaux
-          # pf: norme upstream = clés symbol
           cell_node_content = if node[:type] == 'paragraph'
-            node[:content] || [{ 'type' => 'text', 'text' => cell_content.to_s }]
+            node[:content] || [{ type: 'text', text: cell_content.to_s }]
           elsif node[:type].in?(['attachmentImage', 'attachmentLink'])
             [node] # pf: garder le nœud attachement intact pour affichage correct
           elsif node[:type] == 'bulletList'
             # pf: plusieurs images → garder la bulletList intacte
             [node]
           else
-            [{ 'type' => 'text', 'text' => cell_content.to_s }]
+            [{ type: 'text', text: cell_content.to_s }]
           end
         else
           # Texte simple
-          cell_node_content = [{ 'type' => 'text', 'text' => cell_content.to_s }]
+          cell_node_content = [{ type: 'text', text: cell_content.to_s }]
         end
 
         {
-          'type' => 'tableCell',
-          'content' => [{ 'type' => 'paragraph', 'content' => cell_node_content }]
+          type: 'tableCell',
+          content: [{ type: 'paragraph', content: cell_node_content }]
         }
       end
-      { 'type' => 'tableRow', 'content' => cells }
+      { type: 'tableRow', content: cells }
     end
 
     {
-      'type' => 'table',
-      'content' => [
-        { 'type' => 'tableRow', 'content' => header_cells },
+      type: 'table',
+      content: [
+        { type: 'tableRow', content: header_cells },
         *data_rows
       ]
     }
