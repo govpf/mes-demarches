@@ -26,7 +26,7 @@ class ChampPresentations::MultiplePieceJustificativePresentation < ChampPresenta
       # Une seule PJ → structure simple
       @presentations.first.to_tiptap_node
     else
-      # Plusieurs PJ → liste
+      # Plusieurs PJ → liste (norme upstream : clés symbol)
       {
         type: 'bulletList',
         content: @presentations.map do |presentation|
@@ -35,7 +35,7 @@ class ChampPresentations::MultiplePieceJustificativePresentation < ChampPresenta
             content: [
               {
                 type: 'paragraph',
-                            content: [presentation.to_tiptap_node]
+                content: [presentation.to_tiptap_node]
               }
             ]
           }

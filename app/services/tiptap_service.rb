@@ -115,33 +115,24 @@ class TiptapService
       end
     # pf: nouveaux types de nœuds pour attestation v2 - pièces jointes
     in type: 'attachmentImage', attrs:
-      src = attrs[:src]
-      alt = attrs[:alt] || ''
+      src = attrs[:src] # pf: data URI base64 (variant 400x400)
+      href = attrs[:href] # pf: URL authentifiée pour téléchargement
+      alt = attrs[:alt] || '' # pf: déjà échappé dans PieceJustificativePresentation
       display = attrs[:display]
-      blob_id = attrs[:id]
 
-      # pf: utiliser base64 pour WeasyPrint (évite les problèmes S3/redirections)
-      begin
-        if blob_id && Rails.env.development?
-          blob = ActiveStorage::Blob.find(blob_id)
-          image_data = blob.download
-          base64_data = Base64.strict_encode64(image_data)
-          src = "data:#{blob.content_type};base64,#{base64_data}"
-        end
-      rescue => e
-        Rails.logger.warn "Impossible de convertir l'image en base64: #{e.message}"
-        # Garder l'URL originale en fallback
-      end
-
-      image_html = "<img src='#{src}' alt='#{alt}' style='max-width: 100%; height: auto;' />"
-      link_html = "<a href='#{src}' target='_blank' rel='noopener'>#{display}</a>"
+      # pf: affichage 200px (comme gallery), data URI fonctionne sans authentification
+      image_html = "<img src='#{src}' alt='#{alt}' style='max-width: 200px; max-height: 200px; object-fit: contain;' />"
+      link_html = "<a href='#{href}' target='_blank' rel='noopener'>#{display}</a>"
       "<figure class='attachment-image'>#{image_html}<figcaption>#{link_html}</figcaption></figure>"
     in type: 'attachmentLink', attrs:, content:
       href = attrs[:href]
       target = attrs[:target] || '_self'
       rel = attrs[:rel] || ''
       content_html = content&.map { |c| node_to_html(c, substitutions, level + 1) }&.join('')
-      "<a href='#{href}' target='#{target}' rel='#{rel}'>#{content_html}</a>"
+      # pf: échapper les attributs par sécurité
+      target_escaped = ERB::Util.html_escape(target)
+      rel_escaped = ERB::Util.html_escape(rel)
+      "<a href='#{href}' target='#{target_escaped}' rel='#{rel_escaped}'>#{content_html}</a>"
     # pf: nouveaux types de nœuds pour attestation v2 - tableaux
     in type: 'table', content:
       rows_html = content&.map { |row| node_to_html(row, substitutions, level + 1) }&.join('')
