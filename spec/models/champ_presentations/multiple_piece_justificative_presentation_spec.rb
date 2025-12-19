@@ -117,7 +117,8 @@ describe ChampPresentations::MultiplePieceJustificativePresentation do
         expect(content[0][:type]).to eq('attachmentImage')
         expect(content[1][:text]).to eq(' ')
         expect(content[2][:type]).to eq('attachmentLink')
-        expect(content[2][:content]).to eq([{ type: 'text', text: 'Télécharger' }])
+        # pf: texte "Télécharger [nom]" pour les documents non-previewable
+        expect(content[2][:content]).to eq([{ type: 'text', text: 'Télécharger document.pdf' }])
       end
     end
 

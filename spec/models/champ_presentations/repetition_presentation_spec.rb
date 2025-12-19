@@ -171,6 +171,14 @@ describe ChampPresentations::RepetitionPresentation do
       let(:representation_with_files) { described_class.new("Documents", champ_with_files.rows) }
 
       before do
+        # pf: mocker la génération de variant pour éviter erreur IOError avec fake image
+        variant = double('variant')
+        processed_variant = double('processed_variant')
+        allow_any_instance_of(ActiveStorage::Attachment).to receive(:variant).with(resize_to_limit: [400, 400]).and_return(variant)
+        allow(variant).to receive(:processed).and_return(processed_variant)
+        allow(processed_variant).to receive(:download).and_return("fake_image_data")
+        allow(Base64).to receive(:strict_encode64).with("fake_image_data").and_return("ZmFrZV9pbWFnZV9kYXRh")
+
         row = champ_with_files.rows.first
         description_champ, pj_champ = row
         champ_for_update(description_champ).update(value: "Photo de test")

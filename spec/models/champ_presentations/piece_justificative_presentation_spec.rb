@@ -12,8 +12,8 @@ describe ChampPresentations::PieceJustificativePresentation do
         node = subject.to_tiptap_node
         expect(node[:type]).to eq('attachmentLink')
         expect(node[:attrs][:href]).to eq('http://example.com/test.pdf')
-        # pf: texte "Télécharger" au lieu du nom du fichier
-        expect(node[:content]).to eq([{ type: 'text', text: 'Télécharger' }])
+        # pf: texte "Télécharger [nom]" pour les documents non-previewable
+        expect(node[:content]).to eq([{ type: 'text', text: 'Télécharger test.pdf' }])
       end
 
       it 'utilise le blob.id comme identifiant' do
@@ -221,10 +221,12 @@ describe ChampPresentations::PieceJustificativePresentation do
 
     subject { described_class.new(image_attachment, is_previewable: true) }
 
-    it 'utilise image placeholder transparente en cas d erreur' do
+    it 'fallback sur lien de téléchargement en cas d erreur' do
       node = subject.to_tiptap_node
-      # pf: vérifier le fallback placeholder 1x1 transparent
-      expect(node[:attrs][:src]).to eq('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')
+      # pf: si preview échoue, retourner attachmentLink au lieu d'attachmentImage
+      expect(node[:type]).to eq('attachmentLink')
+      expect(node[:attrs][:href]).to eq('http://example.com/broken.jpg')
+      expect(node[:content]).to eq([{ type: 'text', text: 'Télécharger broken.jpg' }])
     end
   end
 end

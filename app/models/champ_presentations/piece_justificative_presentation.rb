@@ -28,7 +28,8 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
 
   def to_tiptap_node
     # pf: norme upstream = clés symbol
-    if @is_previewable
+    # pf: si preview disponible ET data URI réussie, afficher image
+    if @is_previewable && @image_src.present?
       {
         type: 'attachmentImage',
         attrs: {
@@ -40,19 +41,22 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
         }
       }
     else
+      # pf: fallback sur lien de téléchargement si preview échoue ou pas disponible
       {
         type: 'attachmentLink',
         attrs: { href: @url, target: '_blank', rel: 'noopener' },
-        content: [{ type: 'text', text: 'Télécharger' }] # pf: texte court et universel
+        content: [{ type: 'text', text: "Télécharger #{@filename}" }] # pf: afficher le nom du fichier
       }
     end
   end
 
   def to_s
-    if @is_previewable
+    # pf: si preview disponible ET data URI réussie, afficher image
+    if @is_previewable && @image_src.present?
       content_tag(:img, nil, src: @image_src, alt: @filename,
                   style: 'max-width: 100px; max-height: 100px; height: auto; width: auto; object-fit: contain;')
     else
+      # pf: fallback sur lien de téléchargement si preview échoue ou pas disponible
       content_tag(:a, 'Télécharger', href: @url, target: '_blank',
                   rel: 'noopener', title: @filename) # pf: nom du fichier dans le title pour info
     end
@@ -98,9 +102,13 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
 
     # Générer data URI
     "data:#{content_type};base64,#{base64_data}"
+  rescue IOError
+    # pf: stream fermé (variant pas encore traité ou fichier déjà lu) → retourner nil pour fallback sur lien
+    Rails.logger.warn "PJ #{attachment.filename}: preview indisponible (stream fermé), fallback sur lien de téléchargement"
+    nil
   rescue StandardError => e
-    Rails.logger.warn "Impossible de convertir le fichier en data URI: #{e.message}"
-    # Fallback: image placeholder transparente 1x1
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    # pf: autre erreur (fichier manquant, format invalide, etc.) → retourner nil pour fallback sur lien
+    Rails.logger.warn "PJ #{attachment.filename}: preview impossible (#{e.class.name}: #{e.message}), fallback sur lien de téléchargement"
+    nil
   end
 end
