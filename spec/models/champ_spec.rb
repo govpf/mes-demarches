@@ -264,8 +264,13 @@ describe Champ do
         allow(processed).to receive(:download).and_return("fake_image_data")
         allow(Base64).to receive(:strict_encode64).with("fake_image_data").and_return("ZmFrZV9pbWFnZV9kYXRh")
       end
-      # pf: nouveau comportement avec data URI pour embedding dans PDF
-      it { expect(champ.type_de_champ.champ_value_for_tag(champ).to_s).to include('<img src="data:image/') }
+      # pf: nouveau comportement avec data URI pour embedding dans PDF + lien toujours présent
+      it 'contains both image and download link' do
+        result = champ.type_de_champ.champ_value_for_tag(champ).to_s
+        expect(result).to include('<img src="data:image/')
+        expect(result).to include('Télécharger logo_test_procedure.png')
+        expect(result).to include('<a href=')
+      end
     end
 
     context 'when type_de_champ is numero_dn' do
