@@ -1319,10 +1319,13 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
   end
 
   create_table "trusted_device_tokens", force: :cascade do |t|
+    t.datetime "activated_at"
     t.datetime "created_at", null: false
     t.bigint "instructeur_id"
+    t.datetime "renewal_notified_at"
     t.string "token", null: false
     t.datetime "updated_at", null: false
+    t.index ["activated_at", "renewal_notified_at"], name: "idx_on_activated_at_renewal_notified_at_ca000bc08e"
     t.index ["instructeur_id"], name: "index_trusted_device_tokens_on_instructeur_id"
     t.index ["token"], name: "index_trusted_device_tokens_on_token", unique: true
   end
@@ -1333,6 +1336,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.text "description"
     t.string "libelle"
     t.boolean "mandatory", default: true
+    t.text "nature"
     t.jsonb "options"
     t.boolean "private", default: false, null: false
     t.bigint "referentiel_id"

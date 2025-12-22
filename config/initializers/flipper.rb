@@ -30,6 +30,7 @@ features = [
   :export_template,
   :referentiel_type_de_champ,
   :groupe_instructeur_api_hack,
+  :ocr,
   :qrcoded_pdf,
   :rdv,
   :pro_connect_restricted,
