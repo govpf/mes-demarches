@@ -20,7 +20,9 @@ class TypesDeChamp::TypeDeChampBase
       path.merge(
         libelle: TagsSubstitutionConcern::TagsParser.normalize(path[:libelle]),
         id: path[:path] == :value ? "tdc#{stable_id}" : "tdc#{stable_id}/#{path[:path]}",
-        lambda: -> (dossier) { dossier.champ_value_for_tag(type_de_champ, path[:path]) }
+        lambda: -> (dossier) { dossier.champ_value_for_tag(type_de_champ, path[:path]) },
+        # pf allowing visibility check on champ/annotations
+        visible: -> (dossier) { dossier.project_champ(type_de_champ)&.visible? || false }
       )
     end
   end
