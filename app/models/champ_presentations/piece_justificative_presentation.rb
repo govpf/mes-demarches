@@ -51,18 +51,15 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
   end
 
   def to_s
-    # pf: toujours afficher le lien, avec image en bonus si disponible
-    link = content_tag(:a, "Télécharger #{@filename}", href: @url, target: '_blank',
-                       rel: 'noopener')
-
     # pf: si preview disponible ET data URI réussie, afficher image + lien
     if @is_previewable && @image_src.present?
       image = content_tag(:img, nil, id: @attachment_id, src: @image_src, alt: @filename,
                           style: 'max-width: 100px; max-height: 100px; height: auto; width: auto; object-fit: contain; display: block; margin-bottom: 5px;')
+      link = content_tag(:a, "Télécharger", href: @url, target: '_blank', rel: 'noopener')
       safe_join([image, link])
     else
       # pf: sinon juste le lien
-      link
+      content_tag(:a, "Télécharger #{@filename}", href: @url, target: '_blank', rel: 'noopener')
     end
   end
 

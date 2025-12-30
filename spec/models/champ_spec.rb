@@ -268,7 +268,7 @@ describe Champ do
       it 'contains both image and download link' do
         result = champ.type_de_champ.champ_value_for_tag(champ).to_s
         expect(result).to include('<img src="data:image/')
-        expect(result).to include('Télécharger logo_test_procedure.png')
+        expect(result).to include('Télécharger')
         expect(result).to include('<a href=')
       end
     end
