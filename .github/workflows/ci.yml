@@ -14,6 +14,8 @@ jobs:
   linters:
     name: Linters
     runs-on: ubuntu-22.04
+    env:
+      TZ: "Pacific/Tahiti"  # pf: utiliser la même timezone que l'application (config.time_zone)
     services:
       postgres:
         image: postgis/postgis:17-3.5
@@ -21,6 +23,7 @@ jobs:
           POSTGRES_USER: tps_test
           POSTGRES_DB: tps_test
           POSTGRES_PASSWORD: tps_test
+          TZ: "Pacific/Tahiti"  # pf: même timezone que l'application
         ports: [ "5432:5432" ]
 
     steps:
@@ -65,6 +68,7 @@ jobs:
     timeout-minutes: 20
     env:
       RUBY_YJIT_ENABLE: "1"
+      TZ: "Pacific/Tahiti"  # pf: utiliser la même timezone que l'application (config.time_zone)
     services:
       postgres:
         image: postgis/postgis:17-3.5
@@ -72,6 +76,7 @@ jobs:
           POSTGRES_USER: tps_test
           POSTGRES_DB: tps_test
           POSTGRES_PASSWORD: tps_test
+          TZ: "Pacific/Tahiti"  # pf: même timezone que l'application
         ports: ["5432:5432"]
 
     strategy:
@@ -129,6 +134,7 @@ jobs:
     timeout-minutes: 20
     env:
       RUBY_YJIT_ENABLE: "1"
+      TZ: "Pacific/Tahiti"  # pf: utiliser la même timezone que l'application (config.time_zone)
     services:
       postgres:
         image: postgis/postgis:17-3.5
@@ -136,6 +142,7 @@ jobs:
           POSTGRES_USER: tps_test
           POSTGRES_DB: tps_test
           POSTGRES_PASSWORD: tps_test
+          TZ: "Pacific/Tahiti"  # pf: même timezone que l'application
         ports: ["5432:5432"]
 
     strategy:
