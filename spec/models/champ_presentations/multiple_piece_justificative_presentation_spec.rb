@@ -12,6 +12,7 @@ describe ChampPresentations::MultiplePieceJustificativePresentation do
 
   let(:attachment1) do
     double('attachment1',
+      id: 101,
       blob: blob1,
       filename: blob1.filename,
       url: 'http://example.com/image1.jpg',
@@ -21,6 +22,7 @@ describe ChampPresentations::MultiplePieceJustificativePresentation do
 
   let(:attachment2) do
     double('attachment2',
+      id: 102,
       blob: blob2,
       filename: blob2.filename,
       url: 'http://example.com/image2.jpg',
@@ -30,6 +32,7 @@ describe ChampPresentations::MultiplePieceJustificativePresentation do
 
   let(:attachment3) do
     double('attachment3',
+      id: 103,
       blob: blob3,
       filename: blob3.filename,
       url: 'http://example.com/document.pdf',
@@ -58,7 +61,7 @@ describe ChampPresentations::MultiplePieceJustificativePresentation do
       it 'retourne structure simple sans paragraphe' do
         node = subject.to_tiptap_node
         expect(node[:type]).to eq('attachmentImage')
-        expect(node[:attrs][:id]).to eq(1)
+        expect(node[:attrs][:id]).to eq(101) # attachment.id
       end
     end
 
@@ -126,6 +129,7 @@ describe ChampPresentations::MultiplePieceJustificativePresentation do
       let(:blob4) { double('blob4', id: 4, filename: double('filename', to_s: 'image3.jpg'), content_type: 'image/jpeg') }
       let(:attachment4) do
         double('attachment4',
+          id: 104,
           blob: blob4,
           filename: blob4.filename,
           url: 'http://example.com/image3.jpg',

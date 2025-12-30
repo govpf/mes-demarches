@@ -8,7 +8,7 @@ describe ChampPresentations::PieceJustificativePresentation do
     context 'pour un document non-previewable' do
       subject { described_class.new(attachment, is_previewable: false) }
 
-      it 'génère un nœud attachmentLink avec blob.id' do
+      it 'génère un nœud attachmentLink avec attachment.id' do
         node = subject.to_tiptap_node
         expect(node[:type]).to eq('attachmentLink')
         expect(node[:attrs][:href]).to eq('http://example.com/test.pdf')
@@ -16,9 +16,9 @@ describe ChampPresentations::PieceJustificativePresentation do
         expect(node[:content]).to eq([{ type: 'text', text: 'Télécharger test.pdf' }])
       end
 
-      it 'utilise le blob.id comme identifiant' do
+      it 'utilise l\'attachment.id comme identifiant' do
         presentation = described_class.new(attachment, is_previewable: false)
-        expect(presentation.instance_variable_get(:@attachment_id)).to eq(456)
+        expect(presentation.instance_variable_get(:@attachment_id)).to eq(123)
       end
     end
 
@@ -49,7 +49,7 @@ describe ChampPresentations::PieceJustificativePresentation do
       it 'génère un nœud attachmentImage avec data URI' do
         node = subject.to_tiptap_node
         expect(node[:type]).to eq('attachmentImage')
-        expect(node[:attrs][:id]).to eq(789) # blob.id
+        expect(node[:attrs][:id]).to eq(123) # attachment.id (requis par Prawn)
         # pf: vérifier que src est un data URI
         expect(node[:attrs][:src]).to start_with('data:image/')
         expect(node[:attrs][:src]).to include(';base64,')
@@ -128,6 +128,7 @@ describe ChampPresentations::PieceJustificativePresentation do
       let(:test_processed) { double('processed') }
       let(:test_attachment) do
         double('attachment',
+          id: 555,
           blob: test_blob,
           filename: double('filename', to_s: 'test.jpg'),
           url: 'http://example.com/test.jpg',
@@ -165,6 +166,7 @@ describe ChampPresentations::PieceJustificativePresentation do
       let(:pdf_processed) { double('processed') }
       let(:pdf_attachment) do
         double('attachment',
+          id: 111,
           blob: pdf_blob,
           filename: double('filename', to_s: 'document.pdf'),
           url: 'http://example.com/document.pdf',
@@ -188,6 +190,7 @@ describe ChampPresentations::PieceJustificativePresentation do
     context 'avec un document non-previewable' do
       let(:doc_attachment) do
         double('attachment',
+          id: 444,
           blob: double('blob', id: 333, filename: double('filename', to_s: 'archive.zip'), content_type: 'application/zip'),
           filename: double('filename', to_s: 'archive.zip'),
           url: 'http://example.com/archive.zip',

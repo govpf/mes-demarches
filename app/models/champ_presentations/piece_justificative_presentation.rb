@@ -9,7 +9,7 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
   include ActionView::Helpers::OutputSafetyHelper
   def initialize(attachment, is_previewable: false, champ: nil, index: 0)
     @attachment = attachment
-    @attachment_id = attachment.blob.id # pf: utiliser l'ID du blob, pas de l'attachment
+    @attachment_id = attachment.id # pf: ID de l'attachment (requis par Prawn show.pdf.prawn:51)
     @filename = escape_once(attachment.filename.to_s) # pf: garder le nom original pour le titre
     @champ = champ
     @index = index
@@ -57,7 +57,7 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
 
     # pf: si preview disponible ET data URI réussie, afficher image + lien
     if @is_previewable && @image_src.present?
-      image = content_tag(:img, nil, src: @image_src, alt: @filename,
+      image = content_tag(:img, nil, id: @attachment_id, src: @image_src, alt: @filename,
                           style: 'max-width: 100px; max-height: 100px; height: auto; width: auto; object-fit: contain; display: block; margin-bottom: 5px;')
       safe_join([image, link])
     else
