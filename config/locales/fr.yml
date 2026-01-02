@@ -799,15 +799,19 @@ fr:
       siret_network_error: 'Désolé, la récupération des informations est temporairement indisponible. Veuillez réessayer dans quelques instants.'
       cps_network_error: 'Désolé, la vérification du numéro DN est temporairement indisponible. Veuillez réessayer dans quelques instants.'
       api_entreprise_down: 'Notre fournisseur de données semble en panne, nous récupérerons les données plus tard.'
-      siret:
-        network_error: 'Désolé, la récupération des informations SIRET est temporairement indisponible. Veuillez réessayer dans quelques instants.'
-        not_found: 'Nous n’avons pas trouvé d’établissement correspondant à ce numéro SIRET.'
+      pro_connect:
+        connexion: "Une erreur est survenue lors de la connexion avec ProConnect. Veuillez réessayer."
+        email_domain_not_allowed: "Votre domaine d’email n’est pas autorisé à utiliser ProConnect sur cette plateforme."
       france_connect:
         connexion: "Erreur lors de la connexion à France Connect."
         forbidden_html: "Seul-e-s les usagers peuvent se connecter via France Connect. En tant qu’instructeur ou administrateur, nous vous invitons à <a href='%{reset_link}'>réininitialiser votre mot de passe</a>."
+        internal_error: "Une erreur est survenue lors de la connexion avec FranceConnect. Veuillez essayer un autre mode de connexion."
       omniauth:
         connexion: "Erreur lors de la connexion à %{provider}."
         forbidden_html: "Seul-e-s les usager-e-s peuvent se connecter via %{provider}. En tant qu'instructeur ou administrateur, nous vous invitons à <a href='%{reset_link}'>créer un mot de passe</a>."
+      siret:
+        network_error: 'Désolé, la récupération des informations SIRET est temporairement indisponible. Veuillez réessayer dans quelques instants.'
+        not_found: 'Nous n’avons pas trouvé d’établissement correspondant à ce numéro SIRET.'
       invalid_character_rules: Vous devez sélectionner au moins un type de caractère.
       invalid_character_length: "Le nombre minimum de caractères doit être inférieur au nombre maximum de caractères"
       evil_regexp: L'expression régulière que vous avez entrée est potentiellement dangereuse et pourrait entraîner des problèmes de performance
@@ -1004,35 +1008,34 @@ fr:
   zones:
     ministeres: Ministères
   france_connect:
-    particulier:
-      choose_email:
-        intro_html: "Votre compte FranceConnect utilise <span class='fr-badge fr-badge--info fr-badge--no-icon fr-badge--lowercase'>%{email}</span> comme adresse électronique de contact."
-        use_email_for_notifications: Souhaitez-vous l’utiliser pour recevoir les notifications concernant l’avancement de vos dossiers ?
-        confirm: Valider
-        choose_email_contact: Choisissez votre adresse électronique de contact pour finaliser votre connexion
-        alternative_email: Veuillez nous fournir l’adresse électronique à utiliser pour vous contacter
-        keep_fc_email_html: "<span>Oui, utiliser <b>%{email}</b> comme adresse électronique de contact</span>"
-        use_another_email: Non, utiliser une autre adresse
-        email_suggest:
-          wanna_say: 'Voulez-vous dire ?'
-      merge:
-        title: "Fusion des comptes FranceConnect et %{application_name}"
-        subtitle_html: "Bonjour,<br /><br />Votre compte FranceConnect utilise <b class='bold'>%{email}</b> comme adresse électronique de contact.<br />Or il existe un compte sur %{application_name} avec cet email."
-        label_select_merge_flow: Ce compte %{email} vous appartient-il ?
-        title_fill_in_password:  Pour les fusionner, entrez votre mot de passe
-        title_fill_in_email: Donnez-nous alors le mail que %{application_name} utilisera pour vous contacter
-        button_use_this_email: Utiliser cette adresse électronique
-        link_confirm_by_email: Confirmer mon compte par email
-      flash:
-        confirmation_mail_sent: "Nous venons de vous envoyer le mail de confirmation, veuillez cliquer sur le lien contenu dans ce mail pour fusionner vos comptes"
-        confirmation_mail_resent: "Le lien de confirmation a expiré. Un nouveau lien de confirmation vous a été envoyé par email."
-        confirmation_mail_resent_error: "Une erreur inattendue est survenue. Veuillez contacter le support si le problème persiste."
-        redirect_new_user_session: "Vous avez été déconnecté de votre précédent compte. Veuillez cliquer à nouveau sur le lien de confirmation."
-        email_confirmed: 'Votre adresse électronique est bien vérifiée'
-        user_not_found: 'Utilisateur non trouvé'
-        invalid_password: "Mot de passe incorrect"
-        connection_done: "Les comptes FranceConnect et %{application_name} sont à présent fusionnés"
-        merger_token_expired: "Le délai pour fusionner les comptes FranceConnect et %{application_name} est expiré. Veuillez recommencer la procédure pour vous fusionner les comptes."
+    choose_email:
+      intro_html: "Votre compte FranceConnect utilise <span class='fr-badge fr-badge--info fr-badge--no-icon fr-badge--lowercase'>%{email}</span> comme email de contact."
+      use_email_for_notifications: Souhaitez-vous l’utiliser pour recevoir les notifications concernant l’avancement de vos dossiers ?
+      confirm: Valider
+      choose_email_contact: Choisissez votre adresse électronique de contact pour finaliser votre connexion
+      alternative_email: Veuillez nous fournir l’adresse électronique à utiliser pour vous contacter
+      keep_fc_email_html: "<span>Oui, utiliser <b>%{email}</b> comme adresse électronique de contact</span>"
+      use_another_email: Non, utiliser une autre adresse
+      email_suggest:
+        wanna_say: 'Voulez-vous dire ?'
+    merge:
+      title: "Fusion des comptes FranceConnect et %{application_name}"
+      subtitle_html: "Bonjour,<br /><br />Votre compte FranceConnect utilise <b class='bold'>%{email}</b> comme adresse électronique de contact.<br />Or il existe un compte sur %{application_name} avec cette adresse électronique."
+      label_select_merge_flow: Ce compte %{email} vous appartient-il ?
+      title_fill_in_password:  Pour les fusionner, entrez votre mot de passe
+      title_fill_in_email: Donnez-nous alors l'adresse électronique que %{application_name} utilisera pour vous contacter
+      button_use_this_email: Utiliser cette adresse électronique
+      link_confirm_by_email: Confirmer mon compte par email
+    flash:
+      confirmation_mail_sent: "Nous venons de vous envoyer le mail de confirmation, veuillez cliquer sur le lien contenu dans ce mail pour fusionner vos comptes"
+      confirmation_mail_resent: "Le lien de confirmation a expiré. Un nouveau lien de confirmation vous a été envoyé par email."
+      confirmation_mail_resent_error: "Une erreur inattendue est survenue. Veuillez contacter le support si le problème persiste."
+      redirect_new_user_session: "Vous avez été déconnecté de votre précédent compte. Veuillez cliquer à nouveau sur le lien de confirmation."
+      email_confirmed: 'Votre adresse électronique est bien vérifiée'
+      user_not_found: 'Utilisateur non trouvé'
+      invalid_password: "Mot de passe incorrect"
+      connection_done: "Les comptes FranceConnect et %{application_name} sont à présent fusionnés"
+      merger_token_expired: "Le délai pour fusionner les comptes FranceConnect et %{application_name} est expiré. Veuillez recommencer la procédure pour vous fusionner les comptes."
   omniauth:
     choose_email:
       choose_email_contact: "Choisissez votre adresse électronique de contact pour finaliser votre connexion avec %{provider}"
