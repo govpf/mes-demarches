@@ -233,4 +233,10 @@ describe LexpolService do
       end
     end
   end
+
+  describe '.normalize_variable_name' do
+    it 'remplace les espaces insécables par des espaces normaux' do
+      expect(described_class.normalize_variable_name("Nº\u00A0dossier")).to eq('Nº dossier')
+    end
+  end
 end

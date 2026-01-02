@@ -36,6 +36,45 @@
               .cell.fr-mt-1w
                 = form.label :description, "Description du champ (optionnel)", for: dom_id(type_de_champ, :description)
                 = form.text_area :description, class: 'fr-input small-margin small width-100 resize-y', rows: 3, id: dom_id(type_de_champ, :description)
+
+            - if type_de_champ.any_drop_down_list? && !type_de_champ.drop_down_list?
+              .cell.fr-mt-1w
+                = form.label :drop_down_options_from_text, "Options de la liste", for: dom_id(type_de_champ, :drop_down_options_from_text)
+                = form.text_area :drop_down_options_from_text,
+                  value: type_de_champ.drop_down_options.join("\r\n"),
+                  class: 'fr-input small-margin small width-100 resize-y',
+                  rows: 7,
+                  id: dom_id(type_de_champ, :drop_down_options_from_text)
+            - elsif type_de_champ.drop_down_list?
+              .cell.fr-mt-1w
+                %fieldset.fr-segmented.fr-segmented
+                  %legend.fr-segmented__legend
+                    Liste de choix
+                  .fr-segmented__elements
+                    .fr-segmented__element
+                      = form.radio_button :drop_down_mode, 'simple', checked: type_de_champ.drop_down_simple?, id: dom_id(type_de_champ, :simple)
+                      = form.label :drop_down_mode_simple, t('.drop_down_list.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
+                    .fr-segmented__element
+                      = form.radio_button :drop_down_mode, 'advanced', id: dom_id(type_de_champ, :advanced)
+                      = form.label :drop_down_mode_advanced, t('.drop_down_list.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
+
+              .border-left-dark.fr-my-1w
+                = render TypesDeChampEditor::ChampDropDownSimpleComponent.new(type_de_champ:, form:, procedure:)
+                = render TypesDeChampEditor::ChampDropDownAdvancedComponent.new(type_de_champ:, form:, procedure:)
+
+                .cell.flex.align-center
+                  = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
+                  = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
+                    Proposer une option « autre » avec un texte libre
+
+              - if type_de_champ.linked_drop_down_list?
+                .cell.fr-mt-1w
+                  = form.label :drop_down_secondary_libelle, "Libellé du champ secondaire", class: 'flex-grow', for: dom_id(type_de_champ, :drop_down_secondary_libelle)
+                  = form.text_field :drop_down_secondary_libelle, class: 'fr-input small-margin small width-100', id: dom_id(type_de_champ, :drop_down_secondary_libelle)
+                .cell.fr-mt-1w
+                  = form.label :drop_down_secondary_description, "Description du champ secondaire (optionnel)", for: dom_id(type_de_champ, :drop_down_secondary_description)
+                  = form.text_area :drop_down_secondary_description, class: 'fr-input small-margin small width-100', rows: 3, id: dom_id(type_de_champ, :drop_down_secondary_description)
+
             - if type_de_champ.header_section?
               .cell.fr-mt-1w
                 = render TypesDeChampEditor::HeaderSectionComponent.new(form: form, tdc: type_de_champ, upper_tdcs: filtered_upper_tdcs)
@@ -273,45 +312,6 @@
                           = form.date_field :end_date, class: "fr-input", value: type_de_champ.end_date, id: dom_id(type_de_champ, :end_date)
 
         .flex.justify-start.fr-mt-1w.flex-gap
-          - if type_de_champ.any_drop_down_list? && !type_de_champ.drop_down_list?
-            .flex.column.justify-start.width-33
-              .cell
-                = form.label :drop_down_options_from_text, "Options de la liste", for: dom_id(type_de_champ, :drop_down_options_from_text)
-                = form.text_area :drop_down_options_from_text,
-                  value: type_de_champ.drop_down_options.join("\r\n"),
-                  class: 'fr-input small-margin small width-100',
-                  rows: 7,
-                  id: dom_id(type_de_champ, :drop_down_options_from_text)
-          - elsif type_de_champ.drop_down_list?
-            .flex.justify-start.column.width-33.fr-mt-1w
-              .cell
-                %fieldset.fr-segmented.fr-segmented
-                  %legend.fr-segmented__legend
-                    Liste de choix
-                  .fr-segmented__elements
-                    .fr-segmented__element
-                      = form.radio_button :drop_down_mode, 'simple', checked: type_de_champ.drop_down_simple?, id: dom_id(type_de_champ, :simple)
-                      = form.label :drop_down_mode_simple, t('.drop_down_list.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
-                    .fr-segmented__element
-                      = form.radio_button :drop_down_mode, 'advanced', id: dom_id(type_de_champ, :advanced)
-                      = form.label :drop_down_mode_advanced, t('.drop_down_list.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
-
-            .flex.column.justify-start.flex-grow.border-left-dark.fr-my-1w
-              = render TypesDeChampEditor::ChampDropDownSimpleComponent.new(type_de_champ:, form:, procedure:)
-              = render TypesDeChampEditor::ChampDropDownAdvancedComponent.new(type_de_champ:, form:, procedure:)
-
-              .cell.flex.align-center
-                = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
-                = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
-                  Proposer une option « autre » avec un texte libre
-
-            - if type_de_champ.linked_drop_down_list?
-              .cell.fr-mt-1w
-                = form.label :drop_down_secondary_libelle, "Libellé du champ secondaire", class: 'flex-grow', for: dom_id(type_de_champ, :drop_down_secondary_libelle)
-                = form.text_field :drop_down_secondary_libelle, class: 'fr-input small-margin small width-100', id: dom_id(type_de_champ, :drop_down_secondary_libelle)
-              .cell.fr-mt-1w
-                = form.label :drop_down_secondary_description, "Description du champ secondaire (optionnel)", for: dom_id(type_de_champ, :drop_down_secondary_description)
-                = form.text_area :drop_down_secondary_description, class: 'fr-input small-margin small width-100', rows: 3, id: dom_id(type_de_champ, :drop_down_secondary_description)
         - if type_de_champ.piece_justificative_or_titre_identite?
           .cell
             = form.label :piece_justificative_template, "Modèle", for: dom_id(type_de_champ, :piece_justificative_template)

@@ -41,6 +41,20 @@ describe LexpolFieldsService do
     end
   end
 
+  describe '.object_field_values' do
+    let(:procedure) { create(:procedure, :published) }
+    let(:dossier) { create(:dossier, procedure: procedure) }
+
+    it "utilise project_champs sur un dossier plutot que champ pour éviter les champs orphelins" do
+      expect(dossier).to receive(:project_champs_public).and_return([])
+      expect(dossier).to receive(:project_champs_private).and_return([])
+      expect(dossier).not_to receive(:champs)
+      expect(dossier).not_to receive(:annotations)
+
+      LexpolFieldsService.object_field_values(dossier, 'un_champ')
+    end
+  end
+
   describe '.format_lexpol_value' do
     it 'retourne 0 si un champ IntegerNumberChamp ou DecimalNumberChamp est vide' do
       champ1 = Champs::IntegerNumberChamp.new(value: '')
