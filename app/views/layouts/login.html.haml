@@ -1,9 +1,10 @@
 - procedure = @procedure || @dossier&.procedure || nil
 
 - content_for :content do
-  .three-columns.procedure-context
+  .two-columns.procedure-context
     .columns-container
-      = yield
+      .column.procedure-preview
+        = yield
       .column.procedure-context-content
         = render partial: 'layouts/commencer/no_procedure'
 

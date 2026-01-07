@@ -16,34 +16,33 @@
   .columns-container {
     // TODO: https://github.com/betagouv/demarches-simplifiees.fr/issues/7882, once implemented, we won't need container anymore
     @extend %container;
-    max-width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 0px;
 
     @media (min-width: $two-columns-breakpoint) {
-      width: 100%;
-      margin: auto;
       flex-direction: row;
       align-items: stretch;
-      justify-content: flex-start;
+      justify-content: space-between;
     }
   }
 
   .column {
     width: 100%;
+    max-width: 500px;
     margin: 0 auto;
-    padding: ($default-padding * 2) $default-padding ($default-padding * 2)
-      $default-padding;
-    position: relative;
+    padding: ($default-padding * 2) 0 0 0;
+
+    &:last-of-type {
+      padding-bottom: $default-padding * 2;
+    }
 
     @media (min-width: $two-columns-breakpoint) {
-      padding: ($default-padding * 2) 2% 0 2%;
-      // border-left: 1px solid $grey;
+      width: 45%;
+      margin: 0;
+      padding: $two-columns-padding 0 $two-columns-padding 0;
 
       &:last-of-type {
-        border-top: none;
         padding-bottom: $two-columns-padding;
       }
     }
@@ -61,28 +60,10 @@
     background: linear-gradient(
       to right,
       transparent 0%,
-      transparent 66%,
-      var(--background-alt-blue-france) 33%,
+      transparent 33.33%,
+      var(--background-alt-blue-france) 33.33%,
       var(--background-alt-blue-france) 100%
     );
-  }
-}
-
-.prior-border {
-  border-top: 1px solid $border-grey;
-
-  @media (min-width: $two-columns-breakpoint) {
-    border-left: 1px solid $border-grey;
-    border-top: none;
-  }
-}
-
-.ou-border {
-  border-bottom: 1px solid $border-grey;
-
-  @media (min-width: $two-columns-breakpoint) {
-    border-right: 1px solid $border-grey;
-    border-bottom: none;
   }
 }
 
