@@ -468,6 +468,17 @@ class Procedure < ApplicationRecord
     re_instructed_mail || Mails::ReInstructedMail.default_for_procedure(self)
   end
 
+  def mail_templates
+    [
+      passer_en_construction_email_template,
+      passer_en_instruction_email_template,
+      accepter_email_template,
+      refuser_email_template,
+      classer_sans_suite_email_template,
+      repasser_en_instruction_email_template
+    ]
+  end
+
   def email_template_for(state)
     case state
     when Dossier.states.fetch(:en_construction)
