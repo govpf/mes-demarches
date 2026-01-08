@@ -20,8 +20,8 @@
   .fusion.hidden
     %p= t('.title_fill_in_password')
 
-    -# pf: utilisation du partiel France Connect (upstream V2), le partiel shared/ reste pour omniauth
-    = render 'france_connect/password_confirmation',
+    -# pf: utilisation du partiel partagé pour harmoniser avec omniauth
+    = render 'shared/password_confirmation_form',
       fci: @fci,
       wrong_password: @wrong_password,
       form_url: france_connect_merge_using_password_path
