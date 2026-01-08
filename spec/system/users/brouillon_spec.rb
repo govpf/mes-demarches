@@ -419,10 +419,9 @@ describe 'The user', js: true do
     expect(page).to have_text('white.png')
 
     click_on("Supprimer le fichier file.pdf")
-    expect(page).not_to have_text('file.pdf')
-
-    # pf #163 avoid screen scrolling to stay on the current champ
-    # expect(page).to have_text("La pièce jointe a bien été supprimée")
+    # pf #163: message flash supprimé pour éviter le scroll
+    # on vérifie simplement que le bouton de suppression n'existe plus
+    expect(page).not_to have_button("Supprimer le fichier file.pdf")
 
     attach_file('Pièce justificative 1', Rails.root + 'spec/fixtures/files/black.png')
 

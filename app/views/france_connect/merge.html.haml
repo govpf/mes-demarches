@@ -23,7 +23,8 @@
     -# pf: utilisation du partiel France Connect (upstream V2), le partiel shared/ reste pour omniauth
     = render 'france_connect/password_confirmation',
       fci: @fci,
-      wrong_password: @wrong_password
+      wrong_password: @wrong_password,
+      form_url: france_connect_merge_using_password_path
 
     .mt-2
       = button_to t('.link_confirm_by_email'),

@@ -11,10 +11,15 @@ class InstructionNotificationJob < ApplicationJob
   def perform(dossier_id)
     dossier = Dossier.find_by(id: dossier_id)
     return unless dossier
+    return unless should_send_notification?(dossier)
 
-    # Envoyer l'email seulement si le dossier est toujours en instruction
-    if dossier.en_instruction?
-      NotificationMailer.send_en_instruction_notification(dossier).deliver_now
-    end
+    NotificationMailer.send_en_instruction_notification(dossier).deliver_now
+  end
+
+  private
+
+  # pf: condition étendue avec hidden_by_user_at (inspiré de upstream PR #179)
+  def should_send_notification?(dossier)
+    dossier.en_instruction? && dossier.hidden_by_user_at.blank?
   end
 end

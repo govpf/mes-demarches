@@ -10,6 +10,35 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     @errors = errors
   end
 
+  def referentiel_max_size
+    Administrateurs::TypesDeChampController::CSV_MAX_SIZE
+  end
+
+  def referentiel_max_lines
+    Administrateurs::TypesDeChampController::CSV_MAX_LINES
+  end
+
+  def template_detail
+    "#{file_extension} – #{file_size}"
+  end
+
+  def file_extension
+    File.extname(template_file).upcase.delete_prefix(".")
+  end
+
+  def file_size
+    file_size = Rails.public_path.join(template_file).size
+    number_to_human_size(file_size)
+  end
+
+  def template_file
+    'csv/modele-import-referentiel.csv'
+  end
+
+  def filtered_upper_tdcs
+    @upper_coordinates.map(&:type_de_champ).filter { |tdc| tdc.private? == type_de_champ.private? }
+  end
+
   private
 
   delegate :type_de_champ, :revision, :procedure, to: :coordinate
@@ -107,11 +136,6 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   end
 
   def filter_featured_type_champ(type_champ)
-    # Masquer table_row_selector si referentiel_de_polynesie est activé
-    if type_champ == 'table_row_selector' && procedure.feature_enabled?(:referentiel_de_polynesie)
-      return false
-    end
-
     feature_name = TypeDeChamp::FEATURE_FLAGS[type_champ.to_sym]
     feature_name.blank? || procedure.feature_enabled?(feature_name)
   end
@@ -149,11 +173,23 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     Rails.cache.fetch(cache_key, expires_in: 15.minutes) do
       begin
         APILexpol.new(email, service_siret, use_test_user).get_models
+      rescue APILexpol::LexpolAccessDenied => e
+        # pf: Stocker l'erreur d'accès pour affichage différencié dans le template
+        Rails.logger.error "Lexpol: Accès refusé pour #{e.email_used}"
+        @lexpol_error = { type: :access_denied, email: e.email_used }
+        []
       rescue => e
+        # pf: Autres erreurs (réseau, parsing, etc.)
         Rails.logger.error "Erreur lors de la récupération des modèles Lexpol: #{e.message}"
+        @lexpol_error = { type: :generic, message: e.message }
         []
       end
     end
+  end
+
+  # pf: Permet au template d'afficher un message d'erreur adapté
+  def lexpol_error
+    @lexpol_error
   end
 
   def lexpol_service_configured?

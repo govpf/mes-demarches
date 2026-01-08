@@ -25,6 +25,11 @@ class Champs::ReferentielDePolynesieChamp < Champs::TextChamp
     end
   end
 
+  # pf: support colonnes pour tags/exports (aligné sur DropDownList)
+  def referentiel_item_value(path)
+    data&.dig("row", path.to_s)
+  end
+
   # pf: pour les ancres d'erreur (#11420), le React ComboBox utilise html_id sans suffixe -input
   def focusable_input_id
     html_id

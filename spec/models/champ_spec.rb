@@ -255,7 +255,22 @@ describe Champ do
       end
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_piece_justificative)) }
       before { allow(champ).to receive(:dossier).and_return(build(:dossier)) }
-      it { expect(champ.type_de_champ.champ_value_for_tag(champ)).to include('<img src="http://') }
+      # pf: mocker la génération de variant pour data URI
+      before do
+        variant = double('variant')
+        processed = double('processed')
+        allow_any_instance_of(ActiveStorage::Attachment).to receive(:variant).with(resize_to_limit: [400, 400]).and_return(variant)
+        allow(variant).to receive(:processed).and_return(processed)
+        allow(processed).to receive(:download).and_return("fake_image_data")
+        allow(Base64).to receive(:strict_encode64).with("fake_image_data").and_return("ZmFrZV9pbWFnZV9kYXRh")
+      end
+      # pf: nouveau comportement avec data URI pour embedding dans PDF + lien toujours présent
+      it 'contains both image and download link' do
+        result = champ.type_de_champ.champ_value_for_tag(champ).to_s
+        expect(result).to include('<img src="data:image/')
+        expect(result).to include('Télécharger')
+        expect(result).to include('<a href=')
+      end
     end
 
     context 'when type_de_champ is numero_dn' do
