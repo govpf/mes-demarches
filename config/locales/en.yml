@@ -933,7 +933,7 @@ en:
       confirm: "Confirm"
       choose_email_contact: "Choose your contact email"
       alternative_email: "Please provide the email to use for contacting you."
-      keep_fc_email_html: Yes, use <b class='bold'>%{email}</b> as contact email.
+      keep_fc_email_html: "Yes, use <b class='bold'>%{email}</b> as contact email."
       use_another_email: No, use another address.
     merge:
       title: "Merge your account FranceConnect and %{application_name}"
@@ -944,15 +944,15 @@ en:
       button_use_this_email: Use this email
       link_confirm_by_email: Confirm by receiving an email
     flash:
-        confirmation_mail_sent: "An email with the confirmation link has been sent, please click on the link."
-        confirmation_mail_resent: "Confirmation link expired. A new link has been sent by email."
-        confirmation_mail_resent_error: "An unexpected error has occurred. Please contact support if the problem persists."
-        redirect_new_user_session: "You have been disconnected from your previous account. Please click on the confirmation link again."
-        email_confirmed: "Your email is confirmed"
-        user_not_found: "User not found"
-        invalid_password: "The password is not correct."
-        connection_done: "The accounts for FranceConnect and %{application_name} are now merged."
-        merger_token_expired: "Le delay to merge your FranceConnect and %{application_name} accounts is expired. Please retry."
+      confirmation_mail_sent: "An email with the confirmation link has been sent, please click on the link."
+      confirmation_mail_resent: "Confirmation link expired. A new link has been sent by email."
+      confirmation_mail_resent_error: "An unexpected error has occurred. Please contact support if the problem persists."
+      redirect_new_user_session: "You have been disconnected from your previous account. Please click on the confirmation link again."
+      email_confirmed: "Your email is confirmed"
+      user_not_found: "User not found"
+      invalid_password: "The password is not correct."
+      connection_done: "The accounts for FranceConnect and %{application_name} are now merged."
+      merger_token_expired: 'The delay to merge your FranceConnect and %{application_name} accounts is expired. Please retry.'
   omniauth:
     choose_email:
       choose_email_contact: "Choose your contact email to complete your %{provider} connection"
