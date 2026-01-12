@@ -26,7 +26,11 @@ fr:
         avis_notifications:
           title: Recevoir une notification pour chaque avis rendu par un expert
           notice_1: Cet email vous signale un nouvel avis posté par un expert que vous avez sollicité sur un dossier.
-          notice_2: Il est envoyé à chaque fois qu’un expert rend un avis.
+          notice_2: Il est envoyé à chaque fois qu'un expert rend un avis.
+        deletion_notifications:
+          title: Recevoir une notification de suppression automatique
+          notice_1: Cet email vous informe de la suppression automatique des dossiers expirés.
+          notice_2: Il est envoyé quand des dossiers de cette démarche sont supprimés automatiquement.
         buttons:
           back_to_procedure: Revenir à la procédure
           save: Enregistrer

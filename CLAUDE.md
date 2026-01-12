@@ -92,7 +92,7 @@ Dossier (1) ──→ (n) Champ ────────────────
 2. **Champs** (`app/models/champs/`)
    - Instances concrètes des champs avec leurs valeurs
    - Héritent de `Champs::TextChamp` ou autres classes de base
-   - Exemple : `Champs::TableRowSelectorChamp`, `Champs::VisaChamp`
+   - Exemple : `Champs::ReferentielDePolynesieChamp`, `Champs::VisaChamp`
    - Stockent les données dans les attributs `value`, `data`, `external_id`
 
 3. **Révisions et Procédures**
@@ -119,7 +119,7 @@ TYPE_DE_CHAMP_TO_CATEGORIE = {
 
 Chaque `TypeDeChamp` a un `dynamic_type` correspondant :
 - `TypesDeChamp::TextTypeDeChamp`
-- `TypesDeChamp::TableRowSelectorTypeDeChamp`
+- `TypesDeChamp::ReferentielDePolynesieTypeDeChamp`
 - etc.
 
 Ces classes gèrent la logique spécifique (validation, rendu, etc.)
@@ -128,12 +128,12 @@ Ces classes gèrent la logique spécifique (validation, rendu, etc.)
 
 1. **Types pour les Champs** (`app/graphql/types/champs/`)
    - `ChampType` : interface de base pour tous les champs
-   - `TextChampType`, `TableRowSelectorChampType`, etc.
+   - `TextChampType`, `ReferentielDePolynesieChampType`, etc.
    - Résolution automatique dans `ChampType.resolve_type`
 
 2. **Types pour les Descripteurs** (`app/graphql/types/champs/descriptor/`)
    - `ChampDescriptorType` : interface pour décrire la structure des champs
-   - `TextChampDescriptorType`, `TableRowSelectorChampDescriptorType`, etc.
+   - `TextChampDescriptorType`, `ReferentielDePolynesieChampDescriptorType`, etc.
    - Résolution dans `ChampDescriptorType.resolve_type`
 
 3. **Processus d'ajout d'un nouveau type**
@@ -145,21 +145,21 @@ Ces classes gèrent la logique spécifique (validation, rendu, etc.)
    - Ajouter les résolutions dans `ChampType` et `ChampDescriptorType`
    - Régénérer le schéma GraphQL avec `bin/rails graphql:schema:dump`
 
-### Exemple concret : TableRowSelector
+### Exemple concret : ReferentielDePolynesie
 
 ```ruby
 # Type enum
-table_row_selector: 'table_row_selector'
+referentiel_de_polynesie: 'referentiel_de_polynesie'
 
 # Classe du champ
-class Champs::TableRowSelectorChamp < Champs::TextChamp
+class Champs::ReferentielDePolynesieChamp < Champs::TextChamp
   def value
     external_id  # Pour l'API GraphQL
   end
 end
 
 # Type GraphQL du champ
-class Types::Champs::TableRowSelectorChampType < Types::BaseObject
+class Types::Champs::ReferentielDePolynesieChampType < Types::BaseObject
   implements Types::ChampType
   
   field :columns, [TableColumnType], null: false
@@ -167,7 +167,7 @@ class Types::Champs::TableRowSelectorChampType < Types::BaseObject
 end
 
 # Type GraphQL du descripteur
-class Types::Champs::Descriptor::TableRowSelectorChampDescriptorType < Types::BaseObject
+class Types::Champs::Descriptor::ReferentielDePolynesieChampDescriptorType < Types::BaseObject
   implements Types::ChampDescriptorType
   # Propriétés de configuration du champ
 end
@@ -208,10 +208,80 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 * Analyser les commits depuis ce tag via `.git/logs/refs/heads/masterpf`
 
 #### 2. Identification des releases upstream intégrées
-* **CRITIQUE** : Identifier précisément quelle(s) release(s) upstream ont été intégrées
-* Les noms des releases upstream sont de la forme `AAAA-MM-JJ-NN` (ex: 2024-10-17-01)
-* Récupérer le contenu exact de ces releases depuis https://github.com/demarches-simplifiees/demarches-simplifiees.fr/releases/tag/AAAA-MM-JJ-NN
-* **NE PAS** inclure d'éléments de releases postérieures à celle intégrée
+
+⚠️ **PIÈGE MAJEUR** : Une PR `feature/bump-AAAA-MM-JJ-NN` peut contenir **PLUSIEURS** releases upstream, et la description de la PR peut être **incomplète** !
+
+**Méthode correcte (OBLIGATOIRE) :**
+
+```bash
+# Étape 1: Identifier toutes les PRs feature/bump-* depuis le dernier tag PF
+git log pf-AAAA-MM-DD..HEAD --merges --oneline | grep -E "Feature/bump"
+
+# Exemple de sortie :
+# 146364e1d4 Feature/bump 2025 04 30 01 (#231)
+# e97c6d4392 Feature/bump 2025 04 23 01 (#229)
+
+# Étape 2: Pour CHAQUE PR identifiée, lire sa description
+gh pr view 229 --json body --jq '.body'
+
+# Exemple de sortie :
+# [Release du 2025-04-16-01](https://github.com/...)
+# [Release du 2025-04-16-02](https://github.com/...)
+# [Release du 2025-04-17-01](https://github.com/...)
+# [Release du 2025-04-23-01](https://github.com/...)
+
+# ⚠️ ATTENTION : La description peut être incomplète !
+
+# Étape 3: VÉRIFICATION MANUELLE obligatoire du contenu réel de la PR
+# Récupérer le hash du merge commit de la PR
+PR_MERGE_COMMIT=$(git log --merges --oneline --grep="#229" | head -1 | awk '{print $1}')
+
+# Examiner les commits de la PR (entre le parent et le merge)
+git log ${PR_MERGE_COMMIT}^..${PR_MERGE_COMMIT}^2 --oneline | grep "Merge pull request" | head -20
+
+# Comparer avec les releases upstream de la période pour identifier les manquantes
+gh release list --repo demarches-simplifiees/demarches-simplifiees.fr --limit 50 | grep "2025-04"
+
+# Étape 4: Pour CHAQUE release upstream identifiée, récupérer son contenu
+gh release view 2025-04-16-01 --repo demarches-simplifiees/demarches-simplifiees.fr
+gh release view 2025-04-16-02 --repo demarches-simplifiees/demarches-simplifiees.fr
+# etc.
+```
+
+**⚠️ Erreurs critiques à éviter lors de l'identification :**
+
+1. **Se fier uniquement à la description de la PR** → Peut être incomplète
+   - ❌ Erreur : PR #229 listait 4 releases mais en contenait 5
+   - ✅ Solution : Toujours vérifier manuellement le contenu réel de la PR
+
+2. **Chercher uniquement "Merge tag" dans les commits** → Rate les releases intégrées via d'autres chemins
+   - ❌ Erreur : `git log | grep "Merge tag"` ne trouve pas toutes les releases
+   - ✅ Solution : Examiner tous les merge commits dans chaque PR
+
+3. **Inclure des releases déjà présentes dans le tag PF précédent** → Duplication
+   - ❌ Erreur : Inclure 2025-04-10-01 qui était déjà dans pf-2025-12-04
+   - ✅ Solution : Vérifier le contenu du tag PF précédent :
+     ```bash
+     gh release view pf-2025-12-04 --json body --jq '.body' | grep "2025-04-10"
+     ```
+
+4. **Oublier de vérifier la continuité des releases** → Trous dans la séquence
+   - ❌ Erreur : Avoir 2025-04-16-01, sauter 2025-04-16-02, puis 2025-04-17-01
+   - ✅ Solution : Lister chronologiquement toutes les releases upstream intégrées
+
+**Checklist de validation de l'identification :**
+- [ ] Toutes les PRs feature/bump-* depuis le dernier tag PF ont été examinées
+- [ ] Pour chaque PR, le contenu réel (pas juste la description) a été vérifié
+- [ ] Aucune release upstream n'est en doublon avec le tag PF précédent
+- [ ] Les releases sont listées dans l'ordre chronologique
+- [ ] Aucun "trou" dans la séquence des releases (ex: -01, -02, -03)
+
+**Exemple réel de piège évité :**
+- Tag précédent : pf-2025-12-04
+- PR #229 s'appelle "Feature/bump 2025 04 23 01" → Laisse penser qu'elle contient 1 release
+- En réalité, elle contenait 5 releases : 2025-04-16-01, -02, 2025-04-17-01, 2025-04-23-01, **2025-04-24-01**
+- La 5ème (2025-04-24-01) n'était **pas listée** dans la description de la PR !
+- Méthode correcte : `git log <pr>^..<pr>^2` a révélé tous les merge commits upstream
 
 #### 3. Structure du texte de release (format obligatoire)
 * Titre : `# Release pf-AAAA-MM-JJ`
@@ -233,11 +303,11 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 * Format : `- NomDeLaMigration : description`
 
 #### 6. Création de la release GitHub
-```bash
-# Créer le tag local
-git tag -a pf-AAAA-MM-JJ -m "Release pf-AAAA-MM-JJ"
 
-# Créer la GitHub release avec titre et notes formatées
+⚠️ **IMPORTANT** : Laisser GitHub créer le tag automatiquement. Ne PAS créer de tag local avant, sinon il faudra le pousser et cela cause des erreurs avec `gh release create`.
+
+```bash
+# Créer la GitHub release (elle créera le tag automatiquement)
 gh release create pf-AAAA-MM-JJ --title "JJ MMM AAAA" --notes "$(cat <<'EOF'
 ## Améliorations et correctifs
 
@@ -249,40 +319,95 @@ EOF
 ```
 
 #### 7. Vérification
-* Vérifier le tag local : `git tag -l pf-AAAA-MM-JJ`
 * Vérifier sur GitHub : https://github.com/govpf/mes-demarches/releases
+* Le tag sera automatiquement créé et visible dans `.git/refs/tags/`
 
 ### Erreurs critiques à éviter
-* **NE JAMAIS** mélanger des éléments de plusieurs releases upstream
+
+#### Lors de l'identification des releases
+* **NE JAMAIS** se fier uniquement à la description de la PR (peut être incomplète)
+* **NE JAMAIS** utiliser uniquement `git log | grep "Merge tag"` (rate des releases)
+* **TOUJOURS** vérifier manuellement le contenu réel de chaque PR avec `git log <pr>^..<pr>^2`
+* **TOUJOURS** vérifier qu'une release n'est pas déjà dans le tag PF précédent (éviter les doublons)
+* **VÉRIFIER** la continuité chronologique des releases (pas de trous dans la séquence)
+
+#### Lors de la rédaction
+* **NE JAMAIS** mélanger des éléments de plusieurs releases upstream dans une même section
 * **NE JAMAIS** inventer ou modifier les numéros d'issues upstream
 * **TOUJOURS** respecter le chapitrage exact : Administrateur, Instructeur, Usager, API, Technique
 * **TOUJOURS** utiliser le format "ETQ" (En Tant Que) des releases upstream
-* **VÉRIFIER** que la release upstream identifiée correspond bien aux commits intégrés
+* **COPIER EXACTEMENT** le texte des releases upstream (y compris la ponctuation et les fautes)
+
+### Exemple complet pas-à-pas
+
+**Contexte :** Créer la release pf-2025-12-05 depuis le dernier tag pf-2025-12-04
+
+```bash
+# 1. Identifier les PRs feature/bump-* mergées
+git log pf-2025-12-04..HEAD --merges --oneline | grep "Feature/bump"
+# Résultat :
+# 146364e1d4 Feature/bump 2025 04 30 01 (#231)
+# e97c6d4392 Feature/bump 2025 04 23 01 (#229)
+
+# 2. Examiner la PR #229
+gh pr view 229 --json body --jq '.body'
+# Résultat : Liste 4 releases (2025-04-16-01, -02, 2025-04-17-01, 2025-04-23-01)
+
+# 3. Vérifier le contenu réel de la PR #229 (CRUCIAL !)
+PR_MERGE=$(git log --merges --oneline --grep="#229" | head -1 | awk '{print $1}')
+git log ${PR_MERGE}^..${PR_MERGE}^2 --oneline | grep "Merge pull request"
+# ⚠️ Découverte : Contient aussi 2025-04-24-01 (non listé dans la description !)
+
+# 4. Examiner la PR #231
+gh pr view 231 --json body --jq '.body'
+# Résultat : Aucune liste (description vide) → Examiner manuellement
+PR_MERGE=$(git log --merges --oneline --grep="#231" | head -1 | awk '{print $1}')
+git log ${PR_MERGE}^..${PR_MERGE}^2 --oneline | grep "Merge tag"
+# Résultat : Contient 2025-04-30-01
+
+# 5. Vérifier qu'aucune de ces releases n'est déjà dans pf-2025-12-04
+gh release view pf-2025-12-04 --json body --jq '.body' | grep -E "2025-04-(16|17|23|24|30)"
+# Résultat : Aucune correspondance → OK, aucune duplication
+
+# 6. Lister chronologiquement toutes les releases identifiées
+# - 2025-04-16-01
+# - 2025-04-16-02
+# - 2025-04-17-01
+# - 2025-04-23-01
+# - 2025-04-24-01
+# - 2025-04-30-01
+
+# 7. Récupérer le contenu de CHAQUE release
+for release in 2025-04-16-01 2025-04-16-02 2025-04-17-01 2025-04-23-01 2025-04-24-01 2025-04-30-01; do
+  echo "=== $release ==="
+  gh release view $release --repo demarches-simplifiees/demarches-simplifiees.fr
+done
+
+# 8. Rédiger la release en copiant exactement le contenu de chaque release upstream
+
+# 9. Créer la release GitHub
+gh release create pf-2025-12-05 --title "5 Déc 2025" --notes "$(cat release_notes.md)"
+```
+
+**Résultat :** Release complète avec les 6 releases upstream correctement identifiées et documentées.
+
 ## Procédure de Nettoyage du Code
 
-### Suppression du Code lié au TableRowSelector après Premier Déploiement
+### Migration TableRowSelector vers ReferentielDePolynesie
 
-- Après le premier déploiement réussi, suivre ces étapes précises pour supprimer le code lié au tableRowSelector :
-  1. Supprimer les fichiers spécifiques à `table_row_selector` dans les répertoires :
-     - `app/models/champs/table_row_selector_champ.rb`
-     - `app/graphql/types/champs/table_row_selector_champ_type.rb`
-     - `app/graphql/types/champs/descriptor/table_row_selector_champ_descriptor_type.rb`
-  
-  2. Retirer les références dans `app/models/type_de_champ.rb` :
-     - Supprimer l'entrée `table_row_selector` de l'enum `type_champs`
-     - Retirer toute logique conditionnelle liée à `table_row_selector`
-  
-  3. Nettoyer les migrations et seeds :
-     - Supprimer toute migration qui ajoute des colonnes ou configurations spécifiques à `table_row_selector`
-     - Retirer les références dans les fichiers de seed/fixtures
-  
-  4. Mise à jour des tests et specs :
-     - Supprimer les tests unitaires et d'intégration liés à `table_row_selector`
-     - Ajuster les fixtures et factories de test
+**✅ Migration terminée** : Le type `table_row_selector` a été complètement remplacé par `referentiel_de_polynesie`.
 
-  5. Vérifications finales :
-     - Lancer la suite de tests complète pour s'assurer de l'absence de régressions
-     - Valider que GraphQL ne référence plus le type `table_row_selector`
+**Changements effectués** :
+- Remplacement de `Champs::TableRowSelectorChamp` par `Champs::ReferentielDePolynesieChamp`
+- Migration des types GraphQL vers `ReferentielDePolynesieChampType`
+- Suppression de l'enum `table_row_selector` au profit de `referentiel_de_polynesie`
+- Nettoyage des controllers, components et API Baserow
+- Mise à jour des routes et schémas GraphQL
+
+**Vérifications de sécurité** :
+- Lancer la suite de tests : `bundle exec rspec`
+- Valider GraphQL : `bin/rails graphql:schema:dump`
+- S'assurer que les procédures existantes fonctionnent toujours
 
 ## Intégration Upstream
 
@@ -309,9 +434,21 @@ git tag -l "2024-*" | sort -V | tail -5
 # Merger le tag upstream
 git merge upstream/AAAA-MM-JJ-NN
 
-# Pour les locales : prendre upstream systématiquement
-git checkout --theirs config/locales/
+# ⚠️ NE JAMAIS utiliser --theirs ou --ours globalement !
+# Cela masque les vrais conflits et peut écraser du code important
 ```
+
+**❌ À NE JAMAIS FAIRE :**
+```bash
+git checkout --theirs config/locales/  # ❌ Cache les conflits, peut régresser
+git checkout --theirs app/             # ❌ Peut perdre du code PF
+git merge --strategy-option theirs     # ❌ Dangereux
+```
+
+**✅ Approche correcte :**
+- Résoudre **chaque conflit manuellement** en examinant le contexte
+- Utiliser les tags `# pf:` pour identifier les spécificités à préserver
+- Pour les locales : vérifier si des traductions PF doivent être gardées
 
 #### 3. **Stratégie des tags PF**
 
@@ -321,7 +458,10 @@ Tous les comportements spécifiques à la Polynésie française doivent être ma
 **Résolution de conflits :**
 1. **Chercher les tags `# pf:` voisins** pour comprendre le contexte de la spécificité
 2. **Si tag PF présent** : analyser si la spécificité doit être maintenue
-3. **Si aucun tag PF** : prendre la version upstream par défaut
+3. **Si aucun tag PF** : privilégier upstream **SAUF si cela casse une fonctionnalité PF**
+4. **En cas de doute** : tester localement ou demander validation
+
+**⚠️ Règle d'or** : Upstream est prioritaire **tant que cela ne remet pas en cause les développements PF**. Si un changement upstream impacte une fonctionnalité PF (même sans tag `# pf:`), il faut adapter intelligemment, pas simplement prendre upstream.
 
 **Exemples de tags PF :**
 ```ruby
@@ -352,7 +492,7 @@ bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb
 **🔧 Corrections typiques :**
 - Messages de validation changés → corriger les expectations des tests
 - Nouvelles règles de linting → `bundle exec rubocop -A`
-- Conflits de traductions → prendre upstream pour les locales
+- Conflits de traductions → examiner si PF a des spécificités avant de prendre upstream
 
 ### Bonnes pratiques
 
@@ -380,3 +520,114 @@ bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb
 - [ ] CI verte sur tous les environnements
 - [ ] Tests manuels des fonctionnalités PF
 - [ ] Release notes rédigées
+- Tous les messages et texte en français à destination de l'interface doivent utiliser la quote française "'" au lieu d'une quote normale "'". Les tests sur l'interface doivent donc ausi utiliser cette quote française.
+
+### Stratégie alternative : Cherry-pick pour PRs cascadées
+
+#### **📌 Contexte du problème**
+
+Lorsque les PRs sont construites en cascade (PR X basée sur PR Y basée sur PR Z), et que devpf évolue entre temps, les PRs héritent de code obsolète de leur base.
+
+**Exemple** : Si devpf supprime `table_row_selector` entre la création de PR Y et PR Z, alors PR Z contiendra toujours `table_row_selector` car elle est basée sur PR Y qui date d'avant la suppression.
+
+#### **✅ Solution : Cherry-pick pour reconstruire proprement**
+
+Au lieu de merger, **cherry-picker uniquement les commits spécifiques à la PR** depuis le devpf actuel.
+
+**Étapes** :
+
+```bash
+# 1. Identifier le point de divergence (dernier commit de la PR précédente mergée dans devpf)
+git log devpf --oneline | grep "PR #222"  # Trouver le dernier commit de la PR précédente
+DIVERGENCE_POINT="a81e14ddd6"  # Hash du dernier commit de PR #222 dans devpf
+
+# 2. Identifier les commits à cherry-picker
+git log ${DIVERGENCE_POINT}..origin/feature/bump-2025-04-03-01 --oneline --no-merges
+
+# 3. Créer une nouvelle branche depuis devpf actuel
+git checkout devpf
+git pull origin devpf
+git checkout -b feature/bump-2025-04-03-01-clean
+
+# 4. Cherry-picker les commits (SANS les merge commits)
+git log ${DIVERGENCE_POINT}..origin/feature/bump-2025-04-03-01 --oneline --no-merges --reverse | \
+  awk '{print $1}' | \
+  while read commit; do
+    git cherry-pick $commit || echo "Conflict or empty commit: $commit"
+  done
+
+# 5. Gérer les commits vides ou conflits
+# - Skip empty commits : git cherry-pick --skip
+# - Résoudre conflits manuellement
+# - Utiliser --ours pour Gemfile.lock, régénérer à la fin
+```
+
+#### **⚠️ WARNINGS CRITIQUES**
+
+##### 1. **Commits "empty" perdus**
+
+**Problème** : Un commit peut devenir "empty" si son contexte a changé dans devpf.
+
+**Exemple vécu (PR #256)** :
+- Commit upstream `0e74d8afe4` (2 avril 2025) ajoute `Capybara.page.current_window.resize_to(1440, 900)` dans un test
+- Commit PF `390382ac26` (18 novembre 2025) refactorise massivement le même fichier de test
+- Lors du cherry-pick : git considère le commit comme "empty" car le contexte n'existe plus
+- **Résultat** : Le fix est perdu silencieusement
+
+**Solution** :
+```bash
+# Après cherry-pick, comparer les fichiers critiques avec upstream
+git diff origin/feature/bump-2025-04-03-01 -- spec/system/
+
+# Si des différences importantes apparaissent, investiguer manuellement
+```
+
+##### 2. **Tests system particulièrement sensibles**
+
+Les tests Playwright/Capybara sont **très sensibles au contexte** :
+- Changements de layout UI
+- Modifications de sélecteurs CSS
+- Refactorisation de composants React
+
+**Règle** : TOUJOURS lancer les tests system complets après cherry-pick :
+```bash
+bundle exec rspec spec/system/ --format documentation
+```
+
+##### 3. **Validation obligatoire**
+
+Le cherry-pick **n'est PAS magique** :
+- ✅ Fonctionne bien pour les commits indépendants
+- ❌ Échoue silencieusement quand le contexte change
+- ⚠️ Ne garantit PAS la cohérence fonctionnelle
+
+**Checklist de validation cherry-pick** :
+- [ ] Tous les unit tests passent : `bundle exec rspec spec/models spec/controllers spec/services`
+- [ ] Tous les system tests passent : `bundle exec rspec spec/system`
+- [ ] Comparer avec la PR upstream : `git diff origin/feature/original-pr`
+- [ ] Tester manuellement les fonctionnalités critiques
+- [ ] Vérifier qu'aucun commit n'a été "skippé" silencieusement
+
+#### **🎯 Quand utiliser cherry-pick vs merge**
+
+| Situation | Méthode recommandée |
+|-----------|---------------------|
+| PR basée directement sur devpf | ✅ Merge classique |
+| PR basée sur une autre PR (cascade) | ✅ Cherry-pick |
+| devpf a beaucoup évolué depuis la base | ✅ Cherry-pick |
+| Première intégration d'un tag upstream | ✅ Merge classique |
+
+#### **📝 Exemple réel : PR #223 → PR #256**
+
+**Contexte** :
+- PR #223 basée sur PR #222 (qui elle-même était basée sur PR #221, etc.)
+- devpf a évolué : PR #251 mergée entre temps
+- Résultat : PR #223 contenait du code obsolète de PR #222
+
+**Solution appliquée** :
+1. Cherry-picked 37 commits non-merge de PR #223
+2. Résolu les conflits (Gemfile.lock, secrets.yml, etc.)
+3. **Découvert** : commit `0e74d8afe4` perdu (test Capybara)
+4. **Correction manuelle** : Réappliqué le fix upstream
+
+**Leçon** : Le cherry-pick élimine le code obsolète, mais nécessite une validation approfondie des tests.

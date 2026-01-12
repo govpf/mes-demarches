@@ -4,6 +4,17 @@ require 'typhoeus'
 require 'json'
 
 class APILexpol
+  # pf: Exception spécifique pour les erreurs d'accès (401/403)
+  # Permet de distinguer les problèmes de permissions des autres erreurs techniques
+  class LexpolAccessDenied < StandardError
+    attr_reader :email_used, :http_code
+
+    def initialize(email_used, http_code)
+      @email_used = email_used
+      @http_code = http_code
+      super("Accès refusé à Lexpol pour #{email_used} (HTTP #{http_code})")
+    end
+  end
   # Syntaxe de LEXPOL_SERVICE_EMAILS :
   # Cette variable d'environnement doit contenir une liste de numéros Tahiti avec leurs emails associés.
   # Format attendu : "T123456(email1),D654321(email2),003970(email3)"
@@ -54,9 +65,23 @@ class APILexpol
   LEXPOL_SERVICE_EMAILS = ENV.fetch('LEXPOL_SERVICE_EMAILS', '').scan(/([A-Z0-9][0-9]{5})\(([^)]+)\)/).to_h
 
   def determine_email_agent(email, numero_tahiti, use_test_user)
-    return email unless use_test_user && numero_tahiti
+    # Si on ne demande pas de compte de test, utiliser l'email fourni
+    return email unless use_test_user
 
-    APILexpol.service_emails[numero_tahiti] || email
+    # Si pas de numéro Tahiti (SIRET), impossible de chercher dans le mapping
+    if numero_tahiti.nil?
+      Rails.logger.warn("Lexpol: compte de service demandé mais aucun SIRET fourni, utilisation de #{email}")
+      return email
+    end
+
+    # Chercher dans le mapping SIRET → email de service
+    service_email = APILexpol.service_emails[numero_tahiti]
+
+    if service_email.nil?
+      Rails.logger.warn("Lexpol: SIRET '#{numero_tahiti}' non trouvé dans LEXPOL_SERVICE_EMAILS, utilisation de #{email}")
+    end
+
+    service_email || email
   end
 
   def self.service_emails
@@ -79,6 +104,11 @@ class APILexpol
     response = Typhoeus.post("#{BASE_URL}/authentification", options)
     return parse_token(response) if response.success?
 
+    # pf: Lever une exception spécifique pour les problèmes de permissions
+    if response.code == 401 || response.code == 403
+      raise LexpolAccessDenied.new(@email_agent, response.code)
+    end
+
     raise "Erreur d'authentification Lexpol : #{response.body}"
   end
 
@@ -88,6 +118,11 @@ class APILexpol
     request = Typhoeus::Request.new("#{BASE_URL}#{endpoint}", request_options(body, method))
     response = request.run
     return parse_response(response, error_message) if response.success?
+
+    # pf: Lever une exception spécifique pour les problèmes de permissions
+    if response.code == 401 || response.code == 403
+      raise LexpolAccessDenied.new(@email_agent, response.code)
+    end
 
     raise "#{error_message} renvoi l'erreur HTML #{response.code}."
   end

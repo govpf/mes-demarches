@@ -333,6 +333,25 @@ describe Expired::DossiersDeletionService do
       it { expect(dossier_2.reload.hidden_by_expired_at).to be_an_instance_of(ActiveSupport::TimeWithZone) }
       it { expect(dossier_2.reload.hidden_by_reason).to eq('expired') }
     end
+
+    context 'when instructeur has disabled deletion notifications' do
+      let!(:dossier) { create(:dossier, :en_construction, :followed, procedure: procedure, en_construction_close_to_expiration_notice_sent_at: (warning_period + 4.days).ago) }
+      let!(:instructeur) { dossier.followers_instructeurs.first }
+      let!(:assign_to) { AssignTo.find_or_create_by(instructeur: instructeur, groupe_instructeur: dossier.groupe_instructeur) }
+
+      before do
+        assign_to.update!(deletion_email_notifications_enabled: false)
+        service.delete_expired_en_construction_and_notify
+      end
+
+      it 'does not send notification to instructeur' do
+        expect(DossierMailer).not_to have_received(:notify_automatic_deletion_to_administration).with([dossier], instructeur.email)
+      end
+
+      it 'still sends notification to administrateur' do
+        expect(DossierMailer).to have_received(:notify_automatic_deletion_to_administration).with([dossier], dossier.procedure.administrateurs.first.email)
+      end
+    end
   end
 
   describe '#send_termine_expiration_notices' do
