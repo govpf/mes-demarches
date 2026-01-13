@@ -192,7 +192,7 @@ class Expired::DossiersDeletionService < Expired::MailRateLimiter
   def instructeurs_to_notify(dossier, assign_tos_by_key)
     # Logique upstream : followers + admins qui sont instructeurs dans au moins un groupe
     all_instructeurs = dossier.followers_instructeurs.to_a
-    
+
     admin_emails = dossier.procedure.administrateurs.map(&:email)
     dossier.procedure.groupe_instructeurs.each do |groupe|
       groupe.instructeurs.each do |instructeur|
