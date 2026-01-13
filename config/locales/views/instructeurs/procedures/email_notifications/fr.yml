@@ -7,6 +7,7 @@ fr:
           negative: Non
         title: Gestion des notifications
         subtitle: Configurez sur cette page les notifications que vous souhaitez recevoir par email pour cette démarche.
+        save_reminder: Pensez à sauvegarder vos modifications avec le bouton en bas de page.
         for_each_file_submitted:
           title: Recevoir une notification à chaque dossier déposé
           notice_1: Cet email vous signale le dépôt d’un nouveau dossier.
