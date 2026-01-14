@@ -10,7 +10,7 @@ class Champs::ReferentielDePolynesieChamp < Champs::TextChamp
   end
 
   def update_with_external_data!(data:)
-    update!(data: data) if data&.is_a?(Hash)
+    update!(data: data, fetch_external_data_exceptions: []) if data&.is_a?(Hash)
   end
 
   def selected
