@@ -91,7 +91,7 @@ describe DossierFilterService do
       context 'in ascending order' do
         let(:order) { 'asc' }
 
-        it { is_expected.to eq([older_dossier, recent_dossier, notified_dossier].map(&:id)) }
+        it { is_expected.to eq([older_dossier, notified_dossier, recent_dossier].map(&:id)) }
       end
 
       context 'in descending order' do
@@ -801,6 +801,34 @@ describe DossierFilterService do
 
         before do
           create(:follow, dossier: other_kept_dossier, instructeur: create(:instructeur, email: 'bazinga@beta.gouv.fr'))
+        end
+
+        it 'returns every dossier that matches any of the search criteria for a given column' do
+          is_expected.to contain_exactly(kept_dossier.id, other_kept_dossier.id)
+        end
+      end
+    end
+
+    context 'for traitements table' do
+      let(:filter) { ["Adresse électronique d'un des agents ayant pris part a l'instruction du dossier", 'keepmail'] }
+
+      let!(:kept_dossier) { create(:dossier, procedure:) }
+      let!(:discarded_dossier) { create(:dossier, procedure:) }
+
+      before do
+        create(:traitement, dossier: kept_dossier, instructeur_email: 'me@keepmail.com')
+        create(:traitement, dossier: discarded_dossier, instructeur_email: 'me@discard.com')
+      end
+
+      it { is_expected.to contain_exactly(kept_dossier.id) }
+
+      context 'with multiple search values' do
+        let(:filters) { [["Adresse électronique d'un des agents ayant pris part a l'instruction du dossier", 'keepmail'], ["Adresse électronique d'un des agents ayant pris part a l'instruction du dossier", 'beta.gouv.fr']] }
+
+        let!(:other_kept_dossier) { create(:dossier, procedure:) }
+
+        before do
+          create(:traitement, dossier: other_kept_dossier, instructeur_email: 'bazinga@beta.gouv.fr')
         end
 
         it 'returns every dossier that matches any of the search criteria for a given column' do

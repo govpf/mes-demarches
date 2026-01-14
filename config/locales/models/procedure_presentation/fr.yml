@@ -40,6 +40,8 @@ fr:
             centre_de_cout: Centre De Coût
           followers_instructeurs:
             email: Instructeurs
+          traitements:
+            instructeur_email: Adresse électronique d'un des agents ayant pris part a l'instruction du dossier
           groupe_instructeur:
             id: Groupe instructeur
             label: Groupe instructeur
@@ -85,3 +87,5 @@ fr:
             association_date_publication: 'Association date de publication'
           dossier_labels:
             label_id: Labels
+          dossier_notifications:
+            notification_type: Notifications sur le dossier

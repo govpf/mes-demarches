@@ -626,10 +626,6 @@ class Procedure < ApplicationRecord
     end
   end
 
-  def flipper_id
-    "Procedure;#{id}"
-  end
-
   def column_styles(table, export_template: nil)
     styles =
       case table

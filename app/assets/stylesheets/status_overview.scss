@@ -1,30 +1,22 @@
-@import 'colors';
 @import 'constants';
 
 .status-timeline {
   display: inline-block;
-  border: 1px solid #808080;
+  border: 1px solid var(--border-plain-grey);
   border-radius: 3px;
+  padding: 0 1.5rem;
 
   li {
     display: inline-block;
     padding-top: $default-spacer;
     padding-bottom: $default-spacer;
 
-    &:first-child {
-      padding-left: 20px;
-    }
-
-    &:last-child {
-      padding-right: 20px;
-    }
-
-    &.active {
+    &[aria-current='true'] {
       font-weight: bold;
     }
 
-    &.active ~ li {
-      color: $dark-grey;
+    &:not([aria-current='true']) {
+      color: var(--text-mention-grey);
     }
 
     // Arrows
@@ -39,39 +31,27 @@
 }
 
 .status-explanation {
-  p {
-    margin-bottom: $default-padding;
-  }
-
-  .decision {
-    font-size: 1.2em;
-    margin-top: $default-padding * 3;
-    margin-bottom: $default-padding * 3;
-  }
-
-  .icon {
-    margin-right: $default-spacer;
-  }
-
-  h3 {
-    font-weight: bold;
-    margin-bottom: $default-spacer;
-  }
-
   blockquote {
-    quotes: '« ' ' »' '‘' '’';
+    quotes: '« ' ' »' '“' '”';
     margin-bottom: $default-padding * 3;
   }
 
   blockquote::before {
     content: open-quote;
+    float: left;
+  }
+
+  blockquote > p:last-of-type {
+    display: inline;
+    margin-bottom: 0;
   }
 
   blockquote::after {
     content: close-quote;
+    display: inline;
   }
 
-  .action {
-    margin-bottom: $default-padding * 3;
+  blockquote > p:empty {
+    display: none;
   }
 }

@@ -331,6 +331,7 @@ module Users
 
       if @dossier.errors.blank? && @dossier.can_passer_en_construction?
         @dossier.passer_en_construction!
+        DossierNotification.create_notification(@dossier, :dossier_depose)
         redirect_to merci_dossier_path(@dossier)
       else
         render :brouillon
@@ -383,6 +384,9 @@ module Users
         end
 
         dossier_en_construction.submit_en_construction!
+
+        DossierNotification.create_notification(dossier_en_construction, :dossier_modifie)
+
         redirect_to dossier_path(dossier_en_construction)
       else
         @dossier_for_editing = dossier
@@ -411,10 +415,13 @@ module Users
       @dossier = current_user.dossiers.includes(:procedure).find(params[:id])
     end
 
+    # polling url for champ
     def champ
       @dossier = dossier_with_champs(pj_template: false)
       type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id], :public)
       champ = dossier.project_champ(type_de_champ, row_id: params[:row_id])
+
+      champ.validate(:champs_public_value) if champ.external_data_fetched?
 
       respond_to do |format|
         format.turbo_stream do
@@ -434,6 +441,8 @@ module Users
         timestamps << :last_commentaire_piece_jointe_updated_at if @commentaire.piece_jointe.attached?
 
         @commentaire.dossier.touch(*timestamps)
+
+        DossierNotification.create_notification(dossier, :message_usager)
 
         flash.notice = t('.message_send')
         redirect_to messagerie_dossier_path(dossier)
@@ -714,7 +723,7 @@ module Users
           end
         end
 
-        if params[:validate].present?
+        if params[:validate].present? && !champ.fetch_external_data_pending?
           dossier.validate(:champs_public_value)
         end
       end

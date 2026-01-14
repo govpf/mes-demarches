@@ -145,7 +145,13 @@ class Expired::DossiersDeletionService < Expired::MailRateLimiter
     dossier_list = dossiers
       .visible_by_administration
       .with_notifiable_procedure(notify_on_closed: true)
-      .includes(:followers_instructeurs, procedure: [:administrateurs])
+      .includes(
+        :followers_instructeurs,
+        procedure: {
+          groupe_instructeurs: { instructeurs: :user },
+          administrateurs: :user
+        }
+      )
       .to_a
 
     # pf: précharger tous les AssignTo en une seule requête pour éviter N+1
@@ -156,7 +162,7 @@ class Expired::DossiersDeletionService < Expired::MailRateLimiter
         instructeurs_with_notifications = instructeurs_to_notify(dossier, assign_tos_by_key)
         instructeurs_with_notifications.each { |instructeur| h[instructeur.email] << dossier }
       end
-      .map { |(email, dossiers)| [email, dossiers.to_a] }
+      .transform_values(&:to_a)
   end
 
   def all_user_dossiers_brouillon_close_to_expiration(user)
@@ -184,9 +190,20 @@ class Expired::DossiersDeletionService < Expired::MailRateLimiter
 
   # pf: filtre les instructeurs qui ont activé les notifications de suppression
   def instructeurs_to_notify(dossier, assign_tos_by_key)
-    all_instructeurs = dossier.followers_instructeurs + dossier.procedure.administrateurs.map(&:instructeur).compact
+    # Logique upstream : followers + admins qui sont instructeurs dans au moins un groupe
+    all_instructeurs = dossier.followers_instructeurs.to_a
 
-    all_instructeurs.filter do |instructeur|
+    admin_emails = dossier.procedure.administrateurs.map(&:email)
+    dossier.procedure.groupe_instructeurs.each do |groupe|
+      groupe.instructeurs.each do |instructeur|
+        if admin_emails.include?(instructeur.email)
+          all_instructeurs << instructeur
+        end
+      end
+    end
+
+    # pf: Filtrer par préférence de notification
+    all_instructeurs.uniq.filter do |instructeur|
       assign_to = assign_tos_by_key[[instructeur.id, dossier.groupe_instructeur_id]]
       # Si pas d'assign_to ou si notifications activées
       assign_to.nil? || assign_to.deletion_email_notifications_enabled

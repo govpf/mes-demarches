@@ -4,10 +4,11 @@
       = dossier.procedure.libelle
       = status_badge_user(dossier, 'super')
       = pending_correction_badge(:for_user) if dossier.pending_correction?
-    %h2
-      = t('views.users.dossiers.show.header.dossier_number_html', dossier_id: dossier.id)
-      - if dossier.depose_at.present?
-        = t('views.users.dossiers.show.header.submit_date', date_du_dossier: I18n.l(dossier.depose_at))
+      %br
+      %span.fr-h2
+        = t('views.users.dossiers.show.header.dossier_number_html', dossier_id: dossier.id)
+        - if dossier.depose_at.present?
+          = t('views.users.dossiers.show.header.submit_date', date_du_dossier: I18n.l(dossier.depose_at))
 
     = render(partial: 'users/dossiers/expiration_banner', locals: {dossier: dossier})
 
@@ -22,7 +23,7 @@
             = link_to t('views.users.dossiers.demande.edit_dossier'), modifier_dossier_path(dossier), class: 'fr-btn fr-btn-sm fr-ml-1w',
               title: t('views.users.dossiers.demande.edit_dossier_title')
 
-    %nav.fr-tabs
+    %nav.fr-tabs{ 'role': 'navigation', 'aria-label': t('views.users.dossiers.show.header.dossier_number', dossier_id: dossier.id) }
       %ul.fr-tabs__list{ role: 'tablist' }
         = dynamic_tab_item(t('views.users.dossiers.show.header.summary'), dossier_path(dossier))
         = dynamic_tab_item(t('views.users.dossiers.show.header.request'), [demande_dossier_path(dossier), modifier_dossier_path(dossier)])

@@ -2,6 +2,8 @@
 
 describe Dossier, type: :model do
   include ActionView::Helpers::SanitizeHelper
+  include ActionView::Helpers::TextHelper
+  include ChampHelper
 
   let(:user) { create(:user) }
 
@@ -720,6 +722,20 @@ describe Dossier, type: :model do
       dossier.assign_to_groupe_instructeur(new_groupe_instructeur, DossierAssignment.modes.fetch(:auto))
       expect(dossier.groupe_instructeur).to eq(new_groupe_instructeur)
     end
+
+    context "when the groupe instructeur change" do
+      let!(:previous_groupe_instructeur) { create(:groupe_instructeur, procedure: procedure) }
+      let!(:notification) { create(:dossier_notification, :for_groupe_instructeur, dossier:, groupe_instructeur: previous_groupe_instructeur) }
+
+      before do
+        dossier.assign_to_groupe_instructeur(previous_groupe_instructeur, DossierAssignment.modes.fetch(:auto))
+      end
+
+      it "update notifications for groupe instructeur" do
+        dossier.assign_to_groupe_instructeur(new_groupe_instructeur, DossierAssignment.modes.fetch(:auto))
+        expect(notification.reload.groupe_instructeur_id).to eq(new_groupe_instructeur.id)
+      end
+    end
   end
 
   describe "#unfollow_stale_instructeurs" do
@@ -1306,7 +1322,7 @@ describe Dossier, type: :model do
       email_template = dossier.procedure.email_template_for(dossier.state)
       commentaire = dossier.commentaires.last
 
-      expect(commentaire.body).to include(sanitize(email_template.subject_for_dossier(dossier)), sanitize(email_template.body_for_dossier(dossier)))
+      expect(commentaire.body).to include(sanitize(email_template.subject_for_dossier(dossier)), format_text_value(email_template.body_for_dossier(dossier)))
       expect(commentaire.dossier).to eq(dossier)
     end
   end
