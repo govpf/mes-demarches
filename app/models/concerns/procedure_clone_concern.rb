@@ -81,7 +81,9 @@ module ProcedureCloneConcern
     'api_entreprise_token_expires_at',
     'rdv_enabled',
     'routing_alert',
-    'api_particulier_token'
+    'api_particulier_token',
+    'no_gender',
+    'pro_connect_restricted'
   ]
 
   NEW_MAX_DUREE_CONSERVATION = Expired::DEFAULT_DOSSIER_RENTENTION_IN_MONTH
