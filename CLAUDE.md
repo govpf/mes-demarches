@@ -284,8 +284,11 @@ gh release view 2025-04-16-02 --repo demarches-simplifiees/demarches-simplifiees
 - Méthode correcte : `git log <pr>^..<pr>^2` a révélé tous les merge commits upstream
 
 #### 3. Structure du texte de release (format obligatoire)
-* Titre : `# Release pf-AAAA-MM-JJ`
-* Section : `## Améliorations et correctifs`
+
+**⚠️ IMPORTANT** : Le corps de la release ne contient **PAS** de titre `# Release pf-AAAA-MM-JJ` car celui-ci est redondant avec le libellé GitHub de la release. Le corps commence directement par `## Améliorations et correctifs`.
+
+Structure :
+* **Première ligne** : `## Améliorations et correctifs` (pas de titre H1 avant)
 * Sous-section upstream : `### Intégration de la release upstream AAAA-MM-JJ-NN`
 * Chapitres exacts : `#### Administrateur`, `#### Instructeur`, `#### Usager`, `#### API`, `#### Technique`
 * **COPIER EXACTEMENT** le texte, numéros d'issues (#NNNN), et format "ETQ" des releases upstream
@@ -304,11 +307,15 @@ gh release view 2025-04-16-02 --repo demarches-simplifiees/demarches-simplifiees
 
 #### 6. Création de la release GitHub
 
-⚠️ **IMPORTANT** : Laisser GitHub créer le tag automatiquement. Ne PAS créer de tag local avant, sinon il faudra le pousser et cela cause des erreurs avec `gh release create`.
+⚠️ **IMPORTANT** :
+- Laisser GitHub créer le tag automatiquement. Ne PAS créer de tag local avant, sinon il faudra le pousser et cela cause des erreurs avec `gh release create`.
+- Le titre doit être au format **"JJ MMMM AAAA"** avec le mois en **français complet** (ex: "12 janvier 2026", "5 décembre 2025")
+- Le corps de la release commence directement par `## Améliorations et correctifs` (pas de titre H1)
 
 ```bash
 # Créer la GitHub release (elle créera le tag automatiquement)
-gh release create pf-AAAA-MM-JJ --title "JJ MMM AAAA" --notes "$(cat <<'EOF'
+# Exemple pour le 12 janvier 2026 :
+gh release create pf-2026-01-12 --title "12 janvier 2026" --notes "$(cat <<'EOF'
 ## Améliorations et correctifs
 
 ### Intégration de la release upstream AAAA-MM-JJ-NN
@@ -386,7 +393,7 @@ done
 # 8. Rédiger la release en copiant exactement le contenu de chaque release upstream
 
 # 9. Créer la release GitHub
-gh release create pf-2025-12-05 --title "5 Déc 2025" --notes "$(cat release_notes.md)"
+gh release create pf-2025-12-05 --title "5 décembre 2025" --notes "$(cat release_notes.md)"
 ```
 
 **Résultat :** Release complète avec les 6 releases upstream correctement identifiées et documentées.
