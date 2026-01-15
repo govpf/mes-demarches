@@ -407,4 +407,16 @@ RSpec.describe DossierMailer, type: :mailer do
       end
     end
   end
+
+  describe '.notify_new_dossier_depose_to_instructeur' do
+    let(:dossier) { create(:dossier, :en_construction, procedure: create(:simple_procedure)) }
+    let(:instructeur) { create(:instructeur) }
+
+    subject { described_class.notify_new_dossier_depose_to_instructeur(dossier, instructeur.email) }
+
+    it 'includes unsubscribe link' do
+      expect(subject.body).to include('Ne plus recevoir de mail')
+      expect(subject.body).to include(email_notifications_instructeur_procedure_url(dossier.procedure, host: ENV.fetch("APP_HOST_LEGACY")))
+    end
+  end
 end
