@@ -77,8 +77,9 @@ module TagsSubstitutionConcern
       id: 'dossier_motivation',
       libelle: 'motivation',
       description: 'Motivation facultative associée à la décision finale d’acceptation, refus ou classement sans suite',
-      lambda: -> (d) { simple_format(d.motivation) },
-      escapable: false, # sanitized by simple_format
+      # pf: pas de simple_format ici, sera fait dans MailTemplatePresenterService.safe_body avec MailScrubber
+      lambda: -> (d) { d.motivation },
+      escapable: false, # sanitized later with MailScrubber (preserves links/images for instructeurs)
       available_for_states: Dossier::TERMINE
     },
     {
