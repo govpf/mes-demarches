@@ -103,7 +103,7 @@ describe 'instructeurs/dossiers/show', type: :view do
       expect(subject).to have_button('Repasser en construction')
       expect(subject).to have_selector('.en-construction-menu .fr-btn', count: 5)
 
-      expect(subject).to have_button('Instruire le dossier')
+      expect(subject).to have_button('Clôturer le dossier')
       expect(subject).to have_selector('.instruction-button .fr-btn', count: 13)
     end
   end
