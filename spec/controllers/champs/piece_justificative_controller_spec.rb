@@ -9,13 +9,26 @@ describe Champs::PieceJustificativeController, type: :controller do
   describe '#download' do
     let(:instructeur) { procedure.defaut_groupe_instructeur.instructeurs.first }
     let(:annotation) { dossier.project_champs_private.first }
+    let(:uploaded_file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
+    let(:blob) do
+      blob = ActiveStorage::Blob.create_before_direct_upload!(
+        filename: uploaded_file.original_filename,
+        byte_size: uploaded_file.size,
+        checksum: Digest::MD5.base64digest(uploaded_file.read.tap { uploaded_file.rewind }),
+        content_type: uploaded_file.content_type,
+        metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE }
+      )
+      blob.upload(uploaded_file)
+      blob
+    end
+
     before do
       sign_in instructeur.user
       put :update, params: {
         position: '1',
         dossier_id: dossier.id,
         stable_id: annotation.stable_id,
-        blob_signed_id: file
+        blob_signed_id: blob.signed_id
       }, format: 'turbo_stream'
       sign_out instructeur.user
       sign_in current_user
@@ -69,7 +82,6 @@ describe Champs::PieceJustificativeController, type: :controller do
 
       context 'when user wants to download pdf piece_justificative,' do
         let(:current_user) { user }
-        let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
 
         context 'when procedure qrcoding is not activated,' do
           before { Flipper.disable(:qrcoded_pdf, procedure) }
@@ -102,7 +114,6 @@ describe Champs::PieceJustificativeController, type: :controller do
 
       context 'when instructeur wants to download pdf piece_justificative,' do
         let(:current_user) { instructeur.user }
-        let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
 
         context 'when procedure qrcoding is not activated,' do
           before { Flipper.disable(:qrcoded_pdf, procedure) }
@@ -122,7 +133,6 @@ describe Champs::PieceJustificativeController, type: :controller do
 
       context 'when Another User wants to download pdf piece_justificative,' do
         let(:current_user) { create(:user) }
-        let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
 
         context 'when procedure qrcoding is not activated,' do
           before { Flipper.disable(:qrcoded_pdf, procedure) }
