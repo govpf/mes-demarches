@@ -127,18 +127,22 @@ describe ExportTemplate do
         ]
       end
       it 'is able to resolve stable_id' do
-        expect(export_template.columns_for_stable_id(20).size).to eq(1)
-        # TODO : Checkback
-        # columns = export_template.columns_for_stable_id(20)
+        # pf: N Tahiti includes etablissement columns but not address columns
+        columns = export_template.columns_for_stable_id(20)
+        expect(columns.size).to eq(7)
 
-        # expect(columns.find { _1.libelle == "SIRET" }).to be_present
+        expect(columns.find { _1.libelle == "SIRET" }).to be_present
 
-        # %w[
-        #   $.entreprise_nom_commercial
-        #   $.entreprise_raison_sociale
-        # ].each do |jsonpath|
-        #   expect(columns.find { _1.column.respond_to?(:jsonpath) && _1.column.jsonpath == jsonpath }).to be_present
-        # end
+        %w[
+          $.entreprise_nom_commercial
+          $.entreprise_raison_sociale
+          $.entreprise_siren
+          $.entreprise_forme_juridique
+          $.entreprise_date_creation
+          $.libelle_naf
+        ].each do |jsonpath|
+          expect(columns.find { _1.column.respond_to?(:jsonpath) && _1.column.jsonpath == jsonpath }).to be_present
+        end
       end
     end
     context 'when procedure has a TypeDeChamp::Text' do

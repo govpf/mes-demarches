@@ -159,6 +159,8 @@ def add_single_champ(pdf, champ)
   return if champ.conditional? && !champ.visible?
 
   case champ.type
+  when 'Champs::ExplicationChamp'
+    return
   when 'Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp'
     format_in_2_lines(pdf, tdc.libelle, champ.piece_justificative_file.map { |pj| "- #{pj.filename}" }.join("\n"))
   when 'Champs::HeaderSectionChamp'
@@ -169,8 +171,6 @@ def add_single_champ(pdf, champ)
     end
 
     add_section_title(pdf, libelle)
-  when 'Champs::ExplicationChamp'
-    format_in_2_lines(pdf, tdc.libelle, strip_tags(tdc.description))
   when 'Champs::CarteChamp'
     pdf.pad_bottom(4) do
       pdf.font 'marianne', style: :bold, size: 12 do

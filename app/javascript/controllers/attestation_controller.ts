@@ -27,8 +27,9 @@ export class AttestationController extends ApplicationController {
     });
 
     this.on('turbo:submit-end', () => {
-      // eslint-disable-next-line no-self-assign
-      this.previewTarget.src = this.previewTarget.src; // reload the iframe
+      // Force iframe reload with cache busting parameter
+      const baseUrl = this.previewTarget.src.split('?')[0];
+      this.previewTarget.src = `${baseUrl}?t=${Date.now()}`;
     });
   }
 
