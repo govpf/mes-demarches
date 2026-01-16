@@ -338,7 +338,7 @@ class TypeDeChamp < ApplicationRecord
   end
 
   def drop_down_other?
-    drop_down_list? && (drop_down_other == "1" || drop_down_other == true)
+    (drop_down_list? || referentiel_de_polynesie?) && (drop_down_other == "1" || drop_down_other == true)
   end
 
   def positive_number?
