@@ -386,7 +386,7 @@ en:
           form: "Form"
           edit_siret: 'Edit Tahiti number'
           edit_identity: "Edit identity data"
-          edit_identity_html: 'Edit identity <span aria-hidden="true">data<span>'
+          edit_identity_html: 'Edit identity <span aria-hidden="true"> data<span>'
           accuse_lecture: This procedure is subject to a reading receipt.
           accuse_lecture_with_agreement: The user has read the decision taken on his file on %{agreement}.
           accuse_lecture_without_agreement: The user has not yet learned of the decision on their file.
@@ -471,9 +471,9 @@ en:
           jdma_l2: Give us your feedback, it only takes 2 minutes.
         show:
           header:
-            summary: "Follow-up on your file"
+            summary_html: 'Follow-up<span class="fr-hidden fr-unhidden-sm"> on your file</span>'
             request: "Your file"
-            mailbox: "Administration messaging"
+            mailbox_html: '<span class="fr-hidden fr-unhidden-sm">Administration </span> messaging'
             rendez_vous: "Appointment"
             dossier_number: "File number %{dossier_id}"
             dossier_number_html: "File <span class='visually-hidden'>number</span> <span aria-hidden='true'>n.</span> %{dossier_id}"
@@ -499,7 +499,7 @@ en:
             acceptee_html: "Your file had been <strong>accepted</strong>."
             accepte_motivation: "Reason"
             accepte_attestation: "Download the attestation"
-            refuse_html: "Sorry, your file had been <strong>rejected</strong>."
+            refuse_html: "Your file had been <strong>rejected</strong>."
             refuse_motivation: "Reason"
             refuse_reply: "Send a message to the administration"
             sans_suite_html: "Your file had been <strong>closed, no further action</strong>."

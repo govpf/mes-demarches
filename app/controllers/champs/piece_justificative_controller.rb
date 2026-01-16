@@ -58,12 +58,14 @@ class Champs::PieceJustificativeController < Champs::ChampController
       save_succeed = @champ.save(context:)
     end
 
+    # pf: track revisions for private champs (annotations) modified by instructeurs
+    # Note: current_instructeur must be present when modifying private champs
     if @champ.private?
       ChampRevision.create_or_update_revision(@champ, current_instructeur.id)
     end
 
     @champ.dossier.update(last_champ_updated_at: Time.zone.now.utc) if save_succeed
-    if save_succeed && dossier.brouillon?
+    if save_succeed
       @champ.update_timestamps
     end
 

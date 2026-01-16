@@ -15,9 +15,9 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
   enable_extension "postgis"
-  enable_extension "unaccent"
   disable_extension "postgis_tiger_geocoder"
   enable_extension "sslinfo"
+  enable_extension "unaccent"
 
   create_table "action_text_rich_texts", force: :cascade do |t|
     t.text "body"
@@ -47,6 +47,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.string "filename", null: false
     t.string "key", null: false
     t.text "metadata"
+    t.jsonb "ocr"
     t.string "service_name", null: false
     t.string "virus_scan_result"
     t.datetime "virus_scanned_at"
@@ -104,8 +105,11 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.string "siret"
     t.string "sub", null: false
     t.datetime "updated_at", null: false
+    t.bigint "user_id"
     t.string "usual_name"
     t.index ["instructeur_id"], name: "index_agent_connect_informations_on_instructeur_id"
+    t.index ["user_id", "sub"], name: "index_agent_connect_informations_on_user_id_and_sub", unique: true
+    t.index ["user_id"], name: "index_agent_connect_informations_on_user_id"
   end
 
   create_table "api_tokens", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -284,7 +288,6 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.text "updated_by"
     t.string "value"
     t.jsonb "value_json"
-    t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_dossier_id_and_stream_and_stable_id_and_row_id", unique: true
     t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_stream_and_public_id", unique: true
     t.index ["dossier_id"], name: "index_champs_on_dossier_id"
     t.index ["etablissement_id"], name: "index_champs_on_etablissement_id"
@@ -518,12 +521,13 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.datetime "en_construction_at"
     t.datetime "en_construction_close_to_expiration_notice_sent_at"
     t.datetime "en_instruction_at"
+    t.datetime "expired_at"
     t.boolean "for_procedure_preview", default: false, null: false
     t.boolean "for_tiers", default: false, null: false
     t.boolean "forced_groupe_instructeur", default: false, null: false
     t.bigint "groupe_instructeur_id"
-    t.datetime "groupe_instructeur_updated_at"
-    t.datetime "hidden_by_administration_at"
+    t.datetime "groupe_instructeur_updated_at", precision: nil
+    t.datetime "hidden_by_administration_at", precision: nil
     t.datetime "hidden_by_expired_at"
     t.string "hidden_by_reason"
     t.datetime "hidden_by_user_at"
@@ -541,17 +545,18 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.bigint "parent_dossier_id"
     t.string "prefill_token"
     t.boolean "prefilled"
-    t.text "private_search_terms"
-    t.datetime "processed_at"
+    t.string "private_search_terms"
+    t.datetime "processed_at", precision: nil
     t.bigint "revision_id"
     t.text "search_terms"
     t.string "state"
+    t.bigint "submitted_revision_id"
     t.date "sva_svr_decision_on"
     t.datetime "sva_svr_decision_triggered_at"
     t.datetime "termine_close_to_expiration_notice_sent_at"
     t.datetime "updated_at"
     t.integer "user_id"
-    t.index "to_tsvector('french'::regconfig, (search_terms || private_search_terms))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
+    t.index "to_tsvector('french'::regconfig, (search_terms || (private_search_terms)::text))", name: "index_dossiers_on_search_terms_private_search_terms", using: :gin
     t.index "to_tsvector('french'::regconfig, search_terms)", name: "index_dossiers_on_search_terms", using: :gin
     t.index ["archived"], name: "index_dossiers_on_archived"
     t.index ["batch_operation_id"], name: "index_dossiers_on_batch_operation_id"
@@ -1038,7 +1043,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.string "description"
     t.string "description_pj"
     t.string "description_target_audience"
-    t.datetime "dossiers_count_computed_at"
+    t.datetime "dossiers_count_computed_at", precision: nil
     t.bigint "draft_revision_id"
     t.integer "duree_conservation_dossiers_dans_ds"
     t.boolean "duree_conservation_etendue_par_ds", default: false, null: false
@@ -1062,11 +1067,13 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.string "lien_site_web"
     t.integer "max_duree_conservation_dossiers_dans_ds", default: 12, null: false
     t.text "monavis_embed"
+    t.boolean "no_gender", default: false, null: false
     t.boolean "opendata", default: true
     t.string "organisation"
     t.bigint "parent_procedure_id"
     t.string "path"
     t.boolean "piece_justificative_multiple", default: true, null: false
+    t.boolean "pro_connect_restricted", default: false, null: false
     t.boolean "procedure_expires_when_termine_enabled", default: true
     t.datetime "published_at"
     t.bigint "published_revision_id"
@@ -1078,8 +1085,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.jsonb "sva_svr", default: {}, null: false
     t.text "tags", default: [], array: true
     t.boolean "template", default: false, null: false
-    t.datetime "unpublished_at"
-    t.datetime "updated_at", null: false
+    t.datetime "unpublished_at", precision: nil
+    t.datetime "updated_at", precision: nil, null: false
     t.string "web_hook_url"
     t.datetime "whitelisted_at"
     t.bigint "zone_id"
@@ -1162,6 +1169,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
   end
 
   create_table "referentiels", force: :cascade do |t|
+    t.jsonb "authentication_data", default: {}
+    t.string "authentication_method"
     t.datetime "created_at", null: false
     t.string "digest"
     t.string "headers", default: [], array: true
@@ -1305,17 +1314,20 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.bigint "dossier_id"
     t.string "instructeur_email"
     t.string "motivation"
-    t.datetime "processed_at"
+    t.datetime "processed_at", precision: nil
     t.bigint "revision_id"
     t.string "state"
     t.index ["dossier_id"], name: "index_traitements_on_dossier_id"
   end
 
   create_table "trusted_device_tokens", force: :cascade do |t|
+    t.datetime "activated_at"
     t.datetime "created_at", null: false
     t.bigint "instructeur_id"
+    t.datetime "renewal_notified_at"
     t.string "token", null: false
     t.datetime "updated_at", null: false
+    t.index ["activated_at", "renewal_notified_at"], name: "idx_on_activated_at_renewal_notified_at_ca000bc08e"
     t.index ["instructeur_id"], name: "index_trusted_device_tokens_on_instructeur_id"
     t.index ["token"], name: "index_trusted_device_tokens_on_token", unique: true
   end
@@ -1326,6 +1338,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.text "description"
     t.string "libelle"
     t.boolean "mandatory", default: true
+    t.text "nature"
     t.jsonb "options"
     t.boolean "private", default: false, null: false
     t.bigint "referentiel_id"
@@ -1413,7 +1426,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
   add_foreign_key "administrateurs_instructeurs", "instructeurs"
   add_foreign_key "administrateurs_procedures", "administrateurs"
   add_foreign_key "administrateurs_procedures", "procedures"
-  add_foreign_key "agent_connect_informations", "instructeurs"
+  add_foreign_key "agent_connect_informations", "users"
   add_foreign_key "api_tokens", "administrateurs"
   add_foreign_key "archives_groupe_instructeurs", "archives"
   add_foreign_key "archives_groupe_instructeurs", "groupe_instructeurs"
@@ -1429,7 +1442,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
   add_foreign_key "closed_mails", "procedures"
   add_foreign_key "commentaires", "dossiers"
   add_foreign_key "commentaires", "experts"
-  add_foreign_key "commentaires", "instructeurs", validate: false
+  add_foreign_key "commentaires", "instructeurs"
   add_foreign_key "contact_forms", "users"
   add_foreign_key "contact_informations", "groupe_instructeurs"
   add_foreign_key "dossier_assignments", "dossiers"

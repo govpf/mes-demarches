@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class DossierNotification < ApplicationRecord
+  DELAY_DOSSIER_DEPOSE = 7.days
+
   belongs_to :groupe_instructeur, optional: true
   belongs_to :instructeur, optional: true
   belongs_to :dossier
@@ -32,7 +34,7 @@ class DossierNotification < ApplicationRecord
         notification_type:,
         groupe_instructeur_id: dossier.groupe_instructeur_id
       ) do |notification|
-        notification.display_at = dossier.depose_at + 7.days
+        notification.display_at = dossier.depose_at + DELAY_DOSSIER_DEPOSE
       end
 
     when :dossier_modifie, :attente_correction, :attente_avis, :message_usager, :annotation_instructeur, :avis_externe
@@ -60,7 +62,7 @@ class DossierNotification < ApplicationRecord
   def self.refresh_notifications_instructeur_for_dossier(instructeur, dossier)
     create_notification(dossier, :dossier_modifie, instructeur:) if dossier.last_champ_updated_at.present? && dossier.last_champ_updated_at > dossier.depose_at
     create_notification(dossier, :message_usager, instructeur:) if dossier.commentaires.sent_by_user.present?
-    create_notification(dossier, :annotation_instructeur, instructeur:) if dossier.champs.private_only.present?
+    create_notification(dossier, :annotation_instructeur, instructeur:) if dossier.last_champ_private_updated_at.present?
     create_notification(dossier, :avis_externe, instructeur:) if dossier.avis.with_answer.present?
     create_notification(dossier, :attente_correction, instructeur:) if dossier.pending_correction?
     create_notification(dossier, :attente_avis, instructeur:) if dossier.avis.without_answer.present?

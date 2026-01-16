@@ -181,6 +181,22 @@ describe Champs::PieceJustificativeController, type: :controller do
       end
     end
 
+    context 'when the champ is private and the dossier is not brouillon' do
+      let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
+      let(:instructeur) { create(:instructeur) }
+      let(:procedure) { create(:procedure, :published, :with_instructeur, types_de_champ_public: [{ type: :piece_justificative }], types_de_champ_private: [{ type: :piece_justificative }], instructeurs: [instructeur]) }
+      let!(:dossier) { create(:dossier, :en_construction, user: user, procedure: procedure) }
+      let!(:champ) { dossier.project_champs_private.first }
+
+      # pf: must sign in as instructeur because only instructeurs can modify private champs
+      # and ChampRevision.create_or_update_revision requires current_instructeur.id
+      before { sign_in instructeur.user }
+
+      it 'updates dossier.last_champ_private_updated_at' do
+        expect { subject }.to change { dossier.reload.last_champ_private_updated_at }
+      end
+    end
+
     context 'when the file is invalid' do
       let(:file) { fixture_file_upload('spec/fixtures/files/invalid_file_format.json', 'bad/bad') }
 
