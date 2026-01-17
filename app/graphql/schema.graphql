@@ -3420,7 +3420,7 @@ type LexpolChamp implements Champ {
   """
   Lien vers le dossier Lexpol
   """
-  dossierURL: String
+  dossierUrl: String
   id: ID!
 
   """

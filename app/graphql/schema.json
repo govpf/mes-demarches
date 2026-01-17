@@ -13879,7 +13879,7 @@
               "deprecationReason": null
             },
             {
-              "name": "dossierURL",
+              "name": "dossierUrl",
               "description": "Lien vers le dossier Lexpol",
               "args": [],
               "type": {
