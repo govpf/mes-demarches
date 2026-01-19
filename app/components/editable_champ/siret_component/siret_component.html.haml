@@ -3,13 +3,3 @@
   - siret = @champ.value&.sub('-', "") || ""
   - if @champ.etablissement.present? && @champ.etablissement.siret == siret
     = render EditableChamp::EtablissementTitreComponent.new(etablissement: @champ.etablissement)
-  - elsif (siret.length == 6) || (siret.length == 9)
-    %script{ type: "text/javascript", id: rand(1000) }
-      :plain
-        window.addEventListener('load', (event) => {
-          var event = new Event('input', {
-            bubbles: true,
-            cancelable: true,
-          });
-          document.getElementById('#{@champ.input_id}').dispatchEvent(event);
-        });

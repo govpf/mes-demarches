@@ -32,7 +32,7 @@ describe 'users/sessions/new', type: :view do
     if ENV['SIPF_CLIENT_ID'].present?
       expect(rendered).to have_link('administration')
     end
-    if ENV['FC_PARTICULIER_ID'].present?
+    if FranceConnectService.enabled?
       expect(rendered).to have_link('S’identifier avec FranceConnect')
     end
   end

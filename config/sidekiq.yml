@@ -11,6 +11,6 @@
   - low_priority # to remove
   - low
   - exports
-  - archive
+  - archives
   - purge # to remove
   - expires # to remove
