@@ -1528,21 +1528,6 @@ describe Users::DossiersController, type: :controller do
       end
     end
 
-    context 'when the dossier is followed by an instructeur' do
-      let(:instructeur) { create(:instructeur) }
-      let!(:invite) { create(:invite, dossier:, user:) }
-
-      before do
-        instructeur.follow(dossier)
-      end
-
-      it 'the follower has a notification' do
-        expect(instructeur.reload.followed_dossiers.with_notifications).to eq([])
-        subject
-        expect(instructeur.reload.followed_dossiers.with_notifications).to eq([])
-      end
-    end
-
     context 'when the champ is a phone number' do
       let(:types_de_champ_public) { [{ type: :phone }] }
       let(:now) { Time.zone.parse('01/01/2100') }
@@ -1829,20 +1814,6 @@ describe Users::DossiersController, type: :controller do
         it 'does not send any email to the expert' do
           expect(AvisMailer).not_to have_received(:notify_new_commentaire_to_expert)
         end
-      end
-    end
-
-    context 'notification' do
-      before 'instructeurs have no notification before the message' do
-        expect(instructeur_with_instant_message.followed_dossiers.with_notifications).to eq([])
-        expect(instructeur_without_instant_message.followed_dossiers.with_notifications).to eq([])
-        travel_to(now + 1.day)
-        subject
-      end
-
-      it 'adds them a notification' do
-        expect(instructeur_with_instant_message.reload.followed_dossiers.with_notifications).to eq([dossier.reload])
-        expect(instructeur_without_instant_message.reload.followed_dossiers.with_notifications).to eq([dossier.reload])
       end
     end
 
@@ -2188,10 +2159,40 @@ describe Users::DossiersController, type: :controller do
       end
 
       context 'when the requested external_id had been fetched' do
-        before { dossier.champs.first.update_columns(external_id: 'kthxbye', value: "OK", data: {}) }
+        before { dossier.champs.find(&:referentiel?).update_columns(external_id: 'kthxbye', value: "OK", data: {}) }
         it 'validates errors' do
           subject
           expect(response).not_to include('Référence trouvée : OK')
+        end
+
+        context 'propagation du prefill (polling)' do
+          render_views
+          let(:referentiel) { create(:api_referentiel, :configured) }
+          let(:referentiel_stable_id) { 1 }
+          let(:prefillable_stable_id) { 42 }
+          let(:types_de_champ_public) do
+            [
+              {
+                type: :referentiel,
+                referentiel: referentiel,
+                referentiel_mapping: {
+                  "$.ok" => { prefill: "1", prefill_stable_id: prefillable_stable_id }
+                },
+                stable_id: referentiel_stable_id
+              },
+              { type: :text, stable_id: prefillable_stable_id }
+            ]
+          end
+
+          it 'inclut le champ principal et les champs pré-remplis dans @to_update' do
+            dossier.champs.find(&:referentiel?).update_with_external_data!(data: { ok: 'valeur préremplie' })
+
+            get :champ, params: { id: dossier.id, stable_id: referentiel_stable_id }, format: :turbo_stream
+
+            expect(assigns(:to_update).size).to eq(2)
+            expect(dossier.reload.project_champs.map(&:value)).to include('valeur préremplie')
+            expect(response.body).to include('Donnée remplie automatiquement.')
+          end
         end
       end
 

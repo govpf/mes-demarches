@@ -16,23 +16,12 @@ module Administrateurs
     end
 
     def create
-      referentiel = @type_de_champ.build_referentiel(referentiel_params)
-
-      if referentiel.configured? && referentiel.update(referentiel_params)
-        redirect_to mapping_type_de_champ_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, referentiel)
-      else
-        referentiel.validate
-        component = Referentiels::NewFormComponent.new(referentiel:, type_de_champ: @type_de_champ, procedure: @procedure)
-        render turbo_stream: turbo_stream.replace(component.id, component)
-      end
+      handle_referentiel_save(@type_de_champ.build_referentiel(referentiel_params))
     end
 
     def update
-      if @referentiel.update(referentiel_params)
-        redirect_to mapping_type_de_champ_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel)
-      else
-        render :edit
-      end
+      @referentiel.assign_attributes(referentiel_params)
+      handle_referentiel_save(@referentiel)
     end
 
     def mapping_type_de_champ
@@ -41,19 +30,43 @@ module Administrateurs
     end
 
     def update_mapping_type_de_champ
-      flash = if @type_de_champ.update(type_de_champ_mapping_params)
-        { notice: "La configuration du mapping a bien été enregistrée" }
+      if @type_de_champ.update(referentiel_mapping: @type_de_champ.safe_referentiel_mapping.deep_merge(referentiel_mapping_params))
+        redirect_to prefill_and_display_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel), flash: { notice: "La configuration du mapping a bien été enregistrée" }
       else
-        { alert: "Une erreur est survenue" }
+        redirect_to mapping_type_de_champ_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel), flash: { alert: "Une erreur est survenue" }
       end
-      redirect_to mapping_type_de_champ_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel), flash:
+    end
+
+    def update_prefill_type_de_champ
+      if @type_de_champ.update(referentiel_mapping: @type_de_champ.safe_referentiel_mapping.deep_merge(referentiel_mapping_params))
+        redirect_to champs_admin_procedure_path(@procedure), flash: { notice: "La configuration du pré remplissage des champs et/ou affichage des données récupérées a bien été enregistrée" }
+      else
+        redirect_to prefill_and_display_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel), flash: { alert: "Une erreur est survenue" }
+      end
     end
 
     private
 
-    def type_de_champ_mapping_params
+    def handle_referentiel_save(referentiel)
+      if referentiel.configured? && referentiel.save && params[:commit].present?
+        redirect_to mapping_type_de_champ_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, referentiel)
+      else
+        referentiel.validate
+        component = Referentiels::NewFormComponent.new(referentiel:, type_de_champ: @type_de_champ, procedure: @procedure)
+        render turbo_stream: turbo_stream.replace(component.id, component)
+      end
+    end
+
+    def referentiel_mapping_params
+      permitted_mapping = {}
+
       params.require(:type_de_champ)
-        .permit(referentiel_mapping: [:jsonpath, :type, :prefill, :libelle])
+        .require(:referentiel_mapping)
+        .each do |jsonpath_key, attributes|
+          permitted_mapping[jsonpath_key] = attributes.permit(:type, :prefill_stable_id, :example_value, :libelle, :prefill).to_h
+        end
+
+      permitted_mapping
     end
 
     def referentiel_params
@@ -75,7 +88,10 @@ module Administrateurs
       if params[:referentiel_id]
         Referentiel.find(params[:referentiel_id]).attributes.slice(*%w[url test_data hint mode type])
       else
-        referentiel_params
+        params = referentiel_params.to_h
+        params = params.merge(type: Referentiels::APIReferentiel) if !Referentiels::APIReferentiel.csv_available?
+        params = params.merge(mode: Referentiels::APIReferentiel.modes.fetch(:exact_match)) if !Referentiels::APIReferentiel.autocomplete_available?
+        params
       end
     end
   end

@@ -31,7 +31,6 @@ en:
         remove_file: 'Remove file'
       piece_justificative:
         name: "Download template"
-        title: "Download template %{filename}"
       merge:
         button_merge: "Merge accounts"
       groupe_instructeurs:

@@ -812,10 +812,6 @@ describe Instructeurs::DossiersController, type: :controller do
     let(:saved_avis) { dossier.avis.first }
     let!(:old_avis_count) { Avis.count }
 
-    before do
-      expect(controller.current_instructeur).to receive(:mark_tab_as_seen).with(dossier, :avis)
-    end
-
     subject do
       post :create_avis, params: {
         procedure_id: procedure.id,
@@ -827,23 +823,11 @@ describe Instructeurs::DossiersController, type: :controller do
 
     let(:emails) { ["email@a.com"] }
 
-    context "notifications updates" do
-      context 'when an instructeur follows the dossier' do
-        let(:follower) { create(:instructeur) }
-        before { follower.follow(dossier) }
-
-        it 'the follower has a notification' do
-          expect(follower.followed_dossiers.with_notifications).to eq([])
-          subject
-          expect(follower.followed_dossiers.with_notifications).to eq([dossier.reload])
-        end
-      end
-    end
-
-    context 'as an instructeur, i auto follow the dossier so I get the notifications' do
+    context 'as an instructeur, i auto follow the dossier' do
       it 'works' do
         subject
         expect(instructeur.followed_dossiers).to match_array([dossier])
+        expect(dossier.follows.first.avis_seen_at?).to eq(true)
       end
     end
 
@@ -864,8 +848,8 @@ describe Instructeurs::DossiersController, type: :controller do
 
         before { subject }
 
-        it { expect(response).to render_template :avis }
-        it { expect(flash.alert).to eq(["emaila.com : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com"]) }
+        it { expect(response).to render_template :avis_new }
+        it { expect(flash.alert).to eq("emaila.com : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com") }
         it { expect { subject }.not_to change(Avis, :count) }
         it { expect(dossier.last_avis_updated_at).to eq(nil) }
       end
@@ -875,22 +859,33 @@ describe Instructeurs::DossiersController, type: :controller do
 
         before { subject }
 
-        it { expect(response).to render_template :avis }
-        it { expect(flash.alert).to eq("Le champ « Emails » doit être rempli") }
+        it { expect(response).to render_template :avis_new }
+        it { expect(flash.alert).to eq("Le champ « Email » doit être rempli") }
         it { expect { subject }.not_to change(Avis, :count) }
         it { expect(dossier.last_avis_updated_at).to eq(nil) }
       end
 
       context 'with multiple emails' do
-        let(:emails) { ["toto.fr", "titi@titimail.com"] }
+        context 'with 2 mails' do
+          let(:emails) { ["toto.fr", "titi@titimail.com"] }
 
-        before { subject }
+          before { subject }
 
-        it { expect(response).to render_template :avis }
-        it { expect(flash.alert).to eq(["toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com"]) }
-        it { expect(flash.notice).to eq("Une demande d’avis a été envoyée à titi@titimail.com") }
-        it { expect(Avis.count).to eq(old_avis_count + 1) }
-        it { expect(saved_avis.expert.email).to eq("titi@titimail.com") }
+          it { expect(response).to render_template :avis_new }
+          it { expect(flash.alert).to eq("toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com") }
+          it { expect(flash.notice).to eq("Une demande d’avis a été envoyée à titi@titimail.com") }
+          it { expect(Avis.count).to eq(old_avis_count + 1) }
+          it { expect(saved_avis.expert.email).to eq("titi@titimail.com") }
+        end
+
+        context 'with 5 mails' do
+          let(:emails) { ["test@test.com", "test2@test.com", "test3@test.com", "test4@test.com", "test5@test.com"] }
+
+          before { subject }
+
+          it { expect(flash.notice).to eq("Une demande d’avis a été envoyée à 5 destinataires") }
+          it { expect(Avis.count).to eq(old_avis_count + 5) }
+        end
       end
 
       context 'when the expert do not want to receive notification' do
@@ -1244,12 +1239,6 @@ describe Instructeurs::DossiersController, type: :controller do
             expect(response).to have_http_status(200)
             assert_enqueued_jobs(1, only: DossierIndexSearchTermsJob)
           }
-        end
-
-        it 'updates the annotations' do
-          travel_to(now + 1.hour)
-          expect(instructeur.followed_dossiers.with_notifications).to eq([])
-          expect(another_instructeur.followed_dossiers.with_notifications).to eq([dossier.reload])
         end
       end
 
@@ -1794,9 +1783,9 @@ describe Instructeurs::DossiersController, type: :controller do
     end
 
     it 'returns pieces jointes from champs, messagerie and avis' do
-      expect(response.body).to include('Télécharger le fichier toto.txt')
-      expect(response.body).to include('Télécharger le fichier logo_test_procedure.png')
-      expect(response.body).to include('Télécharger le fichier RIB.pdf')
+      expect(response.body).to have_text("Télécharger le fichier \ntoto.txt")
+      expect(response.body).to have_text("Télécharger le fichier \nlogo_test_procedu...")
+      expect(response.body).to have_text("Télécharger le fichier \nRIB.pdf")
       expect(response.body).to include('Visualiser')
       expect(response.body).to include('Pièce jointe au message')
       expect(response.body).to include('Pièce jointe à l’avis')

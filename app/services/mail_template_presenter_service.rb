@@ -3,7 +3,6 @@
 class MailTemplatePresenterService
   include ActionView::Helpers::SanitizeHelper
   include ActionView::Helpers::TextHelper
-  include ChampHelper
 
   def self.create_commentaire_for_state(dossier, state)
     if dossier.procedure.accuse_lecture? && Dossier::TERMINE.include?(state)

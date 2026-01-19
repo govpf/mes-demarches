@@ -362,6 +362,7 @@ fr:
         see: Voir
       label:
         email: Adresse électronique
+        account_deleted: '(l’usager a supprimé son compte)'
       greetings:
         hello: Bonjour,
         best_regards: Cordialement,

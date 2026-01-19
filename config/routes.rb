@@ -211,6 +211,8 @@ Rails.application.routes.draw do
     # to be migrated
     get 'particulier/callback' => :callback
     get 'particulier/merge_using_email_link/:email_merge_token' => :merge_using_email_link
+
+    get 'redirect_uris'
   end
 
   get '/auth/:provider' => 'omniauth#login', as: :omniauth, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
@@ -561,7 +563,11 @@ Rails.application.routes.draw do
             end
           end
 
-          resources :batch_operations, only: [:create], path: "(:statut)/dossiers", defaults: { statut: 'a-suivre' }
+          resources :batch_operations, only: [:create], path: "(:statut)/dossiers", defaults: { statut: 'a-suivre' } do
+            collection do
+              post 'create_batch_avis' => 'batch_operations#create_batch_avis'
+            end
+          end
         end
 
         #
@@ -811,6 +817,8 @@ Rails.application.routes.draw do
         member do
           get :mapping_type_de_champ
           patch :update_mapping_type_de_champ
+          patch :update_prefill_type_de_champ
+          get :prefill_and_display
         end
       end
 

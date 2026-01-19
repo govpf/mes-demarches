@@ -13,6 +13,12 @@ class FranceConnectController < ApplicationController
   def login
     return redirect_to new_user_session_path if !FranceConnectService.enabled?
 
+    if ENV['REDIRECT_FC_GOUV'].present?
+      # rubocop:disable DS/ApplicationName
+      return redirect_to 'https://www.demarches-simplifiees.fr/france_connect', allow_other_host: true if Current.host.starts_with?('demarches.numerique.gouv.fr')
+      # rubocop:enable DS/ApplicationName
+    end
+
     uri, state, nonce = FranceConnectService.authorization_uri
 
     cookies.encrypted[STATE_COOKIE_NAME] = { value: state, secure: Rails.env.production?, httponly: true }
@@ -135,6 +141,39 @@ class FranceConnectController < ApplicationController
     else
       redirect_to root_path, alert: I18n.t('france_connect.flash.confirmation_mail_resent_error')
     end
+  end
+
+  # OpenIdConnect use a special endpoint to retrieve the list of redirect URIs
+  # in case of multiple domains sharing the same sub by user
+  # see https://docs.partenaires.franceconnect.gouv.fr/fs/fs-technique/fs-technique-sector_identifier
+  def redirect_uris
+    # rubocop:disable DS/ApplicationName
+    ds_dev_redirect_uris = [
+      'https://dev.demarches-simplifiees.fr/france_connect/particulier/callback',
+      'https://dev.demarches.numerique.gouv.fr/france_connect/particulier/callback'
+    ]
+
+    ds_prod_redirect_uris = [
+      'https://www.demarches-simplifiees.fr/france_connect/particulier/callback',
+      'https://demarches.numerique.gouv.fr/france_connect/particulier/callback'
+    ]
+
+    is_ds_dev = Current.host.include?('dev.demarches-simplifiees.fr') ||
+      Current.host.include?('dev.demarches.numerique.gouv.fr')
+
+    is_ds_prod = Current.host.include?('www.demarches-simplifiees.fr') ||
+      Current.host.include?('demarches.numerique.gouv.fr')
+    # rubocop:enable DS/ApplicationName
+
+    redirect_uris = if is_ds_dev
+      ds_dev_redirect_uris
+    elsif is_ds_prod
+      ds_prod_redirect_uris
+    else
+      [FRANCE_CONNECT[:redirect_uri]]
+    end
+
+    render json: redirect_uris
   end
 
   private
