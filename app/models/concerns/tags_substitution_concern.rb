@@ -77,8 +77,9 @@ module TagsSubstitutionConcern
       id: 'dossier_motivation',
       libelle: 'motivation',
       description: 'Motivation facultative associée à la décision finale d’acceptation, refus ou classement sans suite',
-      lambda: -> (d) { simple_format(d.motivation) },
-      escapable: false, # sanitized by simple_format
+      # pf: pas de simple_format ici, sera fait dans MailTemplatePresenterService.safe_body avec MailScrubber
+      lambda: -> (d) { d.motivation },
+      escapable: false, # sanitized later with MailScrubber (preserves links/images for instructeurs)
       available_for_states: Dossier::TERMINE
     },
     {
@@ -379,17 +380,21 @@ module TagsSubstitutionConcern
   end
 
   def champ_public_tags(dossier: nil)
-    types_de_champ = (dossier || procedure.active_revision).types_de_champ_public.filter { !_1.condition? }
+    types_de_champ = (dossier || procedure.active_revision).types_de_champ_public
     types_de_champ_tags(types_de_champ, Dossier::SOUMIS)
   end
 
   def champ_private_tags(dossier: nil)
-    types_de_champ = (dossier || procedure.active_revision).types_de_champ_private.filter { !_1.condition? }
+    types_de_champ = (dossier || procedure.active_revision).types_de_champ_private
     types_de_champ_tags(types_de_champ, Dossier::INSTRUCTION_COMMENCEE)
   end
 
   def types_de_champ_tags(types_de_champ, available_for_states)
-    tags = types_de_champ.flat_map(&:tags_for_template)
+    tags = types_de_champ.flat_map do |tdc|
+      tdc.tags_for_template.map do |tag|
+        tag.merge(conditional: tdc.condition?)
+      end
+    end
     tags.each do |tag|
       tag[:available_for_states] = available_for_states
     end

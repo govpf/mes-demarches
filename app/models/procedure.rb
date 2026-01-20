@@ -470,6 +470,17 @@ class Procedure < ApplicationRecord
     re_instructed_mail || Mails::ReInstructedMail.default_for_procedure(self)
   end
 
+  def mail_templates
+    [
+      passer_en_construction_email_template,
+      passer_en_instruction_email_template,
+      accepter_email_template,
+      refuser_email_template,
+      classer_sans_suite_email_template,
+      repasser_en_instruction_email_template
+    ]
+  end
+
   def email_template_for(state)
     case state
     when Dossier.states.fetch(:en_construction)
@@ -894,15 +905,9 @@ class Procedure < ApplicationRecord
     monavis_embed.gsub('nd_source=button', "nd_source=#{source}").gsub('<a ', '<a target="_blank" rel="noopener noreferrer" ')
   end
 
-  def mail_templates
-    [
-      self.passer_en_construction_email_template,
-      self.passer_en_instruction_email_template,
-      self.accepter_email_template,
-      self.refuser_email_template,
-      self.classer_sans_suite_email_template,
-      self.repasser_en_instruction_email_template
-    ]
+  # pf: Migration v1 → v2 - Construire une attestation v2 à partir d'une v1
+  def build_attestation_template_v2_from_v1(v1_template)
+    AttestationTemplate.build_v2_from_v1(v1_template, self)
   end
 
   def disallow_expert_review?

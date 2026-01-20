@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_11_24_154531) do
+ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -47,6 +47,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_24_154531) do
     t.string "filename", null: false
     t.string "key", null: false
     t.text "metadata"
+    t.jsonb "ocr"
     t.string "service_name", null: false
     t.string "virus_scan_result"
     t.datetime "virus_scanned_at"
@@ -547,6 +548,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_24_154531) do
     t.bigint "revision_id"
     t.text "search_terms"
     t.string "state"
+    t.bigint "submitted_revision_id"
     t.date "sva_svr_decision_on"
     t.datetime "sva_svr_decision_triggered_at"
     t.datetime "termine_close_to_expiration_notice_sent_at"
@@ -1063,11 +1065,13 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_24_154531) do
     t.string "lien_site_web"
     t.integer "max_duree_conservation_dossiers_dans_ds", default: 12, null: false
     t.text "monavis_embed"
+    t.boolean "no_gender", default: false, null: false
     t.boolean "opendata", default: true
     t.string "organisation"
     t.bigint "parent_procedure_id"
     t.string "path"
     t.boolean "piece_justificative_multiple", default: true, null: false
+    t.boolean "pro_connect_restricted", default: false, null: false
     t.boolean "procedure_expires_when_termine_enabled", default: true
     t.datetime "published_at"
     t.bigint "published_revision_id"
@@ -1163,6 +1167,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_24_154531) do
   end
 
   create_table "referentiels", force: :cascade do |t|
+    t.jsonb "authentication_data", default: {}
+    t.string "authentication_method"
     t.datetime "created_at", null: false
     t.string "digest"
     t.string "headers", default: [], array: true
@@ -1313,10 +1319,13 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_24_154531) do
   end
 
   create_table "trusted_device_tokens", force: :cascade do |t|
+    t.datetime "activated_at"
     t.datetime "created_at", null: false
     t.bigint "instructeur_id"
+    t.datetime "renewal_notified_at"
     t.string "token", null: false
     t.datetime "updated_at", null: false
+    t.index ["activated_at", "renewal_notified_at"], name: "idx_on_activated_at_renewal_notified_at_ca000bc08e"
     t.index ["instructeur_id"], name: "index_trusted_device_tokens_on_instructeur_id"
     t.index ["token"], name: "index_trusted_device_tokens_on_token", unique: true
   end
@@ -1327,6 +1336,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_24_154531) do
     t.text "description"
     t.string "libelle"
     t.boolean "mandatory", default: true
+    t.text "nature"
     t.jsonb "options"
     t.boolean "private", default: false, null: false
     t.bigint "referentiel_id"

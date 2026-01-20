@@ -17,7 +17,7 @@ class DraftNotificationJob < ApplicationJob
     Rails.logger.info "[DraftNotificationJob] Dossier #{dossier_id}: state=#{dossier.state}, created_at=#{dossier.created_at}, depose_at=#{dossier.depose_at}, updated_at=#{dossier.updated_at}"
 
     # Envoyer l'email seulement si le dossier est toujours en brouillon
-    if dossier.brouillon?
+    if should_send_notification?(dossier)
       Rails.logger.info "[DraftNotificationJob] Sending draft notification for dossier #{dossier_id}"
       DossierMailer.with(dossier: dossier).notify_new_draft.deliver_now
     else
@@ -30,5 +30,10 @@ class DraftNotificationJob < ApplicationJob
   def self.calculate_delay(dossier)
     delay_minutes = (dossier.revision.estimated_fill_duration / 60.0 * DRAFT_NOTIFICATION_DELAY_MULTIPLIER).round
     [5, delay_minutes].max # Minimum 1 minute
+  end
+
+  # pf: condition étendue avec hidden_by_user_at (inspiré de upstream PR #179)
+  def should_send_notification?(dossier)
+    dossier.brouillon? && dossier.hidden_by_user_at.blank?
   end
 end

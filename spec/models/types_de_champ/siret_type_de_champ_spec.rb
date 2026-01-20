@@ -20,5 +20,25 @@ describe TypesDeChamp::SiretTypeDeChamp do
     it "does not include jsonpath SIRET column" do
       expect(columns.find { |c| c.is_a?(Columns::JSONPathColumn) && c.jsonpath == "$.siret" }).to be_nil
     end
+
+    it "includes required etablissement jsonpaths" do
+      expected_paths = [
+        "$.entreprise_raison_sociale",
+        "$.entreprise_siren",
+        "$.entreprise_nom_commercial",
+        "$.entreprise_forme_juridique",
+        "$.entreprise_date_creation",
+        "$.libelle_naf"
+      ]
+
+      json_columns = columns.filter { _1.is_a?(Columns::JSONPathColumn) }
+      expect(json_columns.map(&:jsonpath)).to include(*expected_paths)
+    end
+
+    it "does not include address columns (not filled for Numéro Tahiti)" do
+      address_columns = columns.filter { _1.is_a?(Columns::JSONPathColumn) && _1.jsonpath.match?(/postal_code|city_name|department_code|region_name/) }
+
+      expect(address_columns).to be_empty
+    end
   end
 end

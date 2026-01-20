@@ -13,8 +13,14 @@ module LexpolFieldsService
         else
           object = dereference(object)
           results = []
-          results += select_champ(object.champs, segment) if object.respond_to?(:champs)
-          results += select_champ(object.annotations, segment) if object.respond_to?(:annotations)
+
+          if object.is_a?(Dossier)
+            all_champs = object.project_champs_public + object.project_champs_private
+            results += select_champ(all_champs, segment)
+          else
+            results += select_champ(object.champs, segment) if object.respond_to?(:champs)
+          end
+
           results += attributes(object, segment) if object.respond_to?(:segment)
           results
         end
@@ -43,6 +49,8 @@ module LexpolFieldsService
       object.selected_options.to_sentence(last_word_connector: ' et ')
     when Champs::TextareaChamp
       format_markdown(object.value)
+    when Champs::IntegerNumberChamp, Champs::DecimalNumberChamp
+      object.value.present? ? object.value.to_s : "0"
     when Date
       format_date(object)
     when DateTime, Time
@@ -50,6 +58,19 @@ module LexpolFieldsService
     else
       object.respond_to?(:value) ? object.value.to_s : object.to_s
     end
+  end
+
+  def self.format_as_html_list(options)
+    return '' if options.blank?
+
+    list_items = options.each_with_index.map do |opt, index|
+      # Dernier élément se termine par '.', les autres par ' ;'
+      punctuation = (index == options.size - 1) ? '.' : ' ;'
+      escaped_opt = ERB::Util.html_escape(opt.to_s)
+      "<li>#{escaped_opt}#{punctuation}</li>"
+    end
+
+    "<ul>#{list_items.join}</ul>"
   end
 
   def self.format_date(date)
