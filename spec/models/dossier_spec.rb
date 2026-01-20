@@ -497,6 +497,7 @@ describe Dossier, type: :model do
           expect(dossier.depose_at).to eq(beginning_of_day)
           expect(dossier.traitement.state).to eq(Dossier.states.fetch(:en_construction))
           expect(dossier.traitement.processed_at).to eq(beginning_of_day)
+          expect(dossier.expired_at).to eq(dossier.expiration_date)
         end
 
         it 'should keep first en_construction_at date' do
@@ -594,10 +595,13 @@ describe Dossier, type: :model do
         dossier.reload
       end
 
-      it { expect(dossier.state).to eq(Dossier.states.fetch(:en_instruction)) }
-      it { expect(dossier.en_instruction_at).to eq(beginning_of_day) }
-      it { expect(dossier.traitement.state).to eq(Dossier.states.fetch(:en_instruction)) }
-      it { expect(dossier.traitement.processed_at).to eq(beginning_of_day) }
+      it do
+        expect(dossier.state).to eq(Dossier.states.fetch(:en_instruction))
+        expect(dossier.en_instruction_at).to eq(beginning_of_day)
+        expect(dossier.traitement.state).to eq(Dossier.states.fetch(:en_instruction))
+        expect(dossier.traitement.processed_at).to eq(beginning_of_day)
+        expect(dossier.expired_at).to be_nil
+      end
 
       it 'should keep first en_instruction_at date if dossier is set to en_construction again' do
         travel_back
@@ -620,10 +624,13 @@ describe Dossier, type: :model do
         dossier.reload
       end
 
-      it { expect(dossier.state).to eq(Dossier.states.fetch(:accepte)) }
-      it { expect(dossier.processed_at).to eq(beginning_of_day) }
-      it { expect(dossier.traitement.state).to eq(Dossier.states.fetch(:accepte)) }
-      it { expect(dossier.traitement.processed_at).to eq(beginning_of_day) }
+      it do
+        expect(dossier.state).to eq(Dossier.states.fetch(:accepte))
+        expect(dossier.processed_at).to eq(beginning_of_day)
+        expect(dossier.traitement.state).to eq(Dossier.states.fetch(:accepte))
+        expect(dossier.traitement.processed_at).to eq(beginning_of_day)
+        expect(dossier.expired_at).to eq(dossier.expiration_date)
+      end
     end
 
     context 'when dossier is refuse' do
@@ -634,10 +641,13 @@ describe Dossier, type: :model do
         dossier.reload
       end
 
-      it { expect(dossier.state).to eq(Dossier.states.fetch(:refuse)) }
-      it { expect(dossier.processed_at).to eq(beginning_of_day) }
-      it { expect(dossier.traitement.state).to eq(Dossier.states.fetch(:refuse)) }
-      it { expect(dossier.traitement.processed_at).to eq(beginning_of_day) }
+      it do
+        expect(dossier.state).to eq(Dossier.states.fetch(:refuse))
+        expect(dossier.processed_at).to eq(beginning_of_day)
+        expect(dossier.traitement.state).to eq(Dossier.states.fetch(:refuse))
+        expect(dossier.traitement.processed_at).to eq(beginning_of_day)
+        expect(dossier.expired_at).to eq(dossier.expiration_date)
+      end
     end
 
     context 'when dossier is sans_suite' do
@@ -648,10 +658,13 @@ describe Dossier, type: :model do
         dossier.reload
       end
 
-      it { expect(dossier.state).to eq(Dossier.states.fetch(:sans_suite)) }
-      it { expect(dossier.processed_at).to eq(beginning_of_day) }
-      it { expect(dossier.traitement.state).to eq(Dossier.states.fetch(:sans_suite)) }
-      it { expect(dossier.traitement.processed_at).to eq(beginning_of_day) }
+      it do
+        expect(dossier.state).to eq(Dossier.states.fetch(:sans_suite))
+        expect(dossier.processed_at).to eq(beginning_of_day)
+        expect(dossier.traitement.state).to eq(Dossier.states.fetch(:sans_suite))
+        expect(dossier.traitement.processed_at).to eq(beginning_of_day)
+        expect(dossier.expired_at).to eq(dossier.expiration_date)
+      end
     end
   end
 

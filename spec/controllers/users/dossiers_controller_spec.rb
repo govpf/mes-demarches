@@ -2066,7 +2066,7 @@ describe Users::DossiersController, type: :controller do
 
   describe '#extend_conservation' do
     let(:procedure) { create(:procedure, duree_conservation_dossiers_dans_ds: 3) }
-    let(:dossier) { create(:dossier, procedure: procedure, user: user) }
+    let(:dossier) { create(:dossier, :en_construction, procedure:, user:) }
     subject { post :extend_conservation, params: { dossier_id: dossier.id } }
     context 'when user logged in' do
       before { sign_in(user) }
@@ -2077,6 +2077,12 @@ describe Users::DossiersController, type: :controller do
       it 'extends conservation_extension by duree_conservation_dossiers_dans_ds' do
         subject
         expect(dossier.reload.conservation_extension).to eq(procedure.duree_conservation_dossiers_dans_ds.months)
+      end
+
+      it 'updates expired_at' do
+        expired_at = dossier.expired_at
+        subject
+        expect(dossier.reload.expired_at).to be_within(1.hour).of(expired_at + 3.months)
       end
 
       it 'flashed notice success' do
@@ -2169,29 +2175,40 @@ describe Users::DossiersController, type: :controller do
           render_views
           let(:referentiel) { create(:api_referentiel, :configured) }
           let(:referentiel_stable_id) { 1 }
-          let(:prefillable_stable_id) { 42 }
           let(:types_de_champ_public) do
             [
               {
                 type: :referentiel,
                 referentiel: referentiel,
+                stable_id: referentiel_stable_id,
                 referentiel_mapping: {
-                  "$.ok" => { prefill: "1", prefill_stable_id: prefillable_stable_id }
-                },
-                stable_id: referentiel_stable_id
+                  "$.ok" => { prefill: "1", prefill_stable_id: 2 },
+                  "$.repetition[0].nom" => { prefill: "1", prefill_stable_id: 3 }
+                }
               },
-              { type: :text, stable_id: prefillable_stable_id }
+              {
+                type: :text,
+                stable_id: 2 # mapped with "$.ok"
+              },
+              {
+                type: :repetition,
+                children: [
+                  { type: :text, stable_id: 3 } # mapped with "$.repetition{0}.nom"
+                ]
+              }
             ]
           end
 
           it 'inclut le champ principal et les champs pré-remplis dans @to_update' do
-            dossier.champs.find(&:referentiel?).update_with_external_data!(data: { ok: 'valeur préremplie' })
+            dossier.champs.find(&:referentiel?).update_with_external_data!(data: { ok: 'valeur préremplie', repetition: [{ nom: 'Jeanne' }, { nom: "Bob" }, {}] })
 
             get :champ, params: { id: dossier.id, stable_id: referentiel_stable_id }, format: :turbo_stream
 
-            expect(assigns(:to_update).size).to eq(2)
+            expect(assigns(:to_update).size).to eq(3)
             expect(dossier.reload.project_champs.map(&:value)).to include('valeur préremplie')
             expect(response.body).to include('Donnée remplie automatiquement.')
+            expect(response.body).to include('Jeanne')
+            expect(response.body).to include('Bob')
           end
         end
       end

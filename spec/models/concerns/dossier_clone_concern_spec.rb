@@ -338,7 +338,7 @@ RSpec.describe DossierCloneConcern do
   end
 
   describe '#merge_fork' do
-    let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
+    let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
     subject { dossier.merge_fork(forked_dossier) }
 
     context 'with updated champ' do
@@ -348,6 +348,7 @@ RSpec.describe DossierCloneConcern do
 
       before do
         repetition_champ.add_row(updated_by: 'test')
+        dossier.en_construction!
         dossier.champs.each do |champ|
           champ.update(value: 'old value')
         end
