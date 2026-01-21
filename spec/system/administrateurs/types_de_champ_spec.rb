@@ -488,4 +488,30 @@ describe 'As an administrateur I can edit types de champ', js: true do
       expect(page).to have_content("Informations complémentaires au champ Numéro TAHITI")
     end
   end
+
+  context 'referentiel_de_polynesie enabled' do
+    before do
+      Flipper.enable(:referentiel_de_polynesie, procedure)
+      allow(TypeDeChamp).to receive(:referentiel_tables).and_return([['Stades', 1], ['Salles', 2]])
+    end
+
+    scenario "adding a referentiel_de_polynesie champ with drop_down_other option" do
+      add_champ
+      hide_autonotice_message
+
+      select('Référentiel des administrations', from: 'Type de champ')
+      fill_in 'Libellé du champ', with: 'Libellé de champ référentiel', fill_options: { clear: :backspace }
+      select('Stades', from: 'Table de recherche')
+      check 'Proposer une option pour « autre » utilisable dans les conditions'
+
+      wait_until { procedure.active_revision.types_de_champ_public.first.table_id == '1' }
+      wait_until { procedure.active_revision.types_de_champ_public.first.drop_down_other == "1" }
+      expect(page).to have_content('Formulaire enregistré')
+
+      page.refresh
+
+      expect(page).to have_select('Table de recherche', selected: 'Stades')
+      expect(page).to have_checked_field('Proposer une option pour « autre » utilisable dans les conditions')
+    end
+  end
 end

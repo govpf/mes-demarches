@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 describe Champs::DecimalNumberChamp do
-  let(:min) { nil }
-  let(:max) { nil }
-  let(:type_de_champ) { create(:type_de_champ, min:, max:) }
+  let(:min_number) { nil }
+  let(:max_number) { nil }
+  let(:range_number) { nil }
+  let(:type_de_champ) { create(:type_de_champ, min_number:, max_number:, range_number:) }
 
   let(:champ) { build(:champ_decimal_number, value:, type_de_champ:) }
   subject { champ.validate(:champs_public_value) }
@@ -39,7 +40,8 @@ describe Champs::DecimalNumberChamp do
 
       it 'is not valid and contains expected error' do
         expect(subject).to be_falsey
-        expect(champ.errors[:value]).to eq(["n'est pas un nombre", "doit comprendre entre 1 et 3 chiffres après le point"])
+        # pf: only one error message (regex accepts non-numeric to avoid duplicate error)
+        expect(champ.errors[:value]).to eq(["n'est pas un nombre"])
       end
     end
 
@@ -147,7 +149,8 @@ describe Champs::DecimalNumberChamp do
     end
 
     context "when max is specified" do
-      let(:max) { 10 }
+      let(:max_number) { 10 }
+      let(:range_number) { '1' }
       context 'when the value is equal to max' do
         let(:value) { '10' }
 
@@ -159,13 +162,14 @@ describe Champs::DecimalNumberChamp do
 
         it 'is not valid and contains expected error' do
           expect(subject).to be_falsey
-          expect(champ.errors[:value]).to eq(["doit être inférieur ou égal à 10"])
+          expect(champ.errors[:value]).to eq(["doit être un nombre inférieur ou égal à 10.0"])
         end
       end
     end
 
     context "when min is specified" do
-     let(:min) { 10 }
+     let(:min_number) { 10 }
+     let(:range_number) { '1' }
      context 'when the value is equal to min' do
        let(:value) { '10' }
 
@@ -177,7 +181,7 @@ describe Champs::DecimalNumberChamp do
 
        it 'is not valid and contains expected error' do
          expect(subject).to be_falsey
-         expect(champ.errors[:value]).to eq(["doit être supérieur ou égal à 10"])
+         expect(champ.errors[:value]).to eq(["doit être un nombre supérieur ou égal à 10.0"])
        end
      end
    end

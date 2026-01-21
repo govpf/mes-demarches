@@ -18,6 +18,8 @@
       - c.with_body do
         %p
           = t('.subtitle')
+        %p
+          = t('.save_reminder')
 
     %fieldset.fr-fieldset
       %legend.fr-fieldset__legend
@@ -100,6 +102,23 @@
         .fr-radio-group
           = form.radio_button :instant_expert_avis_email_notifications_enabled, false, id: 'instant_expert_avis_email_notifications_false'
           %label.fr-label{ for: 'instant_expert_avis_email_notifications_false' }
+            = t('.utils.negative')
+
+
+    %fieldset.fr-fieldset
+      %legend.fr-fieldset__legend
+        = t(".deletion_notifications.title")
+        %span.fr-hint-text= t('.deletion_notifications.notice_1')
+        %span.fr-hint-text= t('.deletion_notifications.notice_2')
+      .fr-fieldset__element.fr-fieldset__element--inline
+        .fr-radio-group
+          = form.radio_button :deletion_email_notifications_enabled, true, id: 'deletion_email_notifications_true'
+          %label.fr-label{ for: 'deletion_email_notifications_true' }
+            = t('.utils.positive')
+      .fr-fieldset__element.fr-fieldset__element--inline
+        .fr-radio-group
+          = form.radio_button :deletion_email_notifications_enabled, false, id: 'deletion_email_notifications_false'
+          %label.fr-label{ for: 'deletion_email_notifications_false' }
             = t('.utils.negative')
 
 
