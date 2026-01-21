@@ -5,10 +5,14 @@ module Administrateurs
     before_action :retrieve_procedure
     before_action :retrieve_type_de_champ
     before_action :retrieve_referentiel, except: [:new, :create]
+    before_action :reachable_referentiel?, only: [:mapping_type_de_champ]
     layout 'empty_layout'
 
     def new
       @referentiel = @type_de_champ.build_referentiel(build_or_clone_by_id_params)
+    end
+
+    def configuration_error
     end
 
     def edit
@@ -25,8 +29,6 @@ module Administrateurs
     end
 
     def mapping_type_de_champ
-      @service = ReferentielService.new(referentiel: @referentiel)
-      @service.validate_referentiel
     end
 
     def update_mapping_type_de_champ
@@ -47,8 +49,21 @@ module Administrateurs
 
     private
 
+    def reachable_referentiel?
+      if !ReferentielService.new(referentiel: @referentiel).validate_referentiel
+        redirect_to configuration_error_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel), flash: { alert: "Le référentiel n'est pas accessible" }
+      end
+    end
+
     def handle_referentiel_save(referentiel)
+      cache_bust_last_response_and_mapping = referentiel.url_changed?
+
       if referentiel.configured? && referentiel.save && params[:commit].present?
+        if cache_bust_last_response_and_mapping
+          @type_de_champ.update!(referentiel_mapping: {})
+          referentiel.update!(last_response: nil)
+        end
+
         redirect_to mapping_type_de_champ_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, referentiel)
       else
         referentiel.validate

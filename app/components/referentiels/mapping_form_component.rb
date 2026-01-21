@@ -2,19 +2,9 @@
 
 class Referentiels::MappingFormComponent < Referentiels::MappingFormBase
   TYPES = [:string, :decimal_number, :integer_number, :boolean, :date, :datetime, :array].index_by(&:itself).freeze
-  attr_reader :referentiel_service
-  delegate :test_url, :test_headers, to: :referentiel_service
-  def initialize(**args)
-    super
-    @referentiel_service = ReferentielService.new(referentiel: referentiel)
-  end
 
   def last_request_keys
     JSONPathUtil.hash_to_jsonpath(referentiel.last_response_body)
-  end
-
-  def error_title
-    "¡Ay, caramba! 💣💥"
   end
 
   def back_url
@@ -24,7 +14,7 @@ class Referentiels::MappingFormComponent < Referentiels::MappingFormBase
   def cast_tag(jsonpath, value)
     select_tag(
       attribute_name(jsonpath, "type"),
-      options_for_select(self.class::TYPES.values.map { [t("utils.#{it}"), it] }, lookup_existing_value(jsonpath, "type") || value_to_type(value)),
+      options_for_select(self.class::TYPES.values.map { [t("utils.#{it}"), it] }, lookup_existing_value(jsonpath, "type") || value_to_type(value, jsonpath)),
       class: "fr-select"
     )
   end
@@ -64,8 +54,10 @@ class Referentiels::MappingFormComponent < Referentiels::MappingFormBase
     lookup_existing_value(jsonpath, "prefill") == "1"
   end
 
-  def value_to_type(value)
-    if value.is_a?(String) && DateDetectionUtils.parsable_iso8601_datetime?(value)
+  def value_to_type(value, jsonpath)
+    if DateDetectionUtils.should_suggest_timestamp_mapping?(value, jsonpath)
+      self.class::TYPES[:datetime]
+    elsif value.is_a?(String) && DateDetectionUtils.parsable_iso8601_datetime?(value)
       self.class::TYPES[:datetime]
     elsif value.is_a?(String) && DateDetectionUtils.parsable_iso8601_date?(value)
       self.class::TYPES[:date]
