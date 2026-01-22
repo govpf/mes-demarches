@@ -260,7 +260,7 @@ describe Champs::ReferentielChamp, type: :model do
 
         context 'when data is a unix timestamp' do
           let(:date) { Date.new(2025, 7, 10) }
-          let(:data) { { ok: date.to_time.to_i } } # 2025-07-10T00:00:00Z
+          let(:data) { { ok: date.in_time_zone.to_i } } # 2025-07-10T00:00:00 Pacific/Tahiti
           it 'convert to ISO8601 date' do
             expect { subject }
               .to change { dossier.reload.project_champs.find(&:date?).value }.from(nil).to(date.iso8601)
@@ -269,7 +269,7 @@ describe Champs::ReferentielChamp, type: :model do
 
         context 'when data is a unix timestamp as string' do
           let(:date) { Date.new(2025, 7, 10) }
-          let(:data) { { ok: date.to_time.to_i.to_s } } # 2025-07-10T00:00:00Z
+          let(:data) { { ok: date.in_time_zone.to_i.to_s } } # 2025-07-10T00:00:00 Pacific/Tahiti
           it 'convert to ISO8601 date' do
             expect { subject }
               .to change { dossier.reload.project_champs.find(&:date?).value }.from(nil).to(date.iso8601)
