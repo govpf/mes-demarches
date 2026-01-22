@@ -12,9 +12,9 @@ describe "procedure exports" do
 
     click_on "Téléchargements"
 
-    click_on "Modèles d'export"
+    click_on "Modèles d’export"
 
-    click_on "Créer un modèle d'export tabulaire"
+    click_on "Créer un modèle d’export tabulaire"
 
     fill_in "Nom du modèle", with: "Mon modèle"
 
