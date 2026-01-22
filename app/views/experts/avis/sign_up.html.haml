@@ -2,6 +2,7 @@
   .fr-grid-row.fr-grid-row--center
     .fr-col-lg-6
       = form_for(User.new(email: @email), url: sign_up_expert_avis_path(email: @email), method: :post, html: { class: "fr-py-5w" }) do |f|
+        = f.hidden_field :confirmation_token, value: @confirmation_token
 
         %h1.fr-h2
           = t('views.registrations.new.title', name: Current.application_name)

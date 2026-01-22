@@ -133,6 +133,7 @@ module Experts
 
     def sign_up
       @email = params[:email]
+      @confirmation_token = params[:confirmation_token]
       @dossier = Avis.includes(:dossier).find(params[:id]).dossier
 
       render
