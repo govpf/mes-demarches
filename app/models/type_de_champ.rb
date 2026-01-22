@@ -443,6 +443,14 @@ class TypeDeChamp < ApplicationRecord
     ])
   end
 
+  def exclude_from_export?
+    type_champ.in?([
+      TypeDeChamp.type_champs.fetch(:header_section),
+      TypeDeChamp.type_champs.fetch(:explication),
+      TypeDeChamp.type_champs.fetch(:repetition)
+    ])
+  end
+
   def choice_type?
     type_champ.in?([
       TypeDeChamp.type_champs.fetch(:checkbox),
