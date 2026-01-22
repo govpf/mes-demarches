@@ -50,7 +50,9 @@ class Champs::SiretChamp < Champ
   def validate_french_siret(siret_value)
     return if etablissement.present?
 
-    validator = SiretFormatValidator.new(attributes: { value: true })
+    # pf: use custom SiretValidator instead of siret_validator gem
+    # because Tahiti numbers (6 or 9 chars) are not supported by upstream gem
+    validator = SiretValidator.new(attributes: { value: true })
     validator.validate_each(self, :value, siret_value)
 
     if errors.empty?
