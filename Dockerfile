@@ -12,7 +12,7 @@ RUN bun install --frozen-lockfile --production
 # Intermediate container to bundle all gems
 # Building gems requires dev librairies we don't need in production container
 #--------------------------------------------------
-FROM ruby:3.4.5-slim AS base
+FROM ruby:3.4.5-slim-bookworm AS base
 FROM base AS builder
 
 RUN apt-get update && \
@@ -37,7 +37,7 @@ RUN bundle config specific_platform x86_64-linux \
 FROM base
 ENV APP_PATH /app
 #----- minimum set of packages
-RUN apt-get update && apt-get install -y curl git postgresql-client libicu74 poppler-utils imagemagick ghostscript gnupg zip
+RUN apt-get update && apt-get install -y curl git postgresql-client libicu72 poppler-utils imagemagick ghostscript gnupg zip
 RUN (curl -sL "https://deb.nodesource.com/setup_18.x" | bash -) \
       && apt-get install -y nodejs
 
