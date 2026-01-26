@@ -393,5 +393,99 @@ describe Administrateurs::TypesDeChampController, type: :controller do
         expect(created_champ.options).to eq({ 'min' => 10, 'max' => 100 })
       end
     end
+
+    context 'duplicate repetition bloc with children' do
+      let(:procedure_with_repetition) do
+        create(:procedure,
+               types_de_champ_public: [
+                 { type: :integer_number, libelle: 'l1' },
+                 {
+                   type: :repetition,
+                   libelle: 'Vos enfants',
+                   children: [
+                     { type: :text, libelle: 'Nom' },
+                     { type: :text, libelle: 'Prénom' },
+                     { type: :integer_number, libelle: 'Age' }
+                   ]
+                 }
+               ])
+      end
+
+      def repetition_coordinate = procedure_with_repetition.draft_revision.revision_types_de_champ_public.reload.second
+      def first_child_coordinate = procedure_with_repetition.draft_revision.children_of(repetition_coordinate.type_de_champ).first
+      def second_child_coordinate = procedure_with_repetition.draft_revision.children_of(repetition_coordinate.type_de_champ).second
+      def third_child_coordinate = procedure_with_repetition.draft_revision.children_of(repetition_coordinate.type_de_champ).third
+
+      context 'when duplicating the whole repetition bloc' do
+        let(:params) do
+          {
+            procedure_id: procedure_with_repetition.id,
+            stable_id: repetition_coordinate.stable_id
+          }
+        end
+
+        it 'duplicates the repetition bloc with its children' do
+          subject
+          duplicated_coordinate = assigns(:created).coordinate
+          children = procedure_with_repetition.draft_revision.children_of(duplicated_coordinate.type_de_champ)
+
+          is_expected.to have_http_status(:ok)
+          expect(flash.alert).to eq(nil)
+          expect(children.count).to eq(3)
+        end
+      end
+
+      context 'when duplicating a child inside the repetition bloc' do
+          let(:params) do
+            {
+              procedure_id: procedure_with_repetition.id,
+              stable_id: second_child_coordinate.stable_id
+            }
+          end
+
+          it 'duplicates the child' do
+              subject
+
+              is_expected.to have_http_status(:ok)
+              expect(flash.alert).to eq(nil)
+
+              duplicated_coordinate = assigns(:created).coordinate
+              expect(duplicated_coordinate.libelle).to eq('Prénom')
+              expect(duplicated_coordinate.parent_id).to eq(repetition_coordinate.id)
+            end
+
+          context 'when duplicating a repetition bloc fails' do
+            let(:params) do
+              {
+                procedure_id: procedure_with_repetition.id,
+                stable_id: repetition_coordinate.stable_id
+              }
+            end
+
+            before do
+              allow_any_instance_of(ProcedureRevision).to receive(:add_type_de_champ).and_wrap_original do |method, *args|
+                result = method.call(*args)
+
+                if args.first[:parent_stable_id].nil? && args.first[:type_champ] == 'repetition'
+                  allow(result).to receive(:valid?).and_return(false)
+                  allow(result).to receive_message_chain(:errors, :full_messages).and_return(['Erreur lors de la duplication'])
+                end
+                result
+              end
+            end
+            it 'does not duplicate children when parent is invalid' do
+              initial_count = procedure_with_repetition.draft_revision.revision_types_de_champ_public.count
+
+              subject
+
+              is_expected.to have_http_status(:ok)
+              expect(flash.alert).to eq(['Erreur lors de la duplication'])
+              final_count = procedure_with_repetition.draft_revision.revision_types_de_champ_public.reload.count
+
+              expect(final_count).to eq(initial_count + 1)
+            end
+          end
+        end
+    end
   end
 end
