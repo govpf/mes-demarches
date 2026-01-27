@@ -358,7 +358,7 @@ describe Users::DossiersController, type: :controller do
         expect(dossier.etablissement).to be_present
         expect(dossier.autorisation_donnees).to be(true)
         expect(user.siret).to eq(siret)
-        expect(dossier.last_champ_updated_at).to be_between(2.seconds.ago, Time.current.to_i)
+        expect(dossier.last_champ_updated_at).to be_between(2.seconds.ago, Time.zone.now.to_i)
         expect(response).to redirect_to(etablissement_dossier_path)
       end
     end

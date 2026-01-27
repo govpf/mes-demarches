@@ -634,7 +634,7 @@ module Users
       end
 
       current_user.update!(siret: siret)
-      @dossier.update!(autorisation_donnees: true)
+      @dossier.update!(autorisation_donnees: true, last_champ_updated_at: Time.zone.now)
       redirect_to etablissement_dossier_path
     end
 
