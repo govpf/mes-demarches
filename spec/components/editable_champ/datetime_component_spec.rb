@@ -34,7 +34,8 @@ describe EditableChamp::DatetimeComponent, type: :component do
     context 'when the value is a valid datetime' do
       let(:champ) { Champs::DatetimeChamp.new(value: '2020-01-01T00:00:00+01:00', dossier:, stable_id: 99) }
 
-      it { is_expected.to eq('2020-01-01T00:00') }
+      # pf: le test upstream suppose un timezone européen, on le wrappe explicitement
+      it { Time.use_zone('Europe/Paris') { is_expected.to eq('2020-01-01T00:00') } }
     end
   end
 end
