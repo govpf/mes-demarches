@@ -520,13 +520,13 @@ fr:
             motivation: "Motivation :"
             attestation: "Attestation :"
             justificatif: "Justificatif de décision :"
-            acceptee_html: "Votre dossier a été <strong>accepté</strong>."
+            acceptee: "Votre dossier a été accepté"
             accepte_motivation: "Motif de l’acceptation"
             accepte_attestation: "Télécharger l’attestation"
-            refuse_html: "Votre dossier a été <strong>refusé</strong>."
+            refuse: "Votre dossier a été refusé"
             refuse_motivation: "Motif du refus"
             refuse_reply: "Envoyer un message à l’administration"
-            sans_suite_html: "Votre dossier a été classé <strong>sans suite</strong>."
+            sans_suite: "Votre dossier a été classé sans suite"
             sans_suite_motivation: "Motif du classement sans suite"
           latest_message:
             latest_message: "Dernier message"
@@ -539,9 +539,10 @@ fr:
           edit_dossier: Modifier le dossier
           edit_dossier_title: "Modifier le dossier - Vous pouvez modifier votre dossier tant qu’il n’est pas passé en instruction"
         search:
-          search_file: Rechercher un dossier (n° de dossier, mots-clés)
-          prompt: (n° de dossier, nom / prénom, mots-clés)
-          label: Rechercher un dossier
+          search_file: Rechercher un dossier (par n° de dossier, mots-clés)
+          label: Rechercher un dossier (par n° de dossier, nom / prénom, mots-clés…)
+          placeholder: Saisissez votre recherche
+          button: Rechercher un dossier
           simple: Rechercher
           result_term_title: Résultat de la recherche pour « %{search_terms} »
           result_procedure_title: et pour la procédure « %{procedure_libelle} »
@@ -549,6 +550,8 @@ fr:
         dossier_menu: "Dossier numéro %{id}"
         index:
           dossiers: "Mes dossiers"
+          see_deleted_dossiers_history: Historique des dossiers supprimés
+          administration_no_longer_processes: "L’administration ne traitera plus votre demande."
         dossiers_list:
           n_dossier: "dossier n°"
           no_result_title: Aucun dossier
@@ -559,32 +562,32 @@ fr:
           no_result_reset_filter: Réinitialiser les filtres
           procedure_closed:
             brouillon:
-              internal_procedure_html: Cette démarche est close. Vous ne pouvez pas déposer ce dossier. Nous vous invitons à en déposer un nouveau sur la %{link} qui la remplace.
-              other_html: Cette démarche est close. Vous ne pouvez pas déposer ce dossier, ni en déposer un nouveau pour cette démarche. %{link}
+              internal_procedure_html: <h4 class="card-title fr-mb-1v">Cette démarche est close</h4><p>Vous ne pouvez pas déposer ce dossier. Nous vous invitons à en déposer un nouveau sur la %{link} qui la remplace.</p>
+              other_html: <h4 class="card-title fr-mb-1v">Cette démarche est close</h4><p>Vous ne pouvez pas déposer ce dossier, ni en déposer un nouveau pour cette démarche. %{link}</p>
             en_cours:
-              internal_procedure_html: Cette démarche est close. Votre dossier est bien déposé et peut être instruit par l’administration. Au besoin, vous pouvez déposer un nouveau dossier sur la %{link} qui la remplace.
-              other_html: Cette démarche est close. Votre dossier est bien déposé et peut être instruit par l’administration. Vous ne pouvez pas déposer de nouveau dossier pour cette démarche. %{link}
+              internal_procedure_html: <h4 class="card-title fr-mb-1v">Cette démarche est close</h4><p>Votre dossier est bien déposé et peut être instruit par l’administration. Au besoin, vous pouvez déposer un nouveau dossier sur la %{link} qui la remplace.</p>
+              other_html: <h4 class="card-title fr-mb-1v">Cette démarche est close</h4><p>Votre dossier est bien déposé et peut être instruit par l’administration. Vous ne pouvez pas déposer de nouveau dossier pour cette démarche. %{link}</p>
             termine:
-              internal_procedure_html: Cette démarche est close. Votre dossier a bien été traité par l’administration. Au besoin, vous pouvez déposer un nouveau dossier sur la %{link} qui la remplace.
-              other_html: Cette démarche est close. Votre dossier a bien été traité par l’administration. Vous ne pouvez pas déposer de nouveau dossier pour cette démarche. %{link}
+              internal_procedure_html: <h4 class="card-title fr-mb-1v">Cette démarche est close</h4><p>Votre dossier a bien été traité par l’administration. Au besoin, vous pouvez déposer un nouveau dossier sur la %{link} qui la remplace.</p>
+              other_html: <h4 class="card-title fr-mb-1v">Cette démarche est close</h4><p>Votre dossier a bien été traité par l’administration. Vous ne pouvez pas déposer de nouveau dossier pour cette démarche. %{link}</p>
             title_new_procedure: Nouvelle démarche disponible
             title_closing_details: Plus d’informations sur la clôture de la démarche
             more_details: Plus d’informations
             procedure: démarche
             this_procedure: cette démarche
-          pending_correction_html: "Ce dossier attend vos corrections. Consultez les modifications à apporter dans la <a href=\"%{link}\">messagerie <span class='visually-hidden'>du dossier numéro %{id}</span></a>."
+          pending_correction_html: '<h4 class="card-title fr-mb-1v">Ce dossier attend vos corrections</h4><p>Consultez les modifications à apporter dans la <a href=\"%{link}\" class="fr-link">messagerie <span class="visually-hidden">du dossier numéro %{id}</span></a>.</p>'
           depose_at: Déposé le %{date}
           created_at: Créé le %{date}
           updated_at: modifié le %{date}
           shared_with: Dossier partagé par %{owner} avec
-          deleted_by_user: Supprimé le %{date} par l’usager
-          deleted_by_automatic: Supprimé le %{date} automatiquement du à la date d’expiration
+          deleted_by_user: Mis à la corbeille le %{date} par l’usager
+          deleted_by_automatic: Mis à la corbeille automatiquement le %{date} car le délai maximal de conservation a été atteint
         dossier_action:
           edit_dossier: "Modifier le dossier"
           start_other_dossier: "Commencer un nouveau dossier"
           clone: "Dupliquer le dossier"
           delete_dossier: "Mettre à la corbeille"
-          delete_dossier_confirm: "En continuant, vous allez supprimer ce dossier ainsi que les informations qu’il contient. Toute suppression entraîne l’annulation de la démarche en cours.\n\nConfirmer la suppression ?"
+          delete_dossier_confirm: "Voulez-vous vraiment mettre à la corbeille ce dossier ?"
           delete_dossier_with_transfer_confirm: "En continuant, vous allez supprimer ce dossier, les informations qu’il contient ainsi que sa demande de transfert à %{email}. Toute suppression entraîne l’annulation de la démarche en cours.\n\nConfirmer la suppression ?"
           transfer_dossier: "Transférer le dossier"
           edit_draft: "Continuer à remplir"
@@ -594,11 +597,11 @@ fr:
           other_actions: "Autres actions"
         transfers:
           sender_from_support: Le support technique
-          sender_demande_en_cours: "Une demande de transfert est en cours sur le dossier n° %{id} pour %{email}"
-          sender_demande_en_cours_from_support: "Une demande de transfert par le support technique est en cours sur le dossier n° %{id} pour %{email}"
-          receiver_demande_en_cours: "Demande de transfert pour le dossier n° %{id} envoyé par %{email}"
-          receiver_demande_en_cours_from_support: "Demande de transfert par le support technique pour le dossier n° %{id} de %{email}"
-          revoke_html: "Révoquer cette demande <span class='visually-hidden'>de transfert</span>"
+          sender_demande_en_cours_html: '<h4 class="card-title fr-mb-1v">Une demande de transfert est en cours sur le dossier n° %{id} pour %{email}</h4>'
+          sender_demande_en_cours_from_support_html: '<h4 class="card-title fr-mb-1v">Une demande de transfert par le support technique est en cours sur le dossier n° %{id} pour %{email}</h4>'
+          receiver_demande_en_cours_html: '<h4 class="card-title fr-mb-1v">Demande de transfert pour le dossier n° %{id} envoyé par %{email}</h4>'
+          receiver_demande_en_cours_from_support_html: '<h4 class="card-title fr-mb-1v">Demande de transfert par le support technique pour le dossier n° %{id} de %{email}</h4>'
+          revoke_html: 'Révoquer cette demande <span class="visually-hidden">de transfert</span>'
           accept: Accepter
           reject: Rejeter
       sessions:
@@ -955,7 +958,7 @@ fr:
       cloned_success: "Votre dossier a bien été dupliqué. Vous pouvez maintenant le vérifier, l’adapter puis le déposer."
       ask_deletion:
         undergoingreview: "L’instruction de votre dossier a commencé, il n’est plus possible de supprimer votre dossier. Si vous souhaitez annuler l’instruction contactez votre administration par la messagerie de votre dossier."
-        soft_deleted_dossier: "Votre dossier a bien été supprimé de votre interface"
+        soft_deleted_dossier: "Votre dossier a bien été mis à la corbeille"
       restore: "Votre dossier a bien été restauré"
       etablissement:
         no_establishment: "Aucun établissement n’est associé à ce dossier"
@@ -984,6 +987,21 @@ fr:
       verify_site: "Vérifiez que vous êtes bien sur le site officiel :"
       invalid_qrcode: "Ce code QR n'est pas valide ou a expiré."
       no_dossier: "Aucun dossier trouvé."
+      show_in_trash:
+        page_title: "Dossier nº %{numero} - En corbeille"
+        title: "Le dossier n° %{numero} a été mis à la corbeille"
+        explanation_html: "Vous pouvez retrouver ce dossier depuis l'onglet <a href=\"%{trash_link}\" class=\"fr-link\">corbeille</a> de votre compte.<br>Il n'est pas consultable actuellement."
+        consult_trash: "Consulter la corbeille"
+        user_request_info_without_if: "Ce dossier a été mis à la corbeille à votre demande :<br>Vous pouvez encore le <strong>restaurer</strong>."
+        user_request_info: "Si ce dossier a été mis à la corbeille à votre demande :<br>Vous pouvez encore le <strong>restaurer</strong>."
+        automatic_info: "Si ce dossier a été mis à la corbeille automatiquement car son délai maximal de conservation a été atteint :<br>Nous vous invitons à le <strong>télécharger</strong> au plus vite avant qu'il ne soit supprimé définitivement."
+      show_deleted:
+        page_title: "Dossier nº %{numero} - Supprimé définitivement"
+        title: "Le dossier n° %{numero} a été supprimé"
+        explanation: "Vous ne pouvez plus récupérer ce dossier pour une des raisons suivantes :"
+        reason_user_request: "Il a été mis à la corbeille à votre demande, puis automatiquement supprimé."
+        reason_automatic: "Il a été supprimé car son délai maximal de conservation a été atteint."
+        history_link_html: "Vous pouvez retrouver l'ensemble des dossiers supprimés de votre compte (hors \"BROUILLON\") sur la page <a href=\"%{history_link}\" class=\"fr-link\">Historique des dossiers supprimés</a>."
   instructeurs:
     dossiers:
       deleted_by_instructeur: "Le dossier a bien été supprimé de votre interface"

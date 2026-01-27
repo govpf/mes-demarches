@@ -662,20 +662,20 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
 
   create_table "export_templates", force: :cascade do |t|
     t.jsonb "attestation"
+    t.boolean "avis_attachments", default: false, null: false
+    t.boolean "commentaires_attachments", default: false, null: false
     t.jsonb "content", default: {}
     t.datetime "created_at", null: false
     t.jsonb "dossier_folder", null: false
     t.jsonb "export_pdf", null: false
     t.jsonb "exported_columns", default: [], null: false, array: true
     t.bigint "groupe_instructeur_id", null: false
+    t.boolean "justificatif_motivation", default: false, null: false
     t.string "kind", null: false
     t.string "name", null: false
     t.jsonb "pjs", default: [], null: false, array: true
-    t.datetime "updated_at", null: false
     t.boolean "shared", default: false, null: false
-    t.boolean "commentaires_attachments", default: false, null: false
-    t.boolean "avis_attachments", default: false, null: false
-    t.boolean "justificatif_motivation", default: false, null: false
+    t.datetime "updated_at", null: false
     t.index ["groupe_instructeur_id"], name: "index_export_templates_on_groupe_instructeur_id"
   end
 
@@ -864,7 +864,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.datetime "login_token_created_at"
     t.datetime "updated_at"
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_instructeurs_on_user_id"
+    t.index ["user_id"], name: "index_instructeurs_on_user_id", unique: true
   end
 
   create_table "instructeurs_procedures", force: :cascade do |t|

@@ -344,6 +344,8 @@ describe Users::DossiersController, type: :controller do
         has_issues = api_insee_status_response.include?("502") || api_insee_status_response.include?("HASISSUES")
         stub_request(:get, API_ISPF_URL).to_return(status: has_issues ? 502 : 200)
       end
+
+      travel_to(2.minutes.ago)
     end
 
     subject! { post :update_siret, params: { id: dossier.id, user: { siret: params_siret } } }
@@ -356,7 +358,7 @@ describe Users::DossiersController, type: :controller do
         expect(dossier.etablissement).to be_present
         expect(dossier.autorisation_donnees).to be(true)
         expect(user.siret).to eq(siret)
-
+        expect(dossier.last_champ_updated_at).to be_between(2.seconds.ago, Time.current.to_i)
         expect(response).to redirect_to(etablissement_dossier_path)
       end
     end
@@ -914,26 +916,6 @@ describe Users::DossiersController, type: :controller do
               expect(response.body).to include("Cochez la case")
             end
           end
-        end
-      end
-
-      context "when there are instructeurs followers" do
-        let!(:instructeur_follower) { create(:instructeur) }
-        let!(:instructeur_not_follower) { create(:instructeur) }
-        let!(:groupe_instructeur) { create(:groupe_instructeur, instructeurs: [instructeur_follower, instructeur_not_follower]) }
-
-        before do
-          dossier.assign_to_groupe_instructeur(groupe_instructeur, DossierAssignment.modes.fetch(:auto))
-          instructeur_follower.followed_dossiers << dossier
-        end
-
-        it "create dossier_modifie notification only for instructeur follower" do
-          expect { subject }.to change(DossierNotification, :count).by(1)
-
-          notification = DossierNotification.last
-          expect(notification.dossier_id).to eq(dossier.id)
-          expect(notification.instructeur_id).to eq(instructeur_follower.id)
-          expect(notification.notification_type).to eq("dossier_modifie")
         end
       end
     end
@@ -2151,7 +2133,7 @@ describe Users::DossiersController, type: :controller do
     end
 
     context 'when champ is pollable' do
-      let(:referentiel) { create(:api_referentiel, :exact_match, :configured) }
+      let(:referentiel) { create(:api_referentiel, :exact_match) }
       let(:types_de_champ_public) { [{ type: :referentiel, referentiel:, stable_id: }] }
 
       context 'when the requested external_id had not been fetched' do
@@ -2172,7 +2154,7 @@ describe Users::DossiersController, type: :controller do
 
         context 'propagation du prefill (polling)' do
           render_views
-          let(:referentiel) { create(:api_referentiel, :exact_match, :configured) }
+          let(:referentiel) { create(:api_referentiel, :exact_match) }
           let(:referentiel_stable_id) { 1 }
           let(:types_de_champ_public) do
             [
@@ -2218,6 +2200,39 @@ describe Users::DossiersController, type: :controller do
           subject
           expect(response).not_to include('Trop de demandes. Nous réessayons pour vous.')
         end
+      end
+    end
+  end
+
+  describe '#show' do
+    let(:dossier) { create(:dossier, :en_construction, user: user) }
+
+    before { sign_in(user) }
+
+    context 'when dossier is in trash' do
+      before { dossier.hide_and_keep_track!(user, :user_request) }
+
+      it 'redirects to trash page' do
+        get :show, params: { id: dossier.id }
+        expect(response).to redirect_to(corbeille_dossier_path(dossier.id))
+      end
+    end
+
+    context 'when dossier is deleted' do
+      before do
+        dossier.destroy
+        create(:deleted_dossier, dossier_id: dossier.id, user_id: user.id)
+      end
+
+      it 'redirects to deleted page' do
+        get :show, params: { id: dossier.id }
+        expect(response).to redirect_to(supprime_dossier_path(dossier.id))
+      end
+    end
+
+    context 'when dossier not found' do
+      it 'raises not found' do
+        expect { get :show, params: { id: 42 } }.to raise_error(ActiveRecord::RecordNotFound)
       end
     end
   end

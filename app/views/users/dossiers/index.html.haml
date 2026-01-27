@@ -23,15 +23,14 @@
     - if current_user.dossiers.count > 2 || current_user.dossiers_invites.count > 2  || @procedures_for_select.size > 1
       .fr-grid-row.fr-grid-row--gutters
         - if current_user.dossiers.count > 2 || current_user.dossiers_invites.count > 2
-          .fr-col-12.fr-col-md
-            #search-2.fr-search-bar
-              = form_tag dossiers_path, method: :get, :role => "search", class: "width-100 fr-mb-5w" do
-                = hidden_field_tag :procedure_id, params[:procedure_id]
-                = label_tag "q", t('views.users.dossiers.search.label'), class: 'fr-label fr-mb-1w'
-                .flex
-                  = text_field_tag "q", "#{@search_terms if @search_terms.present?}", placeholder: t('views.users.dossiers.search.prompt'), class: "fr-input"
-                  %button.fr-btn.fr-btn--sm
-                    = t('views.users.dossiers.search.label')
+          #search-2.fr-search-bar.fr-col-12.fr-col-md
+            = form_tag dossiers_path, method: :get, :role => "search", class: "width-100 fr-mb-5w", "aria-label": t('views.users.dossiers.dossiers_menu') do
+              = hidden_field_tag :procedure_id, params[:procedure_id]
+              = label_tag "q", t('views.users.dossiers.search.label'), class: 'fr-label fr-mb-1w'
+              .flex
+                = text_field_tag "q", "#{@search_terms if @search_terms.present?}", placeholder: t('views.users.dossiers.search.placeholder'), class: "fr-input"
+                %button.fr-btn.fr-btn--sm
+                  = t('views.users.dossiers.search.button')
         - if @procedures_for_select.size > 1
           .fr-col-12.fr-col-md
             = render Dossiers::UserProcedureFilterComponent.new(procedures_for_select: @procedures_for_select)
@@ -90,6 +89,10 @@
               = link_to url_for_dossier(@first_brouillon_recently_updated), class: 'fr-btn' do
                 = t('users.dossiers.header.callout.first_brouillon_recently_updated_button')
                 %span.visually-hidden= t('utils.file')
+
+      - if @statut == "dossiers-supprimes" && @search_terms.blank?
+        .fr-mb-3w.text-right
+          = link_to t('views.users.dossiers.index.see_deleted_dossiers_history'), deleted_dossiers_path, class: "fr-link"
 
       - if @search_terms.present?
         %h2.page-title

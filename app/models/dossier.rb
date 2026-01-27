@@ -1220,6 +1220,7 @@ class Dossier < ApplicationRecord
         end
       end
     end
+    followers_instructeurs.reset
   end
 
   def self.notify_draft_not_submitted
