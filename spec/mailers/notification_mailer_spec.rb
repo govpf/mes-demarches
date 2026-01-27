@@ -46,8 +46,9 @@ RSpec.describe NotificationMailer, type: :mailer do
     let(:dossier) { create(:dossier, :accepte, procedure: create(:procedure, :accuse_lecture)) }
     subject { described_class.send_accuse_lecture_notification(dossier) }
 
-    it { expect(subject.subject).to include("La décision a été rendue pour votre démarche #{dossier.procedure.libelle}") }
-    it { expect(subject.body).to include("Pour en connaitre la nature, veuillez vous connecter à votre compte\r\n<a href=\"#{dossier_url(dossier)}\">#{APPLICATION_NAME}</a>") }
+    it { expect(subject.subject).to include("La décision a été rendue pour votre dossier n°#{dossier.id} (#{dossier.procedure.libelle})") }
+    it { expect(subject.body).to include("Pour en connaitre la nature, veuillez consulter votre dossier dans votre compte mes-demarches.gov.pf") }
+    it { expect(subject.body).to have_link("Consulter mon dossier", href: dossier_url(dossier)) }
   end
 
   describe 'send_en_construction_notification' do
@@ -62,6 +63,13 @@ RSpec.describe NotificationMailer, type: :mailer do
         expect(mail.subject).to eq("Votre dossier nº #{dossier.id} a bien été déposé (#{procedure.libelle})")
         expect(body).to include("Votre dossier nº&nbsp;#{dossier.id}")
         expect(body).to include(procedure.service.nom)
+        expect(body).to include(procedure.service.adresse)
+        expect(body).to include(procedure.service.faq_link)
+        expect(body).to include(procedure.service.contact_link)
+        expect(body).to include(messagerie_dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+        expect(body).to include(procedure.service.telephone)
+        expect(body).to include(procedure.service.horaires)
+        expect(body).to include(procedure.service.other_contact_info)
         expect(mail.attachments.first.filename).to eq("attestation-depot_dossier-#{dossier.id}.pdf")
       end
     end
@@ -77,6 +85,25 @@ RSpec.describe NotificationMailer, type: :mailer do
         expect(mail.subject).to eq('Email subject')
         expect(body).to include('Your dossier was received')
         expect(mail.attachments.first.filename).to eq("attestation-depot_dossier-#{dossier.id}.pdf")
+      end
+    end
+
+    context "with contact information" do
+      let(:procedure) { create(:simple_procedure, :routee) }
+
+      let!(:contact_information) {
+        create(:contact_information, groupe_instructeur: procedure.groupe_instructeurs.first)
+      }
+
+      before do
+        dossier.update!(groupe_instructeur: procedure.groupe_instructeurs.first)
+      end
+
+      it 'renders default template' do
+        expect(mail.subject).to eq("Votre dossier nº #{dossier.id} a bien été déposé (#{procedure.libelle})")
+        expect(body).to include("Votre dossier nº&nbsp;#{dossier.id}")
+        expect(body).to include(contact_information.telephone_url)
+        expect(body).to include(contact_information.adresse)
       end
     end
   end
