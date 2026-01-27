@@ -12,7 +12,7 @@ class DateLimitValidator < ActiveModel::Validator
   private
 
   def validate_in_past(champ, date)
-    if date >= Date.today
+    if date >= Date.current
       # i18n-tasks-use t('errors.messages.date_in_past')
       champ.errors.add(:value, :date_in_past)
     end
