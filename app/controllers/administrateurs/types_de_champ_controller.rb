@@ -182,41 +182,59 @@ module Administrateurs
         parent_stable_id: @coordinate.parent&.stable_id
       }
 
-      type_de_champ = draft.add_type_de_champ(new_champ_params)
-
-      if type_de_champ.valid?
-        @coordinate = draft.coordinate_for(type_de_champ)
-        ProcedureRevisionPreloader.load_one(@coordinate.revision)
-        @created = champ_component_from(@coordinate, focused: true)
-        @morphed = champ_components_starting_at(@coordinate, 1)
-      else
-        flash.alert = type_de_champ.errors.full_messages
-      end
-
       if default_type_de_champ.repetition?
         ActiveRecord::Base.transaction do
-          children = draft.children_of(default_type_de_champ)
-          last_child_stable_id = type_de_champ.stable_id
+            type_de_champ = draft.add_type_de_champ(new_champ_params)
 
-          children.each do |child|
-            new_child_params = draft.add_type_de_champ(
-              {
-                type_champ: child.type_champ,
-                libelle: child.libelle.to_s,
-                description: child.description,
-                mandatory: child.mandatory,
-                options: child.options,
-                condition: child.condition,
-                parent_stable_id: type_de_champ.stable_id,
-                after_stable_id: last_child_stable_id
-              }
-            )
-            unless new_child_params.valid?
-              flash.alert = new_child_params.errors.full_messages
+            unless type_de_champ.valid?
+              flash.alert = type_de_champ.errors.full_messages
               raise ActiveRecord::Rollback
             end
-            last_child_stable_id = new_child_params.stable_id
+
+            children = draft.children_of(default_type_de_champ)
+            last_child_stable_id = type_de_champ.stable_id
+            errors = []
+
+            children.each do |child|
+                new_child_params = draft.add_type_de_champ(
+                  {
+                    type_champ: child.type_champ,
+                    libelle: child.libelle.to_s,
+                    description: child.description,
+                    mandatory: child.mandatory,
+                    options: child.options,
+                    condition: child.condition,
+                    parent_stable_id: type_de_champ.stable_id,
+                    after_stable_id: last_child_stable_id
+                  }
+                )
+                if new_child_params.valid?
+                  last_child_stable_id = new_child_params.stable_id
+                else
+                  errors << new_child_params.errors.full_messages
+                end
+              end
+
+            unless errors.empty?
+              flash.alert = errors.flatten
+              raise ActiveRecord::Rollback
+            end
+
+            @coordinate = draft.coordinate_for(type_de_champ)
+            ProcedureRevisionPreloader.load_one(@coordinate.revision)
+            @created = champ_component_from(@coordinate, focused: true)
+            @morphed = champ_components_starting_at(@coordinate, 1)
           end
+      else
+        type_de_champ = draft.add_type_de_champ(new_champ_params)
+
+        if type_de_champ.valid?
+          @coordinate = draft.coordinate_for(type_de_champ)
+          ProcedureRevisionPreloader.load_one(@coordinate.revision)
+          @created = champ_component_from(@coordinate, focused: true)
+          @morphed = champ_components_starting_at(@coordinate, 1)
+        else
+          flash.alert = type_de_champ.errors.full_messages
         end
       end
     end

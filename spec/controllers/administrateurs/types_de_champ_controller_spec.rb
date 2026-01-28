@@ -475,14 +475,16 @@ describe Administrateurs::TypesDeChampController, type: :controller do
             end
             it 'does not duplicate children when parent is invalid' do
               initial_count = procedure_with_repetition.draft_revision.revision_types_de_champ_public.count
+              initial_children_count = procedure_with_repetition.draft_revision.children_of(repetition_coordinate.type_de_champ).count
 
               subject
 
-              is_expected.to have_http_status(:ok)
               expect(flash.alert).to eq(['Erreur lors de la duplication'])
               final_count = procedure_with_repetition.draft_revision.revision_types_de_champ_public.reload.count
+              final_children_count = procedure_with_repetition.draft_revision.children_of(repetition_coordinate.type_de_champ).count
 
-              expect(final_count).to eq(initial_count + 1)
+              expect(final_count).to eq(initial_count)
+              expect(final_children_count).to eq(initial_children_count)
             end
           end
         end
