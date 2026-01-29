@@ -791,6 +791,21 @@ describe Instructeurs::ProceduresController, type: :controller do
 
         it { expect(instructeur.groupe_instructeur_with_email_notifications).to eq([procedure.defaut_groupe_instructeur]) }
       end
+
+      context 'when updating deletion_email_notifications_enabled' do
+        let(:assign_to) { instructeur.assign_to.joins(:groupe_instructeur).find_by(groupe_instructeurs: { procedure: procedure }) }
+
+        before do
+          patch :update_email_notifications, params: {
+            procedure_id: procedure.id,
+            assign_to: { id: assign_to.id, deletion_email_notifications_enabled: false }
+          }
+        end
+
+        it 'updates the setting' do
+          expect(assign_to.reload.deletion_email_notifications_enabled).to eq(false)
+        end
+      end
     end
   end
 

@@ -51,8 +51,8 @@ class Users::SessionsController < Devise::SessionsController
   # DELETE /resource/sign_out
   def destroy
     if user_signed_in?
-      # pf: store provider before clearing for multi-provider logout logic
-      connected_with_provider = current_user.loged_in_with_france_connect
+      # pf: stocker le fournisseur d'authentification avant sign_out pour gérer les différents fournisseurs
+      connected_with_france_connect = current_user.loged_in_with_france_connect
       pro_connect_id_token = current_user&.instructeur&.pro_connect_id_token
 
       current_user.update(loged_in_with_france_connect: nil)
@@ -62,15 +62,14 @@ class Users::SessionsController < Devise::SessionsController
 
       delete_pro_connect_session_info_cookie
 
-      if logged_in_with_france_connect?
-        return redirect_to france_connect_logout_url(callback: root_url), allow_other_host: true
-      end
-
-      # pf: handle logout for other OpenID providers (Tatou, SIPF, Microsoft, etc.)
-      case connected_with_provider
+      # pf: gestion des différents fournisseurs d'authentification (France Connect + fournisseurs PF)
+      case connected_with_france_connect
+      when User.loged_in_with_france_connects.fetch(:particulier)
+        # pf: handle logout for France Connect V2 using cookies (upstream approach)
+        return redirect_to france_connect_logout_url(callback: root_url), allow_other_host: true if logged_in_with_france_connect?
       when User.loged_in_with_france_connects.fetch(:sipf), User.loged_in_with_france_connects.fetch(:tatou)
         params = { redirect_uri: root_url }
-        redirect_to "#{Rails.application.secrets[connected_with_provider.to_sym][:logout_endpoint]}?#{params.to_query}", allow_other_host: true
+        redirect_to "#{Rails.application.secrets[connected_with_france_connect.to_sym][:logout_endpoint]}?#{params.to_query}", allow_other_host: true
         return
       when User.loged_in_with_france_connects.fetch(:microsoft)
         params = { post_logout_redirect_uri: root_url }

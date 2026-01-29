@@ -13,8 +13,11 @@
 
     = csrf_meta_tags
 
-    - if administrateur_signed_in? || instructeur_signed_in?
-      %script#lasuite-gaufre-script{ async: '', defer: 'defer', src: 'https://integration.lasuite.numerique.gouv.fr/api/v1/gaufre.js' }
+    -# pf: La Suite numérique n'est pas encore accessible aux agents de Polynésie française
+    -# Accès en cours de négociation pour extension aux territoires d'outre-mer
+    -# Réactiver quand l'accès sera confirmé (décommenter ci-dessous)
+    -# - if administrateur_signed_in? || instructeur_signed_in?
+    -#   %script#lasuite-gaufre-script{ async: '', defer: 'defer', src: 'https://integration.lasuite.numerique.gouv.fr/api/v1/gaufre.js' }
 
     %title
       = content_for?(:title) ? "#{sanitize(yield(:title)).gsub("&nbsp;", " ")} · #{Current.application_name}" : Current.application_name
