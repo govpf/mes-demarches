@@ -24,6 +24,7 @@ describe WebhookController, type: :controller do
     before do
       allow(controller).to receive(:verify_helpscout_signature!).and_return(true)
       allow(controller).to receive(:verify_authenticity_token)
+      allow_any_instance_of(Sendinblue::API).to receive(:sent_mails).and_return([sent_email])
     end
 
     subject(:response) { get :helpscout, params: { customer: { email: customer_email } } }
