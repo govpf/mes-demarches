@@ -6,6 +6,10 @@ class TypesDeChampEditor::DuplicateChampButtonComponent < ApplicationComponent
     @after_stable_id = after_stable_id
   end
 
+  def render?
+    !@coordinate.type_de_champ.repetition? && !@coordinate.child?
+  end
+
   private
 
   def procedure
