@@ -12,3 +12,7 @@ if ENV['RAILS_ENV'] != 'test' && File.basename($0) != 'rake'
   end
   raise "Configuration error: `#{missings.join(',')}` #{missings.size == 1 ? 'is' : 'are'} not present in the process’ environment variables (declared in `#{reference_env_file}`)" if missings.present?
 end
+
+def ENV.enabled?(name)
+  ENV.fetch("#{name}_ENABLED", "").downcase.in?(["enabled", "yes", "true", "1"])
+end
