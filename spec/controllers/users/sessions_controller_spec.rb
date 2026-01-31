@@ -195,8 +195,10 @@ describe Users::SessionsController, type: :controller do
       end
     end
 
-    context 'when user is connect with pro connect' do
-      let(:loged_in_with_france_connect) { nil }
+    context 'when user is connect with Microsoft' do
+      # pf: En PF, on utilise loged_in_with_france_connect='microsoft' au lieu de pro_connect_id_token
+      # upstream: let(:loged_in_with_france_connect) { nil }
+      let(:loged_in_with_france_connect) { User.loged_in_with_france_connects.fetch(:microsoft) }
       let(:pro_connect_id_token) { 'qwerty' }
 
       it 'redirect to pro connect logout page' do
@@ -204,10 +206,14 @@ describe Users::SessionsController, type: :controller do
         expect(instructeur.reload.pro_connect_id_token).to be_nil
       end
 
-      it "deletes the pro_connect_session_info cookie" do
-        expect(response.cookies.keys).to include(ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME.to_s)
-        expect(response.cookies[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME]).to be_nil
-      end
+      # pf: Test du cookie supprimé car on n'utilise pas de cookie en PF
+      # On utilise loged_in_with_france_connect qui est automatiquement écrasé
+      # lors de la prochaine connexion (Tatou, mot de passe, etc.)
+      # upstream:
+      # it "deletes the pro_connect_session_info cookie" do
+      #   expect(response.cookies.keys).to include(ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME.to_s)
+      #   expect(response.cookies[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME]).to be_nil
+      # end
     end
   end
 

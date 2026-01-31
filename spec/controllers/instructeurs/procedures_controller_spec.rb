@@ -730,12 +730,15 @@ describe Instructeurs::ProceduresController, type: :controller do
           subject
 
           expect(response).to redirect_to(pro_connect_path)
-          expect(flash[:alert]).to eq("Vous devez vous connecter par ProConnect pour accéder à cette démarche")
+          expect(flash[:alert]).to eq("Vous devez vous connecter avec votre compte @administration.gov.pf pour accéder à cette démarche")
         end
 
-        context "and the cookie is set" do
+        context "and the user is connected via Microsoft" do
           before do
-            cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: instructeur.user.id }.to_json }
+            # pf: En PF, on utilise loged_in_with_france_connect au lieu du cookie
+            # upstream:
+            # cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: instructeur.user.id }.to_json }
+            instructeur.user.update!(loged_in_with_france_connect: 'microsoft')
           end
 
           it "does not redirect to pro_connect_path" do
