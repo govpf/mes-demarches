@@ -109,13 +109,10 @@ describe ProConnectController, type: :controller do
             expect { subject }.to change { instructeur.user.reload.email_verified_at }.from(nil)
           end
 
-          it "sets the loged_in_with_france_connect attribute to microsoft" do
+          it "sets the pro_connect_session_info cookie" do
             subject
 
-            # pf: En PF, on utilise loged_in_with_france_connect au lieu du cookie
-            # upstream:
-            # expect(cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME]).to eq({ user_id: instructeur.user.id }.to_json)
-            expect(instructeur.user.reload.loged_in_with_france_connect).to eq('microsoft')
+            expect(cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME]).to eq({ user_id: instructeur.user.id }.to_json)
           end
         end
       end

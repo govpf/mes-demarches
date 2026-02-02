@@ -4,8 +4,8 @@ describe Logic::InArchipelOperator do
   include Logic
 
   let(:dossier) { create(:dossier) }
-  let(:champ_commune_de_polynesie) { Champs::CommuneDePolynesieChamp.new(dossier:, value: 'Mangareva - 98755').tap(&:save!) }
-  let(:champ_code_postal_de_polynesie) { Champs::CodePostalDePolynesieChamp.new(dossier:, value: '98755 - Mangareva').tap(&:save!) }
+  let(:champ_commune_de_polynesie) { Champs::CommuneDePolynesieChamp.new(dossier:, stable_id: 1, value: 'Mangareva - 98755').tap(&:save!) }
+  let(:champ_code_postal_de_polynesie) { Champs::CodePostalDePolynesieChamp.new(dossier:, stable_id: 2, value: '98755 - Mangareva').tap(&:save!) }
   before do
     allow(champ_commune_de_polynesie).to receive(:type_de_champ).and_return(build(:type_de_champ_commune_de_polynesie))
     allow(champ_code_postal_de_polynesie).to receive(:type_de_champ).and_return(build(:type_de_champ_code_postal_de_polynesie))

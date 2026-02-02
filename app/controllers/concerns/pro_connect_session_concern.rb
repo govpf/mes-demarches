@@ -10,38 +10,30 @@ module ProConnectSessionConcern
 
   included do
     def logged_in_with_pro_connect?
-      # pf: En PF, l'authentification professionnelle = Microsoft @administration.gov.pf
-      # Contrairement à l'upstream qui utilise un cookie chiffré, nous utilisons
-      # l'attribut loged_in_with_france_connect qui est déjà géré par le système PF
+      # pf: Gestion hybride pour supporter à la fois :
+      # - upstream ProConnect (cookie chiffré)
+      # - PF Microsoft @administration.gov.pf (loged_in_with_france_connect)
+      return false if current_user.blank?
 
-      # upstream (France métropolitaine) :
-      # current_user.present? && cookies.encrypted[SESSION_INFO_COOKIE_NAME].present? && JSON.parse(cookies.encrypted[SESSION_INFO_COOKIE_NAME])['user_id'] == current_user.id
+      # upstream : vérification via cookie ProConnect
+      cookie_check = cookies.encrypted[SESSION_INFO_COOKIE_NAME].present? &&
+                     JSON.parse(cookies.encrypted[SESSION_INFO_COOKIE_NAME])['user_id'] == current_user.id
 
-      # pf (Polynésie française) :
-      current_user.present? && current_user.loged_in_with_france_connect == 'microsoft'
+      # pf : vérification via attribut Microsoft
+      microsoft_check = current_user.loged_in_with_france_connect == 'microsoft'
+
+      cookie_check || microsoft_check
     end
 
     def set_pro_connect_session_info_cookie(user_id)
-      # pf: Pas de cookie en PF, on utilise loged_in_with_france_connect
-      # L'attribut est automatiquement mis à jour lors de la connexion Microsoft
-
-      # upstream (France métropolitaine) :
-      # cookies.encrypted[SESSION_INFO_COOKIE_NAME] = { value: { user_id: }.to_json, secure: Rails.env.production?, httponly: true }
-
-      # pf (Polynésie française) :
-      # Méthode vide pour compatibilité avec le code upstream
+      # pf: Gestion hybride - on set le cookie pour compatibilité upstream ProConnect
+      cookies.encrypted[SESSION_INFO_COOKIE_NAME] = { value: { user_id: }.to_json, secure: Rails.env.production?, httponly: true }
     end
 
     def delete_pro_connect_session_info_cookie
-      # pf: Pas de cookie en PF
-      # L'attribut loged_in_with_france_connect est automatiquement écrasé
-      # lors d'une nouvelle connexion (Tatou, mot de passe, etc.)
-
-      # upstream (France métropolitaine) :
-      # cookies.delete SESSION_INFO_COOKIE_NAME
-
-      # pf (Polynésie française) :
-      # Méthode vide pour compatibilité avec le code upstream
+      # pf: Gestion hybride - on delete le cookie pour compatibilité upstream ProConnect
+      # Note : en PF, loged_in_with_france_connect est écrasé lors de la prochaine connexion
+      cookies.delete SESSION_INFO_COOKIE_NAME
     end
   end
 end
