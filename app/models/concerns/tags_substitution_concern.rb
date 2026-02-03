@@ -410,21 +410,21 @@ module TagsSubstitutionConcern
 
     tokens = parse_tags(text)
 
-    tags_and_datas = available_tags(dossier).filter_map do |tags|
-      dossier && [tags_for_dossier_state(tags).index_by { _1[:id] }, dossier]
-    end
+    # pf: filtrage des champs conditionnels invisibles pour attestations/emails
+    # On ignore les champs non visibles (condition falsy) pour éviter d'afficher des champs masqués
 
-    tags_and_datas.reduce(tokens) do |tokens, (tags, data)|
-      # Replace tags with their value
-      tokens.map do |token|
-        case token
-        in { tag: _, id: id } if tags.key?(id)
-          { text: replace_tag(tags.fetch(id), data) }
-        in { tag: tag } if tags.key?(tag)
-          { text: replace_tag(tags.fetch(tag), data) }
-        else
-          token
-        end
+    tags = tags_for_dossier_state(procedure_types_de_champ_tags.flatten)
+    # attestation uses --ids-- whereas mails use --libelle-- so merge both (conflicts should not occur)
+    tags = tags.group_by { _1[:libelle] }.merge(tags.group_by { _1[:id] })
+
+    tokens.map do |token|
+      case token
+      in { tag: tag } if tags.key?(tag)
+        tag_params = tags[tag].find { !_1.key?(:visible) || instance_exec(dossier, &_1[:visible]) }
+        # si aucun champ n'est visible (condition fausse), l'admin de la démarche s'attends à un remplacement par ''
+        { text: tag_params ? replace_tag(tag_params, dossier) : '' }
+      else
+        token
       end
     end.map do |token|
       # Get tokens text representation

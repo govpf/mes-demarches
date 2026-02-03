@@ -630,6 +630,55 @@ describe TagsSubstitutionConcern, type: :model do
       it { is_expected.to include(include({ libelle: 'public' })) }
       it { is_expected.to include(include({ libelle: 'conditional' })) }
     end
+
+    context 'when replace_tags with visible and invisible champs' do
+      include Logic
+      let(:state) { Dossier.states.fetch(:en_construction) }
+      let(:departement_stable_id) { 100 }
+      let(:ville_vendee_stable_id) { 101 }
+      let(:ville_charente_stable_id) { 102 }
+
+      let(:types_de_champ_public) do
+        [
+          {
+            type: :drop_down_list,
+            libelle: 'Département',
+            stable_id: departement_stable_id,
+            options: ['Vendée', 'Charente']
+          },
+          {
+            type: :drop_down_list,
+            libelle: 'Ville',
+            stable_id: ville_vendee_stable_id,
+            options: ['Luçon', 'La Tranche'],
+            condition: ds_eq(champ_value(departement_stable_id), constant('Vendée'))
+          },
+          {
+            type: :drop_down_list,
+            libelle: 'Ville',
+            stable_id: ville_charente_stable_id,
+            options: ['La Rochelle', 'Rochefort'],
+            condition: ds_eq(champ_value(departement_stable_id), constant('Charente'))
+          }
+        ]
+      end
+
+      let(:template) { '--Département-- --Ville--' }
+      let(:dossier) { create(:dossier, procedure: procedure) }
+
+      before do
+        # Valuer le département avec 'Charente'
+        dossier.project_champs_public.find { |c| c.stable_id == departement_stable_id }.update(value: 'Charente')
+        # Valuer la ville Charente avec 'Rochefort'
+        dossier.project_champs_public.find { |c| c.stable_id == ville_charente_stable_id }.update(value: 'Rochefort')
+      end
+
+      subject { template_concern.send(:replace_tags, template, dossier) }
+
+      it 'replaces with visible champ only' do
+        is_expected.to eq('Charente Rochefort')
+      end
+    end
   end
 
   describe 'used_tags_for' do
