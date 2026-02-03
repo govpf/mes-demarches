@@ -5,7 +5,7 @@ module Administrateurs
     layout 'all', only: [:all, :administrateurs]
     respond_to :html, :xlsx
 
-    before_action :retrieve_procedure, only: [:champs, :annotations, :modifications, :edit, :zones, :monavis, :update_monavis, :accuse_lecture, :update_accuse_lecture, :jeton, :update_jeton, :publication, :publish, :transfert, :close, :confirmation, :allow_expert_review, :allow_expert_messaging, :experts_require_administrateur_invitation, :reset_draft, :publish_revision, :check_path, :api_champ_columns, :path, :update_path, :rdv, :update_rdv]
+    before_action :retrieve_procedure, only: [:show, :update, :champs, :annotations, :modifications, :edit, :zones, :monavis, :update_monavis, :accuse_lecture, :update_accuse_lecture, :jeton, :update_jeton, :publication, :publish, :transfert, :close, :confirmation, :allow_expert_review, :allow_expert_messaging, :experts_require_administrateur_invitation, :reset_draft, :publish_revision, :check_path, :api_champ_columns, :path, :update_path, :rdv, :update_rdv, :pro_connect_restricted, :update_pro_connect_restricted]
     before_action :draft_valid?, only: [:apercu]
     after_action :reset_draft_procedure, only: [:update]
 
@@ -37,7 +37,7 @@ module Administrateurs
     end
 
     def new
-      @procedure ||= Procedure.new(for_individual: true)
+      @procedure ||= Procedure.new(for_individual: true, no_gender: true)
       @terms_of_use_read = {}
     end
 
@@ -102,13 +102,14 @@ module Administrateurs
     end
 
     def create
-      new_procedure_params = { max_duree_conservation_dossiers_dans_ds: Expired::DEFAULT_DOSSIER_RENTENTION_IN_MONTH }
+      new_procedure_params = { max_duree_conservation_dossiers_dans_ds: Expired::DEFAULT_DOSSIER_RENTENTION_IN_MONTH, no_gender: true }
         .merge(procedure_params)
         .merge(administrateurs: [current_administrateur])
 
       @procedure = Procedure.new(new_procedure_params)
       @procedure.draft_revision = @procedure.revisions.build
 
+      # pf: vérification des conditions RGPD/RGS à la création
       check_terms_of_use
       if !@procedure.errors.empty? || !@procedure.save
         flash.now.alert = @procedure.errors.full_messages
@@ -123,8 +124,7 @@ module Administrateurs
     end
 
     def update
-      @procedure = current_administrateur.procedures.find(params[:id])
-
+      # pf: vérification des conditions RGPD/RGS lors de la modification
       check_terms_of_use
       if !@procedure.errors.empty? || !@procedure.update(procedure_params)
         flash.now.alert = @procedure.errors.full_messages
@@ -276,6 +276,18 @@ module Administrateurs
     end
 
     def jeton
+    end
+
+    def pro_connect_restricted
+      @logged_in_with_pro_connect = logged_in_with_pro_connect?
+    end
+
+    def update_pro_connect_restricted
+      @procedure.update!(procedure_params)
+      # pf: Message adapté pour Microsoft @administration.gov.pf au lieu de ProConnect
+      # upstream: "La démarche est restreinte à ProConnect" / "La démarche n'est plus restreinte à ProConnect"
+      flash.notice = @procedure.pro_connect_restricted? ? "La démarche est restreinte aux comptes @administration.gov.pf" : "La démarche n'est plus restreinte aux comptes @administration.gov.pf"
+      redirect_to pro_connect_restricted_admin_procedure_path(@procedure)
     end
 
     def rdv
@@ -481,23 +493,14 @@ module Administrateurs
     end
 
     def api_champ_columns
-      _, @type_de_champ = @procedure.draft_revision.coordinate_and_tdc(params[:stable_id])
-      regex_prefix = /^#{Regexp.escape(@type_de_champ.libelle)}([^\p{L}]+SIRET)?[^\p{L}]+/
-
-      @column_labels = @type_de_champ
-        .columns(procedure: @procedure)
-        .filter_map do |column|
-          # Remove tdc libelle prefix added in columns:
-          # Numéro SIRET - Entreprise SIREN => Entreprise SIREN
-          column.label.sub(regex_prefix, '')
-        end
-
-      if @type_de_champ.type_champ == "siret"
-        @column_labels.concat Etablissement::EXPORTABLE_COLUMNS.keys.dup.map { I18n.t(_1, scope: [:activerecord, :attributes, :procedure_presentation, :fields, :etablissement]) }
-
-        # Hardcode non columns data
-        @column_labels << "Bilans BDF"
+      if params[:stable_id].present?
+        _, @type_de_champ = @procedure.draft_revision.coordinate_and_tdc(params[:stable_id])
+      elsif params[:stub_type_champ].present?
+        @type_de_champ = @procedure.draft_revision.types_de_champ.build(type_champ: params[:stub_type_champ], libelle: 'Numéro SIRET')
+      else
+        raise ArgumentError.new "either a stable_id or a stub_type_champ, but we should know which one to build"
       end
+      @column_labels = @type_de_champ.info_columns(procedure: @procedure)
     end
 
     def select_procedure
@@ -640,6 +643,7 @@ module Administrateurs
         :opendata,
         :procedure_expires_when_termine_enabled,
         :rdv_enabled,
+        :pro_connect_restricted,
         { zone_ids: [], procedure_tag_names: [] }
       ]
 
@@ -662,6 +666,7 @@ module Administrateurs
       permited_params
     end
 
+    # pf: spécificité PF - vérification obligatoire de l'acceptation des conditions RGPD et RGS
     def check_terms_of_use
       terms_of_use = [:rgs_stamp, :rgpd]
       if terms_of_use.any? { |k| params.key?(k) && params[k].to_i.zero? }

@@ -3,7 +3,7 @@
 class Columns::ChampColumn < Column
   attr_reader :stable_id, :tdc_type
 
-  def initialize(procedure_id:, label:, stable_id:, tdc_type:, displayable: true, filterable: true, type: :text, options_for_select: [])
+  def initialize(procedure_id:, label:, stable_id:, tdc_type:, displayable: true, filterable: true, type: :text, options_for_select: [], mandatory:)
     @stable_id = stable_id
     @tdc_type = tdc_type
     column = tdc_type.in?(['departements', 'regions']) ? :external_id : :value
@@ -16,7 +16,8 @@ class Columns::ChampColumn < Column
       type:,
       displayable:,
       filterable:,
-      options_for_select:
+      options_for_select:,
+      mandatory:
     )
   end
 
@@ -32,6 +33,8 @@ class Columns::ChampColumn < Column
   end
 
   def filtered_ids(dossiers, search_terms)
+    return dossiers.without_type_de_champ(stable_id).ids if should_exclude_empty_values?(search_terms)
+
     relation = dossiers.with_type_de_champ(stable_id)
 
     if type == :enum
@@ -43,6 +46,13 @@ class Columns::ChampColumn < Column
     else
       relation.filter_ilike(:champs, column, search_terms).ids
     end
+  end
+
+  def should_exclude_empty_values?(search_terms)
+    return true if tdc_type == "yes_no" && search_terms == [Column::NOT_FILLED_VALUE]
+    return true if tdc_type == "checkbox" && search_terms == ["false"]
+
+    false
   end
 
   def champ_column? = true

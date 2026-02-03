@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class FranceConnectController < ApplicationController
+  include ProConnectSessionConcern
+
   before_action :redirect_to_login_if_fc_aborted, only: [:callback]
   before_action :securely_retrieve_fci, only: [:merge_using_fc_email, :merge_using_password, :send_email_merge_request]
   before_action :securely_retrieve_fci_from_email_merge_token, only: [:merge_using_email_link]
@@ -12,12 +14,6 @@ class FranceConnectController < ApplicationController
 
   def login
     return redirect_to new_user_session_path if !FranceConnectService.enabled?
-
-    if ENV['REDIRECT_FC_GOUV'].present?
-      # rubocop:disable DS/ApplicationName
-      return redirect_to 'https://www.demarches-simplifiees.fr/france_connect', allow_other_host: true if Current.host.starts_with?('demarches.numerique.gouv.fr')
-      # rubocop:enable DS/ApplicationName
-    end
 
     uri, state, nonce = FranceConnectService.authorization_uri
 
@@ -54,6 +50,7 @@ class FranceConnectController < ApplicationController
       if @fci.user.can_france_connect?
         @fci.update(updated_at: Time.zone.now)
         connect_france_connect(@fci.user)
+        delete_pro_connect_session_info_cookie
       else
         destroy_fci_and_redirect_to_login(@fci)
       end
@@ -99,6 +96,7 @@ class FranceConnectController < ApplicationController
 
       flash.notice = t('france_connect.flash.connection_done', application_name: Current.application_name)
       connect_france_connect(user)
+      delete_pro_connect_session_info_cookie
     else
       flash.alert = t('france_connect.flash.invalid_password')
     end
@@ -121,6 +119,7 @@ class FranceConnectController < ApplicationController
 
     flash.notice = t('france_connect.flash.connection_done', application_name: Current.application_name)
     connect_france_connect(@fci.user)
+    delete_pro_connect_session_info_cookie
   end
 
   # TODO mutualiser avec le controller Users::ActivateController
@@ -152,21 +151,27 @@ class FranceConnectController < ApplicationController
       'https://dev.demarches-simplifiees.fr/france_connect/particulier/callback',
       'https://dev.demarches-simplifiees.fr/france_connect/callback',
       'https://dev.demarches.numerique.gouv.fr/france_connect/particulier/callback',
-      'https://dev.demarches.numerique.gouv.fr/france_connect/callback'
+      'https://dev.demarches.numerique.gouv.fr/france_connect/callback',
+      'https://dev.demarche.numerique.gouv.fr/france_connect/particulier/callback',
+      'https://dev.demarche.numerique.gouv.fr/france_connect/callback'
     ]
 
     ds_prod_redirect_uris = [
       'https://www.demarches-simplifiees.fr/france_connect/particulier/callback',
       'https://www.demarches-simplifiees.fr/france_connect/callback',
       'https://demarches.numerique.gouv.fr/france_connect/particulier/callback',
-      'https://demarches.numerique.gouv.fr/france_connect/callback'
+      'https://demarches.numerique.gouv.fr/france_connect/callback',
+      'https://demarche.numerique.gouv.fr/france_connect/particulier/callback',
+      'https://demarche.numerique.gouv.fr/france_connect/callback'
     ]
 
     is_ds_dev = Current.host.include?('dev.demarches-simplifiees.fr') ||
-      Current.host.include?('dev.demarches.numerique.gouv.fr')
+      Current.host.include?('dev.demarches.numerique.gouv.fr') ||
+      Current.host.include?('dev.demarche.numerique.gouv.fr')
 
     is_ds_prod = Current.host.include?('www.demarches-simplifiees.fr') ||
-      Current.host.include?('demarches.numerique.gouv.fr')
+      Current.host.include?('demarches.numerique.gouv.fr') ||
+      Current.host.include?('demarche.numerique.gouv.fr')
     # rubocop:enable DS/ApplicationName
 
     redirect_uris = if is_ds_dev

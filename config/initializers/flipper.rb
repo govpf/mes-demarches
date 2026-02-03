@@ -31,6 +31,7 @@ features = [
   :groupe_instructeur_api_hack,
   :qrcoded_pdf,
   :rdv,
+  :pro_connect_restricted,
   :sva,
   :switch_domain,
   :export_avec_horodatage,

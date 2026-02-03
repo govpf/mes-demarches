@@ -252,7 +252,7 @@ describe 'The user', js: true do
     find('label', text: 'Je ne trouve pas mon adresse dans les suggestions').click
     fill_in('Numéro et nom de voie, ou lieu-dit', with: '2 rue de la paix')
     scroll_to(find_field('Ville ou commune'), align: :center)
-    expect(page).to have_content('Renseigner la commune')
+    expect(page).to have_content('Renseigner la ville ou commune')
     fill_in('Ville ou commune', with: '60400')
     find('.fr-menu__item', text: 'Brétigny (60400)').click
     wait_until { champ_for('address').city_name == 'Brétigny' }
@@ -262,7 +262,7 @@ describe 'The user', js: true do
     # Becomes international
     select('Bolivie', from: form_id_for('Pays'))
     wait_until { champ_for('address').country_code == 'BO' }
-    expect(page).to have_content("Renseigner un nom de ville")
+    expect(page).to have_content("Renseigner la ville")
     fill_in('Ville', with: 'La Paz')
     wait_until { champ_for('address').city_name == 'La Paz' }
 
@@ -759,7 +759,6 @@ describe 'The user', js: true do
   end
 
   def fill_individual
-    find('label', text: 'Monsieur').click
     fill_in('Prénom', with: 'prenom', visible: true)
     fill_in('Nom', with: 'Nom', visible: true)
     within "#identite-form" do

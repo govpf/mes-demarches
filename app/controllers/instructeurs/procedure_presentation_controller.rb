@@ -2,7 +2,7 @@
 
 module Instructeurs
   class ProcedurePresentationController < InstructeurController
-    before_action :set_procedure_presentation, only: [:update]
+    before_action :set_procedure_presentation, only: [:update, :refresh_column_filter]
 
     def update
       if !@procedure_presentation.update(procedure_presentation_params)
@@ -19,10 +19,9 @@ module Instructeurs
       # This handles cases where:
       # 1. Params order varies (filters grouped separately from ids)
       # 2. Multiple filters on the same column are allowed
-      procedure_presentation = ProcedurePresentation.find(params[:id])
       statut = params[:statut] || 'tous'
 
-      existing_filter_ids = procedure_presentation.filters_for(statut).map { |f| f.column.id }
+      existing_filter_ids = @procedure_presentation.filters_for(statut).map { |f| f.column.id }
       param_filter_ids = params['filters'].filter_map { |f| (f['id'].presence) }
 
       # Count occurrences of each id
@@ -32,16 +31,12 @@ module Instructeurs
       # The new filter is the one that appears more times in params than in existing
       new_filter_id = param_counts.find { |id, count| count > (existing_counts[id] || 0) }&.first
 
-      column = ColumnType.new.cast(new_filter_id)
-      procedure = current_instructeur.procedures.find(column.h_id[:procedure_id])
+      @column = ColumnType.new.cast(new_filter_id)
+      procedure = current_instructeur.procedures.find(@column.h_id[:procedure_id])
 
-      if column.groupe_instructeur?
-        column.options_for_select = current_instructeur.groupe_instructeur_options_for(procedure)
+      if @column.groupe_instructeur?
+        @column.options_for_select = current_instructeur.groupe_instructeur_options_for(procedure)
       end
-
-      component = Instructeurs::ColumnFilterValueComponent.new(column:)
-
-      render turbo_stream: turbo_stream.replace('value', component)
     end
 
     private

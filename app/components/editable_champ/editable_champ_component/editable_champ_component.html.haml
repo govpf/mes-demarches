@@ -7,6 +7,8 @@
 
     = render Dsfr::InputStatusMessageComponent.new(errors_on_attribute: champ_component.errors_on_attribute?, error_full_messages: champ_component.error_full_messages, champ: @champ)
 
+    = render EditableChamp::ReferentielDisplayComponent.new(champ: @champ)
+
     -# pf: fonctionnalité spécifique PF - historique des révisions d'annotations pour les instructeurs
     -# Permet de voir qui a modifié un champ d'annotation et quand (GraphQL Modifier annotation)
     - if has_champ_revisions?
