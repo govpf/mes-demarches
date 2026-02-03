@@ -130,6 +130,8 @@ describe Champs::PieceJustificativeController, type: :controller do
     end
   end
 
+  before { Flipper.enable(:user_buffer_stream, procedure) }
+
   describe '#update' do
     render_views
     before { sign_in user }

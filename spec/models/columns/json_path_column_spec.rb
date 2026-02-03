@@ -6,7 +6,7 @@ describe Columns::JSONPathColumn do
   let(:champ) { dossier.champs.first }
   let(:stable_id) { champ.stable_id }
   let(:tdc_type) { champ.type_champ }
-  let(:column) { described_class.new(procedure_id: procedure.id, label: 'label', stable_id:, tdc_type:, jsonpath:, displayable: true) }
+  let(:column) { described_class.new(procedure_id: procedure.id, label: 'label', stable_id:, tdc_type:, jsonpath:, displayable: true, mandatory: true) }
 
   describe '#value' do
     let(:jsonpath) { '$.city_name' }
@@ -25,18 +25,36 @@ describe Columns::JSONPathColumn do
   end
 
   describe '#filtered_ids' do
-    let(:jsonpath) { '$.city_name' }
+    context 'with regular search' do
+      let(:jsonpath) { '$.city_name' }
 
-    subject { column.filtered_ids(Dossier.all, ['reno', 'Lyon']) }
+      subject { column.filtered_ids(Dossier.all, ['reno', 'Lyon']) }
 
-    context 'when champ has value_json' do
-      before { champ.update(value_json: { city_name: 'Grenoble' }) }
+      context 'when champ has value_json' do
+        before { champ.update(value_json: { city_name: 'Grenoble' }) }
 
-      it { is_expected.to eq([dossier.id]) }
+        it { is_expected.to eq([dossier.id]) }
+      end
+
+      context 'when champ has no value_json' do
+        it { is_expected.to eq([]) }
+      end
     end
 
-    context 'when champ has no value_json' do
-      it { is_expected.to eq([]) }
+    context 'with avanced search using special characters' do
+      let(:jsonpath) { '$.city_name' }
+
+      subject { column.filtered_ids(Dossier.all, ['*reno*', 'Lyon']) }
+
+      context 'when champ has value_json we catch Invalid Regex error and return []' do
+        before { champ.update(value_json: { city_name: 'Grenoble' }) }
+
+        it { is_expected.to eq([]) }
+      end
+
+      context 'when champ has no value_json we catch Invalid Regex error and return []' do
+        it { is_expected.to eq([]) }
+      end
     end
   end
 

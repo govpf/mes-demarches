@@ -49,6 +49,7 @@ class Dossier < ApplicationRecord
 
   has_many :champs, dependent: :destroy
   has_many :commentaires, inverse_of: :dossier, dependent: :destroy
+  has_many :commentaires_chronological, -> { chronological }, class_name: 'Commentaire', inverse_of: false
   has_many :preloaded_commentaires, -> { includes(:dossier_correction, piece_jointe_attachments: :blob).order(created_at: :desc) }, class_name: 'Commentaire', inverse_of: :dossier
 
   has_many :invites, dependent: :destroy
@@ -130,6 +131,7 @@ class Dossier < ApplicationRecord
 
   belongs_to :groupe_instructeur, optional: true
   belongs_to :revision, class_name: 'ProcedureRevision', optional: false
+  belongs_to :submitted_revision, class_name: 'ProcedureRevision', optional: true, inverse_of: false
   belongs_to :user, optional: true
   belongs_to :batch_operation, optional: true
   has_many :dossier_batch_operations, dependent: :destroy
@@ -255,6 +257,7 @@ class Dossier < ApplicationRecord
   scope :hidden_since,                   -> (since) { hidden_by_user_since(since).or(hidden_by_administration_since(since)) }
 
   scope :with_type_de_champ, -> (stable_id) { joins(:champs).where(champs: { stream: 'main', stable_id: }) }
+  scope :without_type_de_champ, -> (stable_id) { where.not(id: with_type_de_champ(stable_id).select(:id)) }
 
   scope :all_state,                   -> (include_archived: false) { include_archived ? state_not_brouillon : not_archived.state_not_brouillon }
   scope :en_construction,             -> { not_archived.state_en_construction }
@@ -1110,6 +1113,10 @@ class Dossier < ApplicationRecord
   end
 
   def update_expired_at = update_column(:expired_at, expiration_date)
+
+  def revision_changed_since_submitted?
+    submitted_revision_id.present? && submitted_revision_id != revision_id
+  end
 
   private
 

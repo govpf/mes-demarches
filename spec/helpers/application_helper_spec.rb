@@ -118,6 +118,7 @@ describe ApplicationHelper do
   describe "#human_date" do
     subject { human_date(date) }
 
+    # pf: use Date.current instead of Date.today to respect Pacific/Tahiti timezone
     describe 'human_date for today' do
       let(:date) { Date.current }
       it { is_expected.to eq("Aujourd’hui") }

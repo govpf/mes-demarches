@@ -56,7 +56,8 @@ class TypesDeChamp::PieceJustificativeTypeDeChamp < TypesDeChamp::TypeDeChampBas
         label: libelle_with_prefix(prefix),
         type: TypeDeChamp.column_type(type_champ),
         displayable: false,
-        filterable: false
+        filterable: false,
+        mandatory: mandatory?
       )
     ]
   end

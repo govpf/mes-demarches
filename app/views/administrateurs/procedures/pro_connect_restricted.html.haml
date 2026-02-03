@@ -1,0 +1,47 @@
+-# pf: Page adaptée pour Microsoft @administration.gov.pf au lieu de ProConnect
+= render partial: 'administrateurs/breadcrumbs',
+  locals: { steps: [['Démarches', admin_procedures_back_path(@procedure)],
+                    [@procedure.libelle.truncate_words(10), admin_procedure_path(@procedure)],
+                    ['Authentification professionnelle']] }
+-# upstream breadcrumb: ['ProConnect']
+
+.fr-container
+  .fr-grid-row
+    .fr-col-12.fr-col-offset-md-2.fr-col-md-8
+      -# pf: upstream: Connexion ProConnect
+      %h1.fr-h2 Authentification professionnelle
+
+      = render Dsfr::CalloutComponent.new(title: nil) do |c|
+        - c.with_body do
+          %p
+            Cette option permet de limiter l'accès à la démarche : les
+            %strong administrateurs
+            et les
+            %strong instructeurs
+            pourront accéder à la démarche
+            -# pf: upstream: uniquement en se connectant via ProConnect.
+            %strong uniquement en se connectant via leur compte @administration.gov.pf (Microsoft).
+
+      - unless @logged_in_with_pro_connect
+        = render Dsfr::AlertComponent.new(title: nil, state: :warning, extra_class_names: 'fr-my-2w') do |c|
+          - c.with_body do
+            %p
+              Pour activer cette fonctionnalité, vous devez commencer par
+              -# pf: upstream: vous connecter avec ProConnect
+              = link_to "vous connecter avec votre compte @administration.gov.pf", pro_connect_path
+
+      %ul.fr-toggle__list
+        %li
+          = form_for(@procedure,
+            method: :patch,
+            url: pro_connect_restricted_admin_procedure_path(@procedure),
+            data: { controller: 'autosubmit', turbo: 'true' }) do |f|
+
+            -# pf: upstream: via ProConnect
+            = render Dsfr::ToggleComponent.new(form: f,
+              target: :pro_connect_restricted,
+              title: "Obliger les administrateurs et les instructeurs à se connecter via leur compte @administration.gov.pf pour accéder à la démarche",
+              disabled: !@logged_in_with_pro_connect,
+              opt: { checked: @procedure.pro_connect_restricted? })
+
+= render Procedure::FixedFooterComponent.new(procedure: @procedure, extra_class_names: 'fr-col-offset-md-2 fr-col-md-8' )
