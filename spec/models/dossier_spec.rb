@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 describe Dossier, type: :model do
+  include ActionView::Helpers::OutputSafetyHelper
   include ActionView::Helpers::SanitizeHelper
   include ActionView::Helpers::TextHelper
   include ChampHelper
