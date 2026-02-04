@@ -61,7 +61,7 @@ describe "Dossier en_construction", js: true do
       # pf: message simplifié sans nom de fichier pour éviter le scroll (#163)
       expect(page).to have_text("La pièce jointe a bien été supprimée.")
 
-      input_selector = "##{champ.input_id}"
+      input_selector = "##{champ.focusable_input_id}"
       expect(page).to have_selector(input_selector)
       find(input_selector).attach_file(Rails.root.join('spec/fixtures/files/file.pdf'))
 

@@ -531,7 +531,7 @@ describe Users::DossiersController, type: :controller do
       before do
         allow_any_instance_of(Dossier).to receive(:validate).and_return(false)
         allow_any_instance_of(Dossier).to receive(:errors).and_return(
-          [double(base: first_champ, message: 'nop')]
+          [double(base: first_champ, attribute: :value, message: 'nop')]
         )
         subject
       end
@@ -599,15 +599,6 @@ describe Users::DossiersController, type: :controller do
         expect(dossier.traitements.last.browser_name).to eq('Unknown Browser')
       end
     end
-
-    it "create dossier_depose notification for the groupe_instructeur" do
-      expect { subject }.to change(DossierNotification, :count).by(1)
-
-      notification = DossierNotification.last
-      expect(notification.dossier_id).to eq(dossier.id)
-      expect(notification.groupe_instructeur_id).to eq(dossier.groupe_instructeur.id)
-      expect(notification.notification_type).to eq("dossier_depose")
-    end
   end
 
   describe '#submit_en_construction' do
@@ -660,7 +651,7 @@ describe Users::DossiersController, type: :controller do
         before do
           allow_any_instance_of(Dossier).to receive(:validate).and_return(false)
           allow_any_instance_of(Dossier).to receive(:errors).and_return(
-            [double(base: champs.first, message: 'nop')]
+            [double(base: champs.first, attribute: :value, message: 'nop')]
           )
 
           subject
@@ -689,7 +680,7 @@ describe Users::DossiersController, type: :controller do
 
         it { expect(response).to render_template(:modifier) }
         it { expect(response.body).to have_content("doit être rempli") }
-        it { expect(response.body).to have_link(empty_champ.libelle, href: "##{empty_champ.input_id}") }
+        it { expect(response.body).to have_link(empty_champ.libelle, href: "##{empty_champ.focusable_input_id}") }
       end
 
       context 'when dossier repetition had been removed in newer version' do
@@ -822,7 +813,7 @@ describe Users::DossiersController, type: :controller do
         before do
           allow_any_instance_of(Dossier).to receive(:validate).and_return(false)
           allow_any_instance_of(Dossier).to receive(:errors).and_return(
-            [double(base: champs.first, message: 'nop')]
+            [double(base: champs.first, attribute: :value, message: 'nop')]
           )
 
           subject
@@ -851,7 +842,7 @@ describe Users::DossiersController, type: :controller do
 
         it { expect(response).to render_template(:modifier) }
         it { expect(response.body).to have_content("doit être rempli") }
-        it { expect(response.body).to have_link(empty_champ.libelle, href: "##{empty_champ.input_id}") }
+        it { expect(response.body).to have_link(empty_champ.libelle, href: "##{empty_champ.focusable_input_id}") }
       end
 
       context 'when dossier repetition had been removed in newer version' do

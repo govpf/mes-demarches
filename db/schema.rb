@@ -69,7 +69,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
     t.datetime "updated_at"
     t.bigint "user_id", null: false
     t.index ["groupe_gestionnaire_id"], name: "index_administrateurs_on_groupe_gestionnaire_id"
-    t.index ["user_id"], name: "index_administrateurs_on_user_id"
+    t.index ["user_id"], name: "index_administrateurs_on_user_id", unique: true
   end
 
   create_table "administrateurs_instructeurs", id: false, force: :cascade do |t|
@@ -1471,6 +1471,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_11_28_142534) do
   add_foreign_key "export_templates", "groupe_instructeurs"
   add_foreign_key "exports", "export_templates"
   add_foreign_key "exports", "instructeurs"
+  add_foreign_key "follows", "dossiers"
+  add_foreign_key "follows", "instructeurs"
   add_foreign_key "france_connect_informations", "users"
   add_foreign_key "geo_areas", "champs"
   add_foreign_key "groupe_instructeurs", "procedures"
