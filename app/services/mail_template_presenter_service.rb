@@ -29,8 +29,9 @@ class MailTemplatePresenterService
     # Étape 3 : Gestion des espaces insécables pour éviter de casser le layout
     auto_linked_text.gsub!(/ (\S{15})/, ' \1') if auto_linked_text.present?
 
-    # Étape 4 : Formatage final avec <p>
-    simple_format(auto_linked_text, {}, sanitize: false)
+    # Note: pas de simple_format ici car les templates sont déjà en HTML
+    # simple_format est appliqué uniquement sur le tag --motivation-- (texte brut)
+    auto_linked_text
   end
 
   def safe_subject
