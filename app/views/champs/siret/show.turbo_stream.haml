@@ -1,15 +1,20 @@
 - if @champ.etablissement_fetch_error_key.present?
-  // Real error case
-  = turbo_stream.update @champ.describedby_id, partial: 'shared/champs/siret/etablissement', locals: { siret: @champ.etablissement_fetch_error_key, etablissement: @champ.etablissement, etablissements: @champ.etablissements }
+  // Real error case (including degraded mode)
+  = turbo_stream.update @champ.describedby_id, partial: 'shared/champs/siret/etablissement', locals: { siret: @champ.etablissement_fetch_error_key, etablissement: nil, etablissements: @champ.etablissements }
   = turbo_stream.show @champ.describedby_id
   = turbo_stream.hide(dom_id(@champ, :siret_info))
-- elsif @multiple_etablissements
-  // PF: Multiple establishments found (not an error, requires user selection)
-  = turbo_stream.update dom_id(@champ, :siret_info), partial: 'shared/champs/siret/etablissement', locals: { siret: @siret, etablissement: nil, etablissements: @champ.etablissements, multiple_etablissements: true }
+- elsif @champ.etablissements.present?
+  // PF: Multiple establishments found (not an error)
+  = turbo_stream.update dom_id(@champ, :siret_info), partial: 'shared/champs/siret/etablissement', locals: { siret: @siret, etablissement: nil, etablissements: @champ.etablissements }
+  = turbo_stream.show dom_id(@champ, :siret_info)
+  = turbo_stream.hide(@champ.describedby_id)
+- elsif @champ.etablissement.present?
+  // PF: Single establishment found and created successfully
+  = turbo_stream.update dom_id(@champ, :siret_info), partial: 'shared/champs/siret/etablissement', locals: { siret: @siret, etablissement: @champ.etablissement, etablissements: @champ.etablissements }
   = turbo_stream.show dom_id(@champ, :siret_info)
   = turbo_stream.hide(@champ.describedby_id)
 - else
-  // Single establishment or other case
+  // Empty or other case
   = turbo_stream.update dom_id(@champ, :siret_info), partial: 'shared/champs/siret/etablissement', locals: { siret: @siret, etablissement: @champ.etablissement, etablissements: @champ.etablissements }
   = turbo_stream.show dom_id(@champ, :siret_info)
   = turbo_stream.hide(@champ.describedby_id)

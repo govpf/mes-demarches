@@ -298,6 +298,32 @@ describe TagsSubstitutionConcern, type: :model do
       it { is_expected.to eq('fromage 60') }
     end
 
+    # pf: test support des colonnes personnalisées pour référentiels Baserow
+    context 'when the procedure has a referentiel_de_polynesie type de champ' do
+      let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, libelle: 'Commune', options: { table_id: 99999 } }] }
+      let(:template) { "--tdc#{commune_tdc.stable_id}-- (code postal : --tdc#{commune_tdc.stable_id}/code_postal--, archipel : --tdc#{commune_tdc.stable_id}/archipel--)" }
+      let(:commune_tdc) { procedure.active_revision.types_de_champ.first }
+
+      before do
+        allow_any_instance_of(TypesDeChamp::ReferentielDePolynesieTypeDeChamp)
+          .to receive(:fetch_instructeur_fields)
+          .and_return(['code_postal', 'archipel'])
+
+        champ = dossier.project_champs_public.first
+        champ.update!(
+          value: 'Papeete',
+          external_id: '12345'
+        )
+        # pf: structure réelle des données Baserow avec row imbriqué et instructeur_fields
+        champ.update_with_external_data!(data: {
+          'row' => { 'code_postal' => '98714', 'archipel' => 'Iles du Vent' },
+          'instructeur_fields' => ['code_postal', 'archipel']
+        })
+      end
+
+      it { is_expected.to eq('Papeete (code postal : 98714, archipel : Iles du Vent)') }
+    end
+
     context 'when the user requests the service' do
       let(:template) { 'Dossier traité par --nom du service--' }
 
@@ -317,7 +343,8 @@ describe TagsSubstitutionConcern, type: :model do
       context 'and the template has some dossier tags' do
         let(:template) { '--motivation-- --numéro du dossier--' }
 
-        it { is_expected.to eq("<p>motivation</p> #{dossier.id}") }
+        # pf: motivation retournée brute (sans <p>), simple_format appliqué ensuite dans safe_body
+        it { is_expected.to eq("motivation #{dossier.id}") }
       end
     end
 
@@ -601,7 +628,56 @@ describe TagsSubstitutionConcern, type: :model do
       end
 
       it { is_expected.to include(include({ libelle: 'public' })) }
-      it { is_expected.not_to include(include({ libelle: 'conditional' })) }
+      it { is_expected.to include(include({ libelle: 'conditional' })) }
+    end
+
+    context 'when replace_tags with visible and invisible champs' do
+      include Logic
+      let(:state) { Dossier.states.fetch(:en_construction) }
+      let(:departement_stable_id) { 100 }
+      let(:ville_vendee_stable_id) { 101 }
+      let(:ville_charente_stable_id) { 102 }
+
+      let(:types_de_champ_public) do
+        [
+          {
+            type: :drop_down_list,
+            libelle: 'Département',
+            stable_id: departement_stable_id,
+            options: ['Vendée', 'Charente']
+          },
+          {
+            type: :drop_down_list,
+            libelle: 'Ville',
+            stable_id: ville_vendee_stable_id,
+            options: ['Luçon', 'La Tranche'],
+            condition: ds_eq(champ_value(departement_stable_id), constant('Vendée'))
+          },
+          {
+            type: :drop_down_list,
+            libelle: 'Ville',
+            stable_id: ville_charente_stable_id,
+            options: ['La Rochelle', 'Rochefort'],
+            condition: ds_eq(champ_value(departement_stable_id), constant('Charente'))
+          }
+        ]
+      end
+
+      let(:template) { '--Département-- --Ville--' }
+      let(:dossier) { create(:dossier, procedure: procedure) }
+
+      before do
+        # Valuer le département avec 'Charente'
+        dossier.project_champs_public.find { |c| c.stable_id == departement_stable_id }.update(value: 'Charente')
+        # Valuer la ville Charente avec 'Rochefort'
+        dossier.project_champs_public.find { |c| c.stable_id == ville_charente_stable_id }.update(value: 'Rochefort')
+      end
+
+      subject { template_concern.send(:replace_tags, template, dossier) }
+
+      it 'replaces with visible champ only' do
+        is_expected.to eq('Charente Rochefort')
+      end
     end
   end
 

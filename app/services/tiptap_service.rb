@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'base64'
+
 class TiptapService
   # NOTE: node must be deep symbolized keys
   def self.used_tags_and_libelle_for(node, tags = Set.new)
@@ -9,7 +11,7 @@ class TiptapService
     in { content:, **rest } if content.is_a?(Array)
       content.each { used_tags_and_libelle_for(_1, tags) }
     in type:, **rest
-      # noop
+      # noopmdp_shell
     end
 
     tags
@@ -55,6 +57,7 @@ class TiptapService
   end
 
   def children(content, substitutions, level)
+    return "" if content.nil?
     content.map { node_to_html(_1, substitutions, level) }.join
   end
 
@@ -75,6 +78,8 @@ class TiptapService
       "<p#{body_start_mark}#{text_align(rest[:attrs])}>#{children(content, substitutions, level + 1)}</p>"
     in type: 'title', content:, **rest
       "<h1#{text_align(rest[:attrs])}>#{children(content, substitutions, level + 1)}</h1>"
+    in type: 'body', content:, **rest
+      children(content, substitutions, level + 1).to_s
     in type: 'heading', attrs: { level: hlevel, **attrs }, content:
       "<h#{hlevel}#{body_start_mark}#{text_align(attrs)}>#{children(content, substitutions, level + 1)}</h#{hlevel}>"
     in type: 'bulletList', content:
@@ -108,6 +113,39 @@ class TiptapService
       else
         text
       end
+    # pf: nouveaux types de nœuds pour attestation v2 - pièces jointes
+    in type: 'attachmentImage', attrs:
+      src = attrs[:src] # pf: data URI base64 (variant 400x400)
+      href = attrs[:href] # pf: URL authentifiée pour téléchargement
+      alt = attrs[:alt] || '' # pf: déjà échappé dans PieceJustificativePresentation
+      display = attrs[:display]
+
+      # pf: affichage 200px (comme gallery), data URI fonctionne sans authentification
+      image_html = "<img src='#{src}' alt='#{alt}' style='max-width: 200px; max-height: 200px; object-fit: contain;' />"
+      link_html = "<a href='#{href}' target='_blank' rel='noopener'>#{display}</a>"
+      "<figure class='attachment-image'>#{image_html}<figcaption>#{link_html}</figcaption></figure>"
+    in type: 'attachmentLink', attrs:, content:
+      href = attrs[:href]
+      target = attrs[:target] || '_self'
+      rel = attrs[:rel] || ''
+      content_html = content&.map { |c| node_to_html(c, substitutions, level + 1) }&.join('')
+      # pf: échapper les attributs par sécurité
+      target_escaped = ERB::Util.html_escape(target)
+      rel_escaped = ERB::Util.html_escape(rel)
+      "<a href='#{href}' target='#{target_escaped}' rel='#{rel_escaped}'>#{content_html}</a>"
+    # pf: nouveaux types de nœuds pour attestation v2 - tableaux
+    in type: 'table', content:
+      rows_html = content&.map { |row| node_to_html(row, substitutions, level + 1) }&.join('')
+      "<table class='repetition-table'>#{rows_html}</table>"
+    in type: 'tableRow', content:
+      cells_html = content&.map { |cell| node_to_html(cell, substitutions, level + 1) }&.join('')
+      "<tr>#{cells_html}</tr>"
+    in type: 'tableCell', content:
+      cell_content = content&.map { |c| node_to_html(c, substitutions, level + 1) }&.join('')
+      "<td>#{cell_content}</td>"
+    in type: 'tableHeader', content:
+      header_content = content&.map { |c| node_to_html(c, substitutions, level + 1) }&.join('')
+      "<th>#{header_content}</th>"
     in { type: type } if ["paragraph", "title", "heading"].include?(type) && !node.key?(:content)
       # noop
     end
@@ -115,6 +153,8 @@ class TiptapService
 
   def handle_presentation_node(presentation, substitutions, level)
     node = presentation.to_tiptap_node
+    # Ensure symbol keys for pattern matching consistency
+    node = node.deep_symbolize_keys if node.is_a?(Hash)
     content = node_to_html(node, substitutions, level)
     if presentation.block_level?
       "</p>#{content}<p>"

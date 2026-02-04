@@ -2,6 +2,8 @@
 
 describe Dossier, type: :model do
   include ActionView::Helpers::SanitizeHelper
+  include ActionView::Helpers::TextHelper
+  include ChampHelper
 
   let(:user) { create(:user) }
 
@@ -754,17 +756,17 @@ describe Dossier, type: :model do
     let(:instructeur) { create(:instructeur) }
 
     before do
-      allow(NotificationMailer).to receive(:send_en_instruction_notification).and_return(double(deliver_later: nil))
+      allow(InstructionNotificationJob).to receive(:schedule_for_dossier)
     end
 
-    it "sends an email when the dossier becomes en_instruction" do
+    it "schedules an email when the dossier becomes en_instruction" do
       dossier.passer_en_instruction!(instructeur: instructeur)
-      expect(NotificationMailer).to have_received(:send_en_instruction_notification).with(dossier)
+      expect(InstructionNotificationJob).to have_received(:schedule_for_dossier).with(dossier)
     end
 
-    it "does not an email when the dossier becomes accepte" do
+    it "does not schedule an email when the dossier becomes accepte" do
       dossier.accepte!
-      expect(NotificationMailer).to_not have_received(:send_en_instruction_notification)
+      expect(InstructionNotificationJob).to_not have_received(:schedule_for_dossier)
     end
   end
 
@@ -1303,7 +1305,7 @@ describe Dossier, type: :model do
       email_template = dossier.procedure.email_template_for(dossier.state)
       commentaire = dossier.commentaires.last
 
-      expect(commentaire.body).to include(sanitize(email_template.subject_for_dossier(dossier)), sanitize(email_template.body_for_dossier(dossier)))
+      expect(commentaire.body).to include(sanitize(email_template.subject_for_dossier(dossier)), format_text_value(email_template.body_for_dossier(dossier)))
       expect(commentaire.dossier).to eq(dossier)
     end
   end

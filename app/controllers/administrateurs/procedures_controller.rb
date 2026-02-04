@@ -284,7 +284,9 @@ module Administrateurs
 
     def update_pro_connect_restricted
       @procedure.update!(procedure_params)
-      flash.notice = @procedure.pro_connect_restricted? ? "La démarche est restreinte à ProConnect" : "La démarche n'est plus restreinte à ProConnect"
+      # pf: Message adapté pour Microsoft @administration.gov.pf au lieu de ProConnect
+      # upstream: "La démarche est restreinte à ProConnect" / "La démarche n'est plus restreinte à ProConnect"
+      flash.notice = @procedure.pro_connect_restricted? ? "La démarche est restreinte aux comptes @administration.gov.pf" : "La démarche n'est plus restreinte aux comptes @administration.gov.pf"
       redirect_to pro_connect_restricted_admin_procedure_path(@procedure)
     end
 
