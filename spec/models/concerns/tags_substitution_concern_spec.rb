@@ -343,8 +343,7 @@ describe TagsSubstitutionConcern, type: :model do
       context 'and the template has some dossier tags' do
         let(:template) { '--motivation-- --numéro du dossier--' }
 
-        # pf: motivation retournée brute (sans <p>), simple_format appliqué ensuite dans safe_body
-        it { is_expected.to eq("motivation #{dossier.id}") }
+        it { is_expected.to eq("<p>motivation</p> #{dossier.id}") }
       end
     end
 

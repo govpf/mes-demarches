@@ -24,7 +24,6 @@ module Instructeurs
     after_action :mark_pieces_jointes_as_read, only: [:pieces_jointes]
     after_action -> { destroy_notification(:dossier_modifie) }, only: [:show], if: -> { @notifications.any?(&:dossier_modifie?) }
     after_action -> { destroy_notification(:message) }, only: [:messagerie], if: -> { @notifications.any?(&:message?) }
-    after_action -> { destroy_notification(:message_usager) }, only: [:messagerie], if: -> { @notifications.any?(&:message_usager?) }
     after_action -> { destroy_notification(:annotation_instructeur) }, only: [:annotations_privees], if: -> { @notifications.any?(&:annotation_instructeur?) }
     after_action -> { destroy_notification(:avis_externe) }, only: [:avis], if: -> { @notifications.any?(&:avis_externe?) }
 
@@ -354,7 +353,7 @@ module Instructeurs
     end
 
     def annotation
-      @dossier = dossier_with_champs(pj_template: false)
+      @dossier = dossier_with_champs
       type_de_champ = @dossier.find_type_de_champ_by_stable_id(params[:stable_id], :private)
       annotation = @dossier.project_champ(type_de_champ, row_id: params[:row_id])
 

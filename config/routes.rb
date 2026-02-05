@@ -179,7 +179,7 @@ Rails.application.routes.draw do
   end
 
   post 'password_complexity' => 'password_complexity#show', as: 'show_password_complexity'
-  get 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
+  post 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
 
   resources :targeted_user_links, only: [:show]
 
