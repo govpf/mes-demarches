@@ -78,9 +78,11 @@ module TagsSubstitutionConcern
       libelle: 'motivation',
       description: 'Motivation facultative associée à la décision finale d’acceptation, refus ou classement sans suite',
       # pf: simple_format appliqué ici sur la motivation (texte brut → HTML avec <p> et <br>)
+      # sanitize: false car la sanitization est faite dans MailTemplatePresenterService via MailScrubber
+      # (qui réautorise <a> et <img> retirés globalement dans config/application.rb)
       lambda: -> (d) {
         if d.motivation.present?
-          ActionController::Base.helpers.simple_format(d.motivation)
+          ActionController::Base.helpers.simple_format(d.motivation, {}, sanitize: false)
         end
       },
       escapable: false, # sanitized later with MailScrubber (preserves links/images for instructeurs)

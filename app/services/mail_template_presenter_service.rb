@@ -29,9 +29,10 @@ class MailTemplatePresenterService
     # Étape 3 : Gestion des espaces insécables pour éviter de casser le layout
     auto_linked_text.gsub!(/ (\S{15})/, ' \1') if auto_linked_text.present?
 
-    # Note: pas de simple_format ici car les templates sont déjà en HTML
-    # simple_format est appliqué uniquement sur le tag --motivation-- (texte brut)
-    auto_linked_text
+    # pf: marquer html_safe car le contenu est déjà sanitisé par MailScrubber (étape 1)
+    # et l'auto-link ne rajoute que des <a> contrôlés. Sans ça, HAML re-escape tout.
+    # (upstream: sanitize() retourne html_safe directement, ici le gsub!/auto_link casse ça)
+    auto_linked_text&.html_safe # rubocop:disable Rails/OutputSafety
   end
 
   def safe_subject
