@@ -20,8 +20,7 @@ describe "Dossier en_construction", js: true do
     click_on "Supprimer le fichier toto.txt"
 
     wait_until { champ.reload.blank? }
-    # pf: message simplifié sans nom de fichier pour éviter le scroll (#163)
-    expect(page).to have_text("La pièce jointe a bien été supprimée.")
+    # pf #163: message flash supprimé pour éviter le scroll
   end
 
   context "with a mandatory piece justificative" do
@@ -33,8 +32,7 @@ describe "Dossier en_construction", js: true do
       visit_dossier(dossier)
 
       click_on "Supprimer le fichier toto.txt"
-      # pf: message simplifié sans nom de fichier pour éviter le scroll (#163)
-      expect(page).to have_text("La pièce jointe a bien été supprimée.")
+      # pf #163: message flash supprimé pour éviter le scroll
 
       input_selector = "#attachment-multiple-empty-#{champ.public_id}"
       expect(page).to have_selector(input_selector)
@@ -58,14 +56,13 @@ describe "Dossier en_construction", js: true do
       visit_dossier(dossier)
 
       click_on "Supprimer le fichier toto.png"
-      # pf: message simplifié sans nom de fichier pour éviter le scroll (#163)
-      expect(page).to have_text("La pièce jointe a bien été supprimée.")
+      # pf #163: message flash supprimé pour éviter le scroll
 
       input_selector = "##{champ.input_id}"
       expect(page).to have_selector(input_selector)
-      find(input_selector).attach_file(Rails.root.join('spec/fixtures/files/file.pdf'))
-
-      expect(page).to have_text("file.pdf")
+      expect(page).to have_text('modification à déposer')
+      find(input_selector).attach_file(Rails.root.join('spec/fixtures/files/white.png'))
+      expect(page).to have_text("white.png")
     end
   end
 

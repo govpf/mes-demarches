@@ -49,12 +49,22 @@ def print_text(pdf, text, size)
 end
 
 def print_image(pdf, c)
-  attachment = ActiveStorage::Attachment.find_by(id: c.attributes['id'].to_s)
-  attachment.blob.open { |file| pdf.image file, fit: [30.mm, 40.mm], position: :center }
-  # url = c.attributes['src']
-  # display = c.attributes['display']
-  # text = content_tag :a, display, { href: url, target: '_blank', rel: 'noopener' }
-  # pdf.pad_top(5) { pdf.text text, size: 8, color: '000055', align: :center, inline_format: true }
+  # pf: utiliser la data URI du src (qui contient déjà la preview PNG) au lieu du blob original
+  src = c.attributes['src'].to_s
+
+  if src.start_with?('data:')
+    # Data URI (preview PNG en base64) → décoder et utiliser directement
+    # Format: "data:image/png;base64,iVBORw0KG..."
+    data_uri_match = src.match(/^data:image\/[^;]+;base64,(.+)$/)
+    if data_uri_match
+      image_data = Base64.decode64(data_uri_match[1])
+      pdf.image StringIO.new(image_data), fit: [30.mm, 40.mm], position: :center
+    end
+  else
+    # Fallback : si pas de data URI, utiliser l'attachment (cas des images)
+    attachment = ActiveStorage::Attachment.find_by(id: c.attributes['id'].to_s)
+    attachment.blob.open { |file| pdf.image file, fit: [30.mm, 40.mm], position: :center }
+  end
 end
 
 def prawn_text(message)
@@ -73,17 +83,24 @@ def cell_link(pdf, display, url)
 end
 
 def cell_image(pdf, c)
-  url = c.attributes['src'].to_s
+  src = c.attributes['src'].to_s
   display = c.attributes['display']&.to_s || c.children.to_s
-  id = c.attributes['id']&.to_s
-  if id && display
-    attachment = ActiveStorage::Attachment.find_by(id: id)
-    [
-      attachment.blob.open { |file| ::Prawn::Table::Cell::Image.new(pdf, [], { image: file, fit: [20.mm, 20.mm], position: :center }) },
-      cell_link(pdf, display, url)
-    ]
+
+  # pf: utiliser la data URI du src (qui contient déjà la preview PNG) au lieu du blob
+  if src.start_with?('data:')
+    # Data URI (preview PNG en base64) → décoder et utiliser directement
+    data_uri_match = src.match(/^data:image\/[^;]+;base64,(.+)$/)
+    if data_uri_match
+      image_data = Base64.decode64(data_uri_match[1])
+      image_cell = ::Prawn::Table::Cell::Image.new(pdf, [], { image: StringIO.new(image_data), fit: [20.mm, 20.mm], position: :center })
+      image_cell # [image_cell, cell_link(pdf, display, src)]
+    else
+      # Data URI invalide → juste le lien
+      cell_link(pdf, display, src)
+    end
   else
-    ""
+    # Pas de data URI → juste le lien (ne devrait pas arriver normalement)
+    cell_link(pdf, display, src)
   end
 end
 
@@ -104,7 +121,12 @@ end
 def cell_value(pdf, values)
   if values.size > 1
     table_content = values.map { |e| [e] }
-    Prawn::Table.new(table_content, pdf, cell_style: { border_width: 0, padding: 1, align: :center })
+    # pf: contraindre la largeur de la sous-table pour forcer le wrapping du texte
+    # pf: l'image fait 20mm (~57 points), on laisse un peu de marge pour le texte
+    # pf: mais on limite à ~100 points pour éviter que la table englobante explose
+    Prawn::Table.new(table_content, pdf,
+      column_widths: [100],
+      cell_style: { border_width: 0, padding: 1, align: :center })
   else
     values.first
   end

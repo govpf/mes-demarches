@@ -1,12 +1,15 @@
+-# pf: Page adaptée pour Microsoft @administration.gov.pf au lieu de ProConnect
 = render partial: 'administrateurs/breadcrumbs',
   locals: { steps: [['Démarches', admin_procedures_back_path(@procedure)],
                     [@procedure.libelle.truncate_words(10), admin_procedure_path(@procedure)],
-                    ['ProConnect']] }
+                    ['Authentification professionnelle']] }
+-# upstream breadcrumb: ['ProConnect']
 
 .fr-container
   .fr-grid-row
     .fr-col-12.fr-col-offset-md-2.fr-col-md-8
-      %h1.fr-h2 Connexion ProConnect
+      -# pf: upstream: Connexion ProConnect
+      %h1.fr-h2 Authentification professionnelle
 
       = render Dsfr::CalloutComponent.new(title: nil) do |c|
         - c.with_body do
@@ -16,14 +19,16 @@
             et les
             %strong instructeurs
             pourront accéder à la démarche
-            %strong uniquement en se connectant via ProConnect.
+            -# pf: upstream: uniquement en se connectant via ProConnect.
+            %strong uniquement en se connectant via leur compte @administration.gov.pf (Microsoft).
 
       - unless @logged_in_with_pro_connect
         = render Dsfr::AlertComponent.new(title: nil, state: :warning, extra_class_names: 'fr-my-2w') do |c|
           - c.with_body do
             %p
               Pour activer cette fonctionnalité, vous devez commencer par
-              = link_to "vous connecter avec ProConnect", pro_connect_path
+              -# pf: upstream: vous connecter avec ProConnect
+              = link_to "vous connecter avec votre compte @administration.gov.pf", pro_connect_path
 
       %ul.fr-toggle__list
         %li
@@ -32,9 +37,10 @@
             url: pro_connect_restricted_admin_procedure_path(@procedure),
             data: { controller: 'autosubmit', turbo: 'true' }) do |f|
 
+            -# pf: upstream: via ProConnect
             = render Dsfr::ToggleComponent.new(form: f,
               target: :pro_connect_restricted,
-              title: "Obliger les administrateurs et les instructeurs à se connecter via ProConnect pour accéder à la démarche",
+              title: "Obliger les administrateurs et les instructeurs à se connecter via leur compte @administration.gov.pf pour accéder à la démarche",
               disabled: !@logged_in_with_pro_connect,
               opt: { checked: @procedure.pro_connect_restricted? })
 

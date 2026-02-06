@@ -39,18 +39,21 @@ RSpec.describe DossierMailer, type: :mailer do
       end
     end
 
-    it 'when dossier is hidden, it does not send the email' do
-      dossier.hide_and_keep_track!(user, :user_request)
-      expect(subject.subject).to be_nil
-    end
-
-    context 'when dossier is not brouillon anymore' do
-      let(:dossier) { create(:dossier, :en_construction, user:) }
-
-      it 'does not send the email' do
-        expect(subject.subject).to be_nil
-      end
-    end
+    # pf: tests commentés car la vérification d'état est maintenant dans DraftNotificationJob
+    # Les tests de non-envoi pour dossiers cachés/en_construction sont dans draft_notification_job_spec.rb
+    #
+    # it 'when dossier is hidden, it does not send the email' do
+    #   dossier.hide_and_keep_track!(user, :user_request)
+    #   expect(subject.subject).to be_nil
+    # end
+    #
+    # context 'when dossier is not brouillon anymore' do
+    #   let(:dossier) { create(:dossier, :en_construction, user:) }
+    #
+    #   it 'does not send the email' do
+    #     expect(subject.subject).to be_nil
+    #   end
+    # end
   end
 
   describe '.notify_new_answer with dossier brouillon' do
@@ -402,6 +405,18 @@ RSpec.describe DossierMailer, type: :mailer do
       it 'does not send an email' do
         expect { subject.perform_now }.not_to raise_error
       end
+    end
+  end
+
+  describe '.notify_new_dossier_depose_to_instructeur' do
+    let(:dossier) { create(:dossier, :en_construction, procedure: create(:simple_procedure)) }
+    let(:instructeur) { create(:instructeur) }
+
+    subject { described_class.notify_new_dossier_depose_to_instructeur(dossier, instructeur.email) }
+
+    it 'includes unsubscribe link' do
+      expect(subject.body).to include('Ne plus recevoir de mail')
+      expect(subject.body).to include(email_notifications_instructeur_procedure_url(dossier.procedure, host: ENV.fetch("APP_HOST_LEGACY")))
     end
   end
 end

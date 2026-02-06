@@ -378,7 +378,7 @@ module Instructeurs
 
     def assign_to_params
       params.require(:assign_to)
-        .permit(:instant_expert_avis_email_notifications_enabled, :instant_email_dossier_notifications_enabled, :instant_email_message_notifications_enabled, :daily_email_notifications_enabled, :weekly_email_notifications_enabled)
+        .permit(:instant_expert_avis_email_notifications_enabled, :instant_email_dossier_notifications_enabled, :instant_email_message_notifications_enabled, :daily_email_notifications_enabled, :weekly_email_notifications_enabled, :deletion_email_notifications_enabled)
     end
 
     def assign_tos
@@ -437,7 +437,10 @@ module Instructeurs
 
     def ensure_pro_connect_if_required!
       if procedure.pro_connect_restricted? && !logged_in_with_pro_connect?
-        flash[:alert] = "Vous devez vous connecter par ProConnect pour accéder à cette démarche"
+        # pf: Message adapté pour Microsoft @administration.gov.pf
+        # upstream: "Vous devez vous connecter par ProConnect pour accéder à cette démarche"
+        flash[:alert] = "Vous devez vous connecter avec votre compte @administration.gov.pf pour accéder à cette démarche"
+        # pf: Redirection vers la page pro_connect qui affiche le bouton Microsoft
         redirect_to pro_connect_path
       end
     end

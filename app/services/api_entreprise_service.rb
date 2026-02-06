@@ -70,13 +70,24 @@ class APIEntrepriseService
 
     def update_etablissement_from_degraded_mode(etablissement, procedure_id)
       siret = etablissement.siret
-      # PF: Support 9-char TAHITI numbers in degraded mode
-      etablissement_params = if siret.length == 9
-        APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id).to_params
+      # pf: Support TAHITI numbers (6-9 chars) in degraded mode
+      # For 6-char numbers, validate only if there's a single establishment (95% of cases)
+      etablissement_params = if siret.length >= 6 && siret.length <= 9
+        adapter = APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id)
+        params = adapter.to_params
+
+        # If SIRET was not completed (still 6 chars), it means multiple establishments exist
+        # In this case, we can't auto-validate in degraded mode
+        if params.present? && params[:siret].present? && params[:siret].length == 9
+          params
+        else
+          # Multiple establishments or error: can't auto-complete
+          return nil
+        end
       elsif siret.length > 9
         APIEntreprise::EtablissementAdapter.new(siret, procedure_id).to_params
       else
-        # PF: SIRET < 9 chars should not be in degraded mode (ambiguous)
+        # Invalid SIRET length
         return nil
       end
       return nil if etablissement_params.empty?
