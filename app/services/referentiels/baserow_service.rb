@@ -1,0 +1,69 @@
+# frozen_string_literal: true
+
+class Referentiels::BaserowService
+  include Dry::Monads[:result]
+
+  attr_reader :referentiel
+
+  def initialize(referentiel:)
+    @referentiel = referentiel
+  end
+
+  def call(external_id)
+    result = ReferentielDePolynesie::API.fetch_row(external_id)
+
+    if result.present? && result.is_a?(Hash) && result[:row].present?
+      Success(result)
+    else
+      Failure(retryable: false, reason: StandardError.new('Row not found'), code: 404)
+    end
+  rescue StandardError => e
+    Rails.logger.error("Referentiels::BaserowService error: #{e.class} - #{e.message}")
+    Failure(retryable: false, reason: e, code: 500)
+  end
+
+  def validate_referentiel
+    config = referentiel.baserow_config
+
+    if config.blank?
+      referentiel.update_column(:last_response, { 'status' => 404, 'body' => { 'error' => 'Config not found' } })
+      return false
+    end
+
+    sample_row = fetch_sample_row(config)
+
+    if sample_row.present?
+      referentiel.update_column(:last_response, { 'status' => 200, 'body' => sample_row })
+      true
+    else
+      referentiel.update_column(:last_response, { 'status' => 404, 'body' => { 'error' => 'No data in table' } })
+      false
+    end
+  rescue StandardError => e
+    Rails.logger.error("Referentiels::BaserowService validation error: #{e.class} - #{e.message}")
+    referentiel.update_column(:last_response, { 'status' => 500, 'body' => { 'error' => e.message } })
+    false
+  end
+
+  private
+
+  def fetch_sample_row(config)
+    table_id = config['Table']
+    token = config['Token']
+    return nil unless table_id.present? && token.present?
+
+    url = "#{ReferentielDePolynesie::BaserowAPI.secrets[:url]}/api/database/rows/table/#{table_id}/?user_field_names=true&size=1"
+    response = Typhoeus.get(url, headers: { 'Authorization' => "Token #{token}" })
+
+    if response.success?
+      data = JSON.parse(response.body)
+      first_row = data['results']&.first
+      return nil unless first_row
+
+      { 'row' => first_row }
+    end
+  rescue StandardError => e
+    Rails.logger.error("BaserowService fetch_sample_row error: #{e.class} - #{e.message}")
+    nil
+  end
+end

@@ -14,8 +14,13 @@ class ReferentielService
   end
 
   def call(query_params)
-    result = API::Client.new.call(url: url(query_params), timeout: API_TIMEOUT, headers:)
-    handle_api_result(result)
+    case referentiel
+    when Referentiels::BaserowReferentiel
+      Referentiels::BaserowService.new(referentiel:).call(query_params)
+    else
+      result = API::Client.new.call(url: url(query_params), timeout: API_TIMEOUT, headers:)
+      handle_api_result(result)
+    end
   end
 
   def url(query_params)
@@ -42,6 +47,8 @@ class ReferentielService
         referentiel.update_column(:last_response, { status: data[:code], body: data[:body] })
         false
       end
+    when Referentiels::BaserowReferentiel
+      Referentiels::BaserowService.new(referentiel:).validate_referentiel
     end
   end
 

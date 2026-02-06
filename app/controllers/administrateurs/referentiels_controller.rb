@@ -103,8 +103,13 @@ module Administrateurs
         Referentiel.find(params[:referentiel_id]).attributes.slice(*%w[url test_data hint mode type authentication_data authentication_method])
       else
         params = referentiel_params.to_h
-        params = params.merge(type: Referentiels::APIReferentiel) if !Referentiels::APIReferentiel.csv_available?
-        params = params.merge(mode: Referentiels::APIReferentiel.modes.fetch(:exact_match)) if !Referentiels::APIReferentiel.autocomplete_available?
+        if @type_de_champ.referentiel_de_polynesie?
+          params = params.merge(type: Referentiels::BaserowReferentiel)
+          params = params.merge(test_data: @type_de_champ.table_id) if @type_de_champ.table_id.present?
+        else
+          params = params.merge(type: Referentiels::APIReferentiel) if !Referentiels::APIReferentiel.csv_available?
+          params = params.merge(mode: Referentiels::APIReferentiel.modes.fetch(:exact_match)) if !Referentiels::APIReferentiel.autocomplete_available?
+        end
         params
       end
     end
