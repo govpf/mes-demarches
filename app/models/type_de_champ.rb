@@ -139,7 +139,7 @@ class TypeDeChamp < ApplicationRecord
     decimal_number: [:positive_number, :min_number, :max_number, :range_number],
     integer_number: [:positive_number, :min_number, :max_number, :range_number],
     date: [], # Options gérées par OPTS_BY_TYPE (date_in_past, range_date, start_date, end_date)
-    referentiel_de_polynesie: [:table_id, :drop_down_other],
+    referentiel_de_polynesie: [:table_id, :drop_down_other, :referentiel_mapping],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
     visa: [:accredited_users]
@@ -617,8 +617,9 @@ class TypeDeChamp < ApplicationRecord
     self.accredited_users = value.blank? ? [] : value.split(/\s*[\r\n]+\s*/).map(&:downcase)
   end
 
+  # pf: table_id depuis options (legacy) ou referentiel lié (post-migration)
   def table_id
-    options['table_id'] || 0
+    options['table_id'].presence&.to_s || referentiel&.try(:table_id)&.to_s || ''
   end
 
   def accredited_user_list?

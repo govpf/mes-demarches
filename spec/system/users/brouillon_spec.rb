@@ -358,6 +358,31 @@ describe 'The user', js: true do
     end
   end
 
+  let(:procedure_with_referentiel_pf) do
+    create(:procedure, :published, :for_individual, types_de_champ_public: [
+      { type: :referentiel_de_polynesie, libelle: 'Commune PF', mandatory: false, table_id: '24' }
+    ])
+  end
+
+  scenario 'fill referentiel_de_polynesie field' do
+    allow(ReferentielDePolynesie::API).to receive(:search)
+      .with('24', 'Papeete', drop_down_other: false)
+      .and_return([
+        { label: '43916 - Commune de Papeete', value: '24:20' },
+        { label: '46397 - JEUNESSE DE PAPEETE', value: '24:31' }
+      ])
+
+    log_in(user, procedure_with_referentiel_pf)
+    fill_individual
+
+    find('.dom-ready')
+
+    fill_in('Commune PF', with: 'Papeete')
+    find('.fr-menu__item', text: '43916 - Commune de Papeete').click
+    wait_for_autosave
+    wait_until { champ_value_for('Commune PF') == '43916 - Commune de Papeete' }
+  end
+
   let(:procedure_with_pj) { create(:procedure, :published, :for_individual, types_de_champ_public: [{ type: :piece_justificative, mandatory: true, libelle: 'Pièce justificative' }]) }
   let(:procedure_with_pjs) { create(:procedure, :published, :for_individual, types_de_champ_public: [{ type: :piece_justificative, mandatory: true, libelle: 'Pièce justificative 1' }, { type: :piece_justificative, mandatory: true, libelle: 'Pièce justificative 2' }]) }
   let(:old_procedure_with_disabled_pj_validation) { create(:procedure, :published, :for_individual, types_de_champ_public: [{ type: :piece_justificative, mandatory: true, libelle: 'Pièce justificative 1', skip_pj_validation: true }]) }

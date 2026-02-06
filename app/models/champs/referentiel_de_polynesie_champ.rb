@@ -1,16 +1,23 @@
 # frozen_string_literal: true
 
-class Champs::ReferentielDePolynesieChamp < Champs::TextChamp
-  def fetch_external_data?
-    true
-  end
-
-  def fetch_external_data
-    ReferentielDePolynesie::API.fetch_row(external_id)
+class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
+  # pf: préserver le label humain dans value (upstream y met external_id)
+  def clear_previous_result
+    self.data = nil
+    self.value_json = nil
+    self.fetch_external_data_exceptions = []
   end
 
   def update_with_external_data!(data:)
-    update!(data: data, fetch_external_data_exceptions: []) if data&.is_a?(Hash)
+    transaction do
+      update!(data:, value_json: todo_map_stuff(data:), fetch_external_data_exceptions: [])
+      propagate_prefill(data)
+    end
+  end
+
+  # pf: fallback legacy si pas encore de referentiel lié
+  def fetch_external_data
+    referentiel.present? ? super : fetch_external_data_legacy
   end
 
   def selected
@@ -33,5 +40,20 @@ class Champs::ReferentielDePolynesieChamp < Champs::TextChamp
   # pf: pour les ancres d'erreur (#11420), le React ComboBox utilise html_id sans suffixe -input
   def focusable_input_id(attribute = :value)
     html_id
+  end
+
+  private
+
+  def fetch_external_data_legacy
+    result = ReferentielDePolynesie::API.fetch_row(external_id)
+
+    if result.present? && result.is_a?(Hash) && result[:row].present?
+      Dry::Monads::Success(result.with_indifferent_access)
+    else
+      Dry::Monads::Failure(retryable: false, reason: StandardError.new('Row not found'), code: 404)
+    end
+  rescue StandardError => e
+    Rails.logger.error("ReferentielDePolynesieChamp fetch error: #{e.class} - #{e.message}")
+    Dry::Monads::Failure(retryable: false, reason: e, code: 500)
   end
 end
