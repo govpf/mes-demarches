@@ -23,7 +23,7 @@ class DossierNotification < ApplicationRecord
   scope :to_display, -> { where(display_at: ..Time.current) }
 
   scope :order_by_importance, -> {
-    self.sort_by { |notif| notification_types.keys.index(notif.notification_type) }
+    self.sort_by { |notif| notification_types.keys.index(notif.notification_type) || notification_types.keys.length }
   }
 
   scope :type_news, -> { where(notification_type: [:dossier_modifie, :message, :annotation_instructeur, :avis_externe]) }
