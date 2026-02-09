@@ -21,3 +21,8 @@ fr:
           "authentication_data[value]": "Example: Bearer your_token_here"
         "authentication_data[header]": "Header name for the authentication token"
         "authentication_data[value]": "Authentication token value"
+      referentiels/baserow_referentiel:
+        hint: "Expected format shown to the user"
+        test_data: "Search table"
+        hints:
+          hint: "Example: Enter your commune name"

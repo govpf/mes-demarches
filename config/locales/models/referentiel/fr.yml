@@ -21,3 +21,8 @@ fr:
           "authentication_data[value]": "Exemples : Bearer your_token_here, Basic base64(username:password). Veillez à respecter la casse et l’orthographe du préfixe (ex : Bearer, Basic), sans ajouter d’espaces superflus."
         "authentication_data[header]": "Nom de l'en-tête"
         "authentication_data[value]": "Valeur de l'en-tête"
+      referentiels/baserow_referentiel:
+        hint: "Indications à fournir à l'usager concernant le format de saisie attendu"
+        test_data: "Table de recherche"
+        hints:
+          hint: "Exemple : Saisissez le nom de votre commune"
