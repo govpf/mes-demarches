@@ -257,6 +257,7 @@ module Administrateurs
         :expression_reguliere_indications,
         :expression_reguliere_exemple_text,
         :expression_reguliere_error_message,
+        :nature,
         :lexpol_modele,
         :lexpol_mapping,
         editable_options: [

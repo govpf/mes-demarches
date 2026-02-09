@@ -149,6 +149,8 @@ class TypeDeChamp < ApplicationRecord
 
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
 
+  enum :nature, { RIB: 'RIB' }
+
   SIMPLE_ROUTABLE_TYPES = [
     type_champs.fetch(:drop_down_list),
     type_champs.fetch(:commune_de_polynesie),
@@ -730,7 +732,6 @@ class TypeDeChamp < ApplicationRecord
     # logic (RNA, SIRET, etc.)
     case type_champ
     when type_champs.fetch(:carte),
-      type_champs.fetch(:piece_justificative),
       type_champs.fetch(:titre_identite),
       type_champs.fetch(:rna),
       type_champs.fetch(:siret),

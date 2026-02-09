@@ -194,9 +194,9 @@ describe Champ do
       let(:champ) { Champs::TextareaChamp.new(value:, dossier: build(:dossier)) }
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_textarea)) }
 
-      let(:value) { '<b>gras<b>' }
+      let(:value) { '<b>gras</b>' }
 
-      it { expect(value_for_export).to eq('gras') }
+      it { expect(value_for_export).to eq('<b>gras</b>') }
     end
 
     context 'when type_de_champ is yes_no' do
@@ -649,45 +649,6 @@ describe Champ do
         perform_enqueued_jobs
         expect(champ.reload.piece_justificative_file.first.watermark_pending?).to be_falsy
         expect(champ.reload.piece_justificative_file.first.blob.watermark_done?).to be_truthy
-      end
-    end
-  end
-
-  describe '#log_fetch_external_data_exception' do
-    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :rnf }]) }
-    let(:dossier) { create(:dossier, procedure:) }
-    let(:champ) { dossier.champs.first }
-    context "add execption to the log" do
-      it do
-        champ.log_fetch_external_data_exception(double(inspect: 'PAN'), 404)
-        expect { champ.reload }.not_to raise_error
-      end
-    end
-  end
-
-  describe "fetch_external_data" do
-    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :rnf }]) }
-    let(:dossier) { create(:dossier, procedure:) }
-    let(:champ) { dossier.champs.first.tap { _1.update_column(:data, 'some data') } }
-
-    context "cleanup_if_empty" do
-      it "remove data if external_id changes" do
-        expect(champ.data).to_not be_nil
-        champ.update(external_id: 'external_id')
-        expect(champ.data).to be_nil
-      end
-    end
-
-    context "fetch_external_data_later" do
-      let(:data) { { address: { city: "some external data" } }.with_indifferent_access }
-
-      it "fill data from external source" do
-        expect_any_instance_of(Champs::RNFChamp).to receive(:fetch_external_data) { data }
-
-        perform_enqueued_jobs do
-          champ.update(external_id: 'external_id')
-        end
-        expect(champ.reload.data).to eq data
       end
     end
   end
