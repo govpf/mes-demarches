@@ -8,9 +8,9 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     self.fetch_external_data_exceptions = []
   end
 
-  def update_with_external_data!(data:)
+  def update_external_data!(data:)
     transaction do
-      update!(data:, value_json: todo_map_stuff(data:), fetch_external_data_exceptions: [])
+      update!(data:, fetch_external_data_exceptions: [])
       propagate_prefill(data)
     end
   end
