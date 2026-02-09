@@ -27,6 +27,11 @@ class Referentiels::BaserowReferentiel < Referentiel
     "baserow://#{table_id}/{id}"
   end
 
+  # pf: Baserow gère son auth via BaserowAPI.config, pas via le modèle Referentiel
+  def authentication_by_header_token?
+    false
+  end
+
   def baserow_config
     @baserow_config ||= ReferentielDePolynesie::BaserowAPI.config(table_id)
   end

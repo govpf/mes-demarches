@@ -8,7 +8,7 @@
         .fr-notice.fr-notice--info.fr-mb-2w
           .fr-notice__body
             %p.fr-notice__title Ce champ est connecté à un référentiel Baserow (Polynésie française).
-            %p.notice__desc.fr-mt-2w Saisissez l'identifiant de la table Baserow pour configurer le champ.
+            %p.notice__desc.fr-mt-2w Sélectionnez la table Baserow à utiliser pour configurer le champ.
       - elsif Referentiels::APIReferentiel.csv_available?
         = render Dsfr::RadioButtonListComponent.new(form:, target: :type,
           buttons: [ { label: 'À partir d’une URL', value: 'Referentiels::APIReferentiel', hint: 'Connectez un champ à une API', data: { controller: 'autosubmit' } } ,
@@ -55,9 +55,11 @@
         = form.hidden_field :mode
 
       = render Dsfr::InputComponent.new(form:, attribute: :hint)
-      -# pf: Pour Baserow, le label du champ test_data devient "Identifiant de table Baserow"
+      -# pf: Pour Baserow, select des tables disponibles au lieu d'un champ texte
       - if @referentiel.type == 'Referentiels::BaserowReferentiel'
-        = render Dsfr::InputComponent.new(form:, attribute: :test_data, opts: { label: 'Identifiant de table Baserow' })
+        .fr-select-group
+          = form.label :test_data, 'Table de recherche', class: 'fr-label'
+          = form.select :test_data, TypeDeChamp.referentiel_tables, { include_blank: '-- Sélectionnez une table --', selected: @referentiel.test_data }, class: 'fr-select'
       - else
         = render Dsfr::InputComponent.new(form:, attribute: :test_data)
       .clearfix
