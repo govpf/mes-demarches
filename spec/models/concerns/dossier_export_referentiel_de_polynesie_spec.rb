@@ -14,7 +14,7 @@ describe DossierExportConcern do
         .and_return(['code_postal', 'archipel', 'ile'])
 
       champ.update!(value: 'Papeete', external_id: '12345')
-      champ.update_with_external_data!(data: {
+      champ.update_external_data!(data: {
         'row' => { 'code_postal' => '98714', 'archipel' => 'Iles du Vent', 'ile' => 'Tahiti' },
         'instructeur_fields' => ['code_postal', 'archipel', 'ile']
       })
