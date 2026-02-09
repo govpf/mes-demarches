@@ -235,19 +235,28 @@ module Administrateurs
         last_child_stable_id = type_de_champ.stable_id
 
         children.each do |child|
+          condition_stable_ids = child.condition&.sources.to_a
+          children_stable_ids = children.map(&:stable_id)
+          condition_to_use = if condition_stable_ids.all? { |id| children_stable_ids.include?(id) }
+            child.condition
+          else
+            nil
+          end
+
           new_child_params = {
             type_champ: child.type_champ,
             libelle: child.libelle.to_s,
             description: child.description,
             mandatory: child.mandatory,
             options: child.options,
-            condition: child.condition,
+            condition: condition_to_use,
             private: child.private,
             after_stable_id: last_child_stable_id,
             parent_stable_id: type_de_champ.stable_id
           }
 
           child_type_de_champ = draft.add_type_de_champ(new_child_params)
+
           unless child_type_de_champ.valid?
             flash.alert = child_type_de_champ.errors.full_messages
             raise ActiveRecord::Rollback
