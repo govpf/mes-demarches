@@ -7,7 +7,7 @@ class TypesDeChampEditor::DuplicateChampButtonComponent < ApplicationComponent
   end
 
   def render?
-    !@coordinate.type_de_champ.repetition? && !@coordinate.child?
+    !@coordinate.type_de_champ.repetition?
   end
 
   private
