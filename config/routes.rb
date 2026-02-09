@@ -179,7 +179,7 @@ Rails.application.routes.draw do
   end
 
   post 'password_complexity' => 'password_complexity#show', as: 'show_password_complexity'
-  get 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
+  post 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
 
   resources :targeted_user_links, only: [:show]
 
@@ -209,7 +209,6 @@ Rails.application.routes.draw do
     get 'confirm_email/:token' => :confirm_email, as: :confirm_email
 
     # to be migrated
-    get 'particulier/callback' => :callback
     get 'particulier/merge_using_email_link/:email_merge_token' => :merge_using_email_link
 
     get 'redirect_uris'
@@ -509,7 +508,7 @@ Rails.application.routes.draw do
 
     resources :procedure_presentation, only: [:update] do
       member do
-        get 'refresh_column_filter'
+        patch 'refresh_column_filter'
       end
     end
 
@@ -689,6 +688,8 @@ Rails.application.routes.draw do
         patch 'update_jeton'
         get 'rdv'
         patch 'rdv', to: 'procedures#update_rdv'
+        get 'pro_connect_restricted'
+        patch 'pro_connect_restricted', to: 'procedures#update_pro_connect_restricted'
         put :allow_expert_review
         put :allow_expert_messaging
         put :experts_require_administrateur_invitation
@@ -816,7 +817,7 @@ Rails.application.routes.draw do
         member do
           get :mapping_type_de_champ
           patch :update_mapping_type_de_champ
-          patch :update_prefill_type_de_champ
+          patch :update_prefill_and_display_type_de_champ
           get :prefill_and_display
         end
       end

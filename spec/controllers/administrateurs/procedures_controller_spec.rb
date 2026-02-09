@@ -1777,6 +1777,48 @@ describe Administrateurs::ProceduresController, type: :controller do
     end
   end
 
+  describe '#update_pro_connect_restricted' do
+    let(:admin) { create(:administrateur) }
+    let(:procedure) { create(:procedure, administrateurs: [admin]) }
+
+    before { sign_in(admin.user) }
+
+    subject do
+      patch :update_pro_connect_restricted, params: {
+        id: procedure.id,
+        procedure: { pro_connect_restricted: pro_connect_restricted }
+      }
+    end
+
+    context 'when admin is connected via Microsoft' do
+      before do
+        # pf: En PF, on utilise loged_in_with_france_connect au lieu du cookie
+        # upstream:
+        # cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: admin.user.id }.to_json }
+        admin.user.update!(loged_in_with_france_connect: 'microsoft')
+        subject
+      end
+
+      context 'when enabling pro_connect_restricted' do
+        let(:pro_connect_restricted) { true }
+
+        it { expect(procedure.reload.pro_connect_restricted).to be true }
+        it { expect(flash.notice).to eq("La démarche est restreinte aux comptes @administration.gov.pf") }
+        it { expect(response).to redirect_to(pro_connect_restricted_admin_procedure_path(procedure)) }
+      end
+
+      context 'when disabling pro_connect_restricted' do
+        let(:procedure) { create(:procedure, pro_connect_restricted: true, administrateurs: [admin]) }
+
+        let(:pro_connect_restricted) { false }
+
+        it { expect(procedure.reload.pro_connect_restricted).to be false }
+        it { expect(flash.notice).to eq("La démarche n'est plus restreinte aux comptes @administration.gov.pf") }
+        it { expect(response).to redirect_to(pro_connect_restricted_admin_procedure_path(procedure)) }
+      end
+    end
+  end
+
   describe '#select_procedure' do
     let(:admin) { create(:administrateur) }
 
@@ -1815,6 +1857,35 @@ describe Administrateurs::ProceduresController, type: :controller do
         get :select_procedure, params: { procedure_id: nil }
 
         expect(response).to redirect_to(admin_procedures_path)
+      end
+    end
+  end
+
+  describe 'GET #show' do
+    subject { get :show, params: { id: procedure.id } }
+
+    context 'when ProConnect is required' do
+      let(:procedure) { create(:procedure, pro_connect_restricted: true, administrateur: admin) }
+      it 'redirects to pro_connect_path and sets a flash message' do
+        subject
+
+        expect(response).to redirect_to(pro_connect_path)
+        expect(flash[:alert]).to eq("Vous devez vous connecter avec votre compte @administration.gov.pf pour accéder à cette démarche")
+      end
+
+      context "and the user is connected via Microsoft" do
+        before do
+          # pf: En PF, on utilise loged_in_with_france_connect au lieu du cookie
+          # upstream:
+          # cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: admin.user.id }.to_json }
+          admin.user.update!(loged_in_with_france_connect: 'microsoft')
+        end
+
+        it "does not redirect to pro_connect_path" do
+          subject
+
+          expect(response).not_to redirect_to(pro_connect_path)
+        end
       end
     end
   end

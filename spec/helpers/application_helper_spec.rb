@@ -114,6 +114,29 @@ describe ApplicationHelper do
       it { is_expected.to eq("") }
     end
   end
+
+  describe "#human_date" do
+    subject { human_date(date) }
+
+    # pf: use Date.current instead of Date.today to respect Pacific/Tahiti timezone
+    describe 'human_date for today' do
+      let(:date) { Date.current }
+      it { is_expected.to eq("Aujourd’hui") }
+    end
+    describe 'human_date for yesterday' do
+      let(:date) { Date.current - 1 }
+      it { is_expected.to eq("Hier") }
+    end
+    describe 'human_date for before yesterday' do
+      let(:date) { Date.current - 2 }
+      it { is_expected.to eq("Il y a 2 jours") }
+    end
+    describe 'human_date for 24/01/2019' do
+      let(:date) { Date.new(2019, 01, 24) }
+      it { is_expected.to eq("24 janvier 2019") }
+    end
+  end
+
   describe '#acronymize' do
     it 'returns the acronym of a given string' do
       expect(helper.acronymize('Application Name')).to eq('AN')

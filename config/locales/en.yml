@@ -45,6 +45,14 @@ en:
   utils:
     'yes': 'Yes'
     'no': 'No'
+    string: String
+    decimal_number: Floating point number
+    integer_entier: Integer number
+    boolean: Boolean
+    date: Date
+    datetime: Date and time
+    array: List of simple elements
+
     email_suggest:
       wanna_say: 'Do you mean to say ?'
 
@@ -375,6 +383,7 @@ en:
         messages:
           form:
             send_message: "Send message"
+            message_label_mandatory: "Your message (mandatory)"
             write_message_placeholder: "Write your message here"
             write_message_to_administration_placeholder: "Write your message to the administration here"
         demande:
@@ -510,7 +519,7 @@ en:
           latest_message:
             latest_message: "Latest message"
         messagerie:
-          mailbox: "The mailbox allows you to contact the instructor in charge of your file."
+          mailbox: "The mailbox allows you to contact the administration in charge of your file."
         rendez_vous:
           title: "Your next appointment"
           navigate_to_rdv_sp: "See my appointment on RDV Service Public"
@@ -833,6 +842,12 @@ en:
   time:
     formats:
       default: "%B %d %Y %R"
+  dates:
+    today: "Today"
+    yesterday: "Yesterday"
+    days_ago:
+      one: "1 day ago"
+      other: "%{count} days ago"
   pluralize:
     case:
       one: file

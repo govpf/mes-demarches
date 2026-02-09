@@ -94,6 +94,10 @@
   color: var(--text-action-high-blue-france);
 }
 
+.text-info-blue {
+  color: var(--text-default-info);
+}
+
 .relative {
   position: relative;
 }
@@ -132,6 +136,12 @@
     &-mobile {
       width: 100%;
     }
+  }
+}
+
+.width-100-for-xs {
+  @media (max-width: 48em) {
+    width: 100%;
   }
 }
 

@@ -440,7 +440,7 @@ module Users
 
         @commentaire.dossier.touch(*timestamps)
 
-        DossierNotification.create_notification(dossier, :message_usager)
+        DossierNotification.create_notification(dossier, :message)
 
         flash.notice = t('.message_send')
         redirect_to messagerie_dossier_path(dossier)
@@ -728,7 +728,7 @@ module Users
           end
         end
 
-        if params[:validate].present? && !champ.fetch_external_data_pending?
+        if params[:validate].present? && !champ.waiting_for_external_data?
           dossier.validate(:champs_public_value)
         end
       end

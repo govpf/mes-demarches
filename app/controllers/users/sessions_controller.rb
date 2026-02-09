@@ -5,6 +5,7 @@ class Users::SessionsController < Devise::SessionsController
   include TrustedDeviceConcern
   include ActionView::Helpers::DateHelper
   include FranceConnectConcern
+  include ProConnectSessionConcern
 
   layout 'login', only: [:new, :create]
 
@@ -17,6 +18,7 @@ class Users::SessionsController < Devise::SessionsController
 
     if user&.valid_password?(params[:user][:password])
       delete_france_connect_cookies
+      delete_pro_connect_session_info_cookie
       user.update(loged_in_with_france_connect: nil)
       user.update_preferred_domain(Current.host) if helpers.switch_domain_enabled?(request)
     end
@@ -58,6 +60,8 @@ class Users::SessionsController < Devise::SessionsController
 
       sign_out :user
 
+      delete_pro_connect_session_info_cookie
+
       # pf: gestion des différents fournisseurs d'authentification (France Connect + fournisseurs PF)
       case connected_with_france_connect
       when User.loged_in_with_france_connects.fetch(:particulier)
@@ -98,7 +102,7 @@ class Users::SessionsController < Devise::SessionsController
 
       redirect_to root_path
     elsif trusted_device_token.token_valid?
-      trust_device(trusted_device_token.created_at)
+      trust_device(trusted_device_token.created_at, trusted_device_token)
 
       period = ((trusted_device_token.created_at + TRUSTED_DEVICE_PERIOD) - Time.zone.now).to_i / ActiveSupport::Duration::SECONDS_PER_DAY
 
@@ -118,7 +122,8 @@ class Users::SessionsController < Devise::SessionsController
       flash[:alert] = 'Votre lien est expiré, un nouveau vient de vous être envoyé.'
 
       send_login_token_or_bufferize(instructeur)
-      redirect_to link_sent_path(email: instructeur.email)
+      signed_email = message_encryptor_service.encrypt_and_sign(instructeur.email, purpose: :reset_link, expires_in: 1.hour)
+      redirect_to link_sent_path(email: signed_email)
     end
   end
 

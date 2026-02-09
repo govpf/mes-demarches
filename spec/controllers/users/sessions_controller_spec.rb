@@ -139,6 +139,8 @@ describe Users::SessionsController, type: :controller do
         cookies.encrypted[FranceConnectController::STATE_COOKIE_NAME] = 'state'
       end
 
+      cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: user.id }.to_json }
+
       delete :destroy
     end
 
@@ -201,6 +203,11 @@ describe Users::SessionsController, type: :controller do
         expect(response.location).to include(pro_connect_id_token)
         expect(instructeur.reload.pro_connect_id_token).to be_nil
       end
+
+      it "deletes the pro_connect_session_info cookie" do
+        expect(response.cookies.keys).to include(ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME.to_s)
+        expect(response.cookies[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME]).to be_nil
+      end
     end
   end
 
@@ -235,8 +242,10 @@ describe Users::SessionsController, type: :controller do
         if logged
           sign_in(instructeur.user)
         end
-        allow(controller).to receive(:trust_device)
+        allow(controller).to receive(:trust_device).and_call_original
         allow(controller).to receive(:send_login_token_or_bufferize)
+        allow(controller).to receive_message_chain(:message_encryptor_service, :encrypt_and_sign).with(instructeur.user.email, purpose: :reset_link, expires_in: 1.hour).and_return('panpan')
+
         allow_any_instance_of(TrustedDeviceToken).to receive(:token_valid?).and_return(valid_token)
         post :sign_in_by_link, params: { id: instructeur.id, jeton: jeton }
       end
@@ -246,12 +255,14 @@ describe Users::SessionsController, type: :controller do
           it { is_expected.to redirect_to new_user_session_path }
           it { expect(controller.current_instructeur).to be_nil }
           it { expect(controller).to have_received(:trust_device) }
+          it { expect(TrustedDeviceToken.find_by(token: jeton).activated_at).to be_present }
         end
 
         context 'when the token is invalid' do
           let(:valid_token) { false }
-
-          it { is_expected.to redirect_to link_sent_path(email: instructeur.email) }
+          it 'redirects to link_sent_path with encrypted email' do
+            expect(response).to redirect_to link_sent_path(email: 'panpan')
+          end
           it { expect(controller.current_instructeur).to be_nil }
           it { expect(controller).not_to have_received(:trust_device) }
           it { expect(controller).to have_received(:send_login_token_or_bufferize) }
@@ -282,7 +293,7 @@ describe Users::SessionsController, type: :controller do
         context 'when the token is invalid' do
           let(:valid_token) { false }
 
-          it { is_expected.to redirect_to link_sent_path(email: instructeur.email) }
+          it { is_expected.to redirect_to link_sent_path(email: 'panpan') }
           it { expect(controller.current_instructeur).to eq(instructeur) }
           it { expect(controller).not_to have_received(:trust_device) }
           it { expect(controller).to have_received(:send_login_token_or_bufferize) }

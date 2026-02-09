@@ -149,6 +149,8 @@ class TypeDeChamp < ApplicationRecord
 
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
 
+  enum :nature, { RIB: 'RIB' }
+
   SIMPLE_ROUTABLE_TYPES = [
     type_champs.fetch(:drop_down_list),
     type_champs.fetch(:commune_de_polynesie),
@@ -206,7 +208,7 @@ class TypeDeChamp < ApplicationRecord
 
   belongs_to :referentiel, optional: true, inverse_of: :types_de_champ
 
-  delegate :estimated_fill_duration, :estimated_read_duration, :tags_for_template, :libelles_for_export, :libelle_for_export, :primary_options, :secondary_options, :columns, to: :dynamic_type
+  delegate :estimated_fill_duration, :estimated_read_duration, :tags_for_template, :libelles_for_export, :libelle_for_export, :primary_options, :secondary_options, :columns, :info_columns, to: :dynamic_type
 
   class WithIndifferentAccess
     def self.load(options)
@@ -257,7 +259,6 @@ class TypeDeChamp < ApplicationRecord
     "text/plain"
   ], size: { less_than: 20.megabytes }, on: :update
 
-  validates :libelle, presence: true, allow_blank: false, allow_nil: false
   validates :type_champ, presence: true, allow_blank: false, allow_nil: false
   validates :character_limit, numericality: {
     greater_than_or_equal_to: MINIMUM_TEXTAREA_CHARACTER_LIMIT_LENGTH,
@@ -331,6 +332,18 @@ class TypeDeChamp < ApplicationRecord
 
   def referentiel_mapping_prefillable_stable_ids
     referentiel_mapping_prefillable_with_stable_id.map { |_jsonpath, mapping_opts| mapping_opts[:prefill_stable_id] }
+  end
+
+  def referentiel_mapping_displayable
+    safe_referentiel_mapping.filter { |_jsonpath, mapping_opts| mapping_opts[:prefill] != "1" }
+  end
+
+  def referentiel_mapping_displayable_for_instructeur
+    referentiel_mapping_displayable.filter { |_jsonpath, mapping| mapping[:display_instructeur] == "1" }
+  end
+
+  def referentiel_mapping_displayable_for_usager
+    referentiel_mapping_displayable.filter { |_jsonpath, mapping| mapping[:display_usager] == "1" }
   end
 
   def params_for_champ
@@ -621,7 +634,7 @@ class TypeDeChamp < ApplicationRecord
     when type_champs.fetch(:checkbox), type_champs.fetch(:yes_no)
       :boolean
     when type_champs.fetch(:titre_identite), type_champs.fetch(:piece_justificative)
-      :attachements
+      :attachments
     else
       :text
     end
@@ -719,7 +732,6 @@ class TypeDeChamp < ApplicationRecord
     # logic (RNA, SIRET, etc.)
     case type_champ
     when type_champs.fetch(:carte),
-      type_champs.fetch(:piece_justificative),
       type_champs.fetch(:titre_identite),
       type_champs.fetch(:rna),
       type_champs.fetch(:siret),

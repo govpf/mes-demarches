@@ -11,19 +11,11 @@ class TypesDeChamp::LinkedDropDownListTypeDeChamp < TypesDeChamp::TypeDeChampBas
   end
 
   def primary_options
-    primary_options = unpack_options.map(&:first)
-    if primary_options.present?
-      primary_options = add_blank_option_when_not_mandatory(primary_options)
-    end
-    primary_options
+    unpack_options.map(&:first)
   end
 
   def secondary_options
-    secondary_options = unpack_options.to_h
-    if secondary_options.present?
-      secondary_options[''] = []
-    end
-    secondary_options
+    unpack_options.to_h
   end
 
   def champ_value(champ)
@@ -79,7 +71,8 @@ class TypesDeChamp::LinkedDropDownListTypeDeChamp < TypesDeChamp::TypeDeChampBas
         tdc_type: type_champ,
         type: :text,
         path: :value,
-        displayable:
+        displayable:,
+        mandatory: mandatory?
       ),
       Columns::LinkedDropDownColumn.new(
         procedure_id: procedure.id,
@@ -89,7 +82,8 @@ class TypesDeChamp::LinkedDropDownListTypeDeChamp < TypesDeChamp::TypeDeChampBas
         type: :enum,
         path: :primary,
         displayable: false,
-        options_for_select: primary_options
+        options_for_select: primary_options,
+        mandatory: mandatory?
       ),
       Columns::LinkedDropDownColumn.new(
         procedure_id: procedure.id,
@@ -99,17 +93,13 @@ class TypesDeChamp::LinkedDropDownListTypeDeChamp < TypesDeChamp::TypeDeChampBas
         type: :enum,
         path: :secondary,
         displayable: false,
-        options_for_select: secondary_options.values.flatten.uniq.sort
+        options_for_select: secondary_options.values.flatten.uniq.sort,
+        mandatory: mandatory?
       )
     ]
   end
 
   private
-
-  def add_blank_option_when_not_mandatory(options)
-    return options if mandatory
-    options.unshift('')
-  end
 
   def primary_value(champ) = unpack_value(champ.value, 0, primary_options)
   def secondary_value(champ) = unpack_value(champ.value, 1, secondary_options.values.flatten)
@@ -149,7 +139,6 @@ class TypesDeChamp::LinkedDropDownListTypeDeChamp < TypesDeChamp::TypeDeChampBas
 
     chunked.map do |chunk|
       primary, *secondary = chunk
-      secondary = add_blank_option_when_not_mandatory(secondary)
       [PRIMARY_PATTERN.match(primary)&.[](1), secondary]
     end
   end

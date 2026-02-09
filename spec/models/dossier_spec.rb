@@ -1,11 +1,23 @@
 # frozen_string_literal: true
 
 describe Dossier, type: :model do
+  include ActionView::Helpers::OutputSafetyHelper
   include ActionView::Helpers::SanitizeHelper
   include ActionView::Helpers::TextHelper
   include ChampHelper
 
   let(:user) { create(:user) }
+
+  describe 'has_many preloaded_commentaires' do
+    let(:dossier) { create(:dossier) }
+    let!(:commentaire) { create :commentaire, created_at: '2016-03-14', dossier: }
+    let!(:commentaire_2) { create :commentaire, created_at: '2016-03-15', dossier: }
+    let!(:commentaire_3) { create :commentaire, created_at: '2016-03-16', dossier: }
+
+    it 'returns commentaires in desc order' do
+      expect(dossier.preloaded_commentaires).to eq([commentaire_3, commentaire_2, commentaire])
+    end
+  end
 
   describe 'scopes' do
     describe '.default_scope' do
@@ -1294,7 +1306,7 @@ describe Dossier, type: :model do
       email_template = dossier.procedure.email_template_for(dossier.state)
       commentaire = dossier.commentaires.last
 
-      expect(commentaire.body).to include(sanitize(email_template.subject_for_dossier(dossier)), format_text_value(email_template.body_for_dossier(dossier)))
+      expect(commentaire.body).to include(sanitize(email_template.subject_for_dossier(dossier)), sanitize(email_template.body_for_dossier(dossier)))
       expect(commentaire.dossier).to eq(dossier)
     end
   end

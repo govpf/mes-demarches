@@ -268,7 +268,6 @@ describe 'fetch API Particulier Data', js: true do
         visit commencer_path(path: procedure.path)
         click_on 'Commencer la démarche'
 
-        find('label', text: 'Monsieur').click
         within('.individual-infos') do
           fill_in('Prénom', with: 'prenom')
           fill_in('Nom', with: 'nom')
@@ -292,8 +291,8 @@ describe 'fetch API Particulier Data', js: true do
         fill_in 'Le code postal', with: code_postal
         wait_until { cnaf_champ.reload.external_id.present? }
 
-        click_on 'Déposer le dossier'
         perform_enqueued_jobs
+        click_on 'Déposer le dossier'
 
         expect(page).to have_current_path(merci_dossier_path(Dossier.last))
 
@@ -329,7 +328,6 @@ describe 'fetch API Particulier Data', js: true do
         visit commencer_path(path: procedure.path)
         click_on 'Commencer la démarche'
 
-        find('label', text: 'Monsieur').click
         within('.individual-infos') do
           fill_in('Prénom', with: 'Georges')
           fill_in('Nom', with: 'Moustaki')
@@ -351,8 +349,8 @@ describe 'fetch API Particulier Data', js: true do
         fill_in "Identifiant", with: identifiant
         wait_until { pole_emploi_champ.reload.external_id.present? }
 
-        click_on 'Déposer le dossier'
         perform_enqueued_jobs
+        click_on 'Déposer le dossier'
 
         expect(page).to have_current_path(merci_dossier_path(Dossier.last))
 
@@ -405,7 +403,6 @@ describe 'fetch API Particulier Data', js: true do
         visit commencer_path(path: procedure.path)
         click_on 'Commencer la démarche'
 
-        find('label', text: 'Madame').click
         within('.individual-infos') do
           fill_in('Prénom', with: 'Angela Claire Louise')
           fill_in('Nom', with: 'Dubois')
@@ -426,8 +423,8 @@ describe 'fetch API Particulier Data', js: true do
         VCR.use_cassette('api_particulier/success/etudiants') do
           fill_in "INE", with: ine
           wait_until { mesri_champ.reload.external_id.present? }
-          click_on 'Déposer le dossier'
           perform_enqueued_jobs
+          click_on 'Déposer le dossier'
         end
         expect(page).to have_current_path(merci_dossier_path(Dossier.last))
 
@@ -471,7 +468,6 @@ describe 'fetch API Particulier Data', js: true do
         visit commencer_path(path: procedure.path)
         click_on 'Commencer la démarche'
 
-        find('label', text: 'Madame').click
         within('.individual-infos') do
           fill_in('Prénom', with: 'Karine')
           fill_in('Nom', with: 'FERRI')
@@ -494,8 +490,8 @@ describe 'fetch API Particulier Data', js: true do
         fill_in "La référence d’avis d’imposition", with: reference_avis
         wait_until { dgfip_champ.reload.external_id.present? }
 
-        click_on 'Déposer le dossier'
         perform_enqueued_jobs
+        click_on 'Déposer le dossier'
 
         expect(page).to have_current_path(merci_dossier_path(Dossier.last))
 

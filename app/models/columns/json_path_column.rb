@@ -3,7 +3,7 @@
 class Columns::JSONPathColumn < Columns::ChampColumn
   attr_reader :jsonpath
 
-  def initialize(procedure_id:, label:, stable_id:, tdc_type:, jsonpath:, options_for_select: [], displayable:, filterable: true, type: :text)
+  def initialize(procedure_id:, label:, stable_id:, tdc_type:, jsonpath:, options_for_select: [], displayable:, filterable: true, type: :text, mandatory:)
     @jsonpath = quote_string(jsonpath)
 
     super(
@@ -14,7 +14,8 @@ class Columns::JSONPathColumn < Columns::ChampColumn
       displayable:,
       filterable:,
       type:,
-      options_for_select:
+      options_for_select:,
+      mandatory:
     )
   end
 
@@ -26,6 +27,14 @@ class Columns::JSONPathColumn < Columns::ChampColumn
     dossiers.with_type_de_champ(stable_id)
       .where(condition)
       .ids
+
+  rescue ActiveRecord::StatementInvalid => e
+    if e.cause.is_a?(PG::InvalidRegularExpression)
+      Rails.logger.warn("filtered_ids fallback: Invalid regex — #{e.message}")
+      []
+    else
+      raise
+    end
   end
 
   private
@@ -33,7 +42,7 @@ class Columns::JSONPathColumn < Columns::ChampColumn
   def column_id = "type_de_champ/#{stable_id}-#{jsonpath}"
 
   def typed_value(champ)
-    JSONPath.value(champ.value_json, jsonpath)
+    JsonPath.on(champ.value_json, jsonpath).first
   end
 
   def quote_string(string) = ActiveRecord::Base.connection.quote_string(string)
