@@ -96,7 +96,44 @@ git diff $DERNIER_TAG_PF..$RELEASE_CIBLE -- Gemfile Gemfile.lock
 - 🟡 **MAJEUR** si incohérence gems/packages (dépendances non résolues)
 - 🟢 **MINEUR** si versions CI/CD légèrement différentes (warnings)
 
-#### E. **Détection des régressions de code PF** (IMPORTANT)
+#### E. **Détection des tâches de maintenance upstream** (IMPORTANT)
+
+**⚠️ Vérifier systématiquement les nouvelles tâches de maintenance ajoutées par upstream :**
+
+Les releases upstream ajoutent régulièrement des tâches de maintenance dans `app/tasks/maintenance/`.
+Par défaut, `run_on_first_deploy` est **commenté** dans le template, ce qui signifie que la tâche
+ne s'exécutera pas automatiquement au déploiement. Or, certaines tâches **doivent** s'exécuter
+automatiquement (backfills, corrections de données, nettoyages critiques).
+
+```bash
+# Lister les nouvelles tâches de maintenance ajoutées par la release
+git diff $DERNIER_TAG_PF..$RELEASE_CIBLE --name-only -- app/tasks/maintenance/ | grep -v concerns/
+
+# Pour chaque nouvelle tâche, vérifier le statut de run_on_first_deploy
+for task in $(git diff $DERNIER_TAG_PF..$RELEASE_CIBLE --diff-filter=A --name-only -- app/tasks/maintenance/ | grep -v concerns/); do
+  echo "=== $task ==="
+  grep -n "run_on_first_deploy" "$task" || echo "⚠️ ABSENT : pas de run_on_first_deploy"
+done
+```
+
+**Règle de décision :**
+1. Consulter les **release notes upstream** de la release concernée (`gh release view AAAA-MM-JJ-NN --repo demarches-simplifiees/demarches-simplifiees.fr`)
+2. Si la release note mentionne la tâche comme devant s'exécuter au déploiement → **signaler** que `run_on_first_deploy` doit être décommenté
+3. Si la tâche est un **backfill**, un **fix de données**, ou un **nettoyage** (destroy orphans, fix corrupted data) → **signaler** comme candidat probable au `run_on_first_deploy`
+4. Si la tâche est une migration de données volumineuse ou potentiellement lente → laisser commenté et **signaler** pour exécution manuelle
+
+**Format de signalement dans le rapport :**
+```markdown
+#### 🔧 TÂCHES DE MAINTENANCE
+
+| Tâche | run_on_first_deploy | Recommandation PF |
+|-------|---------------------|-------------------|
+| `T20250721destroyOrphanFollowsTask` | ❌ Commenté | ⚠️ **Décommenter** - nettoyage de données orphelines |
+| `T20250625BackfillXxxTask` | ✅ Actif | ✅ OK |
+| `T20250602FixBadAddressDataTask` | ❌ Commenté | ℹ️ Laisser commenté - migration volumineuse |
+```
+
+#### F. **Détection des régressions de code PF** (IMPORTANT)
 
 **⚠️ Détecter quand du code PF obsolète réapparaît :**
 
@@ -218,6 +255,11 @@ DraftNotificationJob.schedule_for_dossier(dossier)
 
 #### Risques par raisonnement contextuel
 - **Domaine [X]** : [fichier modifié] → Impact [spécificité PF]
+
+#### Tâches de maintenance upstream
+| Tâche | run_on_first_deploy | Recommandation PF |
+|-------|---------------------|-------------------|
+| `[NomTask]` | ✅/❌ | [Décommenter/OK/Laisser commenté] |
 
 #### Régressions de code PF détectées
 - **[Fichier]** : [description régression] → **Action** : [restaurer/adapter]
