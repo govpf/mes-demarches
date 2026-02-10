@@ -10,7 +10,7 @@ class EditableChamp::TableRowSelectorComponent < EditableChamp::EditableChampBas
 
   def react_props
     table = @champ.table_id
-    react_input_opts(id: @champ.input_id,
+    react_input_opts(id: @champ.focusable_input_id,
       class: 'fr-mt-1w',
       name: @form.field_name(:external_id),
       selectedKey: @champ.selected,

@@ -1,7 +1,7 @@
 - if etablissements.present?
   // PF: Multiple establishments found
   %p.fr-info-text Plusieurs établissements correspondent à ce numéro TAHITI. Veuillez sélectionner celui qui vous concerne :
-  = render EditableChamp::EtablissementsListComponent.new(etablissements: etablissements, input_id: @champ.input_id, siret_prefix: siret)
+  = render EditableChamp::EtablissementsListComponent.new(etablissements: etablissements, input_id: @champ.focusable_input_id, siret_prefix: siret)
 - else
   - case siret
   - when :invalid_length

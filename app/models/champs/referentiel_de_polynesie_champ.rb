@@ -26,7 +26,7 @@ class Champs::ReferentielDePolynesieChamp < Champs::TextChamp
   end
 
   # pf: pour les ancres d'erreur (#11420), le React ComboBox utilise html_id sans suffixe -input
-  def focusable_input_id
+  def focusable_input_id(attribute = :value)
     html_id
   end
 end
