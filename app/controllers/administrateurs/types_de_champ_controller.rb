@@ -193,33 +193,6 @@ module Administrateurs
           flash.alert = type_de_champ.errors.full_messages
         end
       end
-
-      if default_type_de_champ.repetition?
-        ActiveRecord::Base.transaction do
-          children = draft.children_of(default_type_de_champ)
-          last_child_stable_id = type_de_champ.stable_id
-
-          children.each do |child|
-            new_child_params = draft.add_type_de_champ(
-              {
-                type_champ: child.type_champ,
-                libelle: child.libelle.to_s,
-                description: child.description,
-                mandatory: child.mandatory,
-                options: child.options,
-                condition: child.condition,
-                parent_stable_id: type_de_champ.stable_id,
-                after_stable_id: last_child_stable_id
-              }
-            )
-            unless new_child_params.valid?
-              flash.alert = new_child_params.errors.full_messages
-              raise ActiveRecord::Rollback
-            end
-            last_child_stable_id = new_child_params.stable_id
-          end
-        end
-      end
     end
 
     def duplicate_repetition_bloc(default_type_de_champ, new_champ_params)
@@ -234,27 +207,16 @@ module Administrateurs
         children = draft.children_of(default_type_de_champ)
         last_child_stable_id = type_de_champ.stable_id
 
+        mapping = {}
+
         children.each do |child|
-          condition_stable_ids = child.condition&.sources.to_a
-          children_stable_ids = children.map(&:stable_id)
-          condition_to_keep = if condition_stable_ids.all? { |id| children_stable_ids.include?(id) }
-            child.condition
-          else
-            nil
-          end
-
-          # Actuellement, child.condition récupère les stable_id du bloc parent
-          # Sauf que dans le bloc dupliqué, les champs ont des nouveaux stable_id
-          # Je dois donc maper sur tous les stable_id (bloc parent et enfant)
-          # Je stocke le résultat dans un Hash (parent_stable_id en KEY, child_stable_id en VALUE)
-
           new_child_params = {
             type_champ: child.type_champ,
             libelle: child.libelle.to_s,
             description: child.description,
             mandatory: child.mandatory,
             options: child.options,
-            condition: condition_to_keep,
+            condition: child.condition,
             private: child.private,
             after_stable_id: last_child_stable_id,
             parent_stable_id: type_de_champ.stable_id
@@ -266,9 +228,38 @@ module Administrateurs
             flash.alert = child_type_de_champ.errors.full_messages
             raise ActiveRecord::Rollback
           end
+          mapping[child.stable_id] = child_type_de_champ.stable_id
+
           last_child_stable_id = child_type_de_champ.stable_id
         end
+        new_children = draft.children_of(type_de_champ)
+
+        children.each_with_index do |c, index|
+          if c.condition.present?
+            new_condition = replace_stable_ids_in_condition(c.condition, mapping)
+            new_children[index].update!(condition: new_condition)
+          end
+        end
+
         set_coordinate_response(type_de_champ)
+      end
+    end
+
+    def replace_stable_ids_in_condition(condition, mapping)
+      return nil if condition.nil?
+
+      if condition.is_a?(Logic::ChampValue)
+        new_stable_id = mapping[condition.stable_id] || condition.stable_id
+        Logic::ChampValue.new(new_stable_id)
+      elsif condition.respond_to?(:left) && condition.respond_to?(:right)
+        new_left = replace_stable_ids_in_condition(condition.left, mapping)
+        new_right = replace_stable_ids_in_condition(condition.right, mapping)
+        condition.class.new(new_left, new_right)
+      elsif condition.respond_to?(:operands)
+        new_operands = condition.operands.map { |op| replace_stable_ids_in_condition(op, mapping) }
+        condition.class.new(new_operands)
+      else
+        condition
       end
     end
 
