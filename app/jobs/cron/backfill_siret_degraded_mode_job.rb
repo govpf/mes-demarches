@@ -18,7 +18,6 @@ class Cron::BackfillSiretDegradedModeJob < Cron::CronJob
       .where(adresse: nil)
       .includes(dossier: [:groupe_instructeur, :followers_instructeurs, :pending_corrections])
       .find_each do |etablissement|
-
       handle_etablissement(etablissement, etablissement.dossier, source: :dossier)
     end
 
@@ -27,7 +26,6 @@ class Cron::BackfillSiretDegradedModeJob < Cron::CronJob
       .where(adresse: nil)
       .includes(champ: { dossier: [:groupe_instructeur, :followers_instructeurs, :pending_corrections] })
       .find_each do |etablissement|
-
       handle_etablissement(etablissement, etablissement.champ.dossier, source: :champ, champ: etablissement.champ)
     end
   end
