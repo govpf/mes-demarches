@@ -237,11 +237,16 @@ module Administrateurs
         children.each do |child|
           condition_stable_ids = child.condition&.sources.to_a
           children_stable_ids = children.map(&:stable_id)
-          condition_to_use = if condition_stable_ids.all? { |id| children_stable_ids.include?(id) }
+          condition_to_keep = if condition_stable_ids.all? { |id| children_stable_ids.include?(id) }
             child.condition
           else
             nil
           end
+
+          # Actuellement, child.condition récupère les stable_id du bloc parent
+          # Sauf que dans le bloc dupliqué, les champs ont des nouveaux stable_id
+          # Je dois donc maper sur tous les stable_id (bloc parent et enfant)
+          # Je stocke le résultat dans un Hash (parent_stable_id en KEY, child_stable_id en VALUE)
 
           new_child_params = {
             type_champ: child.type_champ,
@@ -249,7 +254,7 @@ module Administrateurs
             description: child.description,
             mandatory: child.mandatory,
             options: child.options,
-            condition: condition_to_use,
+            condition: condition_to_keep,
             private: child.private,
             after_stable_id: last_child_stable_id,
             parent_stable_id: type_de_champ.stable_id
