@@ -3,14 +3,14 @@
 require 'rails_helper'
 
 describe Champs::ReferentielChamp, type: :model do
-  let(:referentiel) { create(:api_referentiel, :configured) }
+  let(:referentiel) { create(:api_referentiel, :exact_match, :configured) }
   let(:types_de_champ_public) { [{ type: :referentiel, referentiel: }] }
   let(:procedure) { create(:procedure, types_de_champ_public:) }
   let(:dossier) { create(:dossier, procedure:) }
   let(:referentiel_champ) { dossier.champs.find(&:referentiel?) }
 
   describe '#cast_value_for_type_de_champ' do
-    subject { referentiel_champ.update_with_external_data!(data:) }
+    subject { referentiel_champ.update_external_data!(data:) }
 
     context 'when prefill/mapping is configured' do
       let(:prefillable_stable_id) { 2 }
@@ -258,6 +258,32 @@ describe Champs::ReferentielChamp, type: :model do
           end
         end
 
+        context 'when data is a unix timestamp' do
+          let(:date) { Date.new(2025, 7, 10) }
+          let(:data) { { ok: date.in_time_zone.to_i } } # 2025-07-10T00:00:00 Pacific/Tahiti
+          it 'convert to ISO8601 date' do
+            expect { subject }
+              .to change { dossier.reload.project_champs.find(&:date?).value }.from(nil).to(date.iso8601)
+          end
+        end
+
+        context 'when data is a unix timestamp as string' do
+          let(:date) { Date.new(2025, 7, 10) }
+          let(:data) { { ok: date.in_time_zone.to_i.to_s } } # 2025-07-10T00:00:00 Pacific/Tahiti
+          it 'convert to ISO8601 date' do
+            expect { subject }
+              .to change { dossier.reload.project_champs.find(&:date?).value }.from(nil).to(date.iso8601)
+          end
+        end
+
+        context 'when data is not a timestamp' do
+          let(:data) { { ok: 'not_a_timestamp' } }
+          it 'noops' do
+            expect { subject }
+              .not_to change { dossier.reload.project_champs.find(&:date?).value }.from(nil)
+          end
+        end
+
         context 'when data is dd/mm/yyyy' do
           let(:data) { { ok: '14/06/2024' } }
           it 'casts and updates the date with the jsonpath value as ISO8601' do
@@ -297,6 +323,32 @@ describe Champs::ReferentielChamp, type: :model do
         context 'when data is invalid datetime' do
           let(:data) { { ok: '2024-06-14T25:00' } }
           it 'does not update the datetime value (remains nil)' do
+            expect { subject }
+              .not_to change { dossier.reload.project_champs.find(&:datetime?).value }.from(nil)
+          end
+        end
+
+        context 'when data is a unix timestamp' do
+          let(:datetime) { Time.current }
+          let(:data) { { ok: datetime.to_f } }
+          it 'convert to ISO8601 datetime' do
+            expect { subject }
+              .to change { dossier.reload.project_champs.find(&:datetime?).value }.from(nil).to(datetime.change(sec: 0))
+          end
+        end
+
+        context 'when data is a unix timestamp as string' do
+          let(:datetime) { Time.current }
+          let(:data) { { ok: datetime.to_f.to_s } }
+          it 'convert to ISO8601 datetime' do
+            expect { subject }
+              .to change { dossier.reload.project_champs.find(&:datetime?).value }.from(nil).to(datetime.change(sec: 0))
+          end
+        end
+
+        context 'when data is not a timestamp' do
+          let(:data) { { ok: 'not_a_timestamp' } }
+          it 'noops' do
             expect { subject }
               .not_to change { dossier.reload.project_champs.find(&:datetime?).value }.from(nil)
           end

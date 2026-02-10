@@ -18,8 +18,8 @@ class Instructeur < ApplicationRecord
   has_many :commentaires, inverse_of: :instructeur, dependent: :nullify
   has_many :dossiers, -> { state_not_brouillon }, through: :unordered_groupe_instructeurs
   has_many :all_follows, class_name: 'Follow', inverse_of: :instructeur
-  has_many :follows, -> { active }, inverse_of: :instructeur
-  has_many :previous_follows, -> { inactive }, class_name: 'Follow', inverse_of: :instructeur
+  has_many :follows, -> { active }, inverse_of: :instructeur, dependent: :destroy
+  has_many :previous_follows, -> { inactive }, class_name: 'Follow', inverse_of: :instructeur, dependent: :destroy
   has_many :followed_dossiers, through: :follows, source: :dossier
   has_many :previously_followed_dossiers, -> { distinct }, through: :previous_follows, source: :dossier
   has_many :trusted_device_tokens, dependent: :destroy
@@ -286,8 +286,20 @@ class Instructeur < ApplicationRecord
     user.last_pro_connect_information
   end
 
+  TemplateExportGroup = Data.define(:name, :templates)
   def export_templates_for(procedure)
-    procedure.export_templates.where(groupe_instructeur: groupe_instructeurs).order(:name)
+    shareable_export_templates = procedure.export_templates
+      .shareable
+      .where.not(groupe_instructeur: groupe_instructeurs)
+      .includes(:groupe_instructeur)
+      .order(:name).to_a
+    my_export_templates = export_templates.includes(:groupe_instructeur).order(:name).to_a
+
+    if shareable_export_templates.present?
+      [TemplateExportGroup['Mes modèles d’export', my_export_templates], TemplateExportGroup['Modèles d’export partagés', shareable_export_templates]]
+    else
+      my_export_templates
+    end
   end
 
   def groupe_instructeur_options_for(procedure)

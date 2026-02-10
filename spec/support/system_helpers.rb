@@ -37,23 +37,30 @@ module SystemHelpers
     end
   end
 
+  def click_verification_link_for(email)
+    verification_email = open_email(user.email)
+    verification_link = verification_email.text.match(%r{\s+(\S+\/users\/confirm_email/\S+)\s+})[1]
+
+    visit URI.parse(verification_link).request_uri
+  end
+
   def click_confirmation_link_for(email, in_another_browser: false)
     confirmation_email = open_email(email)
-    confirmation_link = confirmation_email.body.match(/href="[^"]*(\/users\/confirmation[^"]*)"/)[1]
+    confirmation_link = confirmation_email.text.match(%r{\s+(\S+\/users\/confirmation\S+)\s+})[1]
 
     if in_another_browser
       # Simulate the user opening the link in another browser, thus loosing the session cookie
       Capybara.reset_session!
     end
 
-    visit confirmation_link
+    visit URI.parse(confirmation_link).request_uri
   end
 
   def click_procedure_sign_in_link_for(email)
     confirmation_email = open_email(email)
     procedure_sign_in_link = confirmation_email.body.match(/href="([^"]*\/commencer\/[^"]*)"/)[1]
 
-    visit URI.parse(procedure_sign_in_link).path
+    visit URI.parse(procedure_sign_in_link).request_uri
   end
 
   def click_reset_password_link_for(email)
@@ -108,9 +115,12 @@ module SystemHelpers
   end
 
   def log_out
+    within(".fr-notice__body") { click_on("Masquer le message") } if page.has_selector?('.fr-notice__body')
     within('.fr-header .fr-container .fr-header__tools .fr-btns-group') do
+      scroll_to(find('button[title="Mon profil"]'), align: :center)
       click_button(title: 'Mon profil')
       expect(page).to have_selector('#account.fr-collapse--expanded', visible: true)
+      scroll_to(find('button[title="Mon profil"]'), align: :center)
       click_on 'Se déconnecter'
     end
     expect(page).to have_current_path(root_path, wait: 30)
@@ -158,6 +168,12 @@ module SystemHelpers
     blur
     expect(page).to have_css('.debounced-empty') # no more debounce
     expect(page).to have_css('.autosave-state-idle') # no more in flight promise
+  end
+
+  # find input (radio), center it in the screen, then click on label (otherwise element out of scope)
+  def custom_check(field_id)
+    scroll_to(find_field(field_id), align: :center)
+    find("label[for=#{field_id}]").click
   end
 end
 

@@ -2152,7 +2152,7 @@ describe Users::DossiersController, type: :controller do
     end
 
     context 'when champ is pollable' do
-      let(:referentiel) { create(:api_referentiel, :configured) }
+      let(:referentiel) { create(:api_referentiel, :exact_match, :configured) }
       let(:types_de_champ_public) { [{ type: :referentiel, referentiel:, stable_id: }] }
 
       context 'when the requested external_id had not been fetched' do
@@ -2173,7 +2173,7 @@ describe Users::DossiersController, type: :controller do
 
         context 'propagation du prefill (polling)' do
           render_views
-          let(:referentiel) { create(:api_referentiel, :configured) }
+          let(:referentiel) { create(:api_referentiel, :exact_match, :configured) }
           let(:referentiel_stable_id) { 1 }
           let(:types_de_champ_public) do
             [
@@ -2200,7 +2200,7 @@ describe Users::DossiersController, type: :controller do
           end
 
           it 'inclut le champ principal et les champs pré-remplis dans @to_update' do
-            dossier.champs.find(&:referentiel?).update_with_external_data!(data: { ok: 'valeur préremplie', repetition: [{ nom: 'Jeanne' }, { nom: "Bob" }, {}] })
+            dossier.champs.find(&:referentiel?).update_external_data!(data: { ok: 'valeur préremplie', repetition: [{ nom: 'Jeanne' }, { nom: "Bob" }, {}] })
 
             get :champ, params: { id: dossier.id, stable_id: referentiel_stable_id }, format: :turbo_stream
 

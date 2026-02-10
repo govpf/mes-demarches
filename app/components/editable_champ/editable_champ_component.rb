@@ -53,7 +53,7 @@ class EditableChamp::EditableChampComponent < ApplicationComponent
   end
 
   def stimulus_values
-    if @champ.fetch_external_data_pending?
+    if @champ.waiting_for_external_data?
       {
         turbo_poll_url_value:,
         turbo_poll_interval_value: 2_000,
@@ -77,7 +77,7 @@ class EditableChamp::EditableChampComponent < ApplicationComponent
       # This is an editable champ. Lets find what controllers it might need.
       controllers = ['autosave']
 
-      if @champ.fetch_external_data_pending?
+      if @champ.waiting_for_external_data?
         controllers << 'turbo-poll'
       end
 

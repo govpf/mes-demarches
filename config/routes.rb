@@ -179,7 +179,7 @@ Rails.application.routes.draw do
   end
 
   post 'password_complexity' => 'password_complexity#show', as: 'show_password_complexity'
-  get 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
+  post 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
 
   resources :targeted_user_links, only: [:show]
 
@@ -320,6 +320,7 @@ Rails.application.routes.draw do
     get 'activate' => '/users/activate#new'
     patch 'activate' => '/users/activate#create'
     get 'confirm_email/:token' => '/users/activate#confirm_email', as: :confirm_email
+    post 'resend_verification_email', to: '/users/activate#resend_verification_email', as: :resend_confirmation_email
   end
 
   # order matters: we don't want those routes to match /admin/procedures/:id
@@ -815,6 +816,7 @@ Rails.application.routes.draw do
 
       resources :referentiels, only: [:new, :create, :edit, :update], path: ':stable_id', constraints: { stable_id: /\d+/ } do
         member do
+          get :configuration_error
           get :mapping_type_de_champ
           patch :update_mapping_type_de_champ
           patch :update_prefill_and_display_type_de_champ
