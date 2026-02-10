@@ -1,42 +1,21 @@
-- content_for(:title, "Informations sur l’établissement")
+- content_for(:title, "Sélection de l'établissement")
 
 - content_for :footer do
   = render partial: "users/procedure_footer", locals: { procedure: @dossier.procedure, dossier: @dossier }
 
 .fr-mt-5w
   .container
-    %h1 Informations sur l’établissement
+    %h1 Sélection de l'établissement
 
-    - etablissement = @dossier.etablissement
+    %p
+      Nous avons trouvé plusieurs établissements pour le numéro TAHITI
+      %strong= @siret_prefix
 
-    - if etablissement.as_degraded_mode?
-      = render Dsfr::CalloutComponent.new(title: "Nous n'avons pas pu vérifier votre Numéro TAHITI", theme: :warning, icon: "fr-icon-feedback-fill") do |c|
-        - c.with_body do
-          %p
-            L'annuaire i-taiete des entreprises est indisponible, nous ne pouvons pas vérifier votre Numéro Tahiti.
-            %br
-            %br
-            Veuillez vérifier par vous-même que le numéro
-            %strong= pretty_siret(etablissement.siret)
-            correspond bien à votre entreprise :
+    %p
+      Veuillez sélectionner celui qui correspond à votre activité :
 
-          %p
-            = link_to annuaire_link(etablissement.siret), class: "fr-btn fr-btn--secondary", **external_link_attributes do
-              Vérifier dans l'annuaire des entreprises de l'ISPf
-
-    - elsif etablissement.diffusable_commercialement == false
-      %p= t('warning_for_private_info', scope: 'views.shared.dossiers.identite_entreprise', siret: pretty_siret(etablissement.siret))
-
-    - else
-      %p
-        Nous avons récupéré auprès de l'ISPF les informations suivantes concernant vos établissements.
-
-      %p
-        Veuillez préciser parmi la liste ci-dessous.
-
-      = render Dsfr::CalloutComponent.new(title: raison_sociale_or_name(etablissement)) do |c|
-        - c.with_body do
-          = render partial: 'users/dossiers/etablissement/other_etablissements', locals: { etablissement: etablissement, other_etablissements: @other_etablissements }
+    = render partial: 'users/dossiers/etablissement/etablissements_list',
+             locals: { siret_prefix: @siret_prefix, etablissements: @etablissements, dossier: @dossier }
 
     %ul.fr-mt-2w.fr-mb-5w.fr-btns-group.fr-btns-group--inline
       %li= link_to 'Utiliser un autre numéro TAHITI', siret_dossier_path(@dossier), class: 'fr-btn fr-btn--secondary'

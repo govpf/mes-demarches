@@ -4,21 +4,12 @@ module Users
   class CommencerController < ApplicationController
     layout 'procedure_context'
 
-    before_action :path_rewrite, only: [:commencer, :commencer_test, :dossier_vide_pdf, :dossier_vide_pdf_test, :sign_in, :sign_up, :france_connect, :procedure_for_help, :closing_details]
-
-    # TODO: REMOVE THIS
-    # this was only added because a administration needed new urls
-    # check from 07/2025 if this is still needed
-    def path_rewrite
-      path_rewrite = PathRewrite.find_by(from: params[:path])
-
-      params[:path] = path_rewrite.to if path_rewrite.present?
-    end
-
     def commencer
       @procedure = retrieve_procedure
 
       return procedure_not_found if @procedure.blank?
+
+      return redirect_to commencer_path(@procedure.path, **extra_query_params), status: :moved_permanently if @procedure.path && @procedure.path != params[:path]
 
       @revision = params[:test] ? @procedure.draft_revision : @procedure.active_revision
 
@@ -83,7 +74,7 @@ module Users
       return procedure_not_found if @procedure.blank?
 
       store_user_location!(@procedure)
-      redirect_to france_connect_particulier_path
+      redirect_to france_connect_path
     end
 
     def procedure_for_help
@@ -93,7 +84,7 @@ module Users
     def nav_bar_profile = nav_bar_user_or_guest
 
     def closing_details
-      @procedure = Procedure.find_by(path: params[:path])
+      @procedure = Procedure.find_with_path(params[:path]).first
 
       return procedure_not_found if @procedure.blank?
 
@@ -117,11 +108,11 @@ module Users
     end
 
     def retrieve_procedure
-      Procedure.publiees.or(Procedure.brouillons).find_by(path: params[:path]&.downcase)
+      Procedure.publiees.or(Procedure.brouillons).find_with_path(params[:path]).first
     end
 
     def retrieve_procedure_with_closed
-      Procedure.publiees.or(Procedure.brouillons).or(Procedure.closes).order(published_at: :desc).find_by(path: params[:path]&.downcase)
+      Procedure.publiees.or(Procedure.brouillons).or(Procedure.closes).order(published_at: :desc).find_with_path(params[:path]).first
     end
 
     def build_prefilled_dossier
@@ -130,7 +121,7 @@ module Users
         state: Dossier.states.fetch(:brouillon),
         prefilled: true
       )
-      @prefilled_dossier.build_default_individual
+      @prefilled_dossier.build_default_values
       if @prefilled_dossier.save
         @prefilled_dossier.prefill!(PrefillChamps.new(@prefilled_dossier, params.to_unsafe_h).to_a, PrefillIdentity.new(@prefilled_dossier, params.to_unsafe_h).to_h)
       end
@@ -145,7 +136,8 @@ module Users
     # The prefilled dossier is not owned yet, and the user is signed in: they become the new owner
     def set_prefilled_dossier_ownership
       @prefilled_dossier.update!(user: current_user)
-      DossierMailer.with(dossier: @prefilled_dossier).notify_new_draft.deliver_later
+      # pf: notifications différées pour réduire le spam (délai basé sur estimation de remplissage)
+      DraftNotificationJob.schedule_for_dossier(@prefilled_dossier)
     end
 
     # The prefilled dossier is owned by another user: raise an exception
@@ -154,7 +146,7 @@ module Users
     end
 
     def procedure_not_found
-      procedure = Procedure.find_by(path: params[:path])
+      procedure = Procedure.find_with_path(params[:path]).first
 
       if procedure&.replaced_by_procedure
         redirect_to commencer_path(procedure.replaced_by_procedure.path, **extra_query_params)

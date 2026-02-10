@@ -3,14 +3,19 @@
 module Administrateurs
   class AttestationTemplateV2sController < AdministrateurController
     before_action :retrieve_procedure
-    before_action :ensure_feature_active
     before_action :retrieve_attestation_template
     before_action :preload_revisions, only: [:edit, :update, :create]
 
     def show
       preview_dossier = @procedure.dossier_for_preview(current_user)
+      attributes = @attestation_template.render_attributes_for(dossier: preview_dossier)
 
-      @body = @attestation_template.render_attributes_for(dossier: preview_dossier).fetch(:body)
+      @body = attributes.fetch(:body)
+      @signature = attributes.fetch(:signature)
+
+      # pf: générer QR code pour la prévisualisation
+      @qrcode_url = admin_procedure_attestation_template_v2_path(@procedure, format: :pdf)
+      @qrcode_svg = @attestation_template.send(:generate_qrcode_svg, @qrcode_url)
 
       respond_to do |format|
         format.html do
@@ -18,7 +23,16 @@ module Administrateurs
         end
 
         format.pdf do
+          # pf: désactiver le cache navigateur pour la prévisualisation
+          response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+          response.headers['Pragma'] = 'no-cache'
+          response.headers['Expires'] = '0'
+
           html = render_to_string('/administrateurs/attestation_template_v2s/show', layout: 'attestation', formats: [:html])
+
+          # pf: debug temporaire - sauvegarder HTML pour inspection
+          # File.write("/tmp/attestation_debug_#{@procedure.id}.html", html)
+          # Rails.logger.info "HTML sauvegardé dans /tmp/attestation_debug_#{@procedure.id}.html"
 
           pdf = WeasyprintService.generate_pdf(html, procedure_id: @procedure.id, path: request.path, user_id: current_user.id)
 
@@ -107,10 +121,6 @@ module Administrateurs
     end
 
     private
-
-    def ensure_feature_active
-      redirect_to root_path if !@procedure.feature_enabled?(:attestation_v2)
-    end
 
     def retrieve_attestation_template
       v2s = @procedure.attestation_templates_v2

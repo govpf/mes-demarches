@@ -103,6 +103,11 @@ describe API::V2::GraphqlController do
             id
           }
         }
+        labels {
+          id
+          color
+          name
+        }
       }
     }"
   end
@@ -123,6 +128,18 @@ describe API::V2::GraphqlController do
     end
 
     describe "token authentication" do
+      describe 'logging' do
+        it "generates correct LogRage payload" do
+          @rs = nil
+          expect(controller).to receive(:request_logs).and_wrap_original do |m, *args|
+            @rs = m.call(*args)
+          end
+          gql_data
+          expect(@rs[:user_id]).to eq(admin.user.id)
+          expect(@rs[:user_roles]).to eq("User, Instructeur, Administrateur")
+        end
+      end
+
       it {
         expect(gql_errors).to eq(nil)
         expect(gql_data).not_to be_nil
@@ -177,7 +194,10 @@ describe API::V2::GraphqlController do
 
     describe "demarche" do
       describe "query a demarche" do
-        let(:procedure) { create(:procedure, :published, :for_individual, :with_service, :with_all_champs, :with_all_annotations, administrateurs: [admin]) }
+        let(:label) { build(:label) }
+        let(:procedure) {
+          create(:procedure, :published, :for_individual, :with_service, :with_all_champs, :with_all_annotations, administrateurs: [admin], labels: [label])
+        }
 
         def format_type_champ(type_champ)
           "#{type_champ.gsub('regions', 'region').gsub('departements', 'departement').gsub('communes', 'commune').gsub('nationalites', 'nationalite').camelcase}ChampDescriptor"
@@ -219,12 +239,13 @@ describe API::V2::GraphqlController do
                 description: tdc.description,
                 required: tdc.mandatory?,
                 champDescriptors: tdc.repetition? ? procedure.active_revision.children_of(tdc.reload).map { { id: _1.to_typed_id, __typename: format_type_champ(_1.type_champ) } } : nil,
-                options: tdc.drop_down_list? ? tdc.drop_down_options.reject(&:empty?) : nil
+                options: tdc.any_drop_down_list? ? tdc.drop_down_options.reject(&:empty?) : nil
               }.compact
             end,
             dossiers: {
               nodes: dossiers.map { { id: _1.to_typed_id } }
-            }
+            },
+            labels: [{ id: label.to_typed_id, color: label.color, name: label.name }]
           })
         end
       end
@@ -515,11 +536,11 @@ describe API::V2::GraphqlController do
             avis: []
           )
 
-          expected_champs = dossier.champs_public.map do |champ|
+          expected_champs = dossier.project_champs_public.map do |champ|
             {
               id: champ.to_typed_id,
               label: champ.libelle,
-              stringValue: champ.for_api_v2
+              stringValue: champ.type_de_champ.champ_value_for_api(champ)
             }
           end
           expect(gql_data[:dossier][:champs]).to match_array(expected_champs)
@@ -546,7 +567,7 @@ describe API::V2::GraphqlController do
           end
           expect(gql_data[:dossier][:messages]).to match_array(expected_messages)
 
-          expect(gql_data[:dossier][:champs][0][:id]).to eq(dossier.champs_public[0].type_de_champ.to_typed_id)
+          expect(gql_data[:dossier][:champs][0][:id]).to eq(dossier.project_champs_public[0].type_de_champ.to_typed_id)
         end
       end
 
@@ -688,10 +709,10 @@ describe API::V2::GraphqlController do
       context "champs" do
         let(:procedure) { create(:procedure, :published, :for_individual, administrateurs: [admin], types_de_champ_public: [{ type: :date }, { type: :datetime }]) }
         let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
-        let(:champ_date) { dossier.champs_public.first }
-        let(:champ_datetime) { dossier.champs_public.second }
         let(:date) { '2019-07-10' }
         let(:datetime) { '15/09/1962 15:35' }
+        let(:champ_date) { dossier.project_champs_public.first }
+        let(:champ_datetime) { dossier.project_champs_public.second }
 
         before do
           champ_date.update(value: date)
@@ -1204,7 +1225,7 @@ describe API::V2::GraphqlController do
           expect(gql_errors).to eq(nil)
 
           expect(gql_data).to eq(dossierChangerGroupeInstructeur: {
-            errors: [{ message: "Le dossier est déjà avec le grope instructeur: 'défaut'" }]
+            errors: [{ message: "Le dossier est déjà avec le groupe instructeur: 'défaut'" }]
           })
         end
 
@@ -1294,7 +1315,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationText(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type == 'Champs::TextChamp' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type == 'Champs::TextChamp' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: \"hello\"
               }) {
@@ -1328,7 +1349,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationPieceJustificative(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'piece_justificative' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'piece_justificative' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 attachment: \"#{blob_id}\"
               }) {
@@ -1385,7 +1406,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationCheckbox(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'checkbox' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'checkbox' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: #{value}
               }) {
@@ -1436,7 +1457,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationCheckbox(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'yes_no' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'yes_no' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: #{value}
               }) {
@@ -1486,7 +1507,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationDate(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'date' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'date' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: \"#{1.day.from_now.to_date.iso8601}\"
               }) {
@@ -1506,7 +1527,7 @@ describe API::V2::GraphqlController do
 
               expect(gql_data).to eq(dossierModifierAnnotationDate: {
                 annotation: {
-                  stringValue: dossier.reload.champs_private.find { |c| c.type_champ == 'date' }.to_s
+                  stringValue: dossier.reload.project_champs_private.find { |c| c.type_champ == 'date' }.to_s
                 },
                 errors: nil
               })
@@ -1521,7 +1542,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationDatetime(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'datetime' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'datetime' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: \"#{1.day.from_now.iso8601}\"
               }) {
@@ -1536,15 +1557,17 @@ describe API::V2::GraphqlController do
           end
 
           context "success" do
+            let(:dossier) { create(:dossier, :en_construction, :with_individual, procedure:) }
             it 'should be a success' do
               expect(gql_errors).to eq(nil)
 
               expect(gql_data).to eq(dossierModifierAnnotationDatetime: {
                 annotation: {
-                  stringValue: dossier.reload.champs_private.find { |c| c.type_champ == 'datetime' }.to_s
+                  stringValue: dossier.reload.project_champs_private.find { |c| c.type_champ == 'datetime' }.to_s
                 },
                 errors: nil
               })
+              expect(dossier.champs.first.value).not_to be_nil
             end
           end
         end
@@ -1556,7 +1579,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationDropDownList(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'drop_down_list' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'drop_down_list' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: \"#{value}\"
               }) {
@@ -1577,7 +1600,7 @@ describe API::V2::GraphqlController do
 
               expect(gql_data).to eq(dossierModifierAnnotationDropDownList: {
                 annotation: {
-                  stringValue: dossier.reload.champs_private.find { |c| c.type_champ == 'drop_down_list' }.to_s
+                  stringValue: dossier.reload.project_champs_private.find { |c| c.type_champ == 'drop_down_list' }.to_s
                 },
                 errors: nil
               })
@@ -1602,7 +1625,7 @@ describe API::V2::GraphqlController do
             "mutation {
               dossierModifierAnnotationIntegerNumber(input: {
                 dossierId: \"#{dossier.to_typed_id}\",
-                annotationId: \"#{dossier.champs_private.find { |c| c.type_champ == 'integer_number' }.to_typed_id}\",
+                annotationId: \"#{dossier.project_champs_private.find { |c| c.type_champ == 'integer_number' }.to_typed_id}\",
                 instructeurId: \"#{instructeur.to_typed_id}\",
                 value: 42
               }) {
@@ -1628,6 +1651,122 @@ describe API::V2::GraphqlController do
               })
             end
           end
+        end
+      end
+
+      describe 'dossierAjouterLabel' do
+        let(:label) { create(:label, procedure:) }
+        let(:query) do
+          "mutation {
+            dossierAjouterLabel(input: {
+              dossierId: \"#{dossier.to_typed_id}\",
+              labelId: \"#{label.to_typed_id}\"
+            }) {
+              dossier {
+                id
+                labels {
+                  id
+                  name
+                  color
+                }
+              }
+              errors {
+                message
+              }
+            }
+          }"
+        end
+
+        it "should add label to dossier" do
+          expect(gql_errors).to eq(nil)
+          expect(gql_data).to eq(dossierAjouterLabel: {
+            dossier: {
+              id: dossier.to_typed_id,
+              labels: [
+                {
+                  id: label.to_typed_id,
+                  name: label.name,
+                  color: label.color
+                }
+              ]
+            },
+            errors: nil
+          })
+
+          expect(dossier.labels).to match_array([label])
+        end
+
+        context 'validations' do
+          context "invalid label" do
+            let(:label) { create(:label) }
+
+            it "should return error" do
+              expect(gql_data).to eq(dossierAjouterLabel: {
+                dossier: nil,
+                errors: [{ message: "Ce label n’appartient pas à la même démarche que le dossier" }]
+              })
+            end
+          end
+
+          context 'label already associated' do
+            before { dossier.labels << label }
+            it "should return an error" do
+              expect(gql_data).to eq(dossierAjouterLabel: {
+                dossier: nil,
+                errors: [{ message: "Ce label est déjà associé au dossier" }]
+              })
+            end
+          end
+        end
+      end
+    end
+
+    describe 'dossierSupprimerLabel' do
+      let(:label) { create(:label, procedure:) }
+      let(:query) do
+        "mutation {
+            dossierSupprimerLabel(input: {
+              dossierId: \"#{dossier.to_typed_id}\",
+              labelId: \"#{label.to_typed_id}\"
+            }) {
+              dossier {
+                id
+                labels {
+                  id
+                  name
+                  color
+                }
+              }
+              errors {
+                message
+              }
+            }
+          }"
+      end
+
+      context 'success' do
+        before {
+          dossier.labels << label
+        }
+
+        it "should remove label to dossier" do
+          expect(gql_errors).to eq(nil)
+          expect(gql_data).to eq(dossierSupprimerLabel: {
+            dossier: {
+              id: dossier.to_typed_id,
+              labels: []
+            },
+            errors: nil
+          })
+        end
+      end
+
+      context 'label not associated' do
+        it "should return an error" do
+          expect(gql_data).to eq(dossierSupprimerLabel: {
+            dossier: nil,
+            errors: [{ message: "Ce label n’est pas associé au dossier" }]
+          })
         end
       end
     end

@@ -1,6 +1,6 @@
-@import "colors";
-@import "constants";
-@import "placeholders";
+@import 'colors';
+@import 'constants';
+@import 'placeholders';
 
 .button {
   @extend %outline;
@@ -11,7 +11,7 @@
   border: 1px solid $border-grey;
   font-size: 14px;
   line-height: 20px;
-  background-color: #FFFFFF;
+  background-color: #ffffff;
   color: $black;
   text-align: center;
   -webkit-appearance: none;
@@ -29,7 +29,7 @@
   }
 
   &.primary {
-    color: #FFFFFF;
+    color: #ffffff;
     border-color: $blue-france-700;
     background-color: $blue-france-700;
 
@@ -41,16 +41,16 @@
   &.secondary {
     color: $blue-france-700;
     border-color: $blue-france-700;
-    background-color: #FFFFFF;
+    background-color: #ffffff;
 
     &:hover:not(:disabled) {
-      color: #FFFFFF;
+      color: #ffffff;
       background: $blue-france-700;
     }
   }
 
   &.navbar {
-    color: #FFFFFF;
+    color: #ffffff;
     border-color: $yellow;
     background-color: $red;
 
@@ -63,10 +63,10 @@
   &.danger {
     color: $black;
     border-color: $border-grey;
-    background-color: #FFFFFF;
+    background-color: #ffffff;
 
     &:hover:not(:disabled) {
-      color: #FFFFFF;
+      color: #ffffff;
       border-color: $medium-red;
       background-color: $medium-red;
 
@@ -77,35 +77,35 @@
   }
 
   &.accepted {
-    color: #FFFFFF;
+    color: #ffffff;
     border-color: $green;
     background-color: $green;
 
     &:hover:not(:disabled) {
       color: $green;
-      background-color: #FFFFFF;
+      background-color: #ffffff;
     }
   }
 
   &.without-continuation {
-    color: #FFFFFF;
+    color: #ffffff;
     border-color: $black;
     background-color: $black;
 
     &:hover:not(:disabled) {
       color: $black;
-      background-color: #FFFFFF;
+      background-color: #ffffff;
     }
   }
 
   &.refused {
-    color: #FFFFFF;
+    color: #ffffff;
     border-color: $dark-red;
     background-color: $dark-red;
 
     &:hover:not(:disabled) {
       color: $dark-red;
-      background-color: #FFFFFF;
+      background-color: #ffffff;
     }
   }
 
@@ -162,10 +162,8 @@
   .dropdown-button {
     white-space: nowrap;
 
-    &::after {
-      content: "▾";
-      margin-left: $default-spacer;
-      font-weight: bold;
+    [aria-hidden='true'].fr-ml-2v::after {
+      content: '▾';
     }
 
     &.icon-only {
@@ -185,13 +183,12 @@
   }
 }
 
-
-[data-fr-theme="dark"] .dropdown-content {
+[data-fr-theme='dark'] .dropdown-content {
   border: none;
   background: var(--background-action-low-blue-france);
 }
 
-[data-fr-theme="dark"] .dropdown-items {
+[data-fr-theme='dark'] .dropdown-items {
   li {
     &:not(.inactive) {
       &:hover,
@@ -208,7 +205,7 @@
 
 .dropdown-content {
   border: 1px solid $border-grey;
-  background: #FFFFFF;
+  background: #ffffff;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
   position: absolute;
   right: 0;
@@ -245,6 +242,9 @@
       color: $dark-grey;
     }
   }
+  @media (max-width: 48em) {
+    left: 0;
+  }
 }
 
 ul.dropdown-items {
@@ -267,20 +267,20 @@ ul.dropdown-items {
   @media (min-width: 62em) {
     font-size: 0.875rem;
     padding: 0;
-    width: 360px;
+    width: 450px;
   }
 }
 
-.help-content.fr-menu ul.fr-menu__list li {
+.help-content.fr-menu ul.fr-menu__list > li {
   padding: 0.75rem 1rem;
 
   @media (min-width: 62em) {
-    padding-right: 1rem;
+    padding-right: 2.5rem;
     padding-left: 1rem;
   }
 }
 
-.help-content.fr-menu ul.fr-menu__list li:not(:last-child) {
+.help-content.fr-menu ul.fr-menu__list > li:not(:last-child) {
   @media (min-width: 62em) {
     border-bottom: 1px solid $border-grey;
   }
@@ -294,7 +294,7 @@ ul.dropdown-items {
   }
 
   dd {
-    word-break: break-all;
+    word-break: break-word;
   }
 }
 
@@ -356,12 +356,13 @@ ul.dropdown-items {
 
     // Make child links fill the whole clickable area
     > a,
-      .dropdown-items-link {
+    .dropdown-items-link {
       display: flex;
       flex-grow: 1;
       margin: -$default-padding;
       padding: $default-padding;
       text-align: left;
+      align-items: baseline;
     }
 
     .icon {
@@ -379,7 +380,7 @@ ul.dropdown-items {
   }
 
   p + h4,
-  p + p, {
+  p + p {
     margin-top: $default-spacer;
   }
 }
@@ -400,7 +401,11 @@ ul.dropdown-items {
   }
 
   &.large {
-    width: 340px;
+    width: 90vw;
+
+    @media (min-width: 62em) {
+      width: 40vw;
+    }
   }
 
   ul {
@@ -418,8 +423,14 @@ ul.dropdown-items {
 
 .account-btn {
   flex-wrap: wrap;
+  hyphens: auto;
+  text-align: left;
 
   &::before {
     content: none !important;
   }
+}
+
+.back-btn {
+  line-height: 1.75rem;
 }

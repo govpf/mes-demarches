@@ -11,6 +11,12 @@ ActiveSupport.on_load(:active_storage_blob) do
   include BlobVirusScannerConcern
   include BlobSignedIdConcern
 
+  ActiveStorage::Blob.class_eval do
+    def purge_later
+      DelayedPurgeJob.perform_later(self)
+    end
+  end
+
   def self.generate_unique_secure_token(length: MINIMUM_TOKEN_LENGTH)
     token = super
     "#{Time.current.strftime('%Y/%m/%d')}/#{token[0..1]}/#{token}"
@@ -18,13 +24,18 @@ ActiveSupport.on_load(:active_storage_blob) do
 end
 
 ActiveSupport.on_load(:active_storage_attachment) do
-  include AttachmentImageProcessorConcern
   include AttachmentVirusScannerConcern
+  include AttachmentImageProcessorConcern
 end
 
 Rails.application.reloader.to_prepare do
   class ActiveStorage::BaseJob
     include ActiveJob::RetryOnTransientErrors
+  end
+
+  class ActiveStorage::BaseController
+    # same store as ApplicationController
+    protect_from_forgery with: :exception, store: :cookie
   end
 end
 

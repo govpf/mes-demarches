@@ -3,15 +3,26 @@
     = page_entries_info dossiers
 
   - dossiers.each do |dossier|
-    .card
+    .card{ id: "dossier_#{dossier.id}" }
       .flex.justify-between
         %div
           %h3.card-title
             - if ["dossiers-transferes", "dossiers-supprimes"].exclude?(@statut)
-              = link_to(url_for_dossier(dossier), class: 'cell-link') do
+              = link_to(url_for_dossier(dossier)) do
                 = dossier.procedure.libelle
             - else
               = dossier.procedure.libelle
+
+          .badge_info.fr-mb-1w.fr-hidden-md
+            %p.fr-mb-0.width-max-content
+              = t('views.users.dossiers.dossiers_list.n_dossier')
+              = number_with_html_delimiter(dossier.id)
+
+            = status_badge_user(dossier, 'fr-mb-1w')
+
+            - if dossier.pending_correction?
+              %br
+              = pending_correction_badge(:for_user)
 
           %p.fr-icon--sm.fr-icon-user-line
             = demandeur_dossier(dossier)
@@ -38,7 +49,7 @@
                 = t('views.users.dossiers.dossiers_list.shared_with', owner: dossier.user_email_for(:display))
                 = dossier.invites.map(&:email).join(', ')
 
-        .text-right
+        .badge_info.text-right.fr-hidden.unhidden-md
           %p.fr-mb-0.width-max-content
             = t('views.users.dossiers.dossiers_list.n_dossier')
             = number_with_html_delimiter(dossier.id)
@@ -53,15 +64,15 @@
         = render Dsfr::AlertComponent.new(state: :info, size: :sm, extra_class_names: "fr-mb-2w") do |c|
           - c.with_body do
             %p
-              - if dossier.brouillon? && dossier.procedure.closing_reason_internal_procedure?
+              - if dossier.brouillon? && dossier.procedure.closing_reason_internal_procedure? && dossier.procedure.replaced_by_procedure.present?
                 = t('views.users.dossiers.dossiers_list.procedure_closed.brouillon.internal_procedure_html', link: link_to(t('views.users.dossiers.dossiers_list.procedure_closed.procedure'), commencer_path(dossier.procedure.replaced_by_procedure.path), **external_link_attributes, title: new_tab_suffix(t('views.users.dossiers.dossiers_list.procedure_closed.title_new_procedure'))).html_safe)
               - elsif dossier.brouillon?
                 = t('views.users.dossiers.dossiers_list.procedure_closed.brouillon.other_html', link: link_to(t('views.users.dossiers.dossiers_list.procedure_closed.more_details'), closing_details_path(dossier.procedure.path), **external_link_attributes, title: new_tab_suffix(t('views.users.dossiers.dossiers_list.procedure_closed.title_closing_details'))).html_safe)
-              - elsif dossier.en_construction_ou_instruction? && dossier.procedure.closing_reason_internal_procedure?
+              - elsif dossier.en_construction_ou_instruction? && dossier.procedure.closing_reason_internal_procedure? && dossier.procedure.replaced_by_procedure.present?
                 = t('views.users.dossiers.dossiers_list.procedure_closed.en_cours.internal_procedure_html', link: link_to(t('views.users.dossiers.dossiers_list.procedure_closed.procedure'), commencer_path(dossier.procedure.replaced_by_procedure.path), **external_link_attributes, title: new_tab_suffix(t('views.users.dossiers.dossiers_list.procedure_closed.title_new_procedure'))).html_safe)
               - elsif dossier.en_construction_ou_instruction?
                 = t('views.users.dossiers.dossiers_list.procedure_closed.en_cours.other_html', link: link_to(t('views.users.dossiers.dossiers_list.procedure_closed.more_details'), closing_details_path(dossier.procedure.path), **external_link_attributes, title: new_tab_suffix(t('views.users.dossiers.dossiers_list.procedure_closed.title_closing_details'))).html_safe)
-              - elsif dossier.termine? && dossier.procedure.closing_reason_internal_procedure?
+              - elsif dossier.termine? && dossier.procedure.closing_reason_internal_procedure? && dossier.procedure.replaced_by_procedure.present?
                 = t('views.users.dossiers.dossiers_list.procedure_closed.termine.internal_procedure_html', link: link_to(t('views.users.dossiers.dossiers_list.procedure_closed.this_procedure'), commencer_path(dossier.procedure.replaced_by_procedure.path), **external_link_attributes, title: new_tab_suffix(t('views.users.dossiers.dossiers_list.procedure_closed.title_new_procedure'))).html_safe)
               - elsif dossier.termine?
                 = t('views.users.dossiers.dossiers_list.procedure_closed.termine.other_html', link: link_to(t('views.users.dossiers.dossiers_list.procedure_closed.more_details'), closing_details_path(dossier.procedure.path), **external_link_attributes, title: new_tab_suffix(t('views.users.dossiers.dossiers_list.procedure_closed.title_closing_details'))).html_safe)
@@ -97,23 +108,32 @@
 
 
       - if ["dossiers-transferes", "dossiers-supprimes"].exclude?(@statut)
-        .flex.justify-end
+        .flex.justify-end.no-flex-xs
           = render partial: 'dossier_actions', locals: { dossier: dossier }
 
       - if @statut == "dossiers-supprimes"
-        .flex.justify-end
+        .flex.justify-end.no-flex-xs
           - if dossier.hidden_by_reason != 'expired'
-            = link_to restore_dossier_path(dossier.id), method: :patch, class: "fr-btn fr-btn--sm" do
-              Restaurer
+            %ul.fr-btns-group.fr-btns-group--inline-md.fr-btns-group--icon-left.fr-btns-group--sm
+              %li
+                = link_to restore_dossier_path(dossier.id), method: :patch, class: "fr-btn fr-btn--sm" do
+                  Restaurer
 
           - else
             - if dossier.expiration_can_be_extended?
-              = button_to users_dossier_repousser_expiration_and_restore_path(dossier), class: 'fr-btn fr-btn--sm' do
-                Restaurer et étendre la conservation
+              %ul.fr-btns-group.fr-btns-group--inline-md.fr-btns-group--icon-left.fr-btns-group--sm
+                %li
+                  = button_to users_dossier_repousser_expiration_and_restore_path(dossier), class: 'fr-btn fr-btn--sm' do
+                    Restaurer et étendre la conservation (#{dossier.procedure.duree_conservation_dossiers_dans_ds} mois)
 
 
             - else
-              = render(partial: 'users/dossiers/show/download_dossier', locals: { dossier: dossier })
+              .flex.justify-end.no-flex-xs
+                %ul.fr-btns-group.fr-btns-group--inline-md.fr-btns-group--icon-left.fr-btns-group--sm
+                  %li
+                    = render(partial: 'users/dossiers/show/download_dossier', locals: { dossier: dossier })
+                  %li
+                    = render(partial: 'users/dossiers/show/download_attestation', locals: { dossier: dossier })
 
   = paginate dossiers, views_prefix: 'shared'
 

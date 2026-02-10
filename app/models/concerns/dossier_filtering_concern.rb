@@ -28,10 +28,13 @@ module DossierFilteringConcern
       end
     }
 
-    scope :filter_ilike, lambda { |table, column, values|
-      table_column = ProcedurePresentation.sanitized_column(table, column)
-      q = Array.new(values.count, "(#{table_column} ILIKE ?)").join(' OR ')
-      where(q, *(values.map { |value| "%#{value}%" }))
+    scope :filter_ilike, lambda { |table, column, search_terms|
+      safe_quoted_terms = search_terms.map(&:strip).map { "%#{sanitize_sql_like(_1)}%" }
+      table_column = DossierFilterService.sanitized_column(table, column)
+
+      where("unaccent(#{table_column}) ILIKE ANY (ARRAY((SELECT unaccent(unnest(ARRAY[?])))))", safe_quoted_terms)
     }
+
+    def sanitize_sql_like(q) = ActiveRecord::Base.sanitize_sql_like(q)
   end
 end

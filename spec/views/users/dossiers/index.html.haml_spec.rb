@@ -45,8 +45,10 @@ describe 'users/dossiers/index', type: :view do
     expect(rendered).to have_text(dossier_en_construction.procedure.libelle)
     expect(rendered).to have_link(dossier_en_construction.procedure.libelle, href: dossier_path(dossier_en_construction))
 
-    expect(rendered).to have_selector('.fr-badge', text: 'traité', count: 1)
-    expect(rendered).to have_selector('.fr-badge', text: 'en construction', count: 2)
+    expect(rendered).to have_selector('.unhidden-md .fr-badge', text: 'traité', count: 1)
+    expect(rendered).to have_selector('.fr-hidden-md .fr-badge', text: 'traité', count: 1)
+    expect(rendered).to have_selector('.unhidden-md .fr-badge', text: 'en construction', count: 2)
+    expect(rendered).to have_selector('.fr-hidden-md .fr-badge', text: 'en construction', count: 2)
   end
 
   it 'n’affiche pas une alerte pour continuer à remplir un dossier' do
@@ -107,18 +109,18 @@ describe 'users/dossiers/index', type: :view do
     let(:dossiers_traites) { create_list(:dossier, 1) }
 
     it "displays the hide by user at button" do
-      expect(rendered).to have_text("Supprimer le dossier")
+      expect(rendered).to have_text("Mettre à la corbeille")
     end
   end
 
   context 'caching', caching: true do
     it "works" do
-      expect(user_dossiers).to receive(:present?).once
+      expect(user_dossiers).to receive(:present?).thrice
       2.times { render; user.reload }
     end
 
     it "cache key depends on statut" do
-      expect(user_dossiers).to receive(:present?).twice
+      expect(user_dossiers).to receive(:present?).exactly(4).times
       render
 
       assign(:statut, "termines")
@@ -128,8 +130,10 @@ describe 'users/dossiers/index', type: :view do
     end
 
     it "cache key depends on dossier updated_at" do
-      expect(user_dossiers).to receive(:present?).twice
+      expect(user_dossiers).to receive(:present?).exactly(4).times
       render
+
+      travel(1.minute)
 
       dossier_termine.touch
       user.reload
@@ -149,7 +153,7 @@ describe 'users/dossiers/index', type: :view do
     end
 
     it "cache key depends on dossier invites" do
-      expect(user_dossiers).to receive(:present?).twice
+      expect(user_dossiers).to receive(:present?).exactly(4).times
       render
 
       create(:invite, user:)
@@ -159,8 +163,10 @@ describe 'users/dossiers/index', type: :view do
     end
 
     it "cache key depends on dossier deletion" do
-      expect(user_dossiers).to receive(:present?).twice
+      expect(user_dossiers).to receive(:present?).exactly(4).times
       render
+
+      travel(1.minute)
 
       dossier_termine.hide_and_keep_track!(:automatic, :expired)
       user.reload

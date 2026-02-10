@@ -7,6 +7,7 @@ en:
     attributes:
       procedure:
         hints:
+          api_entreprise_token: 'For example: eyJhbGciOiJIUzI1NiJ9.eyJ1...'
           description: Describe in a few lines the context, the aim etc.
           description_target_audience: Describe in a few lines the final recipients of the process, the eligibility criteria if there are any, the prerequisites, etc.
           description_pj: Describe the required attachments list if there is any
@@ -38,16 +39,24 @@ en:
         duree_conservation_dossiers_dans_ds: Duration files will be kept
         max_duree_conservation_dossiers_dans_ds: Max duration allowed to keep files
         for_tiers_enabled: Enable a third party to submit a file
+        api_state:
+          brouillon: Draft
+          publiee: Published
+          close: Closed
+          hidden: Destroyed
+          depubliee: Unpublished
         aasm_state:
           brouillon: Draft
           publiee: Published
           close: Closed
           hidden: Destroyed
+          depubliee: Unpublished
         kind_usager:
           individual: Individual
           personne_morale: 'Legal entity'
         declarative_with_state/en_instruction: Instruction
         declarative_with_state/accepte: Accepted
+        api_entreprise_token: Token API Entreprise
         api_particulier_token: Token API Particulier
         initiated_mail: File sorted for processing notification email
         received_mail: File submitted notification email
@@ -64,6 +73,8 @@ en:
         aasm_state: Status
         admin_count: Administrators count
         template: Is a template
+      procedure/procedure_paths:
+        path: Public link
     errors:
       models:
         procedure:
@@ -75,14 +86,19 @@ en:
               invalid_condition: "have an invalid logic"
               empty_repetition: 'requires at least one field'
               empty_drop_down: 'requires at least one option'
+              empty_csv: 'requires at least one csv file'
               inconsistent_header_section: "%{custom_message}"
+              missing_libelle: "field label in position %{position} must be filled"
               expression_reguliere_invalid: "is invalid"
+              referentiel_not_ready: "is not configured"
             draft_types_de_champ_private:
               format: 'Private field %{message}'
               invalid_condition: "have an invalid logic"
               empty_repetition: 'requires at least one field'
               empty_drop_down: 'requires at least one option'
+              empty_csv: 'requires at least one csv file'
               inconsistent_header_section: "%{custom_message}"
+              missing_libelle: "field label in position %{position} must be filled"
               expression_reguliere_invalid: "is invalid"
             attestation_template:
               format: "%{attribute} %{message}"

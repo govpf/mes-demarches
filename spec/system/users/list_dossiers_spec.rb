@@ -72,7 +72,7 @@ describe 'user access to the list of their dossiers', js: true do
     let(:individual) { dossier_for_tiers.individual }
 
     it 'displays the name of the mandataire' do
-      expect(page).to have_content("#{individual.prenom} #{individual.nom}, dossier rempli par #{dossier_for_tiers.mandataire_full_name}")
+      expect(page).to have_content("#{dossier_for_tiers.mandataire_full_name} (pour #{individual.prenom} #{individual.nom})")
     end
   end
 
@@ -179,18 +179,18 @@ describe 'user access to the list of their dossiers', js: true do
 
   describe 'deletion' do
     it 'should have links to delete dossiers' do
-      expect(page).to have_link('Supprimer le dossier', href: dossier_path(dossier_brouillon))
-      expect(page).to have_link('Supprimer le dossier', href: dossier_path(dossier_en_construction))
-      expect(page).not_to have_link('Supprimer le dossier', href: dossier_path(dossier_en_instruction))
+      expect(page).to have_link('Mettre à la corbeille', href: dossier_path(dossier_brouillon))
+      expect(page).to have_link('Mettre à la corbeille', href: dossier_path(dossier_en_construction))
+      expect(page).not_to have_link('Mettre à la corbeille', href: dossier_path(dossier_en_instruction))
     end
 
     context 'when user clicks on delete button' do
       scenario 'the dossier is deleted' do
         expect(page).to have_content(dossier_en_construction.procedure.libelle)
-        within(:css, ".card", match: :first) do
+        within(:css, "#dossier_#{dossier_en_construction.id}", match: :first) do
           click_on 'Autres actions'
           accept_alert('Confirmer la suppression ?') do
-            click_on 'Supprimer le dossier'
+            click_on 'Mettre à la corbeille'
           end
         end
 
@@ -221,7 +221,7 @@ describe 'user access to the list of their dossiers', js: true do
 
   describe 'restore' do
     it 'should have links to restore dossiers' do
-      click_on "3 supprimés"
+      within('.fr-tabs__list') { click_on "corbeille" }
       expect(page).to have_link('Restaurer', href: restore_dossier_path(dossier_en_construction_supprime))
       expect(page).to have_button('Restaurer et étendre la conservation')
       expect(page).to have_link('Télécharger mon dossier', href: dossier_path("#{dossier_traite_expire.id}.pdf"))
@@ -229,29 +229,27 @@ describe 'user access to the list of their dossiers', js: true do
 
     context 'when user clicks on restore button' do
       scenario 'the dossier is restored' do
-        click_on "3 supprimés"
+        within('.fr-tabs__list') { click_on "corbeille" }
         expect(page).to have_content(dossier_en_construction_supprime.procedure.libelle)
         click_on 'Restaurer'
 
         expect(page).to have_content('Votre dossier a bien été restauré')
-        expect(page).to have_content('2 supprimés')
       end
     end
 
     context 'when user clicks on restore and extend button' do
       scenario 'the dossier is restored and extended' do
-        click_on "3 supprimés"
+        within('.fr-tabs__list') { click_on "corbeille" }
         expect(page).to have_content(dossier_en_construction_expire.procedure.libelle)
         click_on 'Restaurer et étendre la conservation'
 
         expect(page).to have_content('Votre dossier sera conservé 3 mois supplémentaire')
-        expect(page).to have_content('2 supprimés')
       end
     end
 
     context 'when user download PDF of expired' do
       scenario "generate PDF" do
-        click_on "3 supprimés"
+        within('.fr-tabs__list') { click_on "corbeille" }
         click_on 'Télécharger mon dossier', match: :first
         # Test fails when an error happens during PDF generation
       end
@@ -306,7 +304,7 @@ describe 'user access to the list of their dossiers', js: true do
 
     context "when user search for something inside the dossier" do
       before do
-        page.find_by_id('q').set(dossier_en_construction.champs_public.first.value)
+        page.find_by_id('q').set(dossier_en_construction.project_champs_public.first.value)
       end
 
       context 'when it matches multiple dossiers' do
@@ -336,7 +334,7 @@ describe 'user access to the list of their dossiers', js: true do
           click_on 'Afficher'
           expect(page).not_to have_link(String(dossier_en_construction.id))
           expect(page).not_to have_link(String(dossier_with_champs.id))
-          expect(page).to have_content("Résultat de la recherche pour « #{dossier_en_construction.champs_public.first.value} » et pour la procédure « #{dossier_brouillon.procedure.libelle} » ")
+          expect(page).to have_content("Résultat de la recherche pour « #{dossier_en_construction.project_champs_public.first.value} » et pour la procédure « #{dossier_brouillon.procedure.libelle} » ")
           expect(page).to have_text("Aucun dossier")
         end
       end

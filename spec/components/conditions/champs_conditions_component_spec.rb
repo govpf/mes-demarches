@@ -123,11 +123,23 @@ describe Conditions::ChampsConditionsComponent, type: :component do
           let(:regions) { create(:type_de_champ_regions) }
           let(:upper_tdcs) { [regions] }
           let(:condition) { empty_operator(champ_value(regions.stable_id), constant(true)) }
-          let(:region_options) { APIGeoService.regions.map { "#{_1[:code]} – #{_1[:name]}" } }
+          let(:region_options) { APIGeoService.regions.map { _1[:name] } }
 
           it do
             expect(page).to have_select('type_de_champ[condition_form][rows][][operator_name]', with_options: ['Est'])
             expect(page).to have_select('type_de_champ[condition_form][rows][][value]', options: (['Sélectionner'] + region_options))
+          end
+        end
+
+        context 'pays' do
+          let(:pays) { create(:type_de_champ_pays) }
+          let(:upper_tdcs) { [pays] }
+          let(:condition) { empty_operator(champ_value(pays.stable_id), constant(true)) }
+          let(:pays_options) { APIGeoService.countries.map { "#{_1[:name]} – #{_1[:code]}" } }
+
+          it do
+            expect(page).to have_select('type_de_champ[condition_form][rows][][operator_name]', with_options: ['Est'])
+            expect(page).to have_select('type_de_champ[condition_form][rows][][value]', options: (['Sélectionner'] + pays_options))
           end
         end
 

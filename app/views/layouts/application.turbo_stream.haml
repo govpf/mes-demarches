@@ -1,7 +1,10 @@
-- if flash.any?
-  = turbo_stream.replace 'flash_messages', partial: 'layouts/flash_messages'
+- displayable_flash = flash.filter { |key, _| key.in?(['notice', 'alert']) }
+- if displayable_flash.any?
+  - unique_classname= "u#{SecureRandom.hex}"
+  = turbo_stream.replace 'flash_messages', partial: 'layouts/flash_messages', locals: { unique_classname: }
+  = turbo_stream.focus 'flash_messages'
   = turbo_stream.show 'flash_messages'
-  = turbo_stream.hide 'flash_messages', delay: 30000
+  = turbo_stream.hide_all ".#{unique_classname}", delay: 15000
   - flash.clear
 
 = yield

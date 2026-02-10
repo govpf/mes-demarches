@@ -18,14 +18,19 @@ module Expired
   # User are always reminded two weeks prior expiracy (for their account as well as their dossier)
   REMAINING_WEEKS_BEFORE_EXPIRATION = 2
 
+  # A dossier is considered expired after 3 months max of inactivity
+  MONTHS_BEFORE_BROUILLON_EXPIRATION = 3
+
   # Expiracy jobs are run daily.
   #   it send a lot o email, so we spread our jobs through the day
   def self.schedule_at(caller)
     case caller.name
+    when 'Cron::NeverTouchedDossiersBrouillonDeletionJob'
+      "every day at 5 am"
     when 'Cron::ExpiredPrefilledDossiersDeletionJob'
       "every day at 3 am"
     when 'Cron::ExpiredDossiersTermineDeletionJob'
-      "every day at 7 am"
+      "every day at 1 am"
     when 'Cron::ExpiredDossiersBrouillonDeletionJob'
       "every day at 10 pm"
     when 'Cron::ExpiredUsersDeletionJob'

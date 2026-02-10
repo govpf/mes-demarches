@@ -12,12 +12,12 @@ describe 'users/dossiers/show/header', type: :view do
 
   it 'affiche les informations du dossier' do
     expect(rendered).to have_text(dossier.procedure.libelle)
-    expect(rendered).to have_text("Dossier nº #{dossier.id}")
+    expect(rendered).to have_text("Dossier numéro nº #{dossier.id}")
     expect(rendered).to have_text("en construction")
 
     expect(rendered).to have_selector("nav.fr-tabs")
-    expect(rendered).to have_link("Résumé", href: dossier_path(dossier))
-    expect(rendered).to have_link("Demande", href: demande_dossier_path(dossier))
+    expect(rendered).to have_link("Suivi de votre dossier", href: dossier_path(dossier))
+    expect(rendered).to have_link("Votre dossier", href: demande_dossier_path(dossier))
   end
 
   context "when the procedure is with accuse de lecture with a dossier en construction" do
@@ -25,7 +25,7 @@ describe 'users/dossiers/show/header', type: :view do
     let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
 
     it "affiche les informations du dossier" do
-      expect(rendered).to have_text("Dossier nº #{dossier.id}")
+      expect(rendered).to have_text("Dossier numéro nº #{dossier.id}")
       expect(rendered).to have_text("en construction")
     end
   end
@@ -35,7 +35,7 @@ describe 'users/dossiers/show/header', type: :view do
     let(:dossier) { create(:dossier, :accepte, procedure: procedure) }
 
     it "n'affiche pas les informations de décision" do
-      expect(rendered).to have_text("Dossier nº #{dossier.id}")
+      expect(rendered).to have_text("Dossier numéro nº #{dossier.id}")
       expect(rendered).to have_text("traité")
     end
   end

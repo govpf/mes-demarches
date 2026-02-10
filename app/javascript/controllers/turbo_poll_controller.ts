@@ -1,9 +1,7 @@
 import { httpRequest } from '@utils';
 
+import { startPolling, type PollingStrategy } from '~/shared/polling';
 import { ApplicationController } from './application_controller';
-
-const DEFAULT_POLL_INTERVAL = 3000;
-const DEFAULT_MAX_CHECKS = 20;
 
 // Periodically check the state of a URL.
 //
@@ -14,83 +12,30 @@ const DEFAULT_MAX_CHECKS = 20;
 export class TurboPollController extends ApplicationController {
   static values = {
     url: String,
-    maxChecks: { type: Number, default: DEFAULT_MAX_CHECKS },
-    interval: { type: Number, default: DEFAULT_POLL_INTERVAL }
+    strategy: { type: String, default: 'fibonacci' },
+    interval: { type: Number, default: 2000 }
   };
 
   declare readonly urlValue: string;
-  declare readonly intervalValue: number;
-  declare readonly maxChecksValue: number;
+  declare readonly strategyValue: PollingStrategy;
+  declare readonly intervalValue?: number;
 
-  #timer?: ReturnType<typeof setTimeout>;
-  #abortController?: AbortController;
+  #stop?: () => void;
 
   connect(): void {
-    this.schedule();
+    this.#stop = startPolling((signal) => this.refresh(signal), {
+      strategy: this.strategyValue,
+      baseDelay: this.intervalValue,
+      jitter: true,
+      isActive: () => !document.hidden
+    });
   }
 
   disconnect(): void {
-    this.cancel();
+    this.#stop?.();
   }
 
-  refresh() {
-    this.#abortController = new AbortController();
-
-    httpRequest(this.urlValue, { signal: this.#abortController.signal })
-      .turbo()
-      .catch(() => null);
-  }
-
-  private schedule(): void {
-    this.cancel();
-    this.#timer = setInterval(() => {
-      const nextState = this.nextState();
-
-      if (!nextState) {
-        this.cancel();
-      } else {
-        this.refresh();
-      }
-    }, this.intervalValue);
-  }
-
-  private cancel(): void {
-    clearInterval(this.#timer);
-    this.#abortController?.abort();
-    this.#abortController = window.AbortController
-      ? new AbortController()
-      : undefined;
-  }
-
-  private nextState(): PollState | false {
-    const state = pollers.get(this.urlValue);
-
-    if (!state) {
-      return this.resetState();
-    }
-
-    state.checks += 1;
-    if (state.checks <= this.maxChecksValue) {
-      return state;
-    } else {
-      this.resetState();
-      return false;
-    }
-  }
-
-  private resetState(): PollState {
-    const state = {
-      interval: this.intervalValue,
-      checks: 0
-    };
-    pollers.set(this.urlValue, state);
-    return state;
+  async refresh(signal?: AbortSignal) {
+    await httpRequest(this.urlValue, { signal }).turbo();
   }
 }
-
-type PollState = {
-  checks: number;
-};
-
-// We keep a global state of the pollers. It will be reset on every page change.
-const pollers = new Map<string, PollState>();

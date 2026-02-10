@@ -6,7 +6,7 @@ describe 'The routing with rules', js: true do
   let(:procedure) do
     create(:procedure, :with_service, :for_individual, :with_zone, types_de_champ_public: [
       { type: :text, libelle: 'un premier champ text', mandatory: false },
-      { type: :drop_down_list, libelle: 'Spécialité', options: ["", "littéraire", "scientifique", "artistique"], mandatory: false }
+      { type: :drop_down_list, libelle: 'Spécialité', options: ["littéraire", "scientifique", "artistique"], mandatory: false }
     ])
   end
   let(:administrateur) { create(:administrateur, procedures: [procedure]) }
@@ -18,13 +18,13 @@ describe 'The routing with rules', js: true do
     procedure.defaut_groupe_instructeur.instructeurs << administrateur.instructeur
   end
 
-  scenario 'Routage à partir d’un champ' do
+  scenario 'Configuration automatique du routage' do
     steps_to_routing_configuration
 
-    choose('À partir d’un champ', allow_label_click: true)
+    choose('Automatique', allow_label_click: true)
     click_on 'Continuer'
 
-    expect(page).to have_text('Routage à partir d’un champ')
+    expect(page).to have_text('Configuration automatique')
 
     choose('Spécialité', allow_label_click: true)
     click_on 'Créer les groupes'
@@ -33,70 +33,89 @@ describe 'The routing with rules', js: true do
     expect(page).to have_text('3 groupes')
     expect(page).not_to have_text('à configurer')
 
+    # close modal - ensure it's present and force it to be opened
+    expect(page).to have_selector("#routing-mode-modal")
+    # Force open the modal using JavaScript since DSFR might interfere
+    page.execute_script("document.getElementById('routing-mode-modal').classList.add('fr-modal--opened')")
+    within("#routing-mode-modal") { click_on "Fermer" }
+    page.execute_script("document.getElementById('routing-mode-modal').classList.remove('fr-modal--opened')")
+    expect(page).not_to have_selector("#routing-mode-modal.fr-modal--opened")
+
     click_on 'littéraire'
     expect(page).to have_select("groupe_instructeur[condition_form][rows][][targeted_champ]", selected: "Spécialité")
     expect(page).to have_select("groupe_instructeur[condition_form][rows][][value]", selected: "littéraire")
 
-    click_on '3 groupes'
+    click_on 'Revenir à la liste'
     click_on 'scientifique'
 
     expect(page).to have_select("groupe_instructeur[condition_form][rows][][targeted_champ]", selected: "Spécialité")
     expect(page).to have_select("groupe_instructeur[condition_form][rows][][value]", selected: "scientifique")
   end
 
-  scenario 'Routage avancé' do
+  scenario 'Configuration manuelle du routage' do
     steps_to_routing_configuration
 
-    choose('Avancé', allow_label_click: true)
+    choose('Manuelle', allow_label_click: true)
     click_on 'Continuer'
 
     expect(page).to have_text('Gestion des groupes')
-    expect(page).to have_text('règle invalide')
+    expect(page).to have_text('aucune règle')
+
+    # close modal - ensure it's present and force it to be opened
+    expect(page).to have_selector("#routing-mode-modal")
+    # Force open the modal using JavaScript since DSFR might interfere
+    page.execute_script("document.getElementById('routing-mode-modal').classList.add('fr-modal--opened')")
+    within("#routing-mode-modal") { click_on "Fermer" }
+    page.execute_script("document.getElementById('routing-mode-modal').classList.remove('fr-modal--opened')")
+    expect(page).not_to have_selector("#routing-mode-modal.fr-modal--opened")
 
     # update defaut groupe
-    click_on 'défaut'
+    click_on 'Groupe 1 (à renommer et configurer)'
     expect(page).to have_text('Paramètres du groupe')
     fill_in 'Nom du groupe', with: 'littéraire'
     click_on 'Renommer'
     expect(page).to have_text('Le nom est à présent « littéraire ». ')
 
     # add victor to littéraire groupe
-    fill_in 'Emails', with: 'victor@gouv.fr'
+    select_combobox('Emails', 'victor@gouv.fr', custom_value: true)
+
     perform_enqueued_jobs { click_on 'Affecter' }
     expect(page).to have_text("L’instructeur victor@gouv.fr a été affecté")
 
     victor = User.find_by(email: 'victor@gouv.fr').instructeur
 
     # add alain to littéraire groupe
-    fill_in 'Emails', with: 'alain@gouv.fr'
+    select_combobox('Emails', 'alain@gouv.fr', custom_value: true)
+
     perform_enqueued_jobs { click_on 'Affecter' }
     expect(page).to have_text("L’instructeur alain@gouv.fr a été affecté")
 
     alain = User.find_by(email: 'alain@gouv.fr').instructeur
 
     # add inactive groupe
-    click_on 'Ajout de groupes'
+    visit ajout_admin_procedure_groupe_instructeurs_path(procedure)
     fill_in 'Nouveau groupe', with: 'non visible car inactif'
     click_on 'Ajouter'
     expect(page).to have_text('Le groupe d’instructeurs « non visible car inactif » a été créé. ')
     check("Groupe inactif", allow_label_click: true)
 
     # # add scientifique groupe
-    click_on '3 groupes'
-    click_on 'défaut bis'
+    click_on 'Revenir à la liste'
+    click_on 'Groupe 2 (à renommer et configurer)'
     fill_in 'Nom du groupe', with: 'scientifique'
     click_on 'Renommer'
     expect(page).to have_text('Le nom est à présent « scientifique ». ')
 
     # add marie to scientifique groupe
-    fill_in 'Emails', with: 'marie@gouv.fr'
+    select_combobox('Emails', 'marie@gouv.fr', custom_value: true)
+
     perform_enqueued_jobs { click_on 'Affecter' }
     expect(page).to have_text("L’instructeur marie@gouv.fr a été affecté")
 
     marie = User.find_by(email: 'marie@gouv.fr').instructeur
 
     # add superwoman to scientifique groupe
-    fill_in 'Emails', with: 'alain@gouv.fr'
+    select_combobox('Emails', 'alain@gouv.fr', custom_value: true)
     perform_enqueued_jobs { click_on 'Affecter' }
     expect(page).to have_text("L’instructeur alain@gouv.fr a été affecté")
 
@@ -104,7 +123,7 @@ describe 'The routing with rules', js: true do
     within('.target select') { select('Spécialité') }
     within('.value select') { select('scientifique') }
 
-    click_on '3 groupes'
+    click_on 'Revenir à la liste'
 
     click_on 'littéraire'
 
@@ -121,7 +140,7 @@ describe 'The routing with rules', js: true do
     procedure.groupe_instructeurs.where(closed: false).each { |gi| wait_until { gi.reload.routing_rule.present? } }
 
     # add a group without routing rules
-    click_on 'Ajout de groupes'
+    visit ajout_admin_procedure_groupe_instructeurs_path(procedure)
     fill_in 'Nouveau groupe', with: 'artistique'
     click_on 'Ajouter'
     expect(page).to have_text('Le groupe d’instructeurs « artistique » a été créé. ')
@@ -143,14 +162,14 @@ describe 'The routing with rules', js: true do
 
     # the litteraires instructeurs only manage the litteraires dossiers
     register_instructeur_and_log_in(victor.email)
-    click_on procedure.libelle
+    click_on(procedure.libelle, visible: true)
     expect(page).to have_text(litteraire_user.email)
     expect(page).not_to have_text(scientifique_user.email)
 
     # the search only show litteraires dossiers
     fill_in 'q', with: scientifique_user.email
     find('.fr-search-bar .fr-btn').click
-    expect(page).to have_text('0 dossier trouvé')
+    expect(page).to have_text('Aucun dossier')
 
     # weird bug, capabary appends text instead of replaces it
     # see https://github.com/redux-form/redux-form/issues/686
@@ -163,19 +182,19 @@ describe 'The routing with rules', js: true do
     expect(page).to have_current_path(instructeur_dossier_path(procedure, litteraire_user.dossiers.first))
 
     # follow the dossier
-    click_on 'Suivre le dossier'
+    click_on 'Suivre'
 
     log_out
 
     # the scientifiques instructeurs only manage the scientifiques dossiers
     register_instructeur_and_log_in(marie.email)
-    click_on procedure.libelle
+    click_on(procedure.libelle, visible: true)
     expect(page).not_to have_text(litteraire_user.email)
     expect(page).to have_text(scientifique_user.email)
 
     # follow the dossier
     click_on scientifique_user.email
-    click_on 'Suivre le dossier'
+    click_on 'Suivre'
 
     log_out
 
@@ -184,9 +203,9 @@ describe 'The routing with rules', js: true do
     sign_in_with litteraire_user.email, password
 
     click_on litteraire_user.dossiers.first.procedure.libelle
-    click_on 'Modifier mon dossier'
+    click_on 'Modifier le dossier'
 
-    fill_in litteraire_user.dossiers.first.champs_public.first.libelle, with: 'some value'
+    fill_in litteraire_user.dossiers.first.project_champs_public.first.libelle, with: 'some value'
     wait_for_autosave
 
     click_on 'Déposer les modifications'
@@ -202,14 +221,14 @@ describe 'The routing with rules', js: true do
     expect(find('.procedure-stats')).to have_css('span.notifications')
 
     ## on the dossiers list
-    click_on procedure.libelle
+    click_on(procedure.libelle, visible: true)
     expect(page).to have_current_path(instructeur_procedure_path(procedure))
-    expect(find('.fr-tabs')).to have_css('span.notifications')
+    expect(find('nav.fr-tabs')).to have_css('span.notifications')
 
     ## on the dossier itself
-    click_on 'suivi'
+    click_on 'suivis par moi'
     click_on litteraire_user.email
-    expect(page).to have_current_path(instructeur_dossier_path(procedure, litteraire_user.dossiers.first))
+    expect(page).to have_current_path(instructeur_dossier_path(procedure, litteraire_user.dossiers.first, statut: :suivis))
     expect(page).to have_text('Annotations privées')
     expect(find('.fr-tabs')).to have_css('span.notifications')
     log_out
@@ -224,17 +243,17 @@ describe 'The routing with rules', js: true do
 
     # the instructeurs who belong to scientifique AND litteraire groups manage scientifique and litteraire dossiers
     register_instructeur_and_log_in(alain.email)
-    visit instructeur_procedure_path(procedure, params: { statut: 'tous' })
+    visit instructeur_procedure_path(procedure, statut: 'tous')
     expect(page).to have_text(litteraire_user.email)
     expect(page).to have_text(scientifique_user.email)
 
     # follow the dossier
     click_on scientifique_user.email
-    click_on 'Suivre le dossier'
+    click_on 'Suivre'
 
-    visit instructeur_procedure_path(procedure, params: { statut: 'tous' })
+    visit instructeur_procedure_path(procedure, statut: 'tous')
     click_on litteraire_user.email
-    click_on 'Suivre le dossier'
+    click_on 'Suivre'
     log_out
 
     # scientifique_user updates its group
@@ -262,7 +281,6 @@ describe 'The routing with rules', js: true do
     visit commencer_path(path: procedure.reload.path)
     click_on 'Commencer la démarche'
 
-    find('label', text: 'Monsieur').click
     fill_in('Prénom', with: 'prenom', visible: true)
     fill_in('Nom', with: 'Nom', visible: true)
     within "#identite-form" do
@@ -277,11 +295,11 @@ describe 'The routing with rules', js: true do
     expect(dossier.groupe_instructeur_id).to be_nil
     expect(page).to have_text(procedure.service.nom)
 
-    choose(groupe)
+    choose(groupe, allow_label_click: true)
     wait_for_autosave
 
     expect(dossier.reload.groupe_instructeur_id).not_to be_nil
-    expect(page).to have_text(dossier.service.nom)
+    expect(page).to have_text(dossier.service_or_contact_information.nom)
     expect(page).not_to have_text(procedure.service.nom)
 
     click_on 'Déposer le dossier'
@@ -294,9 +312,9 @@ describe 'The routing with rules', js: true do
     login_as user, scope: :user
     visit dossiers_path
     click_on user.dossiers.first.procedure.libelle
-    click_on "Modifier mon dossier"
+    click_on "Modifier le dossier"
 
-    choose(new_group)
+    choose(new_group, allow_label_click: true)
     wait_for_autosave
 
     expect(page).to have_text(new_group)
@@ -313,7 +331,7 @@ describe 'The routing with rules', js: true do
 
     visit "users/activate?#{token_params}"
     fill_in :user_password, with: password
-    click_button 'Définir le mot de passe'
+    click_button 'Créer un compte'
 
     expect(page).to have_text('Mot de passe enregistré')
   end
@@ -326,6 +344,6 @@ describe 'The routing with rules', js: true do
     click_on 'Options'
     expect(page).to have_text('Options concernant l’instruction')
     click_on 'Configurer le routage'
-    expect(page).to have_text('Choix du type de routage')
+    expect(page).to have_text('Choix du type de configuration')
   end
 end

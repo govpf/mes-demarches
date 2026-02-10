@@ -63,20 +63,13 @@ describe ProcedureRevision do
       it do
         expect { subject }.to change { draft.reload.types_de_champ.count }.from(4).to(5)
         expect(draft.children_of(type_de_champ_repetition).last).to eq(subject)
-        expect(draft.children_of(type_de_champ_repetition).map(&:revision_type_de_champ).map(&:position)).to eq([0, 1])
+        expect(draft.children_of(type_de_champ_repetition).map { draft.coordinate_for(_1).position }).to eq([0, 1])
 
         expect(last_coordinate.position).to eq(1)
 
         parent_coordinate = draft.revision_types_de_champ.find_by(type_de_champ: type_de_champ_repetition)
         expect(last_coordinate.parent).to eq(parent_coordinate)
       end
-    end
-
-    context 'when a libelle is missing' do
-      let(:text_params) { { type_champ: :text, libelle: 'text', after_stable_id: procedure.draft_revision.types_de_champ_private.last.id } }
-      let(:tdc_params) { text_params.except(:libelle) }
-
-      it { expect(subject.errors.full_messages).to eq(["Le champ « Libelle » doit être rempli"]) }
     end
 
     context 'when a parent is incorrect' do
@@ -537,6 +530,29 @@ describe ProcedureRevision do
         end
       end
 
+      context 'when a type de champ is transformed into a text_area with no character limit' do
+        let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :text }]) }
+
+        before do
+          updated_tdc = new_draft.find_and_ensure_exclusive_use(first_tdc.stable_id)
+          updated_tdc.update(type_champ: :textarea, options: { "character_limit" => "" })
+        end
+
+        it do
+          is_expected.to eq([
+            {
+              op: :update,
+              attribute: :type_champ,
+              label: first_tdc.libelle,
+              private: false,
+              from: "text",
+              to: "textarea",
+              stable_id: first_tdc.stable_id
+            }
+          ])
+        end
+      end
+
       context 'when a type de champ is moved' do
         let(:procedure) { create(:procedure, types_de_champ_public: Array.new(3) { { type: :text } }) }
         let(:new_draft_second_tdc) { new_draft.types_de_champ_public.second }
@@ -652,6 +668,127 @@ describe ProcedureRevision do
           ])
         end
       end
+
+      describe '#compare_referentiel_changes' do
+        let(:procedure) { create(:procedure, types_de_champ_public:) }
+        let(:referentiel_1) do
+          create(
+            :referentiel,
+            name: SecureRandom.uuid,
+            url: 'https://rnb-api.beta.gouv.fr/api/alpha/buildings/{id}/',
+            mode: 'exact_match',
+            test_data: 'PG46YY6YWCX8',
+            hint: 'Saisissez le code de votre reference'
+          )
+        end
+        let(:referentiel_2) do
+          create(
+            :referentiel,
+            name: SecureRandom.uuid,
+            url: 'https://rnb-api.beta.gouv.fr/api/alpha/buildings/{id}/v2',
+            mode: 'autocomplete',
+            test_data: 'une autre',
+            hint: 'Saisissez le code de votre autre reference'
+          )
+        end
+        let(:types_de_champ_public) do
+          [
+            {
+              type: :referentiel,
+              referentiel: referentiel_1,
+              referentiel_mapping: { key: 'value1' },
+              stable_id: 123,
+              libelle: 'libelle'
+            }
+          ]
+        end
+
+        before do
+          updated_tdc = new_draft.find_and_ensure_exclusive_use(first_tdc.stable_id)
+          updated_tdc.update(referentiel: referentiel_2, referentiel_mapping: { key: 'value2' })
+        end
+
+        it 'detects changes in referentiel url' do
+          is_expected.to include({
+            :attribute => :referentiel_url,
+            :from => "https://rnb-api.beta.gouv.fr/api/alpha/buildings/{id}/",
+            :label => "libelle",
+            :op => :update,
+            :private => false,
+            :stable_id => 123,
+            :to => "https://rnb-api.beta.gouv.fr/api/alpha/buildings/{id}/v2"
+          })
+          is_expected.to include({
+            :attribute => :referentiel_mode,
+            :from => "exact_match",
+            :label => "libelle",
+            :op => :update,
+            :private => false,
+            :stable_id => 123,
+            :to => "autocomplete"
+          })
+          is_expected.to include({
+            :attribute => :referentiel_hint,
+            :from => 'Saisissez le code de votre reference',
+            :label => "libelle",
+            :op => :update,
+            :private => false,
+            :stable_id => 123,
+            :to => 'Saisissez le code de votre autre reference'
+          })
+          is_expected.to include({
+            :attribute => :referentiel_test_data,
+            :from => 'PG46YY6YWCX8',
+            :label => "libelle",
+            :op => :update,
+            :private => false,
+            :stable_id => 123,
+            :to => 'une autre'
+          })
+          is_expected.to include({
+            :attribute => :referentiel_mapping,
+            :from => { "key" => "value1" },
+            :label => "libelle",
+            :op => :update,
+            :private => false,
+            :stable_id => 123,
+            :to => { "key" => "value2" }
+          })
+        end
+      end
+
+      # pf: tests pour la normalisation des drop_down_options lors de la comparaison
+      context 'when switching from manual to referentiel mode with same labels' do
+        let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :drop_down_list, libelle: 'Commune', drop_down_options: ['Papeete', 'Faaa', 'Punaauia'] }]) }
+
+        before do
+          tdc = new_draft.types_de_champ_public.first
+          # Simuler le passage en mode référentiel avec les mêmes labels mais des IDs
+          allow(tdc).to receive(:drop_down_options).and_return([['Papeete', '1'], ['Faaa', '2'], ['Punaauia', '3']])
+        end
+
+        it 'does not report changes in drop_down_options when labels are identical' do
+          # La normalisation doit ignorer les IDs et ne détecter aucun changement
+          drop_down_changes = subject.filter { |change| change[:attribute] == :drop_down_options }
+          expect(drop_down_changes).to be_empty
+        end
+      end
+
+      context 'when drop_down_options changes from filled to empty' do
+        let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :drop_down_list, libelle: 'Liste', drop_down_options: ['A', 'B'] }]) }
+
+        before do
+          tdc = new_draft.find_and_ensure_exclusive_use(new_draft.types_de_champ_public.first.stable_id)
+          tdc.update(drop_down_options: [])
+        end
+
+        it 'reports removal of all options' do
+          drop_down_changes = subject.filter { |change| change[:attribute] == :drop_down_options }
+          expect(drop_down_changes).not_to be_empty
+          expect(drop_down_changes.first[:from]).to eq(['A', 'B'])
+          expect(drop_down_changes.first[:to]).to eq([])
+        end
+      end
     end
   end
 
@@ -743,13 +880,23 @@ describe ProcedureRevision do
         expect(draft_revision.validate(:ineligibilite_rules_editor)).to be_truthy
       end
     end
+
     context 'when ineligibilite_rules are invalid on simple champ' do
       let(:ineligibilite_rules) { ds_eq(constant(true), constant(1)) }
-      it 'is invalid' do
+      it 'is invalid when rule is incorrect' do
         expect(draft_revision.validate(:publication)).to be_falsey
         expect(draft_revision.validate(:ineligibilite_rules_editor)).to be_falsey
       end
     end
+
+    context 'when ineligibilite_rules are invalid on simple champ' do
+      let(:ineligibilite_rules) { empty_operator(empty, empty) }
+      it 'is invalid when rule is empty' do
+        expect(draft_revision.validate(:publication)).to be_falsey
+        expect(draft_revision.validate(:ineligibilite_rules_editor)).to be_falsey
+      end
+    end
+
     context 'when ineligibilite_rules are invalid on repetition champ' do
       let(:ineligibilite_rules) { ds_eq(constant(true), constant(1)) }
       let(:procedure) { create(:procedure, types_de_champ_public:) }
@@ -807,6 +954,7 @@ describe ProcedureRevision do
             .revision_types_de_champ
             .where(type_de_champ: first_child)
             .update(type_de_champ: new_child)
+          new_draft.revision_types_de_champ.reload
         end
 
         it 'returns the children regarding the revision' do
@@ -1043,7 +1191,7 @@ describe ProcedureRevision do
   describe "expressions_regulieres_are_valid" do
     let(:procedure) do
       create(:procedure).tap do |p|
-        p.draft_revision.add_type_de_champ(type_champ: :expression_reguliere, libelle: 'exemple', expression_reguliere:, expression_reguliere_exemple_text:)
+        p.draft_revision.add_type_de_champ(type_champ: :formatted, libelle: 'exemple', formatted_mode: 'advanced', expression_reguliere:, expression_reguliere_exemple_text:)
       end
     end
     let(:draft_revision) { procedure.draft_revision }
@@ -1090,7 +1238,7 @@ describe ProcedureRevision do
     context "When repetition" do
       let(:procedure) do
         create(:procedure,
-               types_de_champ_public: [{ type: :repetition, children: [{ type: :expression_reguliere, expression_reguliere:, expression_reguliere_exemple_text: }] }])
+          types_de_champ_public: [{ type: :repetition, children: [{ type: :formatted, formatted_mode: 'advanced', expression_reguliere:, expression_reguliere_exemple_text: }] }])
       end
 
       context "When bad expression_reguliere" do

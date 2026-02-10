@@ -20,22 +20,27 @@ end
 # A list of features to be deployed on first push
 features = [
   :administrateur_web_hook,
-  :agent_connect_2fa,
   :api_particulier,
-  :attestation_v2,
   :blocking_pending_correction,
   :cojo_type_de_champ,
   :dossier_pdf_vide,
   :engagement_juridique_type_de_champ,
   :export_order_by_revision,
   :export_template,
-  :expression_reguliere_type_de_champ,
+  :referentiel_type_de_champ,
   :groupe_instructeur_api_hack,
+  :ocr,
   :qrcoded_pdf,
+  :rdv,
+  :pro_connect_restricted,
   :sva,
   :switch_domain,
+  :export_avec_horodatage,
+  :notification,
   # :lexpol,
-  :visa
+  :visa,
+  # pf: feature flag pour la navigation contextuelle entre personas
+  :contextual_persona_navigation
 ]
 
 def database_exists?
@@ -67,3 +72,14 @@ Rails.application.configure do
   config.flipper.preload = -> (request) { !request.path.start_with?('/assets/', '/ping') }
   config.flipper.strict = Rails.env.development?
 end
+
+module Flipper
+  module Adapters
+    class ActiveRecord
+      class Gate < Model
+        validates :value, format: /\A[A-z]+;\d+\z/, if: -> { key == 'actors' }
+      end
+    end
+  end
+end
+# Cf https://github.com/flippercloud/flipper/blob/main/lib/flipper/adapters/active_record.rb

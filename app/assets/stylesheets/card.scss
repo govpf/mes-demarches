@@ -1,8 +1,7 @@
-@import "colors";
-@import "constants";
+@import 'colors';
+@import 'constants';
 
-
-[data-fr-theme="dark"] .card {
+[data-fr-theme='dark'] .card {
   background: none;
   border: 1px solid var(--background-action-low-blue-france);
 }
@@ -11,18 +10,7 @@
   padding: ($default-spacer * 3) ($default-spacer * 2);
   border: 1px solid $border-grey;
   margin-bottom: $default-spacer * 4;
-  background: #FFFFFF;
-
-  .card-title {
-    font-weight: bold;
-    font-size: 20px;
-    line-height: 1.5rem;
-    margin-bottom: $default-spacer * 2;
-
-    a:not(:hover) {
-      background-image: none; // remove DSFR underline
-    }
-  }
+  background: #ffffff;
 
   .logo {
     width: auto;
@@ -55,12 +43,6 @@
     }
   }
 
-  :not(.fr-downloads-group):not(.fr-pagination) > ul {
-    list-style-type: disc;
-    list-style-position: inside;
-    padding-left: $default-padding;
-  }
-
   ol {
     list-style-type: decimal;
     list-style-position: inside;
@@ -69,5 +51,16 @@
 
   p:not(:last-of-type) {
     margin-bottom: $default-spacer;
+  }
+}
+
+.card-title {
+  font-weight: bold;
+  font-size: 18px;
+  line-height: 1.5rem;
+  margin-bottom: $default-spacer * 2;
+
+  a:not(:hover) {
+    background-image: none; // remove DSFR underline
   }
 }

@@ -51,6 +51,24 @@ FactoryBot.define do
 
     factory :champ_do_not_use_address, class: 'Champs::AddressChamp' do
       value { '2 rue des Démarches' }
+      value_json do
+        {
+          type: "housenumber",
+          label: "2 rue des Démarches grenoble (38100)",
+          city_code: "38100",
+          city_name: "grenoble",
+          postal_code: "38000",
+          region_code: "84",
+          region_name: "Auvergne-Rhones-Alpes",
+          street_name: "rue des Démarches",
+          street_number: "2",
+          street_address: "2 rue des Démarches",
+          department_code: "38",
+          department_name: "Isère",
+          country_code: "FR",
+          country_name: "France"
+        }
+      end
     end
 
     factory :champ_do_not_use_yes_no, class: 'Champs::YesNoChamp' do
@@ -81,12 +99,17 @@ FactoryBot.define do
       date_de_naissance { "2000-01-01" }
     end
 
+    factory :champ_do_not_use_referentiel_de_polynesie, class: 'Champs::ReferentielDePolynesieChamp' do
+      value { "98701 - Arue - Tahiti" }
+      data { { 'commune' => 'Arue', 'ile' => 'Tahiti', 'archipel' => 'Ile sous le vent' } }
+    end
+
     factory :champ_do_not_use_multiple_drop_down_list, class: 'Champs::MultipleDropDownListChamp' do
       value { '["val1", "val2"]' }
     end
 
     factory :champ_do_not_use_linked_drop_down_list, class: 'Champs::LinkedDropDownListChamp' do
-      value { '["categorie 1", "choix 1"]' }
+      value { '["primary", "secondary"]' }
     end
 
     factory :champ_do_not_use_pays, class: 'Champs::PaysChamp' do
@@ -109,14 +132,6 @@ FactoryBot.define do
     factory :champ_do_not_use_epci, class: 'Champs::EpciChamp' do
       value { 'CC Retz en Valois' }
       external_id { '200071991' }
-    end
-
-    factory :champ_do_not_use_header_section, class: 'Champs::HeaderSectionChamp' do
-      value { 'une section' }
-    end
-
-    factory :champ_do_not_use_explication, class: 'Champs::ExplicationChamp' do
-      value { '' }
     end
 
     factory :champ_do_not_use_dossier_link, class: 'Champs::DossierLinkChamp' do
@@ -192,23 +207,31 @@ FactoryBot.define do
     factory :champ_do_not_use_siret, class: 'Champs::SiretChamp' do
       association :etablissement, factory: [:etablissement]
       value { '44011762001530' }
-      value_json { AddressProxy::ADDRESS_PARTS.index_by(&:itself) }
+      value_json { etablissement.champ_value_json }
     end
 
     factory :champ_do_not_use_rna, class: 'Champs::RNAChamp' do
       value { 'W173847273' }
+      value_json { AddressProxy::ADDRESS_PARTS.index_by(&:itself).merge(title: "LA PRÉVENTION ROUTIERE", department_code: 'department_code') }
     end
 
     factory :champ_do_not_use_engagement_juridique, class: 'Champs::EngagementJuridiqueChamp' do
+      value { 'EJ' }
     end
 
     factory :champ_do_not_use_cojo, class: 'Champs::COJOChamp' do
     end
 
     factory :champ_do_not_use_rnf, class: 'Champs::RNFChamp' do
+      value { '075-FDD-00003-01' }
+      external_id { '075-FDD-00003-01' }
+      value_json { AddressProxy::ADDRESS_PARTS.index_by(&:itself).merge(title: "Fondation SFR", department_code: 'department_code') }
     end
 
-    factory :champ_do_not_use_expression_reguliere, class: 'Champs::ExpressionReguliereChamp' do
+    factory :champ_do_not_use_formatted, class: 'Champs::FormattedChamp' do
+    end
+
+    factory :champ_do_not_use_referentiel, class: 'Champs::ReferentielChamp' do
     end
 
     factory :champ_do_not_use_repetition, class: 'Champs::RepetitionChamp' do
@@ -217,14 +240,14 @@ FactoryBot.define do
       end
 
       after(:build) do |champ_repetition, evaluator|
-        revision = champ_repetition.type_de_champ.procedure.active_revision
+        revision = champ_repetition.procedure.active_revision
         parent = revision.revision_types_de_champ.find { _1.type_de_champ == champ_repetition.type_de_champ }
         types_de_champ = revision.revision_types_de_champ.filter { _1.parent == parent }.map(&:type_de_champ)
 
         evaluator.rows.times do
           row_id = ULID.generate
-          champ_repetition.champs << types_de_champ.map do |type_de_champ|
-            attrs = { dossier: champ_repetition.dossier, parent: champ_repetition, private: champ_repetition.private?, stable_id: type_de_champ.stable_id, row_id: }
+          champ_repetition.dossier.champs << types_de_champ.map do |type_de_champ|
+            attrs = { dossier: champ_repetition.dossier, private: champ_repetition.private?, stable_id: type_de_champ.stable_id, row_id: }
             build(:"champ_do_not_use_#{type_de_champ.type_champ}", **attrs)
           end
         end

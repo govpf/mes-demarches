@@ -4,15 +4,6 @@ en:
       managed_by:
         header: 'This procedure is managed by'
       contact:
-        header: 'Ask a question about the procedure'
-        in_app_mail:
-          link: "Direclty via the chat"
-        email:
-          link: "Directly by email: "
-        phone:
-          label: 'By phone: '
-        schedule:
-          prefix: 'Hours: '
         stats:
           link: "See the procedure's stats"
       legals:
@@ -23,7 +14,5 @@ en:
       dematerialisation:
         header: Paperless
         title_1: Download the PDF form
-        link: "https://www.transformation.gouv.fr/france-services"
-        alt: France services
       support:
         header: Being supported in your approach

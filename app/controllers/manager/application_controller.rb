@@ -12,6 +12,10 @@ module Manager
       }
     end
 
+    def message_encryptor_service
+      @message_encryptor_service ||= MessageEncryptorService.new
+    end
+
     protected
 
     def authenticate_super_admin!
@@ -55,6 +59,15 @@ module Manager
       end
 
       payload[:to_log] = to_log
+    end
+
+    def generate_csv(users)
+      CSV.generate(headers: true) do |csv|
+        csv << ['ID', 'Email', 'Date de création']
+        users.each do |user|
+          csv << [user.id, user.email, user.created_at]
+        end
+      end
     end
   end
 end

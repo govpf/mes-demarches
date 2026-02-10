@@ -26,7 +26,7 @@ class Champs::NumeroDnChamp < Champ
   end
 
   def to_s
-    blank? ? "" : "#{for_tag(:value)} né(e) le #{for_tag(:date_de_naissance)}"
+    blank? ? "" : "#{type_de_champ.champ_value_for_tag(self, :value)} né(e) le #{type_de_champ.champ_value_for_tag(self, :date_de_naissance)}"
   end
 
   def blank?
@@ -35,6 +35,12 @@ class Champs::NumeroDnChamp < Champ
 
   def search_terms
     [numero_dn, displayed_date_de_naissance]
+  end
+
+  # pf: pour les ancres d'erreur (#11420), pointer vers le premier input
+  def focusable_input_id
+    prefix = private? ? 'dossier_champs_private_attributes' : 'dossier_champs_public_attributes'
+    "#{prefix}_#{public_id}_numero_dn"
   end
 
   private

@@ -12,11 +12,7 @@ class Champs::PieceJustificativeController < Champs::ChampController
   end
 
   def download_path
-    if params[:dossier_id].present?
-      champs_piece_justificative_download_path({ dossier_id: params[:dossier_id], stable_id: params[:stable_id], row_id: params[:row_id], h: params[:h], i: "0" })
-    else
-      champs_legacy_piece_justificative_download_path({ champ_id: params[:champ_id], h: params[:h], i: "0" })
-    end
+    champs_piece_justificative_download_path({ dossier_id: params[:dossier_id], stable_id: params[:stable_id], row_id: params[:row_id], h: params[:h], i: "0" })
   end
 
   def update
@@ -33,7 +29,7 @@ class Champs::PieceJustificativeController < Champs::ChampController
       if (0..@champ.piece_justificative_file.size).cover?(index)
         blob = @champ.piece_justificative_file[index]
         if blob.filename.extension == 'pdf' && @champ.dossier.procedure.feature_enabled?(:qrcoded_pdf)
-          send_data StampService.new.stamp(blob, TypesDeChamp::PieceJustificativeTypeDeChamp.download_url(@champ, index)), filename: blob.filename.to_s, type: 'application/pdf'
+          send_data StampService.new.stamp(blob, @champ.type_de_champ.dynamic_type.download_url(@champ, index)), filename: blob.filename.to_s, type: 'application/pdf'
         else
           redirect_to blob.url, status: :found, allow_other_host: true
         end
@@ -58,14 +54,20 @@ class Champs::PieceJustificativeController < Champs::ChampController
 
     ActiveStorage::Attachment.transaction do
       @champ.piece_justificative_file.attach(params[:blob_signed_id])
-      save_succeed = @champ.save
+      context = @champ.public? ? :champs_public_value : :champs_private_value
+      save_succeed = @champ.save(context:)
     end
 
+    # pf: track revisions for private champs (annotations) modified by instructeurs
+    # Note: current_instructeur must be present when modifying private champs
     if @champ.private?
       ChampRevision.create_or_update_revision(@champ, current_instructeur.id)
     end
 
     @champ.dossier.update(last_champ_updated_at: Time.zone.now.utc) if save_succeed
+    if save_succeed
+      @champ.update_timestamps
+    end
 
     save_succeed
   end
@@ -74,13 +76,13 @@ class Champs::PieceJustificativeController < Champs::ChampController
     h = params[:h]
     return super if h.blank?
 
-    champ = if params[:champ_id].present? # pf : after 01/09/2025, keep only access with dossier_id
-      Champ.find(params[:champ_id])
-    else
-      dossier = Dossier.includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
-      type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
-      dossier.champ_for_export(type_de_champ, params_row_id)
-    end
+    dossier = Dossier.includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
+    type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
+    champ = dossier.project_champ(type_de_champ, row_id: params_row_id)
     champ&.match_encoded_date?(:created_at, h) ? champ : nil
+  end
+
+  def dossier
+    @champ.dossier
   end
 end

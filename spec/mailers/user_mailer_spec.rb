@@ -13,18 +13,18 @@ RSpec.describe UserMailer, type: :mailer do
     end
 
     context 'when a procedure is provided' do
-      let(:procedure) { build(:procedure) }
+      let(:procedure) { create(:procedure) }
 
       subject { described_class.new_account_warning(user, procedure) }
 
       it { expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path, host: ENV.fetch("APP_HOST_LEGACY"))) }
 
       context "when user has preferred domain" do
-        let(:user) { create(:user, preferred_domain: :demarches_gouv_fr) }
+        let(:user) { create(:user, preferred_domain: :demarches_numerique_gouv_fr) }
 
         it do
-          expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path, host: "demarches.gouv.fr"))
-          expect(header_value("From", subject)).to include("@demarches.gouv.fr")
+          expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path, host: "demarches.numerique.gouv.fr"))
+          expect(header_value("From", subject)).to include("@demarches.numerique.gouv.fr")
         end
       end
     end
@@ -81,7 +81,7 @@ RSpec.describe UserMailer, type: :mailer do
 
     it 'sends to correct email with merge link' do
       expect(subject.to).to eq([email])
-      expect(subject.body).to include(france_connect_particulier_merge_using_email_link_url(email_merge_token: code))
+      expect(subject.body).to include(france_connect_merge_using_email_link_url(email_merge_token: code))
     end
 
     context 'without SafeMailer configured' do
@@ -107,7 +107,7 @@ RSpec.describe UserMailer, type: :mailer do
     let(:mail) { UserMailer.custom_confirmation_instructions(user, token) }
 
     it 'renders the headers' do
-      expect(mail.subject).to eq('Confirmez votre email')
+      expect(mail.subject).to eq('Confirmez votre adresse électronique')
       expect(mail.to).to eq([user.email])
       expect(mail.from).to eq(['mes-demarches@modernisation.gov.pf'])
     end
@@ -151,9 +151,8 @@ RSpec.describe UserMailer, type: :mailer do
 
     context 'when perform_later is called' do
       let(:role) { administrateurs(:default_admin) }
-      let(:custom_queue) { 'low_priority' }
-      before { ENV['BULK_EMAIL_QUEUE'] = custom_queue }
-      it 'enqueues email is custom queue for low priority delivery' do
+      let(:custom_queue) { 'default' }
+      it 'enqueues email is custom queue for non critical delivery' do
         expect { subject.deliver_later }.to have_enqueued_job.on_queue(custom_queue)
       end
     end
@@ -164,13 +163,12 @@ RSpec.describe UserMailer, type: :mailer do
 
     it 'alerts user of inactivity with correct recipient and message' do
       expect(subject.to).to eq([user.email])
-      expect(subject.body).to include("Cela fait plus de deux ans que vous ne vous êtes pas connecté à #{APPLICATION_NAME}.")
+      expect(subject.body).to have_text("Cela fait plus de deux ans que vous ne vous êtes pas connecté à #{APPLICATION_NAME}\r\navec le compte #{user.email} .")
     end
 
     context 'when perform_later is called' do
-      let(:custom_queue) { 'low_priority' }
-      before { ENV['BULK_EMAIL_QUEUE'] = custom_queue }
-      it 'enqueues email is custom queue for low priority delivery' do
+      let(:custom_queue) { 'default' }
+      it 'enqueues email is custom queue for non critical delivery' do
         expect { subject.deliver_later }.to have_enqueued_job.on_queue(custom_queue)
       end
     end
@@ -188,9 +186,8 @@ RSpec.describe UserMailer, type: :mailer do
     end
 
     context 'when perform_later is called' do
-      let(:custom_queue) { 'low_priority' }
-      before { ENV['BULK_EMAIL_QUEUE'] = custom_queue }
-      it 'enqueues email is custom queue for low priority delivery' do
+      let(:custom_queue) { 'default' }
+      it 'enqueues email is custom queue for non critical delivery' do
         expect { subject.deliver_later }.to have_enqueued_job.on_queue(custom_queue)
       end
     end

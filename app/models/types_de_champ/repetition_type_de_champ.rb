@@ -1,11 +1,15 @@
 # frozen_string_literal: true
 
 class TypesDeChamp::RepetitionTypeDeChamp < TypesDeChamp::TypeDeChampBase
-  def self.champ_value_for_tag(champ, path = :value)
-    return nil if path != :value
-    return champ_default_value if champ.rows.blank?
+  include ActionView::Helpers::TagHelper
 
-    ChampPresentations::RepetitionPresentation.new(champ.libelle, champ.rows)
+  def champ_value_for_tag(champ, path = :value)
+    return nil if path != :value
+
+    rows = champ.rows
+    return champ_default_value if rows.blank?
+
+    ChampPresentations::RepetitionPresentation.new(libelle, rows)
   end
 
   def estimated_fill_duration(revision)
@@ -27,9 +31,13 @@ class TypesDeChamp::RepetitionTypeDeChamp < TypesDeChamp::TypeDeChampBase
     ActiveStorage::Filename.new(str.delete('[]*?')).sanitized
   end
 
-  def columns(displayable: true, prefix: nil)
-    @type_de_champ.procedure
+  def columns(procedure:, displayable: nil, prefix: nil)
+    prefix = prefix.present? ? "(#{prefix} #{libelle})" : libelle
+
+    procedure
       .all_revisions_types_de_champ(parent: @type_de_champ)
-      .flat_map { _1.columns(displayable: false, prefix: libelle) }
+      .flat_map { _1.columns(procedure:, displayable: false, prefix:) }
   end
+
+  def champ_blank?(champ) = champ.dossier.repetition_row_ids(@type_de_champ).blank?
 end

@@ -14,10 +14,7 @@ const ArrayOfTuples = s.coerce(
   s.array(Item),
   s.array(s.tuple([s.string(), s.union([s.string(), s.number()])])),
   (items) =>
-    items.map<Item>(([label, value]) => ({
-      label,
-      value: String(value)
-    }))
+    items.map<Item>(([label, value]) => ({ label, value: String(value) }))
 );
 
 const ArrayOfStrings = s.coerce(s.array(Item), s.array(s.string()), (items) =>
@@ -32,6 +29,7 @@ const ComboBoxPropsSchema = s.partial(
     label: s.string(),
     description: s.string(),
     isRequired: s.boolean(),
+    isDisabled: s.boolean(),
     'aria-label': s.string(),
     'aria-labelledby': s.string(),
     'aria-describedby': s.string(),
@@ -46,7 +44,8 @@ export const SingleComboBoxProps = s.assign(
   s.partial(
     s.object({
       selectedKey: s.nullable(s.string()),
-      emptyFilterKey: s.nullable(s.string())
+      emptyFilterKey: s.nullable(s.string()),
+      placeholder: s.string()
     })
   )
 );
@@ -56,7 +55,9 @@ export const MultiComboBoxProps = s.assign(
     s.object({
       selectedKeys: s.array(s.string()),
       allowsCustomValue: s.boolean(),
-      valueSeparator: s.union([s.string(), s.literal(false)])
+      valueSeparator: s.union([s.string(), s.literal(false)]),
+      focusOnSelect: s.string(),
+      placeholder: s.string()
     })
   )
 );
@@ -67,9 +68,9 @@ export const RemoteComboBoxProps = s.assign(
       selectedKey: s.nullable(s.string()),
       minimumInputLength: s.number(),
       limit: s.number(),
-      allowsCustomValue: s.boolean(),
       debounce: s.number(),
-      coerce: s.enums(['Default', 'AnnuaireEducation'])
+      coerce: s.enums(['Default', 'AnnuaireEducation']),
+      placeholder: s.string()
     })
   )
 );

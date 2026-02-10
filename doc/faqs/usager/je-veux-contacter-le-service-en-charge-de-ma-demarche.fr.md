@@ -17,13 +17,13 @@ Pour contacter les services en charge de votre démarche, vous pouvez :
 
     Cela vous permet de communiquer directement avec l’équipe en charge de votre dossier à travers la plateforme.
 
-    Pour cela, suivez le lien **« Messagerie »** depuis le dossier concerné, et envoyez-leur un message.
+    Pour cela, suivez le lien **« Messagerie administration »** depuis le dossier concerné, et envoyez-leur un message.
 
     ![Vue de l’interface de messagerie avec le service traitant un dossier {aria-hidden="true"}](faq/usager-messagerie.png)
 
 2. Contacter **les services compétents aux contacts renseignés pour la démarche**
 
-    Si des contacts d’adresse email ou numéro de téléphone sont spécifiés pour la démarche que vous suivez, vous pouvez les utiliser pour obtenir des renseignements supplémentaires ou pour toute question spécifique concernant votre dossier.
+    Si des contacts d’adresse électronique ou numéro de téléphone sont spécifiés pour la démarche que vous suivez, vous pouvez les utiliser pour obtenir des renseignements supplémentaires ou pour toute question spécifique concernant votre dossier.
     Ces informations se retrouvent dans le pied de page du dossier.
 
     ![Coordonnées de contact du service traitant un dossier {aria-hidden="true"}](faq/usager-footer-contact.png)

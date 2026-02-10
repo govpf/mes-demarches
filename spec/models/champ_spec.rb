@@ -5,7 +5,7 @@ describe Champ do
 
   describe 'mandatory_blank?' do
     let(:type_de_champ) { build(:type_de_champ, mandatory: mandatory) }
-    let(:champ) { Champ.new(value: value) }
+    let(:champ) { Champs::TextChamp.new(value: value) }
     let(:value) { '' }
     let(:mandatory) { true }
 
@@ -31,8 +31,9 @@ describe Champ do
       end
 
       context 'when repetition blank' do
-        let(:type_de_champ) { build(:type_de_champ_repetition) }
-        let(:champ) { Champs::RepetitionChamp.new(dossier: Dossier.new(revision: ProcedureRevision.new)) }
+        let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :repetition, mandatory: false, children: [{ type: :text }] }]) }
+        let(:dossier) { create(:dossier, procedure:) }
+        let(:champ) { dossier.project_champs_public.find(&:repetition?) }
 
         it { expect(champ.blank?).to be(true) }
       end
@@ -57,7 +58,7 @@ describe Champ do
     context 'when repetition not blank' do
       let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :repetition, children: [{ type: :text }] }]) }
       let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
-      let(:champ) { dossier.champs.find(&:repetition?) }
+      let(:champ) { dossier.project_champs_public.find(&:repetition?) }
 
       it { expect(champ.blank?).to be(false) }
     end
@@ -68,51 +69,40 @@ describe Champ do
   end
 
   describe "normalization" do
-    it "should remove null bytes before save" do
+    it "should remove null bytes char using unicode escape sequence" do
       champ = Champ.new(value: "foo\u0000bar")
-      champ.normalize
+      champ.validate
       expect(champ.value).to eq "foobar"
+    end
+
+    it 'removes remove null bytes char hexadecimal escape sequence' do
+      champ = Champ.new(value: "Valid\x00Value")
+      champ.validate
+      expect(champ.value).to eq("ValidValue")
     end
   end
 
-  describe '#public?' do
+  describe 'public and private' do
     let(:champ) { Champ.new }
-
-    it { expect(champ.public?).to be_truthy }
-    it { expect(champ.private?).to be_falsey }
-  end
-
-  describe '#public_only' do
     let(:dossier) { create(:dossier) }
 
     it 'partition public and private' do
-      expect(dossier.champs_public.count).to eq(1)
-      expect(dossier.champs_private.count).to eq(1)
+      expect(dossier.project_champs_public.count).to eq(1)
+      expect(dossier.project_champs_private.count).to eq(1)
     end
-  end
 
-  describe '#public_ordered' do
-    let(:procedure) { create(:simple_procedure) }
-    let(:dossier) { create(:dossier, procedure: procedure) }
+    it { expect(champ.public?).to be_truthy }
+    it { expect(champ.private?).to be_falsey }
 
     context 'when a procedure has 2 revisions' do
-      it 'does not duplicate the champs' do
-        expect(dossier.champs_public.count).to eq(1)
-        expect(procedure.revisions.count).to eq(2)
+      it { expect(dossier.procedure.revisions.count).to eq(2) }
+
+      it 'does not duplicate public champs' do
+        expect(dossier.project_champs_public.count).to eq(1)
       end
-    end
-  end
 
-  describe '#private_ordered' do
-    let(:procedure) { create(:procedure, :with_type_de_champ_private) }
-    let(:dossier) { create(:dossier, procedure: procedure) }
-
-    context 'when a procedure has 2 revisions' do
-      before { procedure.publish }
-
-      it 'does not duplicate the champs private' do
-        expect(dossier.champs_private.count).to eq(1)
-        expect(procedure.revisions.count).to eq(2)
+      it 'does not duplicate private champs' do
+        expect(dossier.project_champs_private.count).to eq(1)
       end
     end
   end
@@ -122,13 +112,12 @@ describe Champ do
       create(:procedure, types_de_champ_public: [{}, { type: :header_section }, { type: :repetition, mandatory: true, children: [{ type: :header_section }] }], types_de_champ_private: [{}, { type: :header_section }])
     end
     let(:dossier) { create(:dossier, procedure: procedure) }
-    let(:public_champ) { dossier.champs_public.first }
-    let(:private_champ) { dossier.champs_private.first }
-    let(:champ_in_repetition) { dossier.champs_public.find(&:repetition?).champs.first }
+    let(:public_champ) { dossier.project_champs_public.first }
+    let(:private_champ) { dossier.project_champs_private.first }
     let(:standalone_champ) { build(:champ, type_de_champ: build(:type_de_champ), dossier: build(:dossier)) }
-    let(:public_sections) { dossier.champs_public.filter(&:header_section?) }
-    let(:private_sections) { dossier.champs_private.filter(&:header_section?) }
-    let(:sections_in_repetition) { dossier.champs.filter(&:child?).filter(&:header_section?) }
+    let(:public_sections) { dossier.project_champs_public.filter(&:header_section?) }
+    let(:private_sections) { dossier.project_champs_private.filter(&:header_section?) }
+    let(:sections_in_repetition) { dossier.project_champs_public.find(&:repetition?).rows.flatten.filter(&:header_section?) }
 
     it 'returns the sibling sections of a champ' do
       expect(public_sections).not_to be_empty
@@ -193,19 +182,21 @@ describe Champ do
     let(:champ) { Champs::TextChamp.new(value:, dossier: build(:dossier)) }
     before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_text)) }
 
+    let(:value_for_export) { champ.type_de_champ.champ_value_for_export(champ) }
+
     context 'when type_de_champ is text' do
       let(:value) { '123' }
 
-      it { expect(champ.for_export).to eq('123') }
+      it { expect(value_for_export).to eq('123') }
     end
 
     context 'when type_de_champ is textarea' do
       let(:champ) { Champs::TextareaChamp.new(value:, dossier: build(:dossier)) }
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_textarea)) }
 
-      let(:value) { '<b>gras<b>' }
+      let(:value) { '<b>gras</b>' }
 
-      it { expect(champ.for_export).to eq('gras') }
+      it { expect(value_for_export).to eq('<b>gras</b>') }
     end
 
     context 'when type_de_champ is yes_no' do
@@ -215,29 +206,29 @@ describe Champ do
       context 'if yes' do
         let(:value) { 'true' }
 
-        it { expect(champ.for_export).to eq('Oui') }
+        it { expect(value_for_export).to eq('Oui') }
       end
 
       context 'if no' do
         let(:value) { 'false' }
 
-        it { expect(champ.for_export).to eq('Non') }
+        it { expect(value_for_export).to eq('Non') }
       end
 
       context 'if nil' do
         let(:value) { nil }
 
-        it { expect(champ.for_export).to eq('Non') }
+        it { expect(value_for_export).to eq('') }
       end
     end
 
     context 'when type_de_champ is multiple_drop_down_list' do
       let(:champ) { Champs::MultipleDropDownListChamp.new(value:, dossier: build(:dossier)) }
-      before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_multiple_drop_down_list)) }
+      before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_multiple_drop_down_list, drop_down_options: ["Crétinier", "Mousserie"])) }
 
       let(:value) { '["Crétinier", "Mousserie"]' }
 
-      it { expect(champ.for_export).to eq('Crétinier, Mousserie') }
+      it { expect(value_for_export).to eq('Crétinier, Mousserie') }
     end
 
     # pf displays links for PJs
@@ -249,7 +240,7 @@ describe Champ do
       end
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_piece_justificative)) }
 
-      it { expect(champ.for_export).to eq('logo_test_procedure.png') }
+      it { expect(champ.type_de_champ.champ_value_for_export(champ)).to eq('logo_test_procedure.png') }
     end
   end
 
@@ -264,7 +255,22 @@ describe Champ do
       end
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_piece_justificative)) }
       before { allow(champ).to receive(:dossier).and_return(build(:dossier)) }
-      it { expect(champ.for_tag).to include('<img src="http://') }
+      # pf: mocker la génération de variant pour data URI
+      before do
+        variant = double('variant')
+        processed = double('processed')
+        allow_any_instance_of(ActiveStorage::Attachment).to receive(:variant).with(resize_to_limit: [400, 400]).and_return(variant)
+        allow(variant).to receive(:processed).and_return(processed)
+        allow(processed).to receive(:download).and_return("fake_image_data")
+        allow(Base64).to receive(:strict_encode64).with("fake_image_data").and_return("ZmFrZV9pbWFnZV9kYXRh")
+      end
+      # pf: nouveau comportement avec data URI pour embedding dans PDF + lien toujours présent
+      it 'contains both image and download link' do
+        result = champ.type_de_champ.champ_value_for_tag(champ).to_s
+        expect(result).to include('<img src="data:image/')
+        expect(result).to include('Télécharger')
+        expect(result).to include('<a href=')
+      end
     end
 
     context 'when type_de_champ is numero_dn' do
@@ -272,8 +278,8 @@ describe Champ do
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_numero_dn)) }
 
       it do
-        expect(champ.for_tag).to eq("1234567")
-        expect(champ.for_tag(:date_de_naissance)).to eq('01 janvier 2000')
+        expect(champ.type_de_champ.champ_value_for_tag(champ)).to eq("1234567")
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :date_de_naissance)).to eq('01 janvier 2000')
       end
     end
 
@@ -282,10 +288,10 @@ describe Champ do
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_commune_de_polynesie)) }
 
       it do
-        expect(champ.for_tag).to eq("Arue")
-        expect(champ.for_tag(:ile)).to eq('Tahiti')
-        expect(champ.for_tag(:archipel)).to eq('Iles Du Vent')
-        expect(champ.for_tag(:code_postal)).to eq(98701)
+        expect(champ.type_de_champ.champ_value_for_tag(champ)).to eq("Arue")
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :ile)).to eq('Tahiti')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :archipel)).to eq('Iles Du Vent')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :code_postal)).to eq(98701)
       end
     end
 
@@ -294,10 +300,10 @@ describe Champ do
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_code_postal_de_polynesie)) }
 
       it do
-        expect(champ.for_tag).to eq(98701)
-        expect(champ.for_tag(:ile)).to eq('Tahiti')
-        expect(champ.for_tag(:archipel)).to eq('Iles Du Vent')
-        expect(champ.for_tag(:commune)).to eq('Arue')
+        expect(champ.type_de_champ.champ_value_for_tag(champ)).to eq(98701)
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :ile)).to eq('Tahiti')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :archipel)).to eq('Iles Du Vent')
+        expect(champ.type_de_champ.champ_value_for_tag(champ, :commune)).to eq('Arue')
       end
     end
 
@@ -305,12 +311,14 @@ describe Champ do
       let(:value) { :noop }
       let(:champ_yes_no) { Champs::YesNoChamp.new(value: 'true') }
       let(:champ_text) { Champs::TextChamp.new(value: 'hello') }
+      let(:type_de_champ_yes_no) { build(:type_de_champ_yes_no) }
+      let(:type_de_champ_text) { build(:type_de_champ_text) }
       before do
-        allow(champ_yes_no).to receive(:type_de_champ).and_return(build(:type_de_champ_yes_no))
-        allow(champ_text).to receive(:type_de_champ).and_return(build(:type_de_champ_text))
+        allow(champ_yes_no).to receive(:type_de_champ).and_return(type_de_champ_yes_no)
+        allow(champ_text).to receive(:type_de_champ).and_return(type_de_champ_text)
       end
-      it { expect(TypeDeChamp.champ_value_for_export('text', champ_yes_no)).to eq(nil) }
-      it { expect(TypeDeChamp.champ_value_for_export('yes_no', champ_text)).to eq('Non') }
+      it { expect(type_de_champ_text.champ_value_for_export(champ_yes_no)).to eq(nil) }
+      it { expect(type_de_champ_yes_no.champ_value_for_export(champ_text)).to eq('') }
     end
   end
 
@@ -318,10 +326,10 @@ describe Champ do
     subject { champ.search_terms }
 
     context 'for adresse champ' do
-      let(:champ) { Champs::AddressChamp.new(value:) }
+      let(:champ) { Champs::AddressChamp.new(value:, not_in_ban: 'true', street_address: '10 rue du Pinson qui Piaille', city_name: 'Piaille', postal_code: '1234', country_code: 'IT') }
       let(:value) { "10 rue du Pinson qui Piaille" }
 
-      it { is_expected.to eq([value]) }
+      it { is_expected.to eq([value, 'Piaille']) }
     end
 
     context 'for checkbox champ' do
@@ -406,7 +414,7 @@ describe Champ do
     context 'for drop down list champ' do
       let(:champ) { Champs::DropDownListChamp.new(value:) }
       before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_drop_down_list)) }
-      let(:value) { "HLM" }
+      let(:value) { "val1" }
 
       it { is_expected.to eq([value]) }
     end
@@ -432,7 +440,8 @@ describe Champ do
     end
 
     context 'for linked drop down list champ' do
-      let(:champ) { Champs::LinkedDropDownListChamp.new(primary_value: "hello", secondary_value: "world") }
+      let(:champ) { Champs::LinkedDropDownListChamp.new(value: '["hello","world"]') }
+      before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_linked_drop_down_list, drop_down_options: ['--hello--', 'world'])) }
 
       it { is_expected.to eq(["hello", "world"]) }
     end
@@ -445,6 +454,7 @@ describe Champ do
 
     context 'for multiple drop down list champ' do
       let(:champ) { Champs::MultipleDropDownListChamp.new(value:) }
+      before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_multiple_drop_down_list, drop_down_options: ['goodbye', 'cruel', 'world'])) }
 
       context 'when there are multiple values selected' do
         let(:value) { JSON.generate(['goodbye', 'cruel', 'world']) }
@@ -643,60 +653,12 @@ describe Champ do
     end
   end
 
-  describe '#log_fetch_external_data_exception' do
-    let(:champ) { Champs::SiretChamp.new }
-
-    context "add execption to the log" do
-      it do
-        expect(champ).to receive(:update_column).with(:fetch_external_data_exceptions, ['PAN'])
-        champ.log_fetch_external_data_exception(double(inspect: 'PAN'))
-      end
-    end
-  end
-
-  describe "fetch_external_data" do
-    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :rnf }]) }
-    let(:dossier) { create(:dossier, procedure:) }
-    let(:champ) { dossier.champs.first.tap { _1.update_column(:data, 'some data') } }
-
-    context "cleanup_if_empty" do
-      it "remove data if external_id changes" do
-        expect(champ.data).to_not be_nil
-        champ.update(external_id: 'external_id')
-        expect(champ.data).to be_nil
-      end
-    end
-
-    context "fetch_external_data_later" do
-      let(:data) { { address: { city: "some external data" } }.with_indifferent_access }
-
-      it "fill data from external source" do
-        expect_any_instance_of(Champs::RNFChamp).to receive(:fetch_external_data) { data }
-
-        perform_enqueued_jobs do
-          champ.update(external_id: 'external_id')
-        end
-        expect(champ.reload.data).to eq data
-      end
-    end
-  end
-
   describe "#input_name" do
     let(:champ) { Champs::TextChamp.new }
     it { expect(champ.input_name).to eq "dossier[champs_public_attributes][#{champ.public_id}]" }
 
     context "when private" do
       let(:champ) { Champs::TextChamp.new(private: true) }
-      it { expect(champ.input_name).to eq "dossier[champs_private_attributes][#{champ.public_id}]" }
-    end
-
-    context "when has parent" do
-      let(:champ) { Champs::TextChamp.new(parent: Champs::TextChamp.new) }
-      it { expect(champ.input_name).to eq "dossier[champs_public_attributes][#{champ.public_id}]" }
-    end
-
-    context "when has private parent" do
-      let(:champ) { Champs::TextChamp.new(private: true, parent: Champs::TextChamp.new(private: true)) }
       it { expect(champ.input_name).to eq "dossier[champs_private_attributes][#{champ.public_id}]" }
     end
   end

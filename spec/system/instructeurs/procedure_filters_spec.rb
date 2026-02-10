@@ -2,7 +2,7 @@
 
 describe "procedure filters" do
   let(:instructeur) { create(:instructeur) }
-  let(:procedure) { create(:procedure, :published, types_de_champ_public:, instructeurs: [instructeur]) }
+  let(:procedure) { create(:procedure, :published, :with_labels, types_de_champ_public:, instructeurs: [instructeur]) }
   let(:types_de_champ_public) { [{ type: :text }] }
   let!(:type_de_champ) { procedure.active_revision.types_de_champ_public.first }
   let!(:new_unfollow_dossier) { create(:dossier, procedure: procedure, state: Dossier.states.fetch(:en_instruction)) }
@@ -19,7 +19,7 @@ describe "procedure filters" do
 
   scenario "should display demandeur by default" do
     within ".dossiers-table" do
-      expect(page).to have_link("Demandeur")
+      expect(page).to have_button("Demandeur")
       expect(page).to have_link(new_unfollow_dossier.user.email)
     end
   end
@@ -28,7 +28,7 @@ describe "procedure filters" do
     procedure.update!(sva_svr: SVASVRConfiguration.new(decision: :sva).attributes)
     visit instructeur_procedure_path(procedure)
     within ".dossiers-table" do
-      expect(page).to have_link("Date décision SVA")
+      expect(page).to have_button("Date décision SVA")
       expect(page).to have_link(new_unfollow_dossier.user.email)
     end
   end
@@ -44,30 +44,34 @@ describe "procedure filters" do
   end
 
   scenario "should add be able to add created_at column", js: true do
-    add_column("Créé le")
+    add_column("Date de création")
     within ".dossiers-table" do
-      expect(page).to have_link("Créé le")
-      expect(page).to have_link(new_unfollow_dossier.created_at.strftime('%d/%m/%Y'))
+      expect(page).to have_button("Date de création")
+      expect(page).to have_link(I18n.l(new_unfollow_dossier.created_at))
     end
   end
 
   scenario "should add be able to add and remove custom type_de_champ column", js: true do
+    # Hack to force filters combo to be above the menu so Enregistrer button
+    # is clickable. (by default height is 2000+ for playwright driver)
+    Capybara.page.current_window.resize_to(1440, 900)
+
     add_column(type_de_champ.libelle)
     within ".dossiers-table" do
-      expect(page).to have_link(type_de_champ.libelle)
+      expect(page).to have_button(type_de_champ.libelle)
       expect(page).to have_link(champ.value)
     end
 
     remove_column(type_de_champ.libelle)
     within ".dossiers-table" do
-      expect(page).not_to have_link(type_de_champ.libelle)
+      expect(page).not_to have_button(type_de_champ.libelle)
       expect(page).not_to have_link(champ.value)
     end
 
     # Test removal of all customizable fields
     remove_column("Demandeur")
     within ".dossiers-table" do
-      expect(page).not_to have_link("Demandeur")
+      expect(page).not_to have_button("Demandeur")
     end
   end
 
@@ -94,15 +98,16 @@ describe "procedure filters" do
       expect(page).to have_link(new_unfollow_dossier_2.user.email)
     end
   end
+
   describe 'with dropdown' do
     let(:types_de_champ_public) { [{ type: :drop_down_list }] }
 
     scenario "should be able to user custom fiters", js: true do
       # use date filter
-      add_filter("En construction le", "10/10/2010", type: :date)
+      add_filter("Date de passage en construction", "10/10/2010", type: :date)
 
       # use statut dropdown filter
-      add_filter('Statut', 'En construction', type: :enum)
+      add_filter('État du dossier', 'En construction', type: :enum)
 
       # use choice dropdown filter
       add_filter('Choix unique', 'val1', type: :enum)
@@ -121,7 +126,7 @@ describe "procedure filters" do
     describe 'departements' do
       let(:types_de_champ_public) { [{ type: :departements }] }
       scenario "should be able to find by departements with custom enum lookup", js: true do
-        departement_champ = new_unfollow_dossier.champs.find(&:departement?)
+        departement_champ = new_unfollow_dossier.champs.find(&:departements?)
         departement_champ.update!(value: 'Oise', external_id: '60')
         departement_champ.reload
         champ_select_value = "#{departement_champ.external_id} – #{departement_champ.value}"
@@ -146,14 +151,14 @@ describe "procedure filters" do
             "street_name" => "fake",
             "street_number" => "fake",
             "street_address" => "fake",
-            "departement_code" => "37",
-            "departement_name" => "Indre-et-Loire"
+            "department_code" => "37",
+            "department_name" => "Indre-et-Loire"
           }
         )
         rna_champ.reload
         champ_select_value = "37 – Indre-et-Loire"
 
-        add_filter("#{rna_champ.libelle} – département", champ_select_value, type: :enum)
+        add_filter("#{rna_champ.libelle} – Département", champ_select_value, type: :enum)
         expect(page).to have_link(new_unfollow_dossier.id.to_s)
       end
     end
@@ -161,13 +166,22 @@ describe "procedure filters" do
     describe 'region' do
       let(:types_de_champ_public) { [{ type: :regions }] }
       scenario "should be able to find by region with custom enum lookup", js: true do
-        region_champ = new_unfollow_dossier.champs.find(&:region?)
+        region_champ = new_unfollow_dossier.champs.find(&:regions?)
         region_champ.update!(value: 'Bretagne', external_id: '53')
         region_champ.reload
 
         add_filter(region_champ.libelle, region_champ.value, type: :enum)
         expect(page).to have_link(new_unfollow_dossier.id.to_s)
       end
+    end
+  end
+
+  describe 'dossier labels' do
+    scenario "should be able to filter by dossier labels", js: true do
+      DossierLabel.create!(dossier_id: new_unfollow_dossier.id, label_id: procedure.labels.first.id)
+      add_filter('Labels', procedure.labels.first.name, type: :enum)
+      expect(page).to have_link(new_unfollow_dossier.id.to_s)
+      expect(page).not_to have_link(new_unfollow_dossier_2.id.to_s, exact: true)
     end
   end
 
@@ -207,8 +221,8 @@ describe "procedure filters" do
   def add_filter(column_name, filter_value, type: :text)
     click_on 'Sélectionner un filtre'
     wait_until { all("#search-filter").size == 1 }
-    find('#search-filter + button', wait: 5).click
-    find('.fr-menu__item', text: column_name, wait: 5).click
+    fill_in 'search-filter', with: column_name
+    select_combobox('Colonne', column_name)
     case type
     when :text
       fill_in "Valeur", with: filter_value
@@ -224,7 +238,7 @@ describe "procedure filters" do
   end
 
   def remove_filter(filter_value)
-    click_link text: filter_value
+    click_button text: filter_value
   end
 
   def add_column(column_name)

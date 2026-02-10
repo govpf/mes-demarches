@@ -15,7 +15,9 @@
       content="demarches-simplifiees.fr"
       name="apple-mobile-web-app-title"
     />
-    <title>Service temporairement indisponible - demarches-simplifiees.fr</title>
+    <title>
+      Service temporairement indisponible - demarches-simplifiees.fr
+    </title>
     <meta content="#ffffff" name="theme-color" />
     <link
       rel="preload"
@@ -1257,21 +1259,6 @@
           var(--underline-hover-width) calc(var(--underline-thickness) * 2),
           var(--underline-idle-width) var(--underline-thickness);
       }
-      [target='_blank']::after {
-        flex: 0 0 auto;
-        display: inline-block;
-        vertical-align: calc((0.75em - var(--icon-size)) * 0.5);
-        background-color: currentColor;
-        width: var(--icon-size);
-        height: var(--icon-size);
-        -webkit-mask-size: 100% 100%;
-        mask-size: 100% 100%;
-        --icon-size: 1rem;
-        -webkit-mask-image: url('/vite-dev/@fs/Users/colin/code/demarches-simplifiees.fr/node_modules/@gouvfr/dsfr/dist/icons/system/external-link-line.svg');
-        mask-image: url('/vite-dev/@fs/Users/colin/code/demarches-simplifiees.fr/node_modules/@gouvfr/dsfr/dist/icons/system/external-link-line.svg');
-        content: var(--external-link-content);
-        margin-left: 0.25rem;
-      }
       a {
         outline-offset: 2px;
         outline-width: 2px;
@@ -2108,7 +2095,7 @@
                   <li>
                     <!-- / NB: on mobile in order to have links correctly aligned, we need a left icon -->
                     <a
-                      class="fr-btn dropdown-button"
+                      class="fr-btn"
                       href="/faq"
                       >Aide</a
                     >

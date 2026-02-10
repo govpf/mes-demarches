@@ -1,10 +1,18 @@
-@import "colors";
-@import "constants";
-@import "mixins";
+@import 'colors';
+@import 'constants';
+@import 'mixins';
 
 .procedure-list {
   .procedure-logo-link {
     background-image: none;
+  }
+
+  > li {
+    border-top: none;
+
+    @media (min-width: 62em) {
+      border-top: 1px solid var(--border-default-grey);
+    }
   }
 
   .procedure-logo {
@@ -16,17 +24,16 @@
     background-position: 95% 50%;
   }
 
-
   .procedure-stats {
     list-style-type: none;
     padding-inline-start: 0;
 
     li {
       min-height: 36px;
-      width: 90px;
+      min-width: 6em;
       position: relative;
-
-      border-left: 1px solid $border-grey;
+      border-left: 1px solid var(--border-default-grey);
+      flex: 1 1 auto;
 
       &:first-child {
         border-left: none;
@@ -36,25 +43,44 @@
         background-color: rgba(0, 0, 0, 0.05);
       }
 
-
-      .stats-number,
-      .stats-legend {
-        text-align: center;
+      .notifications {
+        top: 10px;
+        left: 50%;
+        margin-left: 15px;
       }
+    }
+  }
+}
 
-      .stats-number {
-        font-size: 14px;
-        font-weight: bold;
-      }
-
-      .stats-legend {
-        font-size: 12px;
-      }
+.procedure-list-item {
+  .fr-btn--tertiary {
+    a {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
     }
 
     .notifications {
-      top: 3px;
-      right: 18px;
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background-color: red;
+      border-radius: 50%;
+      top: 15px;
+      right: 35%;
+    }
+
+    .center.fr-text--bold {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &::after {
+        content: '';
+        display: inline-block;
+        width: 30px;
+      }
     }
   }
 }

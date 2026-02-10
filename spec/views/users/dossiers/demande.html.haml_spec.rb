@@ -12,13 +12,13 @@ describe 'users/dossiers/demande', type: :view do
   subject! { render }
 
   it 'renders the header' do
-    expect(rendered).to have_text("Dossier nº #{dossier.id}")
+    expect(rendered).to have_text("Dossier numéro nº #{dossier.id}")
   end
 
   it 'renders the dossier infos' do
     expect(rendered).to have_text('Déposé le')
     expect(rendered).to have_text('Identité')
-    expect(rendered).to have_text('Demande')
+    expect(rendered).to have_text('Votre dossier')
   end
 
   context 'when the dossier is editable' do
@@ -79,6 +79,60 @@ describe 'users/dossiers/demande', type: :view do
       expect(rendered).to have_text('Cette démarche est soumise à un accusé de lecture.')
       expect(rendered).not_to have_text('Motivation')
       expect(rendered).not_to have_text('L’usager n’a pas encore pris connaissance de la décision concernant son dossier')
+    end
+  end
+
+  context 'when there is a dropdown list from a referentiel' do
+    let!(:procedure) { create(:procedure, types_de_champ_public:) }
+    let(:types_de_champ_public) do
+      [
+        { type: :drop_down_list, drop_down_mode: 'advanced', drop_down_other: '1', referentiel: }
+      ]
+    end
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:champ) { dossier.champs.first }
+    let(:referentiel) { create(:csv_referentiel, :with_items) }
+
+    context 'user choose an option in the list' do
+      before do
+        dossier.champs.first.update!(value: referentiel.items.first.id.to_s)
+        dossier.champs.first.referentiel = { 'data' => { 'row' => { 'option' => 'fromage', 'calorie_kcal' => '145', 'poids_g' => '60' }, 'headers' => ['Option', 'Calorie (kcal)', 'Poids (g)'] } }
+        render
+      end
+
+      it 'display only the first option to the user' do
+        expect(rendered).to have_text('fromage')
+        expect(rendered).not_to have_text('dessert')
+      end
+    end
+
+    context 'user choose other option' do
+      before do
+        dossier.champs.first.update!(value: '__other__', value_other: 'Texte libre')
+        dossier.reload
+        render
+      end
+      it 'display only the first option to the user' do
+        expect(rendered).to have_text('Texte libre')
+      end
+    end
+  end
+
+  context 'when value contains html values' do
+    let(:types_de_champ_public) { [{ type: :textarea }] }
+    let(:procedure) { create(:procedure, :published, types_de_champ_public:) }
+    let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+    let(:champ) { dossier.project_champs_public.first }
+
+    before do
+      champ.update(value: '<strong>important</strong>')
+      assign(:dossier, dossier)
+      render
+    end
+
+    it 'renders the value escaped in the view' do
+      # The raw HTML tags should not be interpreted as tags but escaped
+      expect(rendered).to include('&lt;strong&gt;important&lt;/strong&gt;')
     end
   end
 end

@@ -13,6 +13,7 @@ class ProcedureDashboard < Administrate::BaseDashboard
     published_types_de_champ_public: TypesDeChampCollectionField,
     published_types_de_champ_private: TypesDeChampCollectionField,
     path: ProcedureLinkField,
+    procedure_paths: Field::HasMany,
     aasm_state: ProcedureStateField,
     dossiers: Field::HasMany,
     administrateurs: Field::HasMany,
@@ -54,7 +55,8 @@ class ProcedureDashboard < Administrate::BaseDashboard
     tags: Field::Text,
     template: Field::Boolean,
     opendata: Field::Boolean,
-    hide_instructeurs_email: Field::Boolean
+    hide_instructeurs_email: Field::Boolean,
+    dossiers_count: Field::Number
   }.freeze
 
   # COLLECTION_ATTRIBUTES
@@ -78,7 +80,9 @@ class ProcedureDashboard < Administrate::BaseDashboard
   SHOW_PAGE_ATTRIBUTES = [
     :id,
     :path,
+    :procedure_paths,
     :aasm_state,
+    :dossiers_count,
     :administrateurs,
     :instructeurs,
     :groupe_instructeurs,

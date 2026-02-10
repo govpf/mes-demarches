@@ -72,8 +72,8 @@ describe Experts::AvisController, type: :controller do
 
           it do
             expect(response).to have_http_status(:success)
-            expect(assigns(:avis_a_donner)).to match([avis_without_answer, oldest_avis_without_answer])
-            expect(assigns(:avis_donnes)).to match([avis_with_answer])
+            expect(assigns(:avis_a_donner)).to match_array([avis_without_answer, oldest_avis_without_answer])
+            expect(assigns(:avis_donnes)).to match_array([avis_with_answer])
             expect(assigns(:statut)).to eq('a-donner')
           end
         end
@@ -251,8 +251,7 @@ describe Experts::AvisController, type: :controller do
     end
 
     describe '#update' do
-      before { Timecop.freeze(now) }
-      after { Timecop.return }
+      before { travel_to(now) }
 
       let(:avis) { avis_without_answer }
 
@@ -316,6 +315,33 @@ describe Experts::AvisController, type: :controller do
           expect(flash.alert).to eq("Vous n’avez pas accès à cet avis.")
         end
       end
+
+      context "when dossier had attente_avis notification" do
+        let!(:notification) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: :attente_avis) }
+
+        it "destroy notification for all instructeurs" do
+          subject
+          expect(DossierNotification.exists?(notification.id)).to be_falsey
+        end
+      end
+
+      context "when there are instructeurs followers" do
+        let!(:groupe_instructeur) { create(:groupe_instructeur, instructeurs: [instructeur, another_instructeur]) }
+
+        before do
+          dossier.assign_to_groupe_instructeur(groupe_instructeur, DossierAssignment.modes.fetch(:auto))
+          instructeur.followed_dossiers << dossier
+        end
+
+        it "create avis_externe notification only for instructeur follower" do
+          expect { subject }.to change(DossierNotification, :count).by(1)
+
+          notification = DossierNotification.last
+          expect(notification.dossier_id).to eq(dossier.id)
+          expect(notification.instructeur_id).to eq(instructeur.id)
+          expect(notification.notification_type).to eq("avis_externe")
+        end
+      end
     end
 
     describe '#create_commentaire' do
@@ -328,10 +354,8 @@ describe Experts::AvisController, type: :controller do
 
       before do
         allow(ClamavService).to receive(:safe_file?).and_return(scan_result)
-        Timecop.freeze(now)
+        travel_to(now)
       end
-
-      after { Timecop.return }
 
       it do
         subject
@@ -354,6 +378,22 @@ describe Experts::AvisController, type: :controller do
         let(:avis) { revoked_avis }
 
         it { is_expected.to redirect_to(root_path) }
+      end
+
+      context "when there are instructeurs followers" do
+        before do
+          instructeur.followed_dossiers << dossier
+          subject
+        end
+
+        it "create message notification for instructeurs follower" do
+          expect(DossierNotification.count).to eq(1)
+
+          notification = DossierNotification.last
+          expect(notification.dossier_id).to eq(dossier.id)
+          expect(notification.instructeur_id).to eq(instructeur.id)
+          expect(notification.notification_type).to eq("message")
+        end
       end
     end
 
@@ -380,12 +420,10 @@ describe Experts::AvisController, type: :controller do
       let(:question_label) { '' }
 
       before do
-        Timecop.freeze(now)
+        travel_to(now)
         post :create_avis, params: { id: previous_avis.id, procedure_id:, avis: { emails:, introduction:, experts_procedure:, confidentiel:, invite_linked_dossiers:, introduction_file:, question_label: } }
         created_avis.reload
       end
-
-      after { Timecop.return }
 
       context 'from a revoked avis' do
         let(:previous_revoked_at) { Time.zone.now }
@@ -401,7 +439,7 @@ describe Experts::AvisController, type: :controller do
 
         it do
           expect(response).to render_template :instruction
-          expect(flash.alert).to eq(["toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com"])
+          expect(flash.alert).to eq("toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com")
           expect(Avis.last).to eq(previous_avis)
           expect(dossier.last_avis_updated_at).to eq(nil)
         end
@@ -432,7 +470,7 @@ describe Experts::AvisController, type: :controller do
 
         it do
           expect(response).to render_template :instruction
-          expect(flash.alert).to eq(["toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com"])
+          expect(flash.alert).to eq("toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com")
           expect(flash.notice).to eq("Une demande d’avis a été envoyée à titi@titimail.com")
           expect(Avis.count).to eq(old_avis_count + 1)
         end
@@ -456,7 +494,7 @@ describe Experts::AvisController, type: :controller do
         end
       end
 
-      context 'when the preivous avis is confidentiel' do
+      context 'when the previous avis is confidentiel' do
         let(:previous_avis_confidentiel) { true }
 
         context 'when the user asked for a public avis' do
@@ -483,7 +521,7 @@ describe Experts::AvisController, type: :controller do
         context 'when the expert also shares the linked dossiers' do
           context 'and the expert can access the linked dossiers' do
             let(:created_avis) { create(:avis, dossier: dossier, claimant: claimant, email: "toto3@gmail.com") }
-            let(:linked_dossier) { Dossier.find_by(id: dossier.reload.champs_public.filter(&:dossier_link?).filter_map(&:value)) }
+            let(:linked_dossier) { Dossier.find_by(id: dossier.reload.project_champs_public.filter(&:dossier_link?).filter_map(&:value)) }
             let(:linked_avis) { create(:avis, dossier: linked_dossier, claimant: claimant) }
             let(:invite_linked_dossiers) { true }
 
@@ -504,6 +542,42 @@ describe Experts::AvisController, type: :controller do
               expect(Avis.count).to eq(old_avis_count + 1)
               expect(created_avis.dossier).to eq(dossier)
             end
+          end
+        end
+      end
+
+      context 'when creating avis for linked dossiers with different procedures' do
+        let(:types_de_champ_public) { [{ type: :dossier_link }] }
+        let(:another_procedure) { create(:procedure, :published) }
+        let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+        let(:linked_dossier) { create(:dossier, :en_construction, procedure: another_procedure) }
+        let(:linked_experts_procedure) { create(:experts_procedure, expert: previous_avis.expert, procedure: another_procedure) }
+        let!(:linked_avis) { create(:avis, dossier: linked_dossier, experts_procedure: linked_experts_procedure, claimant: previous_avis.claimant) }
+
+        let(:invite_linked_dossiers) { true }
+
+        before do
+          dossier_link_champ = dossier.champs.find_by(type: "Champs::DossierLinkChamp")
+          dossier_link_champ.update!(value: linked_dossier.id)
+        end
+
+        it 'creates experts_procedure with correct procedure for each dossier' do
+          expect {
+            post :create_avis, params: {
+              id: previous_avis.id,
+              procedure_id: procedure.id,
+              avis: {
+                emails: ["expert@example.com"],
+                introduction: "Please review",
+                confidentiel: false,
+                invite_linked_dossiers: true
+              }
+            }
+          }.to change(Avis, :count).by(2)
+
+          Avis.all.each do |avis|
+            # Verify experts_procedures are created with correct procedures
+            expect(avis.experts_procedure.procedure_id).to eq(avis.dossier.procedure.id)
           end
         end
       end

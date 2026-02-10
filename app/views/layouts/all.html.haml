@@ -12,7 +12,7 @@
 
     .fr-container--fluid{ data: { turbo: 'true' } }
       %turbo-frame#procedures.fr-grid-row.fr-grid-row--gutters{ 'data-turbo-action': 'advance' }
-        .fr-col-3
+        .fr-col-12.fr-col-lg-3
           = form_with(url: all_admin_procedures_path, method: :get, data: { controller: 'autosubmit', turbo_frame: 'procedures' }) do |f|
 
             %fieldset.sidebar-filter
@@ -24,6 +24,21 @@
                   = link_to all_admin_procedures_path(zone_ids: current_administrateur.zones), { data: { turbo: 'false' } } do
                     %span.fr-icon-arrow-go-back-line Réinitialiser
               %ul
+
+                %li.fr-py-2w.fr-pl-2w{ 'data-controller': "expand" }
+                  .fr-mb-1w
+                    %button{ 'data-action': 'expand#toggle' }
+                      %span.fr-icon-add-line.fr-icon--sm.fr-mr-1w.fr-text-action-high--blue-france{ 'aria-hidden': 'true', 'data-expand-target': 'icon' }
+                      Thématique
+                  .fr-ml-1w.hidden{ 'data-expand-target': 'content' }
+                    %div
+                      = f.search_field :tags, placeholder: 'Choisissez un thème', list: 'tags_list', class: 'fr-input', data: { no_autosubmit: 'input', turbo_force: :server }, multiple: true
+                      %datalist#tags_list
+                        - ProcedureTag.order(:name).each do |tag|
+                          %option{ value: tag.name, data: { id: tag.id } }
+                      - if @filter.tags.present?
+                        - @filter.tags.each do |tag|
+                          = f.hidden_field :tags, value: tag, multiple: true, id: "tag-#{tag.tr(' ', '_')}"
 
                 %li.fr-py-2w.fr-pl-2w{ 'data-controller': "expand" }
                   .fr-mb-1w
@@ -70,7 +85,7 @@
                   .fr-ml-1w.hidden{ 'data-expand-target': 'content' }
                     %div
                       = f.select :service_departement,
-                        APIGeoService.departements.map { ["#{_1[:code]} – #{_1[:name]}", _1[:code]] },
+                        APIGeoService.departement_options,
                         { selected: @filter.service_departement, include_blank: ''},
                         id: "service_dep_select",
                         class: 'fr-select'
@@ -105,22 +120,6 @@
                         = b.check_box(checked: @filter.status_filtered?(b.value))
                         = b.label(class: 'fr-label') { t b.text, scope: 'activerecord.attributes.procedure.aasm_state' }
 
-
-                %li.fr-py-2w.fr-pl-2w{ 'data-controller': "expand" }
-                  .fr-mb-1w
-                    %button{ 'data-action': 'expand#toggle' }
-                      %span.fr-icon-add-line.fr-icon--sm.fr-mr-1w.fr-text-action-high--blue-france{ 'aria-hidden': 'true', 'data-expand-target': 'icon' }
-                      Thématique
-                  .fr-ml-1w.hidden{ 'data-expand-target': 'content' }
-                    %div
-                      = f.search_field :tags, placeholder: 'Choisissez un thème', list: 'tags_list', class: 'fr-input', data: { no_autosubmit: 'input', turbo_force: :server }, multiple: true
-                      %datalist#tags_list
-                        - Procedure.tags.each do |tag|
-                          %option{ value: tag }
-                      - if @filter.tags.present?
-                        - @filter.tags.each do |tag|
-                          = f.hidden_field :tags, value: tag, multiple: true, id: "tag-#{tag.tr(' ', '_')}"
-
-        .fr-col-9
+        .fr-col-12.fr-col-lg-9
           = yield(:results)
 = render template: 'layouts/application'

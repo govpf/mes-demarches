@@ -3,4 +3,17 @@ en:
     attributes:
       champs/address_champ:
         hints:
-          value: "Enter an address, a street, a city. Example: 11 rue Réaumur, Paris"
+          value: 'Enter an address, a street, a city. Example: 11 rue Réaumur, Paris'
+    errors:
+      models:
+        champs/address_champ:
+          format: '%{message}'
+          attributes:
+            street_address:
+              required: Fill in a street name and number or, place name
+            commune_name:
+              required: Fill in a city or municipality
+            city_name:
+              required: Fill in a city
+            postal_code:
+              required: Fill in a postal code

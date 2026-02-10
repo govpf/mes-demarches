@@ -6,7 +6,7 @@ describe Champs::RNAController, type: :controller do
 
   describe '#show' do
     let(:dossier) { create(:dossier, user: user, procedure: procedure) }
-    let(:champ) { dossier.champs_public.first }
+    let(:champ) { dossier.project_champs_public.first }
 
     let(:champs_public_attributes) do
       champ_attributes = {}
@@ -38,14 +38,20 @@ describe Champs::RNAController, type: :controller do
         let(:status) { 422 }
         let(:body) { '' }
 
-        subject! { get :show, params: params, format: :turbo_stream }
+        subject { get :show, params: params, format: :turbo_stream }
 
         it 'clears the data on the model' do
+          subject
           expect(champ.reload.data).to be_nil
         end
 
-        it 'clears any information or error message' do
-          expect(response.body).to include(ActionView::RecordIdentifier.dom_id(champ, :rna_info))
+        it 'keep assertive div with error id' do
+          subject
+          expect(response.body).to include(champ.error_id)
+        end
+
+        it 'updates dossier.last_champs_updated_at' do
+          expect { subject }.to change { dossier.reload.last_champ_updated_at }
         end
       end
 
@@ -54,14 +60,20 @@ describe Champs::RNAController, type: :controller do
         let(:status) { 422 }
         let(:body) { '' }
 
-        subject! { get :show, params: params, format: :turbo_stream }
+        subject { get :show, params: params, format: :turbo_stream }
 
         it 'clears the data on the model' do
+          subject
           expect(champ.reload.data).to be_nil
         end
 
         it 'displays a “RNA is invalid” error message' do
-          expect(response.body).to include("Le numéro RNA doit commencer par un W majuscule suivi de 9 chiffres ou lettres")
+          subject
+          expect(response.body).to include("doit commencer par un W majuscule suivi de 9 chiffres ou lettres. Exemple : W503726238")
+        end
+
+        it 'updates dossier.last_champs_updated_at' do
+          expect { subject }.to change { dossier.reload.last_champ_updated_at }
         end
       end
 
@@ -78,7 +90,7 @@ describe Champs::RNAController, type: :controller do
         end
 
         it 'displays a “RNA is invalid” error message' do
-          expect(response.body).to include("Aucun établissement trouvé")
+          expect(response.body).to include("le numéro RNA saisi ne correspond à aucun établissement, saisissez un numéro RNA valide")
         end
       end
 
@@ -98,7 +110,7 @@ describe Champs::RNAController, type: :controller do
         end
 
         it 'displays a “API is unavailable” error message' do
-          expect(response.body).to include("Une erreur réseau a empêché l’association liée à ce RNA d’être trouvée")
+          expect(response.body).to include("une erreur réseau a empêché l’association liée à ce RNA d’être trouvée, réessayez plus tard")
         end
       end
 
@@ -126,13 +138,18 @@ describe Champs::RNAController, type: :controller do
             "city_code" => "75108",
             "city_name" => "Paris",
             "departement_code" => nil, # might seem broken lookup, but no, it's anonymized
+            "department_code" => nil, # might seem broken lookup, but no, it's anonymized
             "departement_name" => nil,
+            "department_name" => nil,
             "postal_code" => "75009",
             "region_code" => nil,
             "region_name" => nil,
             "street_address" => "33 rue de Modagor",
             "street_name" => "de Modagor",
-            "street_number" => "33"
+            "street_number" => "33",
+            "title" => "LA PRÉVENTION ROUTIERE",
+            "country_code" => "FR",
+            "country_name" => "France"
           })
         end
       end

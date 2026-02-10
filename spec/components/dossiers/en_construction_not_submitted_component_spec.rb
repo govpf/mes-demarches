@@ -21,7 +21,11 @@ RSpec.describe Dossiers::EnConstructionNotSubmittedComponent, type: :component d
     end
 
     context "with changes" do
-      before { fork.champs_public.first.update(value: "new value") }
+      before do
+        travel(1.second)
+        fork.project_champs_public.first.update(value: "new value")
+        fork.reload
+      end
 
       it "inform user" do
         expect(subject).to include("Des modifications n’ont pas encore été déposées")

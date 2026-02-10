@@ -7,12 +7,10 @@ describe 'Prefilling a dossier (with a POST request):', js: true do
     [
       { type: :text },
       { type: :phone },
-      { type: :rna },
       { type: :siret },
       { type: :datetime },
       { type: :multiple_drop_down_list },
       { type: :epci },
-      { type: :annuaire_education },
       { type: :dossier_link },
       { type: :communes },
       { type: :address },
@@ -21,25 +19,23 @@ describe 'Prefilling a dossier (with a POST request):', js: true do
   end
   let(:procedure) { create(:procedure, :for_individual, :published, types_de_champ_public:) }
   let(:dossier) { procedure.dossiers.last }
+  let(:linked_dossier) { create(:dossier, :en_construction, procedure:) }
   let(:types_de_champ) { procedure.active_revision.types_de_champ_public }
 
   let(:type_de_champ_text) { types_de_champ[0] }
   let(:type_de_champ_phone) { types_de_champ[1] }
-  let(:type_de_champ_rna) { types_de_champ[2] }
-  let(:type_de_champ_siret) { types_de_champ[3] }
-  let(:type_de_champ_datetime) { types_de_champ[4] }
-  let(:type_de_champ_multiple_drop_down_list) { types_de_champ[5] }
-  let(:type_de_champ_epci) { types_de_champ[6] }
-  let(:type_de_champ_annuaire_education) { types_de_champ[7] }
-  let(:type_de_champ_dossier_link) { types_de_champ[8] }
-  let(:type_de_champ_commune) { types_de_champ[9] }
-  let(:type_de_champ_address) { types_de_champ[10] }
-  let(:type_de_champ_repetition) { types_de_champ[11] }
+  let(:type_de_champ_siret) { types_de_champ[2] }
+  let(:type_de_champ_datetime) { types_de_champ[3] }
+  let(:type_de_champ_multiple_drop_down_list) { types_de_champ[4] }
+  let(:type_de_champ_epci) { types_de_champ[5] }
+  let(:type_de_champ_dossier_link) { types_de_champ[6] }
+  let(:type_de_champ_commune) { types_de_champ[7] }
+  let(:type_de_champ_address) { types_de_champ[8] }
+  let(:type_de_champ_repetition) { types_de_champ[9] }
 
   let(:text_value) { "My Neighbor Totoro is the best movie ever" }
   let(:phone_value) { "invalid phone value" }
-  let(:rna_value) { 'W595001988' }
-  let(:siret_value) { '41816609600051' }
+  let(:siret_value) { '30613890001294' }
   let(:datetime_value) { "2023-02-01T10:32" }
   let(:multiple_drop_down_list_values) {
     [
@@ -56,8 +52,7 @@ describe 'Prefilling a dossier (with a POST request):', js: true do
   let(:integer_repetition_libelle) { sub_type_de_champs_repetition.second.libelle }
   let(:text_repetition_value) { "First repetition text" }
   let(:integer_repetition_value) { "42" }
-  let(:dossier_link_value) { '42' }
-  let(:annuaire_education_value) { '0050009H' }
+  let(:dossier_link_value) { linked_dossier.id }
   let(:prenom_value) { 'Jean' }
   let(:nom_value) { 'Dupont' }
   let(:genre_value) { 'M.' }
@@ -68,9 +63,7 @@ describe 'Prefilling a dossier (with a POST request):', js: true do
 
     stub_request(:get, /https:\/\/entreprise.api.gouv.fr\/v3\/insee\/sirene\/unites_legales\/#{siret_value[0..8]}/)
       .to_return(status: 200, body: File.read('spec/fixtures/files/api_entreprise/entreprises.json'))
-
-    stub_request(:get, /https:\/\/entreprise.api.gouv.fr\/v4\/djepva\/api-association\/associations\/open_data\/#{rna_value}/)
-      .to_return(status: 200, body: File.read('spec/fixtures/files/api_entreprise/associations.json'))
+    allow(FranceConnectService).to receive(:enabled?).and_return(true)
   end
 
   scenario "the user get the URL of a prefilled orphan brouillon dossier" do
@@ -138,17 +131,22 @@ describe 'Prefilling a dossier (with a POST request):', js: true do
           let(:user) { User.last }
 
           before do
-            allow_any_instance_of(FranceConnectParticulierClient).to receive(:authorization_uri).and_return(france_connect_particulier_callback_path(code: "c0d3"))
-            allow(FranceConnectService).to receive(:retrieve_user_informations_particulier).and_return(build(:france_connect_information))
+            state, nonce = ['state', 'nonce']
+
+            allow(FranceConnectService).to receive(:authorization_uri)
+              .and_return([
+                france_connect_callback_path(code: "c0d3", state:),
+                state, nonce
+              ])
+
+            allow(FranceConnectService).to receive(:retrieve_user_informations).and_return([build(:france_connect_information), 'id_token'])
 
             page.find('.fr-connect').click
-            expect(page).to have_content("Choisissez votre email de contact pour finaliser votre connexion")
-            expect(page).to have_selector("#use_france_connect_email_yes", visible: false, wait: 10)
-            page.execute_script('document.getElementById("use_france_connect_email_yes").click()')
+            expect(page).to have_content("Choisissez votre adresse électronique de contact pour finaliser votre connexion")
 
-            click_on 'Confirmer'
-            expect(page).to have_content("Confirmez votre email")
-            click_on 'Continuer'
+            find('label', text: /Oui, utiliser .* comme adresse électronique de contact/).click
+
+            click_on 'Valider'
             expect(page).to have_content('Vous avez un dossier prérempli')
             find('.fr-btn.fr-mb-2w', text: 'Poursuivre mon dossier prérempli', wait: 10).click
           end
@@ -166,7 +164,6 @@ describe 'Prefilling a dossier (with a POST request):', js: true do
       params: {
         "champ_#{type_de_champ_text.to_typed_id_for_query}" => text_value,
         "champ_#{type_de_champ_phone.to_typed_id_for_query}" => phone_value,
-        "champ_#{type_de_champ_rna.to_typed_id_for_query}" => rna_value,
         "champ_#{type_de_champ_siret.to_typed_id_for_query}" => siret_value,
         "champ_#{type_de_champ_repetition.to_typed_id_for_query}" => [
           {
@@ -180,7 +177,6 @@ describe 'Prefilling a dossier (with a POST request):', js: true do
         "champ_#{type_de_champ_dossier_link.to_typed_id_for_query}" => dossier_link_value,
         "champ_#{type_de_champ_commune.to_typed_id_for_query}" => commune_value,
         "champ_#{type_de_champ_address.to_typed_id_for_query}" => address_value,
-        "champ_#{type_de_champ_annuaire_education.to_typed_id_for_query}" => annuaire_education_value,
         "identite_prenom" => prenom_value,
         "identite_nom" => nom_value,
         "identite_genre" => genre_value

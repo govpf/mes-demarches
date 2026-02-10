@@ -5,10 +5,14 @@ class ApplicationController < ActionController::Base
   include NavBarProfileConcern
   include Pundit::Authorization
   include Devise::StoreLocationExtension
-  include ApplicationController::LongLivedAuthenticityToken
+  include MigrateCsrfToken
   include ApplicationController::ErrorHandling
+  # pf: ajout du concern pour la navigation contextuelle entre personas
+  include ContextualNavigationConcern
 
   MAINTENANCE_MESSAGE = 'Le site est actuellement en maintenance. Il sera à nouveau disponible dans un court instant.'
+
+  protect_from_forgery with: :exception, store: :cookie # define same store in config/initializers/active_storage.rb
 
   before_action :set_sentry_user
   before_action :redirect_if_untrusted
@@ -35,9 +39,9 @@ class ApplicationController < ActionController::Base
     Current.host = request.host_with_port
 
     if Current.host.include?(".gouv.fr")
-      Current.application_name = "demarches.gouv.fr"
-      Current.contact_email = "contact@demarches.gouv.fr"
-      Current.application_base_url = "https://demarches.gouv.fr"
+      Current.application_name = "demarches.numerique.gouv.fr"
+      Current.contact_email = "contact@demarches.numerique.gouv.fr"
+      Current.application_base_url = "https://demarches.numerique.gouv.fr"
     else
       Current.application_name = APPLICATION_NAME
       Current.contact_email = CONTACT_EMAIL
@@ -46,6 +50,9 @@ class ApplicationController < ActionController::Base
   end
 
   def staging_authenticate
+    # france connect sector identifier system does not support basic auth
+    return if request.path == france_connect_redirect_uris_path
+
     if StagingAuthService.enabled? && !authenticate_with_http_basic { |username, password| StagingAuthService.authenticate(username, password) }
       request_http_basic_authentication
     end
@@ -132,8 +139,8 @@ class ApplicationController < ActionController::Base
     "window.location.href='#{path}'"
   end
 
-  def message_verifier
-    @message_verifier ||= ActiveSupport::MessageVerifier.new(Rails.application.secret_key_base)
+  def message_encryptor_service
+    @message_encryptor_service ||= MessageEncryptorService.new
   end
 
   protected
@@ -203,7 +210,11 @@ class ApplicationController < ActionController::Base
 
   def setup_javascript_settings
     gon.autosave = Rails.application.config.ds_autosave
-    gon.autocomplete = Rails.application.secrets.autocomplete
+    gon.autocomplete = {
+      api_geo_url: API_GEO_URL,
+      api_adresse_url: API_ADRESSE_URL,
+      api_education_url: API_EDUCATION_URL
+    }
   end
 
   def setup_tracking
@@ -256,7 +267,7 @@ class ApplicationController < ActionController::Base
       user_id: current_user&.id,
       user_roles: current_user_roles,
       client_ip: request.headers['X-Forwarded-For'],
-      request_id: request.headers['X-Request-ID']
+      request_id: Current.request_id
     })
 
     if browser.known?
@@ -301,7 +312,7 @@ class ApplicationController < ActionController::Base
       end
 
       send_login_token_or_bufferize(current_instructeur)
-      signed_email = message_verifier.generate(current_instructeur.email, purpose: :reset_link, expires_in: 1.hour)
+      signed_email = message_encryptor_service.encrypt_and_sign(current_instructeur.email, purpose: :reset_link, expires_in: 1.hour)
       redirect_to link_sent_path(email: signed_email)
     end
   end

@@ -45,20 +45,24 @@
             %div
               = dsfr_icon('fr-icon-team-fill')
               - if procedure.routing_enabled?
-                %span.fr-badge= procedure.groupe_instructeurs.count
+                %span.fr-badge= procedure.groupe_instructeurs_count
               - else
-                %span.fr-badge= procedure.instructeurs.count
+                %span.fr-badge= procedure.instructeurs_count
 
               = dsfr_icon('fr-icon-file-text-fill fr-ml-1w')
-              %span.fr-badge= procedure.dossiers.state_not_brouillon.visible_by_administration.count
+              %span.fr-badge= procedure.estimated_dossiers_count
 
       .text-right
         %p.fr-mb-0.width-max-content N° #{number_with_html_delimiter(procedure.id)}
+
         - if procedure.close? || procedure.depubliee?
           %span.fr-badge.fr-badge--sm.fr-badge--warning
             = t('closed', scope: [:layouts, :breadcrumb])
 
         - elsif procedure.publiee?
+          - if procedure.api_entreprise_token_expired_or_expires_soon?
+            %span.fr-badge.fr-badge--sm.fr-badge--error
+              = t('to_modify', scope: [:layouts, :breadcrumb])
           %span.fr-badge.fr-badge--sm.fr-badge--success
             = t('published', scope: [:layouts, :breadcrumb])
 
@@ -67,7 +71,7 @@
             = t('draft', scope: [:layouts, :breadcrumb])
 
     .flex.justify-end
-      %ul.fr-btns-group.fr-btns-group--sm.fr-btns-group--inline.fr-btns-group--icon-right
+      %ul.fr-btns-group.fr-btns-group--sm.fr-btns-group--inline.fr-btns-group--icon-left
         - unless procedure.discarded?
           %li
             = link_to admin_procedure_path(procedure), class: 'fr-btn fr-icon-draft-line fr-btn--tertiary' do
@@ -86,19 +90,12 @@
 
           - if !procedure.discarded?
             - menu.with_item do
-              = link_to(admin_procedure_clone_path(procedure.id), role: 'menuitem', class: 'clone-btn', data: { method: :put }) do
+              = link_to(admin_procedure_clone_settings_path(procedure.id), role: 'menuitem', class: 'clone-btn', data: { method: :get }) do
                 = dsfr_icon('fr-icon-file-copy-line')
                 .dropdown-description
                   %h4= t('administrateurs.dropdown_actions.to_clone')
 
-          - if procedure.publiee?
-            - menu.with_item do
-              = link_to(admin_procedure_close_path(procedure_id: procedure.id), role: 'menuitem') do
-                = dsfr_icon('fr-icon-calendar-close-fill')
-                .dropdown-description
-                  %h4= t('administrateurs.dropdown_actions.to_close')
-
-          - if procedure.can_be_deleted_by_administrateur? && !procedure.discarded? && !procedure.publiee?
+          - if !procedure.discarded? && !procedure.publiee? && procedure.can_be_deleted_by_administrateur?
             - menu.with_item do
               = link_to admin_procedure_path(procedure), role: 'menuitem', method: :delete, data: { confirm: "Voulez-vous vraiment supprimer la démarche ? \nToute suppression est définitive et s'appliquera aux éventuels autres administrateurs de cette démarche !" } do
                 = dsfr_icon('fr-icon-delete-line')

@@ -1,15 +1,16 @@
 # frozen_string_literal: true
 
 describe Champs::EpciChamp, type: :model do
+  let(:types_de_champ_public) { [{ type: :epci }] }
+  let(:procedure) { create(:procedure, types_de_champ_public:) }
+  let(:dossier) { create(:dossier, procedure:) }
+  let(:champ) { dossier.champs.first.tap { _1.code_departement = code_departement } }
+  let(:code_departement) { nil }
+
   describe 'validations' do
     subject { champ.validate(:champs_public_value) }
 
     describe 'code_departement' do
-      let(:champ) { Champs::EpciChamp.new(code_departement: code_departement, dossier: build(:dossier)) }
-      before do
-        allow(champ).to receive(:visible?).and_return(true)
-        allow(champ).to receive(:in_dossier_revision?).and_return(true)
-      end
       context 'when nil' do
         let(:code_departement) { nil }
 
@@ -39,10 +40,6 @@ describe Champs::EpciChamp, type: :model do
     end
 
     describe 'external_id' do
-      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :epci }]) }
-      let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
-      let(:champ) { dossier.champs.first }
-
       before do
         champ.code_departement = code_departement
         champ.external_id = nil
@@ -87,10 +84,6 @@ describe Champs::EpciChamp, type: :model do
     end
 
     describe 'value' do
-      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :epci }]) }
-      let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
-      let(:champ) { dossier.champs.first }
-
       before do
         champ.value = nil
         champ.code_departement = code_departement
@@ -126,13 +119,13 @@ describe Champs::EpciChamp, type: :model do
         end
 
         context 'when value is in departement epci names' do
-          let(:value) { 'CA Haut - Bugey Agglomération' }
+          let(:value) { 'CA Haut-Bugey Agglomération' }
 
           it { is_expected.to be_truthy }
         end
 
         context 'when value is in departement epci names' do
-          let(:value) { 'CA Haut - Bugey Agglomération' }
+          let(:value) { 'CA Haut-Bugey Agglomération' }
 
           it { is_expected.to be_truthy }
         end
@@ -142,7 +135,7 @@ describe Champs::EpciChamp, type: :model do
 
           it 'is valid and updates its own value' do
             expect(subject).to be_truthy
-            expect(champ.value).to eq('CA Haut - Bugey Agglomération')
+            expect(champ.value).to eq('CA Haut-Bugey Agglomération')
           end
         end
 
@@ -159,7 +152,6 @@ describe Champs::EpciChamp, type: :model do
   end
 
   describe 'value' do
-    let(:champ) { described_class.new }
     let(:epci) { APIGeoService.epcis('01').first }
 
     it 'with departement and code' do

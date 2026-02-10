@@ -47,7 +47,7 @@ module Mutations
         .find_by(type_champ: annotation_type_champ, stable_id:)
 
       return nil if type_de_champ.nil?
-      dossier.champ_for_update(type_de_champ, row_id, updated_by: current_administrateur.email)
+      dossier.champ_for_update(type_de_champ, row_id:, updated_by: current_administrateur.email)
     end
 
     def annotation_type_champ
@@ -74,6 +74,8 @@ module Mutations
         TypeDeChamp.type_champs.fetch(:integer_number)
       when :piece_justificative
         TypeDeChamp.type_champs.fetch(:piece_justificative)
+      when :decimal_number
+        TypeDeChamp.type_champs.fetch(:decimal_number)
       when :drop_down_list
         TypeDeChamp.type_champs.fetch(:drop_down_list)
       end

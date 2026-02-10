@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ImageProcessorJob < ApplicationJob
+  queue_as :low # thumbnails and watermarks. Execution depends of virus scanner which is more urgent
+
   class FileNotScannedYetError < StandardError
   end
 
@@ -8,9 +10,24 @@ class ImageProcessorJob < ApplicationJob
   discard_on ActiveRecord::RecordNotFound
   # If the file is deleted during the scan, ignore the error
   discard_on ActiveStorage::FileNotFoundError
+  discard_on ActiveRecord::InvalidForeignKey
+  # If the file is not an image, not in format we can process or the image is corrupted, ignore the error
+  DISCARDABLE_ERRORS = [
+    'improper image header',
+    'width or height exceeds limit',
+    'attempt to perform an operation not allowed by the security policy',
+    'no decode delegate for this image format'
+  ]
+  discard_on do |_, error|
+    DISCARDABLE_ERRORS.any? { error.message.match?(_1) }
+  end
   # If the file is not analyzed or scanned for viruses yet, retry later
   # (to avoid modifying the file while it is being scanned).
-  retry_on FileNotScannedYetError, wait: :exponentially_longer, attempts: 10
+  retry_on FileNotScannedYetError, wait: :polynomially_longer, attempts: 10
+
+  # Usually invalid image or ImageMagick decoder blocked for this format
+  retry_on MiniMagick::Invalid, attempts: 3
+  retry_on MiniMagick::Error, attempts: 3
 
   rescue_from ActiveStorage::PreviewError do
     retry_or_discard
@@ -21,6 +38,7 @@ class ImageProcessorJob < ApplicationJob
     raise FileNotScannedYetError if blob.virus_scanner.pending?
     return if ActiveStorage::Attachment.find_by(blob_id: blob.id)&.record_type == "ActiveStorage::VariantRecord"
 
+    add_ocr_data(blob)
     auto_rotate(blob) if ["image/jpeg", "image/jpg"].include?(blob.content_type)
     uninterlace(blob) if blob.content_type == "image/png"
     create_representations(blob) if blob.representation_required?
@@ -79,13 +97,22 @@ class ImageProcessorJob < ApplicationJob
     end
   end
 
-  def retry_or_discard
-    if executions < max_attempts
-      retry_job wait: 5.minutes
-    end
+  def add_ocr_data(blob)
+    champ = blob&.attachments&.first&.record
+    return if !rib?(champ)
+
+    champ.fetch_and_handle_result
   end
 
-  def max_attempts
-    3
+  def rib?(champ)
+    return false if !champ.is_a?(Champs::PieceJustificativeChamp)
+
+    champ.RIB?
+  end
+
+  def retry_or_discard
+    if executions < 3
+      retry_job wait: 5.minutes
+    end
   end
 end

@@ -1,34 +1,35 @@
 # frozen_string_literal: true
 
 module TabsHelper
-  def tab_i18n_key_from_status(status)
+  def i18n_tab_from_status(status)
     case status
     when 'a-suivre'
-      'views.instructeurs.dossiers.tab_steps.to_follow' # i18n-tasks-use t('views.instructeurs.dossiers.tab_steps.to_follow')
+      t('instructeurs.dossiers.labels.to_follow')
     when 'suivis'
-      'pluralize.followed'
+      t('instructeurs.dossiers.labels.followed')
     when 'traites'
-      'pluralize.processed'
+      t('instructeurs.dossiers.labels.processed')
     when 'tous'
-      'views.instructeurs.dossiers.tab_steps.total' # i18n-tasks-use t('views.instructeurs.dossiers.tab_steps.total')
+      t('instructeurs.dossiers.labels.total')
     when 'supprimes'
-      'pluralize.dossiers_supprimes'
+      t('instructeurs.dossiers.labels.trash')
     when 'expirant'
-      'pluralize.dossiers_close_to_expiration'
+      t('instructeurs.dossiers.labels.close_to_expiration')
     when 'archives'
-      'pluralize.archived'
+      t('instructeurs.dossiers.labels.to_archive')
     else
-      fail ArgumentError, "Unknown tab status: #{status}"
+      fail ArgumentError, "Unknown tab status: `#{status}`"
     end
   end
 
-  def tab_item(label, url, active: false, badge: nil, notification: false)
+  def tab_item(label, url, active: false, badge: nil, notification: false, html_class: nil)
     render partial: 'shared/tab_item', locals: {
       label: label,
       url: url,
       active: active,
       badge: badge,
-      notification: notification
+      notification: notification,
+      html_class: html_class
     }
   end
 

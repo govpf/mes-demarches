@@ -1,7 +1,23 @@
 # frozen_string_literal: true
 
 describe Dossier, type: :model do
+  include ActionView::Helpers::OutputSafetyHelper
+  include ActionView::Helpers::SanitizeHelper
+  include ActionView::Helpers::TextHelper
+  include ChampHelper
+
   let(:user) { create(:user) }
+
+  describe 'has_many preloaded_commentaires' do
+    let(:dossier) { create(:dossier) }
+    let!(:commentaire) { create :commentaire, created_at: '2016-03-14', dossier: }
+    let!(:commentaire_2) { create :commentaire, created_at: '2016-03-15', dossier: }
+    let!(:commentaire_3) { create :commentaire, created_at: '2016-03-16', dossier: }
+
+    it 'returns commentaires in desc order' do
+      expect(dossier.preloaded_commentaires).to eq([commentaire_3, commentaire_2, commentaire])
+    end
+  end
 
   describe 'scopes' do
     describe '.default_scope' do
@@ -62,6 +78,61 @@ describe Dossier, type: :model do
         end
       end
     end
+
+    describe '.brouillon_expired' do
+      let(:interval_between_first_and_second_expiration) { Dossier::MONTHS_AFTER_EXPIRATION.months + Dossier::DAYS_AFTER_EXPIRATION.days }
+
+      let!(:dossier_brouillon_expired_and_noticed_long_time_ago) do
+        travel_to(5.months.ago) do
+          create(:dossier,
+            state: :brouillon,
+            brouillon_close_to_expiration_notice_sent_at: 1.day.ago)
+        end
+      end
+
+      let!(:dossier_brouillon_not_expired) do
+        travel_to(1.month.ago) do
+          create(:dossier,
+            state: :brouillon)
+        end
+      end
+
+      let!(:dossier_brouillon_expired_but_noticed_recently) do
+        travel_to(5.months.ago) do
+          create(:dossier,
+            state: :brouillon,
+            brouillon_close_to_expiration_notice_sent_at: (4.months + 20.days).from_now)
+        end
+      end
+
+      let!(:dossier_brouillon_expired_but_not_noticed_yet) do
+        travel_to(5.months.ago) do
+          create(:dossier,
+            state: :brouillon)
+        end
+      end
+
+      let!(:dossier_instruction_expired) do
+        travel_to(5.months.ago) do
+          create(:dossier,
+            state: :en_instruction,
+            brouillon_close_to_expiration_notice_sent_at: 1.day.ago)
+        end
+      end
+
+      let!(:dossier_hidden) do
+        travel_to(5.months.ago) do
+          create(:dossier,
+            state: :brouillon,
+            brouillon_close_to_expiration_notice_sent_at: 1.day.ago,
+            hidden_by_user_at: Time.zone.now)
+        end
+      end
+
+      it 'returns only visible brouillon dossiers whose expiration notice period has passed' do
+        expect(Dossier.brouillon_expired).to contain_exactly(dossier_brouillon_expired_and_noticed_long_time_ago)
+      end
+    end
   end
 
   describe 'validations' do
@@ -88,10 +159,10 @@ describe Dossier, type: :model do
   describe 'brouillon_close_to_expiration' do
     let(:procedure) { create(:procedure, :published, duree_conservation_dossiers_dans_ds: 6) }
     let!(:young_dossier) { create(:dossier, :en_construction, procedure: procedure) }
-    let!(:expiring_dossier) { create(:dossier, created_at: 175.days.ago, procedure: procedure) }
-    let!(:expiring_dossier_with_notification) { create(:dossier, created_at: 175.days.ago, brouillon_close_to_expiration_notice_sent_at: Time.zone.now, procedure: procedure) }
-    let!(:just_expired_dossier) { create(:dossier, created_at: (6.months + 1.hour + 10.seconds).ago, procedure: procedure) }
-    let!(:long_expired_dossier) { create(:dossier, created_at: 1.year.ago, procedure: procedure) }
+    let!(:expiring_dossier) { create(:dossier, updated_at: 85.days.ago, procedure: procedure) }
+    let!(:expiring_dossier_with_notification) { create(:dossier, updated_at: 85.days.ago, brouillon_close_to_expiration_notice_sent_at: Time.zone.now, procedure: procedure) }
+    let!(:just_expired_dossier) { create(:dossier, updated_at: (6.months + 1.hour + 10.seconds).ago, procedure: procedure) }
+    let!(:long_expired_dossier) { create(:dossier, updated_at: 1.year.ago, procedure: procedure) }
 
     subject { Dossier.brouillon_close_to_expiration }
 
@@ -257,69 +328,18 @@ describe Dossier, type: :model do
     end
   end
 
-  describe 'with_notifications' do
-    let(:dossier) { create(:dossier) }
-    let(:instructeur) { create(:instructeur) }
-
-    before do
-      create(:follow, dossier: dossier, instructeur: instructeur, messagerie_seen_at: 2.hours.ago)
-    end
-
-    subject { instructeur.followed_dossiers.with_notifications }
-
-    context('without changes') do
-      it { is_expected.to eq [] }
-    end
-
-    context('with changes') do
-      context 'when there is a new commentaire' do
-        before { dossier.update!(last_commentaire_updated_at: Time.zone.now) }
-
-        it { is_expected.to match([dossier]) }
-      end
-
-      context 'when there is a new avis' do
-        before { dossier.update!(last_avis_updated_at: Time.zone.now) }
-
-        it { is_expected.to match([dossier]) }
-      end
-
-      context 'when a public champ is updated' do
-        before { dossier.update!(last_champ_updated_at: Time.zone.now) }
-
-        it { is_expected.to match([dossier]) }
-      end
-
-      context 'when a private champ is updated' do
-        before { dossier.update!(last_champ_private_updated_at: Time.zone.now) }
-
-        it { is_expected.to match([dossier]) }
-      end
-    end
-  end
-
   describe 'methods' do
     let(:dossier) { create(:dossier, :with_entreprise, user: user) }
     let(:etablissement) { dossier.etablissement }
 
     subject { dossier }
 
-    describe '#create' do
-      let(:procedure) { create(:procedure, :with_type_de_champ, :with_type_de_champ_private) }
-      let(:dossier) { create(:dossier, procedure: procedure, user: user) }
-
-      it 'builds public and private champs' do
-        expect(dossier.champs_public.count).to eq(1)
-        expect(dossier.champs_private.count).to eq(1)
-      end
-    end
-
-    describe '#build_default_individual' do
+    describe '#build_default_values' do
       let(:dossier) { build(:dossier, procedure: procedure, user: user) }
 
       subject do
         dossier.individual = nil
-        dossier.build_default_individual
+        dossier.build_default_values
       end
 
       context 'when the dossier belongs to a procedure for individuals' do
@@ -374,14 +394,14 @@ describe Dossier, type: :model do
     let(:date3) { 1.minute.ago }
     let(:dossier) do
       d = create(:dossier, :with_entreprise, user: user, procedure: procedure)
-      Timecop.freeze(date1)
+      travel_to(date1)
       d.passer_en_construction!
-      Timecop.freeze(date2)
+      travel_to(date2)
       d.passer_en_instruction!(instructeur: instructeur)
-      Timecop.freeze(date3)
+      travel_to(date3)
       d.accepter!(instructeur: instructeur, motivation: "Motivation")
-      Timecop.return
-      d
+      travel_back
+      d.reload
     end
 
     describe "followers_instructeurs" do
@@ -473,8 +493,7 @@ describe Dossier, type: :model do
     let(:beginning_of_day) { Time.zone.now.beginning_of_day }
     let(:instructeur) { create(:instructeur) }
 
-    before { Timecop.freeze(beginning_of_day) }
-    after { Timecop.return }
+    before { travel_to(beginning_of_day) }
 
     context 'when dossier is en_construction' do
       context 'when the procedure.routing_enabled? is false' do
@@ -490,11 +509,12 @@ describe Dossier, type: :model do
           expect(dossier.depose_at).to eq(beginning_of_day)
           expect(dossier.traitement.state).to eq(Dossier.states.fetch(:en_construction))
           expect(dossier.traitement.processed_at).to eq(beginning_of_day)
+          expect(dossier.expired_at).to eq(dossier.expiration_date)
         end
 
         it 'should keep first en_construction_at date' do
           subject
-          Timecop.return
+          travel_back
           dossier.passer_en_instruction!(instructeur: instructeur)
           dossier.repasser_en_construction!(instructeur: instructeur)
 
@@ -511,15 +531,13 @@ describe Dossier, type: :model do
           let(:procedure) { create(:procedure, types_de_champ_public:) }
           let(:dossier) { create(:dossier, :brouillon, :with_populated_champs, procedure:) }
 
-          before { expect(champ).to receive(:visible?).and_return(visible) }
-
           context 'when piece_justificative' do
-            let(:types_de_champ_public) { [{ type: :piece_justificative }] }
+            let(:types_de_champ_public) { [{ type: :piece_justificative, condition: ds_eq(constant(true), constant(visible)) }] }
             let(:champ) { dossier.project_champs_public.find(&:piece_justificative?) }
 
             context 'when not visible' do
               let(:visible) { false }
-              it { expect { subject }.to change { champ.reload.piece_justificative_file.attached? } }
+              it { expect { subject }.to change { Champ.exists?(champ.id) } }
             end
 
             context 'when visible' do
@@ -529,12 +547,12 @@ describe Dossier, type: :model do
           end
 
           context 'when titre identite' do
-            let(:types_de_champ_public) { [{ type: :titre_identite }] }
-            let(:champ) { dossier.project_champs_public.find(&:piece_justificative?) }
+            let(:types_de_champ_public) { [{ type: :titre_identite, condition: ds_eq(constant(true), constant(visible)) }] }
+            let(:champ) { dossier.project_champs_public.find(&:titre_identite?) }
 
             context 'when not visible' do
               let(:visible) { false }
-              it { expect { subject }.to change { champ.reload.piece_justificative_file.attached? } }
+              it { expect { subject }.to change { Champ.exists?(champ.id) } }
             end
 
             context 'when visible' do
@@ -589,13 +607,16 @@ describe Dossier, type: :model do
         dossier.reload
       end
 
-      it { expect(dossier.state).to eq(Dossier.states.fetch(:en_instruction)) }
-      it { expect(dossier.en_instruction_at).to eq(beginning_of_day) }
-      it { expect(dossier.traitement.state).to eq(Dossier.states.fetch(:en_instruction)) }
-      it { expect(dossier.traitement.processed_at).to eq(beginning_of_day) }
+      it do
+        expect(dossier.state).to eq(Dossier.states.fetch(:en_instruction))
+        expect(dossier.en_instruction_at).to eq(beginning_of_day)
+        expect(dossier.traitement.state).to eq(Dossier.states.fetch(:en_instruction))
+        expect(dossier.traitement.processed_at).to eq(beginning_of_day)
+        expect(dossier.expired_at).to be_nil
+      end
 
       it 'should keep first en_instruction_at date if dossier is set to en_construction again' do
-        Timecop.return
+        travel_back
         dossier.repasser_en_construction!(instructeur: instructeur)
         dossier.passer_en_instruction!(instructeur: instructeur)
 
@@ -615,10 +636,13 @@ describe Dossier, type: :model do
         dossier.reload
       end
 
-      it { expect(dossier.state).to eq(Dossier.states.fetch(:accepte)) }
-      it { expect(dossier.processed_at).to eq(beginning_of_day) }
-      it { expect(dossier.traitement.state).to eq(Dossier.states.fetch(:accepte)) }
-      it { expect(dossier.traitement.processed_at).to eq(beginning_of_day) }
+      it do
+        expect(dossier.state).to eq(Dossier.states.fetch(:accepte))
+        expect(dossier.processed_at).to eq(beginning_of_day)
+        expect(dossier.traitement.state).to eq(Dossier.states.fetch(:accepte))
+        expect(dossier.traitement.processed_at).to eq(beginning_of_day)
+        expect(dossier.expired_at).to eq(dossier.expiration_date)
+      end
     end
 
     context 'when dossier is refuse' do
@@ -629,10 +653,13 @@ describe Dossier, type: :model do
         dossier.reload
       end
 
-      it { expect(dossier.state).to eq(Dossier.states.fetch(:refuse)) }
-      it { expect(dossier.processed_at).to eq(beginning_of_day) }
-      it { expect(dossier.traitement.state).to eq(Dossier.states.fetch(:refuse)) }
-      it { expect(dossier.traitement.processed_at).to eq(beginning_of_day) }
+      it do
+        expect(dossier.state).to eq(Dossier.states.fetch(:refuse))
+        expect(dossier.processed_at).to eq(beginning_of_day)
+        expect(dossier.traitement.state).to eq(Dossier.states.fetch(:refuse))
+        expect(dossier.traitement.processed_at).to eq(beginning_of_day)
+        expect(dossier.expired_at).to eq(dossier.expiration_date)
+      end
     end
 
     context 'when dossier is sans_suite' do
@@ -643,10 +670,13 @@ describe Dossier, type: :model do
         dossier.reload
       end
 
-      it { expect(dossier.state).to eq(Dossier.states.fetch(:sans_suite)) }
-      it { expect(dossier.processed_at).to eq(beginning_of_day) }
-      it { expect(dossier.traitement.state).to eq(Dossier.states.fetch(:sans_suite)) }
-      it { expect(dossier.traitement.processed_at).to eq(beginning_of_day) }
+      it do
+        expect(dossier.state).to eq(Dossier.states.fetch(:sans_suite))
+        expect(dossier.processed_at).to eq(beginning_of_day)
+        expect(dossier.traitement.state).to eq(Dossier.states.fetch(:sans_suite))
+        expect(dossier.traitement.processed_at).to eq(beginning_of_day)
+        expect(dossier.expired_at).to eq(dossier.expiration_date)
+      end
     end
   end
 
@@ -675,6 +705,20 @@ describe Dossier, type: :model do
     it "can not change groupe instructeur if new groupe is from another procedure" do
       dossier.assign_to_groupe_instructeur(new_groupe_instructeur, DossierAssignment.modes.fetch(:auto))
       expect(dossier.groupe_instructeur).to eq(new_groupe_instructeur)
+    end
+
+    context "when the groupe instructeur change" do
+      let!(:previous_groupe_instructeur) { create(:groupe_instructeur, procedure: procedure) }
+      let!(:notification) { create(:dossier_notification, :for_groupe_instructeur, dossier:, groupe_instructeur: previous_groupe_instructeur) }
+
+      before do
+        dossier.assign_to_groupe_instructeur(previous_groupe_instructeur, DossierAssignment.modes.fetch(:auto))
+      end
+
+      it "update notifications for groupe instructeur" do
+        dossier.assign_to_groupe_instructeur(new_groupe_instructeur, DossierAssignment.modes.fetch(:auto))
+        expect(notification.reload.groupe_instructeur_id).to eq(new_groupe_instructeur.id)
+      end
     end
   end
 
@@ -713,17 +757,17 @@ describe Dossier, type: :model do
     let(:instructeur) { create(:instructeur) }
 
     before do
-      allow(NotificationMailer).to receive(:send_en_instruction_notification).and_return(double(deliver_later: nil))
+      allow(InstructionNotificationJob).to receive(:schedule_for_dossier)
     end
 
-    it "sends an email when the dossier becomes en_instruction" do
+    it "schedules an email when the dossier becomes en_instruction" do
       dossier.passer_en_instruction!(instructeur: instructeur)
-      expect(NotificationMailer).to have_received(:send_en_instruction_notification).with(dossier)
+      expect(InstructionNotificationJob).to have_received(:schedule_for_dossier).with(dossier)
     end
 
-    it "does not an email when the dossier becomes accepte" do
+    it "does not schedule an email when the dossier becomes accepte" do
       dossier.accepte!
-      expect(NotificationMailer).to_not have_received(:send_en_instruction_notification)
+      expect(InstructionNotificationJob).to_not have_received(:schedule_for_dossier)
     end
   end
 
@@ -856,8 +900,7 @@ describe Dossier, type: :model do
     let!(:dossier) { create(:dossier) }
     let(:modif_date) { Time.zone.parse('01/01/2100') }
 
-    before { Timecop.freeze(modif_date) }
-    after { Timecop.return }
+    before { travel_to(modif_date) }
 
     subject do
       dossier.reload
@@ -867,7 +910,7 @@ describe Dossier, type: :model do
     it { is_expected.not_to eq(modif_date) }
 
     context 'when a champ is modified' do
-      before { dossier.champs_public.first.update_attribute('value', 'yop') }
+      before { dossier.project_champs_public.first.update_attribute('value', 'yop') }
 
       it { is_expected.to eq(modif_date) }
     end
@@ -1141,10 +1184,8 @@ describe Dossier, type: :model do
       allow(NotificationMailer).to receive(:send_accepte_notification).and_return(double(deliver_later: true))
       allow(dossier).to receive(:build_attestation).and_return(attestation)
 
-      Timecop.freeze(now)
+      travel_to(now)
     end
-
-    after { Timecop.return }
 
     subject {
       dossier.accepter_automatiquement!
@@ -1265,7 +1306,7 @@ describe Dossier, type: :model do
       email_template = dossier.procedure.email_template_for(dossier.state)
       commentaire = dossier.commentaires.last
 
-      expect(commentaire.body).to include(email_template.subject_for_dossier(dossier), email_template.body_for_dossier(dossier))
+      expect(commentaire.body).to include(sanitize(email_template.subject_for_dossier(dossier)), sanitize(email_template.body_for_dossier(dossier)))
       expect(commentaire.dossier).to eq(dossier)
     end
   end
@@ -1408,8 +1449,8 @@ describe Dossier, type: :model do
       context 'when there are pending correction' do
         before { create(:dossier_correction, dossier:) }
 
-        it "passes en instruction and keep the correction request" do
-          expect(dossier.can_passer_automatiquement_en_instruction?).to be_truthy
+        it "can't passe en instruction" do
+          expect(dossier.can_passer_automatiquement_en_instruction?).to be_falsey
           expect(dossier.pending_correction?).to be_truthy
         end
       end
@@ -1645,12 +1686,12 @@ describe Dossier, type: :model do
       context "and invalid SIRET" do
         before do
           champ_siret.update(value: "1234")
-          champ_siret.valid?
+          champ_siret.validate(:champs_public_value)
         end
 
         it 'should have errors' do
           expect(champ_siret.errors).not_to be_empty
-          expect(champ_siret.errors.first.full_message).to eq("Veuillez selectionner un des établissements")
+          expect(champ_siret.errors.first.full_message).to eq("doit avoir 9 chiffres. Sélectionnez un établissement.")
         end
       end
     end
@@ -1698,11 +1739,139 @@ describe Dossier, type: :model do
     end
   end
 
-  describe "#check_expressions_regulieres_champs" do
+  describe "check simple mode options for formatted champ" do
     let(:procedure) { create(:procedure, types_de_champ_public: types_de_champ) }
     let(:dossier) { create(:dossier, procedure: procedure) }
     let(:types_de_champ) { [type_de_champ] }
-    let(:type_de_champ) { { type: :expression_reguliere, expression_reguliere:, expression_reguliere_exemple_text:, expression_reguliere_error_message: } }
+    let(:type_de_champ) { { type: :formatted, formatted_mode: 'simple', letters_accepted:, numbers_accepted:, special_characters_accepted:, min_character_length:, max_character_length: } }
+    let(:letters_accepted) { '1' }
+    let(:numbers_accepted) { '1' }
+    let(:special_characters_accepted) { '1' }
+    let(:min_character_length) { "" }
+    let(:max_character_length) { "" }
+
+    before do
+      champ = dossier.project_champs_public.first
+      champ.value = value
+      dossier.save(context: :champs_public_value)
+    end
+
+    context 'with letters forbidden' do
+      let(:letters_accepted) { '0' }
+
+      context 'with valid value' do
+        let(:value) { '1234*' }
+        it 'should have no error' do
+          expect(dossier.errors).to be_empty
+        end
+      end
+
+      context 'with invalid value' do
+        let(:value) { 'azerlkj' }
+        it 'should have errors' do
+          expect(dossier.errors.map(&:type)).to eq [:letters_forbidden]
+        end
+      end
+    end
+
+    context 'with only letters accepted' do
+      let(:letters_accepted) { '1' }
+      let(:numbers_accepted) { '0' }
+      let(:special_characters_accepted) { '0' }
+
+      context 'with valid value' do
+        let(:value) { 'oupsàèœÅ' }
+        it 'should have no error' do
+          expect(dossier.errors).to be_empty
+        end
+      end
+
+      context 'with invalid value' do
+        let(:value) { '123ab*' }
+        it 'should have errors' do
+          expect(dossier.errors.map(&:type)).to match_array [:numbers_forbidden, :special_characters_forbidden]
+        end
+      end
+    end
+
+    context 'with numbers forbidden' do
+      let(:numbers_accepted) { '0' }
+
+      context 'with valid value' do
+        let(:value) { 'azer*' }
+        it 'should have no error' do
+          expect(dossier.errors).to be_empty
+        end
+      end
+
+      context 'with invalid value' do
+        let(:value) { '1234' }
+        it 'should have errors' do
+          expect(dossier.errors).not_to be_empty
+        end
+      end
+    end
+
+    context 'with special characters forbidden' do
+      let(:special_characters_accepted) { '0' }
+
+      context 'with valid value' do
+        let(:value) { 'azer123' }
+        it 'should have no error' do
+          expect(dossier.errors).to be_empty
+        end
+      end
+
+      context 'with invalid value' do
+        let(:value) { '*1234' }
+        it 'should have errors' do
+          expect(dossier.errors).not_to be_empty
+        end
+      end
+    end
+
+    context 'with min charachter length' do
+      let(:min_character_length) { '3' }
+
+      context 'with valid value' do
+        let(:value) { 'az*er123' }
+        it 'should have no error' do
+          expect(dossier.errors).to be_empty
+        end
+      end
+
+      context 'with invalid value' do
+        let(:value) { '*1' }
+        it 'should have errors' do
+          expect(dossier.errors).not_to be_empty
+        end
+      end
+    end
+
+    context 'with max charachter length' do
+      let(:max_character_length) { '3' }
+
+      context 'with valid value' do
+        let(:value) { 'az*' }
+        it 'should have no error' do
+          expect(dossier.errors).to be_empty
+        end
+      end
+
+      context 'with invalid value' do
+        let(:value) { '*1az' }
+        it 'should have errors' do
+          expect(dossier.errors).not_to be_empty
+        end
+      end
+    end
+  end
+
+  describe "check advanced mode options for formatted champ" do
+    let(:procedure) { create(:procedure, types_de_champ_public: types_de_champ) }
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:types_de_champ) { [type_de_champ] }
+    let(:type_de_champ) { { type: :formatted, formatted_mode: 'advanced', expression_reguliere:, expression_reguliere_exemple_text:, expression_reguliere_error_message: } }
 
     context "with bad example" do
       let(:expression_reguliere_exemple_text) { "01234567" }
@@ -1710,14 +1879,14 @@ describe Dossier, type: :model do
       let(:expression_reguliere_error_message) { "Le champ doit être composé de lettres majuscules" }
 
       before do
-        champ = dossier.champs_public.first
+        champ = dossier.project_champs_public.first
         champ.value = expression_reguliere_exemple_text
         dossier.save(context: :champs_public_value)
       end
 
       it 'should have errors' do
         expect(dossier.errors).not_to be_empty
-        expect(dossier.errors.full_messages.join(',')).to include(dossier.champs_public.first.expression_reguliere_error_message)
+        expect(dossier.errors.full_messages.join(',')).to include(dossier.project_champs_public.first.expression_reguliere_error_message)
       end
     end
 
@@ -1727,7 +1896,7 @@ describe Dossier, type: :model do
       let(:expression_reguliere_error_message) { "Le champ doit être composé de lettres majuscules" }
 
       before do
-        champ = dossier.champs_public.first
+        champ = dossier.project_champs_public.first
         champ.value = expression_reguliere_exemple_text
         dossier.save
       end
@@ -1863,7 +2032,7 @@ describe Dossier, type: :model do
       let(:types_de_champ_public) { [{ type: :carte }, { type: :carte }, { type: :carte }] }
 
       it do
-        dossier.champs_for_revision
+        dossier.filled_champs
 
         count = 0
 
@@ -1901,7 +2070,7 @@ describe Dossier, type: :model do
       create(:dossier, user: user).hide_and_keep_track!(user, reason)
       create(:dossier, :en_construction, user: user).hide_and_keep_track!(user, reason)
 
-      Timecop.travel(2.months.ago) do
+      travel_to(2.months.ago) do
         create(:dossier, user: user).hide_and_keep_track!(user, reason)
         create(:dossier, :en_construction, user: user).hide_and_keep_track!(user, reason)
 
@@ -1909,7 +2078,7 @@ describe Dossier, type: :model do
         create(:dossier, :en_construction, user: user).procedure.discard_and_keep_track!(administrateur)
       end
 
-      Timecop.travel(1.week.ago) do
+      travel_to(1.week.ago) do
         create(:dossier, user: user).hide_and_keep_track!(user, reason)
         create(:dossier, :en_construction, user: user).hide_and_keep_track!(user, reason)
       end
@@ -1993,18 +2162,17 @@ describe Dossier, type: :model do
     end
   end
 
-  describe "champs_for_export" do
+  describe "champ_values_for_export" do
     context 'with integer_number' do
       let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :integer_number, libelle: 'c1' }]) }
       let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
-      let(:integer_number_type_de_champ) { procedure.active_revision.types_de_champ_public.find { |type_de_champ| type_de_champ.type_champ == TypeDeChamp.type_champs.fetch(:integer_number) } }
+      let(:integer_number_type_de_champ) { procedure.active_revision.types_de_champ_public.find(&:integer_number?) }
 
       it 'give me back my decimal number' do
         dossier
         expect {
           integer_number_type_de_champ.update(type_champ: :decimal_number)
-          procedure.update(published_revision: procedure.draft_revision, draft_revision: procedure.create_new_revision)
-        }.to change { dossier.reload.champs_for_export(procedure.all_revisions_types_de_champ.not_repetition.to_a) }
+        }.to change { dossier.reload.champ_values_for_export(procedure.all_revisions_types_de_champ.not_repetition.to_a, format: :xlsx) }
           .from([["c1", 42]]).to([["c1", 42.0]])
       end
     end
@@ -2027,12 +2195,12 @@ describe Dossier, type: :model do
       let(:explication_type_de_champ) { procedure.active_revision.types_de_champ_public.find { |type_de_champ| type_de_champ.type_champ == TypeDeChamp.type_champs.fetch(:explication) } }
       let(:commune_type_de_champ) { procedure.active_revision.types_de_champ_public.find { |type_de_champ| type_de_champ.type_champ == TypeDeChamp.type_champs.fetch(:communes) } }
       let(:repetition_type_de_champ) { procedure.active_revision.types_de_champ_public.find { |type_de_champ| type_de_champ.type_champ == TypeDeChamp.type_champs.fetch(:repetition) } }
-      let(:repetition_champ) { dossier.champs_public.find(&:repetition?) }
-      let(:repetition_second_revision_champ) { dossier_second_revision.champs_public.find(&:repetition?) }
+      let(:repetition_champ) { dossier.project_champs_public.find(&:repetition?) }
+      let(:repetition_second_revision_champ) { dossier_second_revision.project_champs_public.find(&:repetition?) }
       let(:dossier) { create(:dossier, procedure: procedure) }
       let(:dossier_second_revision) { create(:dossier, procedure: procedure) }
-      let(:dossier_champs_for_export) { dossier.champs_for_export(procedure.types_de_champ_for_procedure_export) }
-      let(:dossier_second_revision_champs_for_export) { dossier_second_revision.champs_for_export(procedure.types_de_champ_for_procedure_export) }
+      let(:dossier_champ_values_for_export) { dossier.champ_values_for_export(procedure.types_de_champ_for_procedure_export, format: :xlsx) }
+      let(:dossier_second_revision_champ_values_for_export) { dossier_second_revision.champ_values_for_export(procedure.types_de_champ_for_procedure_export, format: :xlsx) }
 
       context "when procedure published" do
         before do
@@ -2043,7 +2211,7 @@ describe Dossier, type: :model do
           procedure.draft_revision.find_and_ensure_exclusive_use(yes_no_type_de_champ.stable_id).update(libelle: 'Updated yes/no')
           procedure.draft_revision.find_and_ensure_exclusive_use(commune_type_de_champ.stable_id).update(libelle: 'Commune de naissance')
           procedure.draft_revision.find_and_ensure_exclusive_use(repetition_type_de_champ.stable_id).update(libelle: 'Repetition')
-          procedure.update(published_revision: procedure.draft_revision, draft_revision: procedure.create_new_revision)
+          procedure.publish_revision!
           dossier.reload
           procedure.reload
         end
@@ -2051,8 +2219,8 @@ describe Dossier, type: :model do
         it "should have champs from all revisions" do
           expect(dossier.types_de_champ.map(&:libelle)).to eq([text_type_de_champ.libelle, datetime_type_de_champ.libelle, "Yes/no", explication_type_de_champ.libelle, commune_type_de_champ.libelle, repetition_type_de_champ.libelle])
           expect(dossier_second_revision.types_de_champ.map(&:libelle)).to eq([datetime_type_de_champ.libelle, "Updated yes/no", explication_type_de_champ.libelle, 'Commune de naissance', "Repetition", "New text field"])
-          expect(dossier_champs_for_export.map { |(libelle)| libelle }).to eq([datetime_type_de_champ.libelle, text_type_de_champ.libelle, "Updated yes/no", "Commune de naissance", "Commune de naissance (Code INSEE)", "Commune de naissance (Département)", "New text field"])
-          expect(dossier_champs_for_export).to eq(dossier_second_revision_champs_for_export)
+          expect(dossier_champ_values_for_export.map { |(libelle)| libelle }).to eq([datetime_type_de_champ.libelle, text_type_de_champ.libelle, "Updated yes/no", "Commune de naissance", "Commune de naissance (Code INSEE)", "Commune de naissance (Département)", "New text field"])
+          expect(dossier_champ_values_for_export).to eq(dossier_second_revision_champ_values_for_export)
         end
 
         context 'within a repetition having a type de champs commune (multiple values for export)' do
@@ -2067,7 +2235,19 @@ describe Dossier, type: :model do
             dossier_test = create(:dossier, procedure: proc_test)
             type_champs = proc_test.all_revisions_types_de_champ(parent: tdc_repetition).to_a
             expect(type_champs.size).to eq(1)
-            expect(dossier.champs_for_export(type_champs).size).to eq(3)
+            expect(dossier.champ_values_for_export(type_champs, format: :xlsx).size).to eq(3)
+          end
+        end
+
+        context 'for dossier having a champ not in his revision' do
+          let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
+          let(:dossier_second_revision) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
+
+          it 'should see champ' do
+            expect do
+              dossier.rebase!
+              dossier.reload
+            end.not_to change { dossier.champ_values_for_export(procedure.types_de_champ_for_procedure_export, format: :xlsx) }
           end
         end
       end
@@ -2076,7 +2256,7 @@ describe Dossier, type: :model do
         let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :text }, { type: :explication }]) }
 
         it "should not contain non-exportable types de champ" do
-          expect(dossier_champs_for_export.map { |(libelle)| libelle }).to eq([text_type_de_champ.libelle])
+          expect(dossier_champ_values_for_export.map { |(libelle)| libelle }).to eq([text_type_de_champ.libelle])
         end
       end
     end
@@ -2088,14 +2268,14 @@ describe Dossier, type: :model do
       let(:dossier) { create(:dossier, procedure:) }
       let(:yes_no_tdc) { procedure.active_revision.types_de_champ_public.first }
       let(:text_tdc) { procedure.active_revision.types_de_champ_public.second }
-      let(:tdcs) { dossier.champs_public.map(&:type_de_champ) }
+      let(:tdcs) { dossier.project_champs_public.map(&:type_de_champ) }
 
-      subject { dossier.champs_for_export(tdcs) }
+      subject { dossier.champ_values_for_export(tdcs, format: :xlsx) }
 
       before do
         text_tdc.update(condition: ds_eq(champ_value(yes_no_tdc.stable_id), constant(true)))
 
-        yes_no, text = dossier.champs_public
+        yes_no, text = dossier.project_champs_public
         yes_no.update(value: yes_no_value)
         text.update(value: 'text')
       end
@@ -2114,7 +2294,7 @@ describe Dossier, type: :model do
 
       context 'with another revision' do
         let(:tdc_from_another_revision) { create(:type_de_champ_communes, libelle: 'commune', condition: ds_eq(constant(true), constant(true))) }
-        let(:tdcs) { dossier.champs_public.map(&:type_de_champ) << tdc_from_another_revision }
+        let(:tdcs) { dossier.project_champs_public.map(&:type_de_champ) << tdc_from_another_revision }
         let(:yes_no_value) { 'true' }
 
         let(:expected) do
@@ -2138,7 +2318,7 @@ describe Dossier, type: :model do
       let(:yes_no_tdc) { procedure.active_revision.types_de_champ_public.first }
       let(:text_tdc) { procedure.active_revision.types_de_champ_public.second }
       let(:commune_tdc) { procedure.active_revision.types_de_champ_public[2] }
-      let(:tdcs) { dossier.champs_public.map(&:type_de_champ) }
+      let(:tdcs) { dossier.project_champs_public.map(&:type_de_champ) }
       context 'with no value for commune_de_polynesie' do
         let(:expected) do
           [
@@ -2151,10 +2331,10 @@ describe Dossier, type: :model do
           ]
         end
 
-        subject { dossier.champs_for_export(tdcs) }
+        subject { dossier.champ_values_for_export(tdcs, format: :csv) }
 
         before do
-          yes_no, text, commune_de_polynesie = dossier.champs_public
+          yes_no, text, commune_de_polynesie = dossier.project_champs_public
           yes_no.update(value: 'true')
           text.update(value: 'text')
         end
@@ -2174,10 +2354,10 @@ describe Dossier, type: :model do
           ]
         end
 
-        subject { dossier.champs_for_export(tdcs) }
+        subject { dossier.champ_values_for_export(tdcs, format: :csv) }
 
         before do
-          yes_no, text, commune_de_polynesie = dossier.champs_public
+          yes_no, text, commune_de_polynesie = dossier.project_champs_public
           yes_no.update(value: 'true')
           commune_de_polynesie.update(value: 'Avera - Raiatea - 98736')
           text.update(value: 'text')
@@ -2194,7 +2374,7 @@ describe Dossier, type: :model do
       let(:yes_no_tdc) { procedure.active_revision.types_de_champ_public.first }
       let(:text_tdc) { procedure.active_revision.types_de_champ_public.second }
       let(:cp_tdc) { procedure.active_revision.types_de_champ_public[2] }
-      let(:tdcs) { dossier.champs_public.map(&:type_de_champ) }
+      let(:tdcs) { dossier.project_champs_public.map(&:type_de_champ) }
       context 'with no value for code_postal_de_polynesie' do
         let(:expected) do
           [
@@ -2207,10 +2387,10 @@ describe Dossier, type: :model do
           ]
         end
 
-        subject { dossier.champs_for_export(tdcs) }
+        subject { dossier.champ_values_for_export(tdcs, format: :csv) }
 
         before do
-          yes_no, text, code_postal_de_polynesie = dossier.champs_public
+          yes_no, text, code_postal_de_polynesie = dossier.project_champs_public
           yes_no.update(value: 'true')
           text.update(value: 'text')
         end
@@ -2230,10 +2410,10 @@ describe Dossier, type: :model do
           ]
         end
 
-        subject { dossier.champs_for_export(tdcs) }
+        subject { dossier.champ_values_for_export(tdcs, format: :csv) }
 
         before do
-          yes_no, text, code_postal_de_polynesie = dossier.champs_public
+          yes_no, text, code_postal_de_polynesie = dossier.project_champs_public
           yes_no.update(value: 'true')
           code_postal_de_polynesie.update(value: '98736 - Avera - Raiatea')
           text.update(value: 'text')
@@ -2259,21 +2439,21 @@ describe Dossier, type: :model do
       expect(champ_titre_identite.piece_justificative_file.attached?).to be_truthy
       expect(champ_titre_identite_vide.piece_justificative_file.attached?).to be_falsey
       dossier.accepter!(instructeur: dossier.followers_instructeurs.first, motivation: "yolo!")
-      expect(champ_titre_identite.piece_justificative_file.attached?).to be_falsey
+      expect(Champ.exists?(champ_titre_identite.id)).to be_falsey
     end
 
     it "clean up titres identite on refuser" do
       expect(champ_titre_identite.piece_justificative_file.attached?).to be_truthy
       expect(champ_titre_identite_vide.piece_justificative_file.attached?).to be_falsey
       dossier.refuser!(instructeur: dossier.followers_instructeurs.first, motivation: "yolo!")
-      expect(champ_titre_identite.piece_justificative_file.attached?).to be_falsey
+      expect(Champ.exists?(champ_titre_identite.id)).to be_falsey
     end
 
     it "clean up titres identite on classer_sans_suite" do
       expect(champ_titre_identite.piece_justificative_file.attached?).to be_truthy
       expect(champ_titre_identite_vide.piece_justificative_file.attached?).to be_falsey
       dossier.classer_sans_suite!(instructeur: dossier.followers_instructeurs.first, motivation: "yolo!")
-      expect(champ_titre_identite.piece_justificative_file.attached?).to be_falsey
+      expect(Champ.exists?(champ_titre_identite.id)).to be_falsey
     end
 
     context 'en_construction' do
@@ -2284,7 +2464,7 @@ describe Dossier, type: :model do
         expect(champ_titre_identite.piece_justificative_file.attached?).to be_truthy
         expect(champ_titre_identite_vide.piece_justificative_file.attached?).to be_falsey
         dossier.accepter_automatiquement!
-        expect(champ_titre_identite.piece_justificative_file.attached?).to be_falsey
+        expect(Champ.exists?(champ_titre_identite.id)).to be_falsey
       end
     end
   end
@@ -2319,7 +2499,7 @@ describe Dossier, type: :model do
       expect { dossier.reload }.to raise_error(ActiveRecord::RecordNotFound)
 
       expect(JSON.parse(json_message)).to a_hash_including(
-        { message: "Dossier destroyed", dossier_id: dossier.id, procedure_id: procedure.id }.stringify_keys
+        { message: "Dossier destroyed #{dossier.id}", dossier_id: dossier.id, procedure_id: procedure.id }.stringify_keys
       )
 
       expect { dossier.procedure.reset! }.not_to raise_error
@@ -2397,7 +2577,7 @@ describe Dossier, type: :model do
     end
 
     subject do
-      Timecop.freeze(Time.zone.local(2021, 3, 5)) do
+      travel_to(Time.zone.local(2021, 3, 5)) do
         Dossier.processed_by_month(groupe_instructeurs).count
       end
     end
@@ -2497,6 +2677,65 @@ describe Dossier, type: :model do
     it { expect(dossier.sva_svr_decision_in_days).to eq 10 }
   end
 
+  describe '#update_champs_timestamps' do
+    let(:procedure) { create(:procedure, types_de_champ_public: [{}, { type: :piece_justificative }, { type: :titre_identite }]) }
+    let(:dossier) { create(:dossier, procedure:, brouillon_close_to_expiration_notice_sent_at: 10.days.ago) }
+    let(:changed_champs) { dossier.champs.filter(&:text?) }
+
+    subject { -> { dossier.update_champs_timestamps(changed_champs) } }
+
+    it { is_expected.to change(dossier, :last_champ_updated_at) }
+    it { is_expected.to change(dossier, :updated_at) }
+
+    context 'when there is piece justificative' do
+      let(:changed_champs) { dossier.champs.filter(&:piece_justificative?) }
+
+      it { is_expected.to change(dossier, :last_champ_updated_at) }
+      it { is_expected.to change(dossier, :last_champ_piece_jointe_updated_at) }
+      it { is_expected.to change(dossier, :updated_at) }
+    end
+
+    context 'when there is titre identite' do
+      let(:changed_champs) { dossier.champs.filter(&:titre_identite?) }
+
+      it { is_expected.to change(dossier, :last_champ_updated_at) }
+      it { is_expected.to change(dossier, :last_champ_piece_jointe_updated_at) }
+      it { is_expected.to change(dossier, :updated_at) }
+    end
+  end
+
+  describe '#never_touched_brouillon_expired' do
+    let!(:dossier) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil) } }
+    let!(:dossier_2) { travel_to(1.week.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil) } }
+    let!(:dossier_with_champ_updated) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: 1.day.ago, last_champ_piece_jointe_updated_at: nil) } }
+    let!(:dossier_with_piece_jointe_updated) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: 1.day.ago) } }
+
+    let!(:dossier_en_construction) { create(:dossier, :en_construction, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil) }
+
+    subject { Dossier.never_touched_brouillon_expired }
+
+    it { is_expected.to contain_exactly(dossier) }
+
+    context 'when the dossier has been cloned' do
+      let!(:cloned_dossier) { travel_to(3.weeks.ago) { dossier.clone } }
+      let!(:cloned_dossier_2) { travel_to(3.weeks.ago) { dossier_with_champ_updated.clone } }
+
+      it { is_expected.to contain_exactly(dossier) }
+    end
+
+    context 'when the dossier has an etablissement' do
+      let!(:dossier_with_etablissement) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil, etablissement: create(:etablissement)) } }
+
+      it { is_expected.not_to include(dossier_with_etablissement) }
+    end
+
+    context 'when the dossier has an individual' do
+      let!(:dossier_with_individual) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil, individual: create(:individual)) } }
+
+      it { is_expected.not_to include(dossier_with_individual) }
+    end
+  end
+
   private
 
   def count_for_month(processed_by_month, month)
@@ -2504,13 +2743,13 @@ describe Dossier, type: :model do
   end
 
   def create_dossier_for_month(procedure, year, month)
-    Timecop.freeze(Time.zone.local(year, month, 5)) do
+    travel_to(Time.zone.local(year, month, 5)) do
       create(:dossier, :accepte, :with_attestation, procedure: procedure)
     end
   end
 
   def create_archived_dossier_for_month(procedure, year, month)
-    Timecop.freeze(Time.zone.local(year, month, 5)) do
+    travel_to(Time.zone.local(year, month, 5)) do
       create(:dossier, :accepte, :archived, :with_attestation, procedure: procedure)
     end
   end

@@ -17,7 +17,6 @@ module Types
     field :description, String, "Description du champ.", null: true
     field :required, Boolean, "Est-ce que le champ est obligatoire ?", null: false, method: :mandatory?
 
-    field :options, [String], "List des options d’un champ avec selection.", null: true, deprecation_reason: 'Utilisez le champ `DropDownListChampDescriptor.options` à la place.'
     field :champ_descriptors, [Types::ChampDescriptorType], "Description des champs d’un bloc répétable.", null: true, deprecation_reason: 'Utilisez le champ `RepetitionChampDescriptor.champ_descriptors` à la place.'
     field :type, TypeDeChampType, "Type de la valeur du champ.", null: false, method: :type_champ, deprecation_reason: 'Utilisez le champ `__typename` à la place.'
 
@@ -39,11 +38,14 @@ module Types
           Types::Champs::Descriptor::VisaChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:lexpol)
           Types::Champs::Descriptor::LexpolChampDescriptorType
+        when TypeDeChamp.type_champs.fetch(:referentiel_de_polynesie)
+          Types::Champs::Descriptor::ReferentielDePolynesieChampDescriptorType
 
           # ----- DS champs
+        when TypeDeChamp.type_champs.fetch(:referentiel)
+          Types::Champs::Descriptor::ReferentielChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:engagement_juridique)
           Types::Champs::Descriptor::EngagementJuridiqueChampDescriptorType
-
         when TypeDeChamp.type_champs.fetch(:text)
           Types::Champs::Descriptor::TextChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:textarea)
@@ -120,21 +122,15 @@ module Types
           Types::Champs::Descriptor::EpciChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:cojo)
           Types::Champs::Descriptor::COJOChampDescriptorType
-        when TypeDeChamp.type_champs.fetch(:expression_reguliere)
-          Types::Champs::Descriptor::ExpressionReguliereChampDescriptorType
+        when TypeDeChamp.type_champs.fetch(:formatted)
+          Types::Champs::Descriptor::FormattedChampDescriptorType
         end
       end
     end
 
     def champ_descriptors
-      if type_de_champ.block?
+      if type_de_champ.repetition?
         Loaders::Association.for(object.class, revision_types_de_champ: :type_de_champ).load(object)
-      end
-    end
-
-    def options
-      if type_de_champ.drop_down_list?
-        type_de_champ.drop_down_options.reject(&:empty?)
       end
     end
 

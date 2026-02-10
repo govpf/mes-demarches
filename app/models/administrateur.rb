@@ -32,6 +32,8 @@ class Administrateur < ApplicationRecord
       .merge(APIToken.where(last_v2_authenticated_at: nil).or(APIToken.where(last_v2_authenticated_at: ..UNUSED_ADMIN_THRESHOLD.ago)))
   end
 
+  delegate :rdv_connection, to: :instructeur
+
   def email
     user&.email
   end
@@ -71,7 +73,7 @@ class Administrateur < ApplicationRecord
   end
 
   def can_be_deleted?
-    procedures.with_discarded.all? { |p| p.administrateurs.count > 1 || p.dossiers.empty? }
+    procedures.with_discarded.not_brouillon.all? { |p| p.administrateurs.count > 1 || p.dossiers.empty? }
   end
 
   def merge(old_admin)
@@ -116,7 +118,7 @@ class Administrateur < ApplicationRecord
       i.administrateurs.delete(old_admin)
     end
 
-    old_admin.api_tokens.where('version >= ?', 3).find_each do |token|
+    old_admin.api_tokens.where(version: 3..).find_each do |token|
       self.api_tokens << token
     end
   end

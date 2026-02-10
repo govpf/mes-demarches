@@ -239,7 +239,7 @@ RSpec.describe DossierHelper, type: :helper do
     context "with complete france_connect information" do
       let(:user_information) { build(:france_connect_information, updated_at: Time.zone.now) }
       it {
-        expect(subject).to have_text("Le dossier a été déposé par le compte de #{user_information.given_name} #{user_information.family_name}, authentifié par FranceConnect le #{user_information.updated_at.strftime('%d/%m/%Y')}")
+        expect(subject).to have_text("Le dossier a été déposé par le compte de #{user_information.given_name} #{user_information.family_name}, authentifié par FranceConnect le #{I18n.l(user_information.updated_at.to_date)}")
       }
     end
 
@@ -272,7 +272,21 @@ RSpec.describe DossierHelper, type: :helper do
       let(:user_information) { build(:france_connect_information, updated_at: Time.zone.now) }
       let(:provider) { "google" }
       it {
-        expect(subject).to have_text("Le dossier a été déposé par le compte de #{user_information.given_name} #{user_information.family_name}, authentifié par #{provider.camelize} le #{user_information.updated_at.strftime('%d/%m/%Y')}")
+        expect(subject).to have_text("Le dossier a été déposé par le compte de #{user_information.given_name} #{user_information.family_name}, authentifié par #{provider.camelize} le #{I18n.l(user_information.updated_at.to_date)}")
+      }
+    end
+  end
+
+  describe ".tags_notification" do
+    subject { tags_notification([notification]) }
+
+    context "with dossier_depose notification" do
+      let(:groupe_instructeur) { create(:groupe_instructeur) }
+      let(:dossier) { create(:dossier, groupe_instructeur:, depose_at: 10.days.ago) }
+      let!(:notification) { create(:dossier_notification, :for_groupe_instructeur, groupe_instructeur:, dossier:, notification_type: :dossier_depose, display_at: (dossier.depose_at + DossierNotification::DELAY_DOSSIER_DEPOSE)) }
+
+      it {
+        expect(subject).to have_text("Déposé depuis 10 J.")
       }
     end
   end

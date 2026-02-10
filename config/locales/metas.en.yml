@@ -1,21 +1,27 @@
 en:
   metas:
     signin:
-      title: "Sign-in"
+      title: "Sign in"
+    signup:
+      title: "Create an account"
     users:
       dossiers:
         index:
           title: Files
           title_search: "Search: %{terms}"
+        identite:
+          title: "New file (%{procedure_label}) - Step 1: Identity"
         show:
-          title: "Summary · File nº %{number} (%{procedure_label})"
+          title: "Follow-up on your file · File %{number} (%{procedure_label})"
         demande:
-          title: "Application · File nº %{number} (%{procedure_label})"
+          title: "Your file · File %{number} (%{procedure_label})"
         messagerie:
-          title: "Mailbox · File nº %{number} (%{procedure_label})"
+          title: "Administration messaging · File %{number} (%{procedure_label})"
         brouillon:
-          title: "Modification of draft nº %{number} (%{procedure_label})"
+          title: "File %{number} in draft (%{procedure_label}) - Step 2: Form"
         merci:
           title: "File submitted (%{procedure_label})"
+        rendez_vous:
+          title: "Rendez-vous · File %{number} (%{procedure_label})"
       activate:
         title: Activate my account on %{application_name}

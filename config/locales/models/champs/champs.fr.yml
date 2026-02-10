@@ -1,0 +1,10 @@
+fr:
+  activerecord:
+    errors:
+      models:
+        champ:
+          attributes:
+            value:
+              format: '%{message}'
+              missing: doit être rempli
+              invalid_regexp: '%{expression_reguliere_error_message}'

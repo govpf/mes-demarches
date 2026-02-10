@@ -1,5 +1,5 @@
-@import "colors";
-@import "constants";
+@import 'colors';
+@import 'constants';
 
 .page-title {
   font-size: 30px;
@@ -44,8 +44,16 @@
   position: relative;
 }
 
-.dropdown-export .dropdown-content {
+.dropdown-export.dropdown-content {
   width: 450px;
+
+  a {
+    text-decoration: underline;
+  }
+}
+
+.dropdown-label.dropdown-content {
+  min-width: 390px;
 }
 
 .print-menu {
@@ -54,7 +62,7 @@
   right: 0;
   top: 45px;
   font-size: 14px;
-  background: #FFFFFF;
+  background: #ffffff;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   border: 1px solid $border-grey;
   min-width: 270px;

@@ -2,37 +2,59 @@
 
 class APIEntrepriseService
   class << self
+    # PF: Specific method for handling ambiguous TAHITI numbers (< 9 chars)
+    # In French Polynesia, a 6-char TAHITI number can match multiple establishments
+    # This method lists all possible establishments for user selection
+    def list_etablissements(siret_prefix, procedure_id = nil)
+      return nil unless siret_prefix.present? && siret_prefix.length < 9
+
+      begin
+        adapter = APIEntreprise::PfEtablissementAdapter.new(siret_prefix, procedure_id)
+        adapter.to_all_etablissements
+      rescue APIEntreprise::API::Error::ResourceNotFound
+        nil
+      end
+    end
+
     # create etablissement with EtablissementAdapter
     # enqueue api_entreprise jobs to retrieve
     # all informations we can get about a SIRET.
     #
-    # Returns nil if the SIRET is unknown
+    # Returns the etablissement if created, nil if the SIRET is unknown
     #
     # Raises a APIEntreprise::API::Error::RequestFailed exception on transient errors
     # (timeout, 5XX HTTP error code, etc.)
     def create_etablissement(dossier_or_champ, siret, user_id = nil)
       procedure_id = dossier_or_champ.procedure.id
-      etablissement_params, other_etablissements =
-        if siret.length == 6 || siret.length == 9
-          APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id).to_params
-        else
-          APIEntreprise::EtablissementAdapter.new(siret, procedure_id).to_params
-        end
+
+      # PF: Handle 9-char TAHITI numbers (6 chars company + 3 chars establishment)
+      etablissement_params = if siret.length == 9
+        APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id).to_params
+      elsif siret.length > 9
+        APIEntreprise::EtablissementAdapter.new(siret, procedure_id).to_params
+      else
+        # PF: SIRET < 9 chars is ambiguous, use list_etablissements instead
+        return nil
+      end
+
       return nil if etablissement_params.blank?
 
       if siret.length > 9
         entreprise_params = APIEntreprise::EntrepriseAdapter.new(siret, procedure_id).to_params
         etablissement_params.merge!(entreprise_params) if entreprise_params.any?
-      elsif other_etablissements && other_etablissements.size > 1
-        return [dossier_or_champ.build_etablissement(etablissement_params), other_etablissements]
       end
 
       etablissement = dossier_or_champ.build_etablissement(etablissement_params)
       etablissement.save!
+
+      if dossier_or_champ.is_a?(Champ)
+        dossier_or_champ.update!(value_json: APIGeoService.parse_etablissement_address(etablissement))
+      end
       if siret.length > 9
         perform_later_fetch_jobs(etablissement, procedure_id, user_id)
       end
-      [etablissement, other_etablissements]
+      etablissement.update_champ_value_json!
+      etablissement
     end
 
     def create_etablissement_as_degraded_mode(dossier_or_champ, siret, user_id = nil)
@@ -48,23 +70,45 @@ class APIEntrepriseService
 
     def update_etablissement_from_degraded_mode(etablissement, procedure_id)
       siret = etablissement.siret
-      etablissement_params, _other_etablissements = if siret.length == 6 || siret.length == 9
-        APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id).to_params
-      else
+      # pf: Support TAHITI numbers (6-9 chars) in degraded mode
+      # For 6-char numbers, validate only if there's a single establishment (95% of cases)
+      etablissement_params = if siret.length >= 6 && siret.length <= 9
+        adapter = APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id)
+        params = adapter.to_params
+
+        # If SIRET was not completed (still 6 chars), it means multiple establishments exist
+        # In this case, we can't auto-validate in degraded mode
+        if params.present? && params[:siret].present? && params[:siret].length == 9
+          params
+        else
+          # Multiple establishments or error: can't auto-complete
+          return nil
+        end
+      elsif siret.length > 9
         APIEntreprise::EtablissementAdapter.new(siret, procedure_id).to_params
+      else
+        # Invalid SIRET length
+        return nil
       end
       return nil if etablissement_params.empty?
 
       etablissement.update!(etablissement_params)
+      etablissement.update_champ_value_json!
+
+      etablissement
     end
 
     def perform_later_fetch_jobs(etablissement, procedure_id, user_id, wait: nil)
-      [
+      jobs = [
         APIEntreprise::EntrepriseJob, APIEntreprise::ExtraitKbisJob, APIEntreprise::TvaJob,
         APIEntreprise::AssociationJob, APIEntreprise::ExercicesJob,
         APIEntreprise::EffectifsJob, APIEntreprise::EffectifsAnnuelsJob, APIEntreprise::AttestationSocialeJob,
         APIEntreprise::BilansBdfJob
-      ].each do |job|
+      ]
+      if etablissement.as_degraded_mode?
+        jobs << APIEntreprise::EtablissementJob
+      end
+      jobs.each do |job|
         job.set(wait:).perform_later(etablissement.id, procedure_id)
       end
 
@@ -82,6 +126,13 @@ class APIEntrepriseService
 
     def api_djepva_up?
       api_up?("https://entreprise.api.gouv.fr/ping/djepva/api-association")
+    end
+
+    def service_unavailable_error?(error, target:)
+      return false if !error.try(:network_error?)
+      return true if target == :insee && !APIEntrepriseService.api_insee_up?
+      return true if target == :djepva && !APIEntrepriseService.api_djepva_up?
+      error.is_a?(APIEntreprise::API::Error::ServiceUnavailable)
     end
 
     private

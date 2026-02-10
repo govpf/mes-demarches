@@ -1,13 +1,11 @@
 # frozen_string_literal: true
 
 describe Champs::MultipleDropDownListChamp do
-  let(:type_de_champ) { build(:type_de_champ_multiple_drop_down_list, drop_down_options: ["val1", "val2", "val3", "[brackets] val4"]) }
+  let(:types_de_champ_public) { [{ type: :multiple_drop_down_list, options: ["val1", "val2", "val3", "[brackets] val4"] }] }
+  let(:procedure) { create(:procedure, types_de_champ_public:) }
+  let(:dossier) { create(:dossier, procedure:) }
+  let(:champ) { dossier.champs.first.tap { _1.update(value:) } }
   let(:value) { nil }
-  let(:champ) { Champs::MultipleDropDownListChamp.new(value:, dossier: build(:dossier)) }
-  before do
-    allow(champ).to receive(:type_de_champ).and_return(type_de_champ)
-    allow(champ).to receive(:in_dossier_revision?).and_return(true)
-  end
 
   describe 'validations' do
     subject { champ.validate(:champs_public_value) }
@@ -64,32 +62,8 @@ describe Champs::MultipleDropDownListChamp do
     end
   end
 
-  describe '#next_checkbox_id' do
-    let(:value) { ["val1", "val2", "val3"] }
-
-    context 'when the value has next value' do
-      it {
-        expect(champ.next_checkbox_id("val1")).to eq(champ.checkbox_id("val2"))
-        expect(champ.next_checkbox_id("val2")).to eq(champ.checkbox_id("val3"))
-      }
-    end
-
-    context 'when the value is last' do
-      it { expect(champ.next_checkbox_id("val3")).to eq(champ.checkbox_id("val2")) }
-    end
-
-    context 'when the value is invalid' do
-      it { expect(champ.next_checkbox_id("val4")).to eq(nil) }
-    end
-
-    context 'when the values are empty' do
-      let(:value) { [] }
-      it { expect(champ.next_checkbox_id("val1")).to eq(nil) }
-    end
-  end
-
   describe "#for_tag" do
     let(:value) { ["val1", "val2"] }
-    it { expect(champ.for_tag.to_s).to eq("val1, val2") }
+    it { expect(champ.type_de_champ.champ_value_for_tag(champ).to_s).to eq("val1, val2") }
   end
 end

@@ -4,18 +4,31 @@ describe Champs::PieceJustificativeController, type: :controller do
   let(:user) { create(:user) }
   let(:procedure) { create(:procedure, :published, :with_instructeur, types_de_champ_public: [{ type: :piece_justificative }], types_de_champ_private: [{ type: :piece_justificative }]) }
   let(:dossier) { create(:dossier, user: user, procedure: procedure) }
-  let(:champ) { dossier.champs_public.first }
+  let(:champ) { dossier.project_champs_public.first }
 
   describe '#download' do
     let(:instructeur) { procedure.defaut_groupe_instructeur.instructeurs.first }
-    let(:annotation) { dossier.champs_private.first }
+    let(:annotation) { dossier.project_champs_private.first }
+    let(:uploaded_file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
+    let(:blob) do
+      blob = ActiveStorage::Blob.create_before_direct_upload!(
+        filename: uploaded_file.original_filename,
+        byte_size: uploaded_file.size,
+        checksum: Digest::MD5.base64digest(uploaded_file.read.tap { uploaded_file.rewind }),
+        content_type: uploaded_file.content_type,
+        metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE }
+      )
+      blob.upload(uploaded_file)
+      blob
+    end
+
     before do
       sign_in instructeur.user
       put :update, params: {
         position: '1',
         dossier_id: dossier.id,
         stable_id: annotation.stable_id,
-        blob_signed_id: file
+        blob_signed_id: blob.signed_id
       }, format: 'turbo_stream'
       sign_out instructeur.user
       sign_in current_user
@@ -69,7 +82,6 @@ describe Champs::PieceJustificativeController, type: :controller do
 
       context 'when user wants to download pdf piece_justificative,' do
         let(:current_user) { user }
-        let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
 
         context 'when procedure qrcoding is not activated,' do
           before { Flipper.disable(:qrcoded_pdf, procedure) }
@@ -81,28 +93,14 @@ describe Champs::PieceJustificativeController, type: :controller do
           it_behaves_like "he can download qrcoded pdf"
 
           context 'when created_date is wrong' do
-            let(:params) { { champ_id: annotation.id.to_s, h: 'x' } }
+            let(:params) { { dossier_id: dossier.id, stable_id: annotation.stable_id, h: 'x', i: '0' } }
             it_behaves_like "he can't download pdf"
-          end
-        end
-
-        context 'using legacy link' do
-          subject do
-            params.delete(:i)
-            get :show, params: params
-          end
-
-          it 'is redirected to download url' do
-            subject
-            expect(response.status).to eq(302)
-            expect(response.location).to include("#{params[:champ_id]}/piece_justificative/download/#{params[:h]}")
           end
         end
       end
 
       context 'when instructeur wants to download pdf piece_justificative,' do
         let(:current_user) { instructeur.user }
-        let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
 
         context 'when procedure qrcoding is not activated,' do
           before { Flipper.disable(:qrcoded_pdf, procedure) }
@@ -114,7 +112,7 @@ describe Champs::PieceJustificativeController, type: :controller do
           it_behaves_like "he can download qrcoded pdf"
 
           context 'when created_date is wrong,' do
-            let(:params) { { champ_id: annotation.id.to_s, h: 'x' } }
+            let(:params) { { dossier_id: dossier.id, stable_id: annotation.stable_id, h: 'x', i: '0' } }
             it_behaves_like "he can't download pdf"
           end
         end
@@ -122,7 +120,6 @@ describe Champs::PieceJustificativeController, type: :controller do
 
       context 'when Another User wants to download pdf piece_justificative,' do
         let(:current_user) { create(:user) }
-        let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
 
         context 'when procedure qrcoding is not activated,' do
           before { Flipper.disable(:qrcoded_pdf, procedure) }
@@ -135,13 +132,15 @@ describe Champs::PieceJustificativeController, type: :controller do
         end
 
         context 'when created_date is wrong,' do
-          let(:params) { { champ_id: annotation.id.to_s, h: 'x' } }
+          let(:params) { { dossier_id: dossier.id, stable_id: annotation.stable_id, h: 'x', i: '0' } }
           before { Flipper.enable(:qrcoded_pdf, procedure) }
           it_behaves_like "he can't download pdf"
         end
       end
     end
   end
+
+  before { Flipper.enable(:user_buffer_stream, procedure) }
 
   describe '#update' do
     render_views
@@ -180,7 +179,7 @@ describe Champs::PieceJustificativeController, type: :controller do
       end
 
       context 'when the champ is private' do
-        let(:champ) { dossier.champs_private.first }
+        let(:champ) { dossier.project_champs_private.first }
         let(:instructeur) { create(:instructeur) }
         let(:procedure) { create(:procedure, :published, :with_instructeur, types_de_champ_public: [{ type: :piece_justificative }], types_de_champ_private: [{ type: :piece_justificative }], instructeurs: [instructeur]) }
 
@@ -194,21 +193,24 @@ describe Champs::PieceJustificativeController, type: :controller do
       end
     end
 
-    context 'when the file is invalid' do
-      let(:file) { fixture_file_upload('spec/fixtures/files/invalid_file_format.json', 'application/json') }
+    context 'when the champ is private and the dossier is not brouillon' do
+      let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
+      let(:instructeur) { create(:instructeur) }
+      let(:procedure) { create(:procedure, :published, :with_instructeur, types_de_champ_public: [{ type: :piece_justificative }], types_de_champ_private: [{ type: :piece_justificative }], instructeurs: [instructeur]) }
+      let!(:dossier) { create(:dossier, :en_construction, user: user, procedure: procedure) }
+      let!(:champ) { dossier.project_champs_private.first }
 
-      # TODO: for now there are no validators on the champ piece_justificative_file,
-      # so we have to mock a failing validation.
-      # Once the validators will be enabled, remove those mocks, and let the usual
-      # validation fail naturally.
-      #
-      # See https://github.com/betagouv/demarches-simplifiees.fr/issues/4926
-      before do
-        champ
-        expect_any_instance_of(Champs::PieceJustificativeChamp).to receive(:save).and_return(false)
-        expect_any_instance_of(Champs::PieceJustificativeChamp).to receive(:errors)
-          .and_return(double(full_messages: ['La pièce justificative n’est pas d’un type accepté']))
+      # pf: must sign in as instructeur because only instructeurs can modify private champs
+      # and ChampRevision.create_or_update_revision requires current_instructeur.id
+      before { sign_in instructeur.user }
+
+      it 'updates dossier.last_champ_private_updated_at' do
+        expect { subject }.to change { dossier.reload.last_champ_private_updated_at }
       end
+    end
+
+    context 'when the file is invalid' do
+      let(:file) { fixture_file_upload('spec/fixtures/files/invalid_file_format.json', 'bad/bad') }
 
       it 'doesn’t attach the file' do
         subject
@@ -219,14 +221,13 @@ describe Champs::PieceJustificativeController, type: :controller do
         subject
         expect(response.status).to eq(422)
         expect(response.header['Content-Type']).to include('application/json')
-        expect(response.parsed_body).to eq({ 'errors' => ['La pièce justificative n’est pas d’un type accepté'] })
+        expect(response.parsed_body).to eq({ 'errors' => ['Piece justificative file n’est pas d’un type accepté'] })
       end
     end
   end
 
   describe '#template' do
-    before { Timecop.freeze }
-    after { Timecop.return }
+    before { freeze_time }
 
     subject do
       get :template, params: {

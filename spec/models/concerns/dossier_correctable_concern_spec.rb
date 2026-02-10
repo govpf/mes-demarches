@@ -101,21 +101,57 @@ describe DossierCorrectableConcern do
       it 'creates a log operation' do
         expect { flag }.to change { dossier.dossier_operation_logs.count }.by(2)
 
-        log_correction, log_construction = dossier.dossier_operation_logs.last(2)
-        expect(log_correction.operation).to eq("demander_une_correction")
-        expect(log_construction.operation).to eq("repasser_en_construction")
+        correction_log = dossier.dossier_operation_logs.find { |log| log.operation == "demander_une_correction" }
+        construction_log = dossier.dossier_operation_logs.find { |log| log.operation == "repasser_en_construction" }
 
-        expect(log_correction.data["subject"]["body"]).to eq(commentaire.body)
-        expect(log_correction.data["subject"]["email"]).to eq(commentaire.instructeur.email)
+        expect(correction_log).to be_present
+        expect(construction_log).to be_present
+        expect(correction_log.data["subject"]["body"]).to eq(commentaire.body)
+        expect(correction_log.data["subject"]["email"]).to eq(commentaire.instructeur.email)
       end
 
       it 'creates a log operation of incomplete dossier' do
         expect { dossier.flag_as_pending_correction!(commentaire, "incomplete") }.to change { dossier.dossier_operation_logs.count }.by(2)
 
-        log_correction, _ = dossier.dossier_operation_logs.last(2)
-        expect(log_correction.operation).to eq("demander_a_completer")
-        expect(log_correction.data["subject"]["body"]).to eq(commentaire.body)
-        expect(log_correction.data["subject"]["email"]).to eq(commentaire.instructeur.email)
+        correction_log = dossier.dossier_operation_logs.find { |log| log.operation == "demander_a_completer" }
+        construction_log = dossier.dossier_operation_logs.find { |log| log.operation == "repasser_en_construction" }
+
+        expect(correction_log).to be_present
+        expect(construction_log).to be_present
+        expect(correction_log.data["subject"]["body"]).to eq(commentaire.body)
+        expect(correction_log.data["subject"]["email"]).to eq(commentaire.instructeur.email)
+      end
+    end
+
+    context "when there are instructeurs followers" do
+      let(:other_instructeur_follower) { create(:instructeur) }
+      let(:instructeur_not_follower) { create(:instructeur) }
+      let!(:groupe_instructeur) { create(:groupe_instructeur, instructeurs: [instructeur, other_instructeur_follower, instructeur_not_follower]) }
+
+      before do
+        dossier.assign_to_groupe_instructeur(groupe_instructeur, DossierAssignment.modes.fetch(:auto))
+        instructeur.followed_dossiers << dossier
+        other_instructeur_follower.followed_dossiers << dossier
+      end
+
+      it do
+        expect { subject }.to change(DossierNotification, :count).by(3)
+      end
+
+      it "create attente_correction notification only for instructeur follower" do
+        subject
+        notifications = DossierNotification.where(dossier:, notification_type: :attente_correction)
+
+        expect(notifications.count).to eq(2)
+        expect(notifications.map(&:instructeur_id)).to match_array([instructeur.id, other_instructeur_follower.id])
+      end
+
+      it "create :message notification only for others instructeurs followers" do
+        subject
+        notifications = DossierNotification.where(dossier:, notification_type: :message)
+
+        expect(notifications.count).to eq(1)
+        expect(notifications.first.instructeur_id).to eq(other_instructeur_follower.id)
       end
     end
   end
@@ -124,6 +160,7 @@ describe DossierCorrectableConcern do
     let(:dossier) { create(:dossier, :en_construction) }
 
     subject(:resolve) { dossier.resolve_pending_correction! }
+
     context "when dossier has no correction" do
       it { expect { resolve }.not_to change { dossier.corrections.pending.count } }
     end
@@ -134,6 +171,18 @@ describe DossierCorrectableConcern do
       it {
         expect { resolve }.to change { correction.reload.resolved_at }.from(nil)
       }
+    end
+
+    context "when dossier has attente_correction notification" do
+      let!(:correction) { create(:dossier_correction, dossier:) }
+      let!(:instructeur) { create(:instructeur) }
+      let!(:notification) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: :attente_correction) }
+
+      it "destroy notification for all instructeurs" do
+        subject
+
+        expect(DossierNotification.exists?(notification.id)).to be_falsey
+      end
     end
 
     context "when dossier has a already resolved correction" do

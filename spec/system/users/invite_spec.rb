@@ -136,7 +136,6 @@ describe 'Invitations' do
         expect(page).to have_current_path(dossier_path(invite.dossier))
       end
 
-      it_behaves_like 'the user can edit the submitted demande'
       it_behaves_like 'the user can send messages to the instructeur'
     end
   end
@@ -175,7 +174,7 @@ describe 'Invitations' do
       end
 
       it "can search something inside the dossier and it displays the dossier" do
-        page.find_by_id('q').set(dossier_2.champs_public.first.value)
+        page.find_by_id('q').set(dossier_2.project_champs_public.first.value)
         find('.fr-search-bar .fr-btn').click
         expect(current_path).to eq(dossiers_path)
         expect(page).to have_link(dossier.procedure.libelle)

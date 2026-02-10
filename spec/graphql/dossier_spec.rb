@@ -8,7 +8,7 @@ RSpec.describe Types::DossierType, type: :graphql do
   subject { API::V2::Schema.execute(query, variables: variables, context: context) }
 
   let(:data) { subject['data'].deep_symbolize_keys }
-  let(:errors) { subject['errors'].deep_symbolize_keys }
+  let(:errors) { subject['errors'] }
 
   describe 'dossier with attestation' do
     let(:dossier) { create(:dossier, :accepte, :with_attestation) }
@@ -46,8 +46,41 @@ RSpec.describe Types::DossierType, type: :graphql do
         "street_number" => "33",
         "street_address" => "33 Rue Rébeval",
         "department_code" => "75",
-        "department_name" => "Paris"
+        "department_name" => "Paris",
+        "country_code" => "FR",
+        "country_name" => "France"
       }
+    end
+
+    let(:not_in_ban_address) do
+      {
+        not_in_ban: 'true',
+        label: "2 rue des Démarches grenoble (38100)",
+        city_code: "38100",
+        city_name: "grenoble",
+        postal_code: "38000",
+        region_code: "84",
+        region_name: "Auvergne-Rhones-Alpes",
+        street_address: "2 rue des Démarches",
+        department_code: "38",
+        department_name: "Isère",
+        country_code: "FR",
+        country_name: "France"
+      }.stringify_keys
+    end
+
+    let(:international_address) do
+      {
+        not_in_ban: 'true',
+        label: "2 rue des Démarches Roma (1234)",
+        city_name: "Roma",
+        postal_code: "1234",
+        street_address: "2 rue des Démarches",
+        department_code: "99",
+        department_name: APIGeoService.departement_name('99'),
+        country_code: "IT",
+        country_name: APIGeoService.country_name('IT')
+      }.stringify_keys
     end
 
     let(:rna) do
@@ -71,8 +104,8 @@ RSpec.describe Types::DossierType, type: :graphql do
     end
 
     before do
-      dossier.champs_public.find { _1.type_champ == TypeDeChamp.type_champs.fetch(:address) }.update(data: address)
-      dossier.champs_public.find { _1.type_champ == TypeDeChamp.type_champs.fetch(:rna) }.update(data: rna)
+      dossier.project_champs_public.find { _1.type_champ == TypeDeChamp.type_champs.fetch(:address) }.update(value_json: address)
+      dossier.project_champs_public.find { _1.type_champ == TypeDeChamp.type_champs.fetch(:rna) }.update(data: rna)
     end
 
     it do
@@ -82,7 +115,7 @@ RSpec.describe Types::DossierType, type: :graphql do
       expect(data[:dossier][:champs][1][:commune][:code]).to eq('75119')
       expect(data[:dossier][:champs][1][:commune][:postalCode]).to eq('75019')
       expect(data[:dossier][:champs][1][:departement][:code]).to eq('75')
-      expect(data[:dossier][:champs][2][:etablissement][:siret]).to eq dossier.champs_public[2].etablissement.siret
+      expect(data[:dossier][:champs][2][:etablissement][:siret]).to eq dossier.project_champs_public[2].etablissement.siret
       expect(data[:dossier][:champs][0][:id]).to eq(data[:dossier][:revision][:champDescriptors][0][:id])
 
       expect(data[:dossier][:champs][1][:address][:cityName]).to eq('Paris 19e Arrondissement')
@@ -98,8 +131,34 @@ RSpec.describe Types::DossierType, type: :graphql do
       expect(data[:dossier][:champs][3][:rna][:address][:regionName]).to eq(nil)
     end
 
+    context 'not in ban' do
+      before do
+        dossier.project_champs_public.find(&:address?).update_columns(value_json: not_in_ban_address)
+      end
+
+      it 'should return address' do
+        expect(errors).to be_nil
+        expect(data[:dossier][:champs][1][:__typename]).to eq "AddressChamp"
+        expect(data[:dossier][:champs][1][:address][:departmentName]).to eq('Isère')
+        expect(data[:dossier][:champs][1][:address][:countryName]).to eq('France')
+      end
+    end
+
+    context 'international' do
+      before do
+        dossier.project_champs_public.find(&:address?).update_columns(value_json: international_address)
+      end
+
+      it 'should return address' do
+        expect(errors).to be_nil
+        expect(data[:dossier][:champs][1][:__typename]).to eq "AddressChamp"
+        expect(data[:dossier][:champs][1][:address][:departmentName]).to eq('Etranger')
+        expect(data[:dossier][:champs][1][:address][:countryName]).to eq('Italie')
+      end
+    end
+
     context 'when etablissement is in degraded mode' do
-      let(:etablissement) { dossier.champs_public.third.etablissement }
+      let(:etablissement) { dossier.project_champs_public.third.etablissement }
       before do
         etablissement.update(adresse: nil)
       end
@@ -128,7 +187,7 @@ RSpec.describe Types::DossierType, type: :graphql do
     let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
     let(:query) { DOSSIER_WITH_SELECTED_CHAMP_QUERY }
     let(:variables) { { number: dossier.id, id: champ.to_typed_id } }
-    let(:champ) { dossier.champs_public.last }
+    let(:champ) { dossier.project_champs_public.last }
 
     context 'when champ exists' do
       it {
@@ -155,7 +214,7 @@ RSpec.describe Types::DossierType, type: :graphql do
     let(:checkbox_value) { 'true' }
 
     before do
-      dossier.champs_public.first.update(value: checkbox_value)
+      dossier.project_champs_public.first.update(value: checkbox_value)
     end
 
     context 'when checkbox is true' do
@@ -204,7 +263,7 @@ RSpec.describe Types::DossierType, type: :graphql do
     let(:variables) { { number: dossier.id } }
 
     before do
-      dossier.champs_public.first.update(value: linked_dossier.id)
+      dossier.project_champs_public.first.update(value: linked_dossier.id)
     end
 
     context 'en_construction' do
@@ -233,7 +292,7 @@ RSpec.describe Types::DossierType, type: :graphql do
     let(:variables) { { number: dossier.id } }
 
     let(:rows) do
-      dossier.champs_public.first.rows.map do |champs|
+      dossier.project_champs_public.first.rows.map do |champs|
         { champs: champs.map { { id: _1.to_typed_id } } }
       end
     end
@@ -325,6 +384,32 @@ RSpec.describe Types::DossierType, type: :graphql do
         expect(data[:dossier][:dateTraitementSVASVR]).not_to be_nil
       }
     end
+  end
+
+  describe 'dossier with labels' do
+    let(:procedure) { create(:procedure, :published) }
+    let(:dossier) { create(:dossier, :en_construction, procedure:) }
+    let(:label) { create(:label, procedure:, name: "Urgent", color: "pink_macaron") }
+    let(:query) { DOSSIER_WITH_LABELS_QUERY }
+    let(:variables) { { number: dossier.id } }
+
+    let(:past) { DateTime.new(2025, 1, 5, 12, 30, 0, "+01:00") }
+    before do
+      travel_to past do
+        dossier.labels << label
+      end
+    end
+
+    it {
+      expect(data[:dossier][:labels]).not_to be_empty
+      expect(data[:dossier][:labels][0]).to eq(
+        {
+          id: label.to_typed_id,
+          name: "Urgent",
+          color: "pink_macaron"
+        }
+      )
+    }
   end
 
   DOSSIER_QUERY = <<-GRAPHQL
@@ -463,6 +548,8 @@ RSpec.describe Types::DossierType, type: :graphql do
     streetNumber
     departmentName
     regionName
+    countryCode
+    countryName
   }
 
   fragment RNAChampFragment on RNAChamp {
@@ -571,5 +658,17 @@ RSpec.describe Types::DossierType, type: :graphql do
       }
     }
   }
+  GRAPHQL
+
+  DOSSIER_WITH_LABELS_QUERY = <<-GRAPHQL
+    query($number: Int!) {
+      dossier(number: $number) {
+        labels {
+          id
+          name
+          color
+        }
+      }
+    }
   GRAPHQL
 end

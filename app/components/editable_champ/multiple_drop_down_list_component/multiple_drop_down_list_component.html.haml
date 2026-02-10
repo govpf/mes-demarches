@@ -1,9 +1,9 @@
 - if @champ.render_as_checkboxes?
-  = @form.collection_check_boxes :value, @champ.drop_down_options, :to_s, :to_s do |b|
+  = @form.collection_check_boxes :value, items, :second, :first do |b|
     - capture do
       .fr-fieldset__element
         .fr-checkbox-group
-          = b.check_box(checked: @champ.selected_options.include?(b.value), aria: { describedby: @champ.describedby_id }, id: @champ.checkbox_id(b.value), class: 'fr-checkbox-group__checkbox')
+          = b.check_box(checked: @champ.selected_options.include?(b.value), id: @champ.checkbox_id(b.value), class: 'fr-checkbox-group__checkbox', translate: 'no')
           %label.fr-label{ for: @champ.checkbox_id(b.value) }
             = b.text
 

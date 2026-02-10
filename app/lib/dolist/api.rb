@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "support/jsv"
-
 module Dolist
   class API
     CONTACT_URL = "https://apiv9.dolist.net/v1/contacts/read?AccountID=%{account_id}"
@@ -14,8 +12,6 @@ module Dolist
     EMAIL_SENDING_TRANSACTIONAL = "https://apiv9.dolist.net/v1/email/sendings/transactional?AccountID=%{account_id}"
     EMAIL_SENDING_TRANSACTIONAL_ATTACHMENT = "https://apiv9.dolist.net/v1/email/sendings/transactional/attachment?AccountID=%{account_id}"
     EMAIL_SENDING_TRANSACTIONAL_SEARCH = "https://apiv9.dolist.net/v1/email/sendings/transactional/search?AccountID=%{account_id}"
-
-    class_attribute :limit_remaining, :limit_reset_at
 
     # those code are just undocumented
     IGNORABLE_API_ERROR_CODE = [
@@ -30,26 +26,49 @@ module Dolist
     ]
 
     class << self
+      def limit_remaining
+        @limit_remaining ||= Kredis.integer "dolist:limit_remaining"
+      end
+
+      def limit_reset_at
+        @limit_reset_at ||= Kredis.datetime "dolist:limit_reset_at"
+      end
+
       def save_rate_limit_headers(headers)
-        self.limit_remaining = headers["X-Rate-Limit-Remaining"].to_i
-        self.limit_reset_at = Time.zone.at(headers["X-Rate-Limit-Reset"].to_i / 1_000)
+        limit_remaining.value = headers["X-Rate-Limit-Remaining"].to_i
+        limit_reset_at.value = Time.zone.at(headers["X-Rate-Limit-Reset"].to_i / 1_000)
       end
 
       def near_rate_limit?
-        return if limit_remaining.nil?
+        current_limit = limit_remaining.value
+        return false if current_limit.nil?
 
-        limit_remaining < 20 # keep 20 requests for non background API calls
+        current_reset_at = limit_reset_at.value
+        return false if current_reset_at.nil? || current_reset_at.past?
+
+        current_limit < 100 # keep 100 requests for priority mails and non background API calls
       end
 
       def sleep_until_limit_reset
-        return if limit_reset_at.nil? || limit_reset_at.past?
+        current_reset_at = limit_reset_at.value
+        return if current_reset_at.nil? || current_reset_at.past?
 
-        sleep (limit_reset_at - Time.zone.now).ceil
+        sleep (current_reset_at - Time.zone.now).ceil
+      end
+
+      def rate_limited?
+        remaining = limit_remaining.value
+        reset_at = limit_reset_at.value
+        return false if remaining.nil? || reset_at.nil?
+
+        remaining.zero? && reset_at.future?
       end
 
       def sendable?(mail)
         return false if mail.to.blank? # recipient are mandatory
         return false if mail.bcc.present? # no bcc support
+        # TIP: don't use rate limited here otherwise balancer would automatically switch to other provider,
+        # which is not always desirable.
 
         # Mail having attachments are not yet supported in our account
         mail.attachments.none? { !_1.inline? }
@@ -68,6 +87,7 @@ module Dolist
     end
 
     # def send_email_with_attachment(mail)
+    #   Need to re-enable JSV support, blame this commit for code.
     #   uri = URI(format_url(EMAIL_SENDING_TRANSACTIONAL_ATTACHMENT))
 
     #   request = Net::HTTP::Post.new(uri)
@@ -164,21 +184,7 @@ module Dolist
       fields.find { _1['ID'] == 72 }.fetch('Value')
     end
 
-    def ignorable_error?(response, mail)
-      error_code = response&.dig("ResponseStatus", "ErrorCode")
-      invalid_contact_status = if ignorable_api_error_code?(error_code)
-        fetch_contact_status(mail.to.first)
-      else
-        nil
-      end
-      [error_code, invalid_contact_status]
-    end
-
     private
-
-    def ignorable_api_error_code?(api_error_code)
-      IGNORABLE_API_ERROR_CODE.include?(api_error_code)
-    end
 
     def ignorable_contact_status?(contact_status)
       IGNORABLE_CONTACT_STATUSES.include?(contact_status)
@@ -189,7 +195,7 @@ module Dolist
     end
 
     def sender_id(domain)
-      if domain == "demarches.gouv.fr"
+      if domain == "demarches.numerique.gouv.fr"
         Rails.application.secrets.dolist[:gouv_sender_id]
       else
         Rails.application.secrets.dolist[:default_sender_id]

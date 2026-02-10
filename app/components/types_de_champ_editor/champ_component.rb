@@ -10,6 +10,35 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     @errors = errors
   end
 
+  def referentiel_max_size
+    Administrateurs::TypesDeChampController::CSV_MAX_SIZE
+  end
+
+  def referentiel_max_lines
+    Administrateurs::TypesDeChampController::CSV_MAX_LINES
+  end
+
+  def template_detail
+    "#{file_extension} – #{file_size}"
+  end
+
+  def file_extension
+    File.extname(template_file).upcase.delete_prefix(".")
+  end
+
+  def file_size
+    file_size = Rails.public_path.join(template_file).size
+    number_to_human_size(file_size)
+  end
+
+  def template_file
+    'csv/modele-import-referentiel.csv'
+  end
+
+  def filtered_upper_tdcs
+    @upper_coordinates.map(&:type_de_champ).filter { |tdc| tdc.private? == type_de_champ.private? }
+  end
+
   private
 
   delegate :type_de_champ, :revision, :procedure, to: :coordinate
@@ -58,7 +87,6 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   def types_of_type_de_champ
     cat_scope = "activerecord.attributes.type_de_champ.categorie"
     tdc_scope = "activerecord.attributes.type_de_champ.type_champs"
-
     TypeDeChamp.type_champs
       .keys
       .filter(&method(:filter_type_champ))
@@ -78,7 +106,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   def piece_justificative_template_options
     {
       attached_file: type_de_champ.piece_justificative_template,
-      auto_attach_url: helpers.auto_attach_url(type_de_champ),
+      auto_attach_url: helpers.auto_attach_url(type_de_champ, procedure_id: procedure.id),
       view_as: :download
     }
   end
@@ -86,7 +114,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   def notice_explicative_options
     {
       attached_file: type_de_champ.notice_explicative,
-      auto_attach_url: helpers.auto_attach_url(type_de_champ),
+      auto_attach_url: helpers.auto_attach_url(type_de_champ, procedure_id: procedure.id),
       view_as: :download
     }
   end
@@ -130,14 +158,42 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   end
 
   def has_legacy_number?
-    revision.types_de_champ.any?(&:legacy_number?)
+    revision.types_de_champ.any?(&:number?)
   end
 
   def lexpol_models
-    service_siret = type_de_champ.procedure&.service&.siret
-    super_admin = current_super_admin.present?
+    service_siret = coordinate.procedure&.service&.siret
+    return [] if service_siret.blank?
+
+    # Pour la configuration : seuls les super admins utilisent les comptes de test
+    use_test_user = current_super_admin.present?
     email = current_super_admin&.email || current_user.email
-    APILexpol.new(email, service_siret, super_admin).get_models
+
+    cache_key = "lexpol_models:#{service_siret}:#{use_test_user}"
+    Rails.cache.fetch(cache_key, expires_in: 15.minutes) do
+      begin
+        APILexpol.new(email, service_siret, use_test_user).get_models
+      rescue APILexpol::LexpolAccessDenied => e
+        # pf: Stocker l'erreur d'accès pour affichage différencié dans le template
+        Rails.logger.error "Lexpol: Accès refusé pour #{e.email_used}"
+        @lexpol_error = { type: :access_denied, email: e.email_used }
+        []
+      rescue => e
+        # pf: Autres erreurs (réseau, parsing, etc.)
+        Rails.logger.error "Erreur lors de la récupération des modèles Lexpol: #{e.message}"
+        @lexpol_error = { type: :generic, message: e.message }
+        []
+      end
+    end
+  end
+
+  # pf: Permet au template d'afficher un message d'erreur adapté
+  def lexpol_error
+    @lexpol_error
+  end
+
+  def lexpol_service_configured?
+    coordinate.procedure&.service&.siret.present?
   end
 
   def options_for_character_limit
@@ -148,5 +204,13 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
       [t('.character_limit.limit', limit: '5 000'), 5000],
       [t('.character_limit.limit', limit: '10 000'), 10000]
     ]
+  end
+
+  def turbo_confirm
+    if coordinate.prefilled_by_type_de_champ
+      "Vous avez configuré un pré remplissage de ce champ à partir des données du référentiel du champ « #{coordinate.prefilled_by_type_de_champ.libelle} ». Voulez-vous vraiment le supprimer ?"
+    else
+      'Êtes vous sûr de vouloir supprimer ce champ ?'
+    end
   end
 end

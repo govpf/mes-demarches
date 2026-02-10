@@ -37,6 +37,8 @@ Rails.application.routes.draw do
       resources :administrateur_confirmations, only: [:new, :create]
     end
 
+    resources :procedure_tags, only: [:index, :show, :new, :create, :edit, :update, :destroy]
+
     resources :archives, only: [:index, :show]
 
     resources :dossiers, only: [:index, :show] do
@@ -117,13 +119,18 @@ Rails.application.routes.draw do
     end
 
     get 'data_exports' => 'administrateurs#data_exports'
-    get 'exports/administrateurs/last_month' => 'administrateurs#export_last_month'
-    get 'exports/instructeurs/last_month' => 'instructeurs#export_last_month'
+    get 'exports/administrateurs/last_half_year' => 'administrateurs#export_last_half_year'
+    get 'exports/instructeurs/last_half_year' => 'instructeurs#export_last_half_year'
+    get 'exports/administrateurs/with_publiee_procedure' => 'administrateurs#export_with_publiee_procedure'
+    get 'exports/instructeurs/currently_active' => 'instructeurs#export_currently_active'
 
     get 'import_procedure_tags' => 'procedures#import_data'
     post 'import_tags' => 'procedures#import_tags'
     root to: "administrateurs#index"
   end
+
+  # pf: Proxy images pour WeasyPrint (attestation v2)
+  get 'attestation_images/proxy' => 'attestation_images#proxy'
 
   #
   # Letter Opener
@@ -171,10 +178,13 @@ Rails.application.routes.draw do
     get 'logout' => 'users/sessions#logout'
   end
 
-  get 'password_complexity/(:complexity)' => 'password_complexity#show', as: 'show_password_complexity'
-  get 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
+  post 'password_complexity' => 'password_complexity#show', as: 'show_password_complexity'
+  post 'check_email' => 'email_checker#show', as: 'show_email_suggestions'
 
   resources :targeted_user_links, only: [:show]
+
+  # Omniauth - RDV Service Public (utilise le path_prefix personnalisé)
+  get 'auth/rdv_service_public/callback', to: 'rdv_service_public/oauth#callback'
 
   #
   # Main routes
@@ -189,17 +199,19 @@ Rails.application.routes.draw do
   get '/stats' => 'stats#index'
   get '/stats/download' => 'stats#download'
 
-  namespace :france_connect do
-    get 'particulier' => 'particulier#login'
-    get 'particulier/callback' => 'particulier#callback'
+  scope 'france_connect', as: :france_connect, controller: :france_connect do
+    get '/' => :login
+    get 'callback'
+    post 'send_email_merge_request'
+    get 'merge_using_email_link/:email_merge_token' => :merge_using_email_link, as: :merge_using_email_link
+    post 'merge_using_fc_email'
+    post 'merge_using_password'
+    get 'confirm_email/:token' => :confirm_email, as: :confirm_email
 
-    post 'particulier/send_email_merge_request'
+    # to be migrated
+    get 'particulier/merge_using_email_link/:email_merge_token' => :merge_using_email_link
 
-    post 'particulier/merge_using_fc_email'
-    post 'particulier/merge_using_password'
-    get 'particulier/merge_using_email_link/:email_merge_token' => 'particulier#merge_using_email_link', as: :particulier_merge_using_email_link
-
-    get 'confirm_email/:token', to: 'particulier#confirm_email', as: :confirm_email
+    get 'redirect_uris'
   end
 
   get '/auth/:provider' => 'omniauth#login', as: :omniauth, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
@@ -209,22 +221,23 @@ Rails.application.routes.draw do
   post '/auth/:provider/resend_and_renew_merge_confirmation' => 'omniauth#resend_and_renew_merge_confirmation', as: :omniauth_resend_and_renew_merge_confirmation, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   post '/auth/merge_with_existing_account' => 'omniauth#merge_with_existing_account', as: 'omniauth_merge_with_existing_account'
   post '/auth/merge_with_new_account' => 'omniauth#merge_with_new_account', as: 'omniauth_merge_with_new_account'
+  post '/auth/send_email_merge_request' => 'omniauth#send_email_merge_request', as: 'omniauth_send_email_merge_request'
+  post '/auth/merge_using_provider_email' => 'omniauth#merge_using_provider_email', as: 'omniauth_merge_using_provider_email'
+  get '/auth/:provider/merge_using_email_link/:email_merge_token' => 'omniauth#merge_using_email_link', as: 'omniauth_merge_using_email_link', constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
+  get '/auth/confirm_email/:token', to: 'omniauth#confirm_email', as: :omniauth_confirm_email
 
-  namespace :agent_connect do
-    get '' => 'agent#index'
-    get 'login' => 'agent#login'
-    get 'callback' => 'agent#callback'
-    get 'explanation_2fa' => 'agent#explanation_2fa'
-    get 'relogin_after_2fa_config' => 'agent#relogin_after_2fa_config'
-    get 'logout_from_mcp' => 'agent#logout_from_mcp'
-  end
+  get 'pro_connect' => 'pro_connect#index'
+  get 'pro_connect/login' => 'pro_connect#login'
+  get 'pro_connect/callback' => 'pro_connect#callback'
+  # to be migrated
+  get 'agent_connect/callback' => 'pro_connect#callback'
 
   namespace :champs do
     post ':dossier_id/:stable_id/repetition', to: 'repetition#add', as: :repetition
     delete ':dossier_id/:stable_id/repetition', to: 'repetition#remove'
 
-    get ':dossier_id/:stable_id/siret', to: 'siret#show', as: :siret
-    get ':dossier_id/:stable_id/rna', to: 'rna#show', as: :rna
+    post ':dossier_id/:stable_id/siret', to: 'siret#show', as: :siret
+    post ':dossier_id/:stable_id/rna', to: 'rna#show', as: :rna
     delete ':dossier_id/:stable_id/options', to: 'options#remove', as: :options
     get ':dossier_id/:stable_id/dn', to: 'numero_dn#show', as: :dn
 
@@ -238,16 +251,14 @@ Rails.application.routes.draw do
     get ':dossier_id/:stable_id/piece_justificative/template', to: 'piece_justificative#template', as: :piece_justificative_template
     get ':dossier_id/:stable_id/piece_justificative/download/:h/:i', to: 'piece_justificative#download', as: :piece_justificative_download
 
-    # TODO remove this route after august 2025
-    get ':champ_id/piece_justificative/download/:h/(:i)', to: 'piece_justificative#download', as: :legacy_piece_justificative_download
-
     post ':dossier_id/:stable_id/lexpol/upsert', to: 'lexpol#upsert', as: :lexpol_upsert_dossier
+    get ':dossier_id/:stable_id/lexpol/preview_variables', to: 'lexpol#preview_variables', as: :lexpol_preview_variables
   end
 
   resources :attachments, only: [:show, :destroy]
   resources :recherche, only: [:index]
 
-  get "patron" => "root#patron" if Rails.env.development? || Rails.env.test?
+  get "patron" => "root#patron" if Rails.env.local?
   get "suivi" => "root#suivi"
   post "save_locale" => "root#save_locale"
 
@@ -276,6 +287,9 @@ Rails.application.routes.draw do
   end
 
   namespace :data_sources do
+    # pf referentiel configurable
+    get 'referentiel_de_polynesie/:table/search', to: 'referentiel_de_polynesie#search', as: :rdp_search
+
     get :adresse, to: 'adresse#search', as: :data_source_adresse
     get :commune, to: 'commune#search', as: :data_source_commune
     get :education, to: 'education#search', as: :data_source_education
@@ -400,11 +414,11 @@ Rails.application.routes.draw do
         post 'brouillon', to: 'dossiers#submit_brouillon'
         get 'modifier', to: 'dossiers#modifier'
         post 'modifier', to: 'dossiers#submit_en_construction'
-        patch 'modifier', to: 'dossiers#modifier_legacy'
         get 'champs/:stable_id', to: 'dossiers#champ', as: :champ
         get 'merci'
         get 'demande'
         get 'messagerie'
+        get 'rendez-vous'
         post 'commentaire' => 'dossiers#create_commentaire'
         patch 'restore', to: 'dossiers#restore'
         get 'attestation'
@@ -482,11 +496,100 @@ Rails.application.routes.draw do
           put 'preview'
         end
       end
+
+      collection do
+        get 'order_positions'
+        patch 'update_order_positions'
+        get 'select_procedure'
+      end
+
+      get 'display_notifications', defaults: { format: :turbo_stream }
     end
 
-    resources :procedures, only: [:index, :show], param: :procedure_id do
+    resources :procedure_presentation, only: [:update] do
       member do
-        resources :archives, only: [:index, :create]
+        patch 'refresh_column_filter'
+      end
+    end
+
+    resources :procedures, only: [:index], param: :procedure_id do
+      member do
+        #
+        # nested navigation, all those route are hit during an instructeur instruction navigation context
+        #   must keep track of last view statut page
+        #
+        constraints statut: /a-suivre|suivis|traites|tous|supprimes|expirant|archives/ do
+          get :show, path: "(:statut)", defaults: { statut: 'a-suivre' } # optional because some url may still live on with /procedure/:id
+
+          resources :dossiers, only: [:show, :destroy], param: :dossier_id, path: "(:statut)/dossiers", defaults: { statut: 'a-suivre' } do
+            member do
+              resources :commentaires, only: [:destroy]
+              resources :rdvs, only: [:create]
+              get 'next'
+              get 'previous'
+              post 'repousser-expiration' => 'dossiers#extend_conservation'
+              post 'repousser-expiration-and-restore' => 'dossiers#extend_conservation_and_restore'
+              post 'dossier_labels' => 'dossiers#dossier_labels'
+              get 'messagerie'
+              get 'annotations-privees' => 'dossiers#annotations_privees'
+              get 'avis'
+              get 'avis_new'
+              get 'personnes-impliquees' => 'dossiers#personnes_impliquees'
+              get 'rendez-vous' => 'dossiers#rendez_vous'
+              patch 'follow'
+              patch 'unfollow'
+              patch 'archive'
+              patch 'unarchive'
+              patch 'restore'
+              post 'commentaire' => 'dossiers#create_commentaire'
+              post 'passer-en-instruction' => 'dossiers#passer_en_instruction'
+              post 'repasser-en-construction' => 'dossiers#repasser_en_construction'
+              post 'repasser-en-instruction' => 'dossiers#repasser_en_instruction'
+              post 'terminer'
+              post 'pending_correction'
+              post 'send-to-instructeurs' => 'dossiers#send_to_instructeurs'
+              post 'avis' => 'dossiers#create_avis'
+              get 'reaffectation'
+              get 'pieces_jointes'
+              post 'reaffecter'
+            end
+          end
+
+          resources :avis, only: [], path: "(:statut)/dossiers", defaults: { statut: 'a-suivre' } do
+            member do
+              patch 'revoquer'
+              get 'remind'
+            end
+          end
+
+          resources :batch_operations, only: [:create], path: "(:statut)/dossiers", defaults: { statut: 'a-suivre' } do
+            collection do
+              post 'create_batch_avis' => 'batch_operations#create_batch_avis'
+            end
+          end
+        end
+
+        #
+        # not nested navigation
+        #
+        resources :dossiers, only: [], param: :dossier_id do
+          member do
+            get 'telecharger_pjs' => 'dossiers#telecharger_pjs'
+            get 'print' => 'dossiers#print'
+            patch 'annotations' => 'dossiers#update_annotations'
+            get 'annotations/:stable_id', to: 'dossiers#annotation', as: :annotation
+            get 'geo_data'
+            get 'apercu_attestation'
+            get 'bilans_bdf'
+          end
+        end
+
+        resources :archives, only: [] do
+          collection do
+            get 'list' => "archives#index"
+            post 'create' => "archives#create"
+          end
+        end
 
         resources :groupes, only: [:index, :show], controller: 'groupe_instructeurs' do
           resource :contact_information
@@ -498,67 +601,21 @@ Rails.application.routes.draw do
           end
         end
 
-        resources :avis, only: [] do
-          member do
-            patch 'revoquer'
-            get 'remind'
-          end
-        end
-
-        patch 'update_displayed_fields'
-        get 'update_sort/:column_id' => 'procedures#update_sort', as: 'update_sort'
-        post 'add_filter'
-        post 'update_filter'
-        get 'remove_filter'
+        get 'apercu'
         get 'download_export'
         post 'download_export'
         get 'polling_last_export'
+        get 'polling_batch_operation'
         get 'stats'
         get 'exports'
+        get 'export_templates'
         get 'email_notifications'
         get 'administrateurs'
+        get 'history', as: :procedure_history
         patch 'update_email_notifications'
         get 'deleted_dossiers'
         get 'email_usagers'
         post 'create_multiple_commentaire'
-
-        resources :dossiers, only: [:show, :destroy], param: :dossier_id do
-          member do
-            resources :commentaires, only: [:destroy]
-            post 'repousser-expiration' => 'dossiers#extend_conservation'
-            post 'repousser-expiration-and-restore' => 'dossiers#extend_conservation_and_restore'
-            get 'geo_data'
-            get 'apercu_attestation'
-            get 'bilans_bdf'
-            get 'messagerie'
-            get 'annotations-privees' => 'dossiers#annotations_privees'
-            get 'avis'
-            get 'avis_new'
-            get 'personnes-impliquees' => 'dossiers#personnes_impliquees'
-            get 'annotations/:stable_id', to: 'dossiers#annotation', as: :annotation
-            patch 'follow'
-            patch 'unfollow'
-            patch 'archive'
-            patch 'unarchive'
-            patch 'restore'
-            patch 'annotations' => 'dossiers#update_annotations'
-            post 'commentaire' => 'dossiers#create_commentaire'
-            post 'passer-en-instruction' => 'dossiers#passer_en_instruction'
-            post 'repasser-en-construction' => 'dossiers#repasser_en_construction'
-            post 'repasser-en-instruction' => 'dossiers#repasser_en_instruction'
-            post 'terminer'
-            post 'pending_correction'
-            post 'send-to-instructeurs' => 'dossiers#send_to_instructeurs'
-            post 'avis' => 'dossiers#create_avis'
-            get 'print' => 'dossiers#print'
-            get 'telecharger_pjs' => 'dossiers#telecharger_pjs'
-            get 'reaffectation'
-            get 'pieces_jointes'
-            post 'reaffecter'
-          end
-        end
-
-        resources :batch_operations, only: [:create]
       end
     end
   end
@@ -613,6 +670,7 @@ Rails.application.routes.draw do
         post 'search'
         get 'all' if Rails.application.config.ds_zonage_enabled
         get 'administrateurs' if Rails.application.config.ds_zonage_enabled
+        get 'select_procedure'
       end
 
       member do
@@ -628,10 +686,15 @@ Rails.application.routes.draw do
         patch 'update_accuse_lecture'
         get 'jeton'
         patch 'update_jeton'
+        get 'rdv'
+        patch 'rdv', to: 'procedures#update_rdv'
+        get 'pro_connect_restricted'
+        patch 'pro_connect_restricted', to: 'procedures#update_pro_connect_restricted'
         put :allow_expert_review
         put :allow_expert_messaging
         put :experts_require_administrateur_invitation
         put :restore
+        get 'api_champ_columns'
       end
 
       get :api_particulier, controller: 'jeton_particulier'
@@ -663,10 +726,15 @@ Rails.application.routes.draw do
 
       patch :update_defaut_groupe_instructeur, controller: 'routing_rules', as: :update_defaut_groupe_instructeur
 
-      put 'clone'
+      get 'clone_settings'
+      post 'clone'
       put 'archive'
       get 'publication' => 'procedures#publication', as: :publication
-      get 'check_path' => 'procedures#check_path', as: :check_path
+      post 'check_path' => 'procedures#check_path', as: :check_path
+      # TODO remove in next release
+      get 'check_path' => 'procedures#check_path'
+      get 'path'
+      patch 'path', to: 'procedures#update_path', as: :update_path
       put 'publish' => 'procedures#publish', as: :publish
       put 'reset_draft' => 'procedures#reset_draft', as: :reset_draft
       put 'publish_revision' => 'procedures#publish_revision', as: :publish_revision
@@ -701,6 +769,7 @@ Rails.application.routes.draw do
           patch 'update_instructeurs_self_management_enabled'
           post 'import'
           get 'export_groupe_instructeurs'
+          post 'bulk_route'
         end
       end
 
@@ -715,6 +784,8 @@ Rails.application.routes.draw do
           patch :move_down
           put :piece_justificative_template
           put :notice_explicative
+          delete :nullify_referentiel
+          post :duplicate
         end
       end
 
@@ -722,15 +793,33 @@ Rails.application.routes.draw do
         get 'preview', on: :member
       end
 
+      resources :labels, controller: 'labels' do
+        collection do
+          get 'order_positions'
+          patch 'update_order_positions'
+        end
+      end
+
       resource :attestation_template, only: [:show, :edit, :update, :create] do
         get 'preview', on: :member
+        post 'migrate', on: :member
       end
+
       resource :chorus, only: [:edit, :update] do
         get 'add_champ_engagement_juridique'
       end
 
       resource :attestation_template_v2, only: [:show, :edit, :update, :create] do
         post :reset
+      end
+
+      resources :referentiels, only: [:new, :create, :edit, :update], path: ':stable_id', constraints: { stable_id: /\d+/ } do
+        member do
+          get :mapping_type_de_champ
+          patch :update_mapping_type_de_champ
+          patch :update_prefill_and_display_type_de_champ
+          get :prefill_and_display
+        end
       end
 
       resource :dossier_submitted_message, only: [:edit, :update, :create]
@@ -749,10 +838,14 @@ Rails.application.routes.draw do
     resources :services, except: [:show] do
       collection do
         patch 'add_to_procedure'
+        get ':procedure_id/prefill' => :prefill, as: :prefill
       end
     end
 
     resources :api_tokens, only: [:create, :destroy, :edit, :update] do
+      member do
+        delete 'remove_procedure'
+      end
       collection do
         get :nom
         get :autorisations

@@ -3,7 +3,8 @@
 #---------------------------------------------------------------------------------
 FROM oven/bun:1 as bun
 WORKDIR /app
-COPY package.json bun.lockb ./
+COPY package.json bun.lock* ./
+COPY patches ./patches/
 RUN bun install --frozen-lockfile --production
 
 #--------------------------------------------------
@@ -11,12 +12,12 @@ RUN bun install --frozen-lockfile --production
 # Intermediate container to bundle all gems
 # Building gems requires dev librairies we don't need in production container
 #--------------------------------------------------
-FROM ruby:3.3.0-slim AS base
+FROM ruby:3.4.4-slim AS base
 FROM base AS builder
 
 RUN apt-get update && \
     curl -sL "https://deb.nodesource.com/setup_18.x" | bash - && \
-      apt-get install -y curl build-essential git libpq-dev libicu-dev gnupg zip nodejs
+      apt-get install -y curl build-essential git libpq-dev libicu-dev zlib1g-dev libyaml-dev gnupg zip nodejs
 
 ENV INSTALL_PATH /app
 RUN mkdir -p ${INSTALL_PATH}
@@ -44,11 +45,15 @@ RUN adduser --disabled-password --home ${APP_PATH} userapp
 USER userapp
 WORKDIR ${APP_PATH}
 
+# Configuration du shell avec fond rouge sombre et texte blanc
+RUN echo 'export PS1="\[\033[97;41m\]\u@\h:\w\$ \[\033[0m\]"' >> ~/.bashrc && \
+    echo 'export TERM=xterm-256color' >> ~/.bashrc
+
 #----- Building js dependencies (node_modules)
 RUN (curl -fsSL https://bun.sh/install | bash)
-COPY package.json bun.lockb ./
-COPY --chown=userapp:userapp --from=bun /app/node_modules ${APP_PATH}/node_modules
+COPY package.json bun.lock* ./
 COPY patches ./patches/
+COPY --chown=userapp:userapp --from=bun /app/node_modules ${APP_PATH}/node_modules
 RUN .bun/bin/bun install
 
 #----- Bundle gems: copy from builder container the dependency gems
@@ -170,7 +175,9 @@ ENV \
     RUBY_YJIT_ENABLE=true\
     SAML_IDP_ENABLED=""\
     SAML_IDP_CERTIFICATE="billybop"\
-    SAML_IDP_SECRET_KEY="-----BEGIN RSA PRIVATE KEY-----\nblabla+blabla\n-----END RSA PRIVATE KEY-----\n"\
+    SAML_IDP_SECRET_KEY="-----BEGIN RSA PRIVATE KEY-----\
+blabla+blabla\
+-----END RSA PRIVATE KEY-----"\
     SECRET_KEY_BASE="05a2d479d8e412198dabd08ef0eee9d6e180f5cbb48661a35fd1cae287f0a93d40b5f1da08f06780d698bbd458a0ea97f730f83ee780de5d4e31f649a0130cf0"\
     S3_ENDPOINT="" \
     S3_BUCKET="" \

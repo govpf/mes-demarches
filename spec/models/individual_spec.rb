@@ -108,4 +108,57 @@ describe Individual do
       end
     end
   end
+
+  describe '.from_france_connect' do
+    let(:france_connect_information) do
+      instance_double(FranceConnectInformation,
+        family_name: 'DUPONT',
+        given_name: 'Marie',
+        gender: gender_value)
+    end
+
+    context 'when gender is female' do
+      let(:gender_value) { 'female' }
+
+      it 'sets gender to Mme' do
+        individual = Individual.from_france_connect(france_connect_information)
+        expect(individual.gender).to eq(Individual::GENDER_FEMALE)
+        expect(individual.nom).to eq('DUPONT')
+        expect(individual.prenom).to eq('Marie')
+      end
+    end
+
+    context 'when gender is male' do
+      let(:gender_value) { 'male' }
+
+      it 'sets gender to M.' do
+        individual = Individual.from_france_connect(france_connect_information)
+        expect(individual.gender).to eq(Individual::GENDER_MALE)
+        expect(individual.nom).to eq('DUPONT')
+        expect(individual.prenom).to eq('Marie')
+      end
+    end
+
+    context 'when gender is nil' do
+      let(:gender_value) { nil }
+
+      it 'does not set gender' do
+        individual = Individual.from_france_connect(france_connect_information)
+        expect(individual.gender).to be_nil
+        expect(individual.nom).to eq('DUPONT')
+        expect(individual.prenom).to eq('Marie')
+      end
+    end
+
+    context 'when gender is an unknown value' do
+      let(:gender_value) { 'other' }
+
+      it 'does not set gender' do
+        individual = Individual.from_france_connect(france_connect_information)
+        expect(individual.gender).to be_nil
+        expect(individual.nom).to eq('DUPONT')
+        expect(individual.prenom).to eq('Marie')
+      end
+    end
+  end
 end

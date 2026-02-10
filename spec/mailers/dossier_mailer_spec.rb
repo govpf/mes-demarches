@@ -31,13 +31,29 @@ RSpec.describe DossierMailer, type: :mailer do
     it_behaves_like 'a dossier notification'
 
     context "when user prefers new domain" do
-      let(:user) { create(:user, preferred_domain: :demarches_gouv_fr) }
+      let(:user) { create(:user, preferred_domain: :demarches_numerique_gouv_fr) }
 
       it 'includes the correct body content and sender email' do
-        expect(subject.body).to include(dossier_url(dossier, host: 'demarches.gouv.fr'))
-        expect(header_value("From", subject)).to include("ne-pas-repondre@demarches.gouv.fr")
+        expect(subject.body).to include(dossier_url(dossier, host: 'demarches.numerique.gouv.fr'))
+        expect(header_value("From", subject)).to include("ne-pas-repondre@demarches.numerique.gouv.fr")
       end
     end
+
+    # pf: tests commentés car la vérification d'état est maintenant dans DraftNotificationJob
+    # Les tests de non-envoi pour dossiers cachés/en_construction sont dans draft_notification_job_spec.rb
+    #
+    # it 'when dossier is hidden, it does not send the email' do
+    #   dossier.hide_and_keep_track!(user, :user_request)
+    #   expect(subject.subject).to be_nil
+    # end
+    #
+    # context 'when dossier is not brouillon anymore' do
+    #   let(:dossier) { create(:dossier, :en_construction, user:) }
+    #
+    #   it 'does not send the email' do
+    #     expect(subject.subject).to be_nil
+    #   end
+    # end
   end
 
   describe '.notify_new_answer with dossier brouillon' do
@@ -124,7 +140,9 @@ RSpec.describe DossierMailer, type: :mailer do
 
     it 'verifies subject and body content for brouillon deletion notification' do
       expect(subject.subject).to eq("Un dossier en brouillon a été supprimé")
-      expect(subject.body).to include("n° #{dossier.id} (#{dossier.procedure.libelle})")
+      expect(subject.body).to include("n° #{dossier.id}")
+      expect(subject.body).to include(dossier.procedure.libelle)
+      expect(subject.body).to include(commencer_url(dossier.procedure.path, host: ENV.fetch("APP_HOST_LEGACY")))
     end
   end
 
@@ -136,7 +154,7 @@ RSpec.describe DossierMailer, type: :mailer do
 
       it 'checks email subject, to, and body for correct inclusions and exclusions for en_construction status' do
         expect(subject.to).to eq([hidden_dossier.user.email])
-        expect(subject.subject).to eq("Un dossier a été supprimé de votre compte")
+        expect(subject.subject).to eq("Un dossier de votre compte a été mis à la corbeille")
         expect(subject.body).to include("N° #{hidden_dossier.id} ")
         expect(subject.body).to include(hidden_dossier.procedure.libelle)
       end
@@ -149,7 +167,7 @@ RSpec.describe DossierMailer, type: :mailer do
 
       it 'checks email subject, to, and body for correct inclusions and exclusions for termine status' do
         expect(subject.to).to eq([hidden_dossier.user.email])
-        expect(subject.subject).to eq("Un dossier a été supprimé de votre compte")
+        expect(subject.subject).to eq("Un dossier de votre compte a été mis à la corbeille")
         expect(subject.body).to include("N° #{hidden_dossier.id} ")
         expect(subject.body).to include(hidden_dossier.procedure.libelle)
       end
@@ -162,7 +180,7 @@ RSpec.describe DossierMailer, type: :mailer do
     subject { described_class.notify_automatic_deletion_to_administration([hidden_dossier], hidden_dossier.user.email) }
 
     it 'verifies subject and body content for automatic deletion notification' do
-      expect(subject.subject).to eq("Un dossier a été supprimé")
+      expect(subject.subject).to eq("Un dossier a été mis à la corbeille")
       expect(subject.body).to include("n° #{hidden_dossier.id} (#{hidden_dossier.procedure.libelle})")
     end
   end
@@ -191,6 +209,7 @@ RSpec.describe DossierMailer, type: :mailer do
         expect(subject.subject).to eq("Un dossier traité va bientôt être supprimé")
         expect(subject.body).to include("N° #{dossier.id} ")
         expect(subject.body).to include(dossier.procedure.libelle)
+        expect(subject.body).to include("il vous reste <strong>14 jours pour télécharger</strong> ce dossier")
       end
     end
   end
@@ -328,6 +347,12 @@ RSpec.describe DossierMailer, type: :mailer do
       end
     end
 
+    context 'when user was not validated' do
+      let(:user) { create(:user, email_verified_at: nil) }
+
+      it { expect(subject['BYPASS_UNVERIFIED_MAIL_PROTECTION']).to be_present }
+    end
+
     context 'when the user has already an account' do
       before do
         dossier_transfer.update!(email: user_2.email)
@@ -346,9 +371,9 @@ RSpec.describe DossierMailer, type: :mailer do
     end
 
     context 'when recipient has preferred domain' do
-      let(:dossier_transfer) { create(:dossier_transfer, email: create(:user, preferred_domain: :demarches_gouv_fr).email) }
+      let(:dossier_transfer) { create(:dossier_transfer, email: create(:user, preferred_domain: :demarches_numerique_gouv_fr).email) }
       it 'includes a link with the preferred domain in the email body' do
-        expect(subject.body).to include(dossiers_url(statut: "dossiers-transferes", host: 'demarches.gouv.fr'))
+        expect(subject.body).to include(dossiers_url(statut: "dossiers-transferes", host: 'demarches.numerique.gouv.fr'))
       end
     end
 
@@ -380,6 +405,18 @@ RSpec.describe DossierMailer, type: :mailer do
       it 'does not send an email' do
         expect { subject.perform_now }.not_to raise_error
       end
+    end
+  end
+
+  describe '.notify_new_dossier_depose_to_instructeur' do
+    let(:dossier) { create(:dossier, :en_construction, procedure: create(:simple_procedure)) }
+    let(:instructeur) { create(:instructeur) }
+
+    subject { described_class.notify_new_dossier_depose_to_instructeur(dossier, instructeur.email) }
+
+    it 'includes unsubscribe link' do
+      expect(subject.body).to include('Ne plus recevoir de mail')
+      expect(subject.body).to include(email_notifications_instructeur_procedure_url(dossier.procedure, host: ENV.fetch("APP_HOST_LEGACY")))
     end
   end
 end

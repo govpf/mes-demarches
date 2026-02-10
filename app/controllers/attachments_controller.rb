@@ -19,22 +19,27 @@ class AttachmentsController < ApplicationController
   end
 
   def destroy
-    champ = @blob.attachments.first.record
-    champ = nil unless champ.is_a?(Champ) && champ.private?
-
     @attachment = @blob.attachments.find(params[:id])
-    @attachment.purge_later
 
-    if champ
-      ChampRevision.create_or_update_revision(champ, current_instructeur.id)
+    if champ?
+      @attachment = champ.piece_justificative_file.find { _1.blob.id == @blob.id }
+      if @attachment.present?
+        @attachment.purge_later
+        champ.update_timestamps
+      end
+      champ.piece_justificative_file.reload
+      # pf #163: message flash supprimé pour éviter le scroll
+      # flash.notice = t("activerecord.models.attachment.successfully_deleted_with_anchor", attachment: @attachment.blob.filename, champ: @champ.input_id)
+    else
+      @attachment.purge_later
+      @attachment_options = attachment_options
+      # pf #163: message flash supprimé pour éviter le scroll
+      # flash.notice = t("activerecord.models.attachment.successfully_deleted_without_anchor", attachment: @attachment.blob.filename)
     end
 
-    flash.notice = 'La pièce jointe a bien été supprimée.'
-
-    if params[:dossier_id]
-      @champ = find_champ
-    else
-      @attachment_options = attachment_options
+    # Handle ChampRevision for private champs (fork-specific)
+    if champ? && champ.private?
+      ChampRevision.create_or_update_revision(champ, current_instructeur.id)
     end
 
     respond_to do |format|
@@ -45,14 +50,24 @@ class AttachmentsController < ApplicationController
 
   private
 
-  def find_champ
-    dossier = policy_scope(Dossier).includes(:champs).find(params[:dossier_id])
-    dossier.champs.find_by(stable_id: params[:stable_id], row_id: params[:row_id])
+  def record
+    @attachment.record
+  end
+
+  def champ?
+    record.is_a?(Champ)
+  end
+
+  def champ
+    @champ ||= if champ?
+      record.dossier.with_update_stream(current_user) if record.public?
+      record.dossier.champ_for_update(record.type_de_champ, row_id: record.row_id, updated_by: current_user.email)
+    end
   end
 
   def attachment_options
     {
-      attached_file: @attachment.record.public_send(@attachment.name),
+      attached_file: record.public_send(@attachment.name),
       view_as: params[:view_as]&.to_sym,
       direct_upload: params[:direct_upload] == "true",
       auto_attach_url: params[:direct_upload] == "true" ? params[:auto_attach_url] : nil

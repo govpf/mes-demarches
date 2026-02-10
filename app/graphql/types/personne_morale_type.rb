@@ -30,20 +30,16 @@ module Types
       field :etat_administratif, EntrepriseEtatAdministratifType, null: true
       field :nom, String, null: true
       field :prenom, String, null: true
-      field :attestation_sociale_attachment, Types::File, null: true
-      field :attestation_fiscale_attachment, Types::File, null: true
+      field :attestation_sociale_attachment, Types::File, null: true, extensions: [
+        { Extensions::Attachment => { attachment: :entreprise_attestation_sociale, root: :etablissement } }
+      ]
+      field :attestation_fiscale_attachment, Types::File, null: true, extensions: [
+        { Extensions::Attachment => { attachment: :entreprise_attestation_fiscale, root: :etablissement } }
+      ]
       field :enseigne, String, null: true
 
       def enseigne
         object.enseigne || nil
-      end
-
-      def attestation_sociale_attachment
-        load_attachment_for(:entreprise_attestation_sociale_attachment)
-      end
-
-      def attestation_fiscale_attachment
-        load_attachment_for(:entreprise_attestation_fiscale_attachment)
       end
 
       def effectif_mensuel
@@ -83,13 +79,8 @@ module Types
         object.code_effectif_entreprise
       end
 
-      private
-
-      def load_attachment_for(key)
-        Loaders::Association.for(
-          Etablissement,
-          key => :blob
-        ).load(object.etablissement)
+      def etablissement
+        object.etablissement
       end
     end
 
@@ -124,16 +115,13 @@ module Types
     field :complement_adresse, String, null: true, deprecation_reason: "Utilisez le champ `address` à la place."
 
     def address
-      {
-        label: object.adresse,
-        type: "housenumber",
-        street_number: object.numero_voie,
-        street_name: object.nom_voie,
-        street_address: object.nom_voie.present? ? [object.numero_voie, object.type_voie, object.nom_voie].compact.join(' ') : nil,
-        postal_code: object.code_postal.presence || '',
-        city_name: object.localite.presence || '',
-        city_code: object.code_insee_localite.presence || ''
-      }.with_indifferent_access
+      address = object.champ&.value_json
+      if address.blank? || !address.key?("departement_code")
+        address = APIGeoService.parse_etablissement_address(object)
+      end
+      address
+        .merge(label: object.adresse, type: "housenumber")
+        .with_indifferent_access
     end
 
     def entreprise

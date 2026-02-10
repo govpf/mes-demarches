@@ -26,7 +26,7 @@ class PiecesJustificativesService
       docs += signatures(some_bill_ids.uniq)
     end
 
-    docs.filter { |_attachment, path| path.present? }
+    docs.filter { |_attachment, path| path.present? } # rubocop:disable Rails/CompactBlank
   end
 
   def generate_dossiers_export(dossiers) # TODO: renommer generate_dossier_export sans s
@@ -119,7 +119,7 @@ class PiecesJustificativesService
       }
     when Instructeur
       {
-        with_bills: false,
+        with_bills: export_with_horodatage?,
         with_champs_private: true,
         with_avis_piece_justificative: true
       }
@@ -135,11 +135,8 @@ class PiecesJustificativesService
   end
 
   def pjs_for_champs(dossiers)
-    champs = dossiers.flat_map(&:champs).filter { _1.type == "Champs::PieceJustificativeChamp" }
-
-    if !liste_documents_allows?(:with_champs_private)
-      champs = champs.reject(&:private?)
-    end
+    champs = liste_documents_allows?(:with_champs_private) ? dossiers.flat_map(&:filled_champs) : dossiers.flat_map(&:filled_champs_public)
+    champs = champs.filter { _1.piece_justificative? && _1.is_type?(_1.type_de_champ.type_champ) }
 
     champs_id_row_index = compute_champ_id_row_index(champs)
 
@@ -321,6 +318,12 @@ class PiecesJustificativesService
     attachment
       .blob
       .virus_scan_result == ActiveStorage::VirusScanner::SAFE
+  end
+
+  def export_with_horodatage?
+    return false if @user_profile.nil?
+
+    Flipper.enabled?(:export_with_horodatage, @user_profile.user)
   end
 
   # given

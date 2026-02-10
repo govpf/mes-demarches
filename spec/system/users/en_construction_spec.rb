@@ -10,7 +10,7 @@ describe "Dossier en_construction", js: true do
   }
 
   let(:champ) {
-    dossier.find_editing_fork(dossier.user).champs_public.find { _1.stable_id == tdc.stable_id }
+    dossier.find_editing_fork(dossier.user).project_champs_public.find { _1.stable_id == tdc.stable_id }
   }
 
   scenario 'delete a non mandatory piece justificative' do
@@ -19,8 +19,8 @@ describe "Dossier en_construction", js: true do
     expect(page).not_to have_button("Remplacer")
     click_on "Supprimer le fichier toto.txt"
 
-    wait_until { champ.reload.for_export.blank? }
-    expect(page).not_to have_text("toto.txt")
+    wait_until { champ.reload.blank? }
+    # pf #163: message flash supprimé pour éviter le scroll
   end
 
   context "with a mandatory piece justificative" do
@@ -32,13 +32,13 @@ describe "Dossier en_construction", js: true do
       visit_dossier(dossier)
 
       click_on "Supprimer le fichier toto.txt"
-      expect(page).not_to have_text("toto.txt")
+      # pf #163: message flash supprimé pour éviter le scroll
 
       input_selector = "#attachment-multiple-empty-#{champ.public_id}"
       expect(page).to have_selector(input_selector)
       find(input_selector).attach_file(Rails.root.join('spec/fixtures/files/file.pdf'))
 
-      wait_until { champ.reload.for_export == 'file.pdf' }
+      wait_until { champ.reload.piece_justificative_file.first&.filename == 'file.pdf' }
       expect(page).to have_text("file.pdf")
     end
   end
@@ -56,13 +56,13 @@ describe "Dossier en_construction", js: true do
       visit_dossier(dossier)
 
       click_on "Supprimer le fichier toto.png"
-      expect(page).not_to have_text("toto.png")
+      # pf #163: message flash supprimé pour éviter le scroll
 
       input_selector = "##{champ.input_id}"
       expect(page).to have_selector(input_selector)
-      find(input_selector).attach_file(Rails.root.join('spec/fixtures/files/file.pdf'))
-
-      expect(page).to have_text("file.pdf")
+      expect(page).to have_text('modification à déposer')
+      find(input_selector).attach_file(Rails.root.join('spec/fixtures/files/white.png'))
+      expect(page).to have_text("white.png")
     end
   end
 

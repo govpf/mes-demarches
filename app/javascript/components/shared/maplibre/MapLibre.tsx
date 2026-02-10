@@ -4,7 +4,7 @@ import {
   useRef,
   useEffect,
   useMemo,
-  ReactNode,
+  type ReactNode,
   createContext,
   useCallback
 } from 'react';
@@ -119,7 +119,7 @@ function isWebglSupported() {
       if (context && typeof context.getParameter == 'function') {
         return true;
       }
-    } catch (e) {
+    } catch {
       // WebGL is supported, but disabled
     }
     return false;

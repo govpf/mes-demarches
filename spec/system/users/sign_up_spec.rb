@@ -10,9 +10,11 @@ describe 'Signing up:', js: true do
 
     sign_up_with user_email, user_password
     expect(page).to have_content "nous avons besoin de vérifier votre adresse électronique #{user_email}"
+    expect(User.find_by(email: user_email).email_verified_at).to be_nil
 
     click_confirmation_link_for user_email
     expect(page).to have_content('Votre compte a bien été confirmé.')
+    expect(User.find_by(email: user_email).email_verified_at).to be_present
     expect(page).to have_current_path dossiers_path
   end
 
@@ -170,7 +172,11 @@ describe 'Signing up:', js: true do
 
     scenario 'they cannot signed in' do
       visit new_user_session_path
-      sign_in_with user_email, user_password
+      fill_in :user_email, with: user_email
+      fill_in :user_password, with: user_password
+
+      click_on 'Se connecter'
+      expect(page).to have_text "Votre compte n’est pas encore activé."
 
       expect(page).to have_current_path new_user_session_path
     end

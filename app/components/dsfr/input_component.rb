@@ -6,18 +6,21 @@ class Dsfr::InputComponent < ApplicationComponent
   delegate :object, to: :@form
   delegate :errors, to: :object
 
+  attr_reader :attribute
+
   # use it to indicate detailed about the inputs, ex: https://www.systeme-de-design.gouv.fr/elements-d-interface/modeles-et-blocs-fonctionnels/demande-de-mot-de-passe
   # it uses aria-describedby on input and link it to yielded content
   renders_one :describedby
   renders_one :label
 
-  def initialize(form:, attribute:, input_type: :text_field, opts: {}, required: true, autoresize: true)
+  def initialize(form:, attribute:, input_type: :text_field, opts: {}, required: true, autoresize: true, label_opts: {})
     @form = form
     @attribute = attribute
     @input_type = input_type
     @opts = opts
     @required = required
     @autoresize = autoresize
+    @label_opts = label_opts
   end
 
   def dsfr_champ_container
@@ -39,8 +42,12 @@ class Dsfr::InputComponent < ApplicationComponent
     opts
   end
 
-  def label_opts
-    { class: class_names('fr-label': true, 'fr-password__label': password?) }
+  def label_class_names
+    class_names(
+      'fr-label': true,
+      'fr-password__label': password?,
+      @label_opts[:class] => @label_opts[:class].present?
+    )
   end
 
   # errors helpers
@@ -64,6 +71,14 @@ class Dsfr::InputComponent < ApplicationComponent
   # kind of input helpers
   def password?
     @input_type == :password_field
+  end
+
+  def password_confirmation?
+    attribute == :password_confirmation
+  end
+
+  def aria_label_show_confirmation
+    t(".show_#{attribute}.aria_label")
   end
 
   def email?

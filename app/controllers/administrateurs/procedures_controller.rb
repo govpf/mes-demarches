@@ -5,13 +5,14 @@ module Administrateurs
     layout 'all', only: [:all, :administrateurs]
     respond_to :html, :xlsx
 
-    before_action :retrieve_procedure, only: [:champs, :annotations, :modifications, :edit, :zones, :monavis, :update_monavis, :accuse_lecture, :update_accuse_lecture, :jeton, :update_jeton, :publication, :publish, :transfert, :close, :confirmation, :allow_expert_review, :allow_expert_messaging, :experts_require_administrateur_invitation, :reset_draft, :publish_revision, :check_path]
+    before_action :retrieve_procedure, only: [:show, :update, :champs, :annotations, :modifications, :edit, :zones, :monavis, :update_monavis, :accuse_lecture, :update_accuse_lecture, :jeton, :update_jeton, :publication, :publish, :transfert, :close, :confirmation, :allow_expert_review, :allow_expert_messaging, :experts_require_administrateur_invitation, :reset_draft, :publish_revision, :check_path, :api_champ_columns, :path, :update_path, :rdv, :update_rdv, :pro_connect_restricted, :update_pro_connect_restricted]
     before_action :draft_valid?, only: [:apercu]
-    after_action :reset_procedure, only: [:update]
+    after_action :reset_draft_procedure, only: [:update]
 
     ITEMS_PER_PAGE = 25
 
     def index
+      @all_procedures = all_procedures
       @procedures_publiees = paginated_published_procedures
       @procedures_draft = paginated_draft_procedures
       @procedures_closed = paginated_closed_procedures
@@ -22,43 +23,6 @@ module Administrateurs
       @procedures_deleted_count = current_administrateur.procedures.with_discarded.discarded.count
       @statut = params[:statut]
       @statut.blank? ? @statut = 'publiees' : @statut = params[:statut]
-    end
-
-    def paginated_published_procedures
-      current_administrateur
-        .procedures
-        .publiees
-        .page(params[:page])
-        .per(ITEMS_PER_PAGE)
-        .order(published_at: :desc)
-    end
-
-    def paginated_draft_procedures
-      current_administrateur
-        .procedures
-        .brouillons
-        .page(params[:page])
-        .per(ITEMS_PER_PAGE)
-        .order(created_at: :desc)
-    end
-
-    def paginated_closed_procedures
-      current_administrateur
-        .procedures
-        .closes
-        .page(params[:page])
-        .per(ITEMS_PER_PAGE)
-        .order(created_at: :desc)
-    end
-
-    def paginated_deleted_procedures
-      current_administrateur
-        .procedures
-        .with_discarded
-        .discarded
-        .page(params[:page])
-        .per(ITEMS_PER_PAGE)
-        .order(created_at: :desc)
     end
 
     def apercu
@@ -73,7 +37,7 @@ module Administrateurs
     end
 
     def new
-      @procedure ||= Procedure.new(for_individual: true)
+      @procedure ||= Procedure.new(for_individual: true, no_gender: true)
       @terms_of_use_read = {}
     end
 
@@ -114,8 +78,7 @@ module Administrateurs
             types_de_champ: [],
             revision_types_de_champ: { type_de_champ: { piece_justificative_template_attachment: :blob } }
           },
-          attestation_template_v1: [],
-          attestation_templates_v2: [],
+          attestation_template: [],
           initiated_mail: [],
           received_mail: [],
           closed_mail: [],
@@ -133,21 +96,26 @@ module Administrateurs
     end
 
     def zones
+      @zones = Zone.available_at(@procedure.published_or_created_at, current_administrateur.default_zones)
+        .partition { |zone| zone.label == Zone::OTHER_ZONE }
+        .then { |other_zone, zones| zones + other_zone }
     end
 
     def create
-      new_procedure_params = { max_duree_conservation_dossiers_dans_ds: Expired::DEFAULT_DOSSIER_RENTENTION_IN_MONTH }
+      new_procedure_params = { max_duree_conservation_dossiers_dans_ds: Expired::DEFAULT_DOSSIER_RENTENTION_IN_MONTH, no_gender: true }
         .merge(procedure_params)
         .merge(administrateurs: [current_administrateur])
 
       @procedure = Procedure.new(new_procedure_params)
       @procedure.draft_revision = @procedure.revisions.build
 
+      # pf: vérification des conditions RGPD/RGS à la création
       check_terms_of_use
       if !@procedure.errors.empty? || !@procedure.save
         flash.now.alert = @procedure.errors.full_messages
         render 'new'
       else
+        @procedure.create_generic_labels
         flash.notice = 'Démarche enregistrée.'
         current_administrateur.instructeur.assign_to_procedure(@procedure)
 
@@ -156,8 +124,7 @@ module Administrateurs
     end
 
     def update
-      @procedure = current_administrateur.procedures.find(params[:id])
-
+      # pf: vérification des conditions RGPD/RGS lors de la modification
       check_terms_of_use
       if !@procedure.errors.empty? || !@procedure.update(procedure_params)
         flash.now.alert = @procedure.errors.full_messages
@@ -175,12 +142,30 @@ module Administrateurs
       end
     end
 
+    def clone_settings
+      @procedure = Procedure.find(params[:procedure_id])
+      @cloned_from_library = cloned_from_library?
+      @is_same_admin = current_administrateur.owns?(@procedure)
+      @updated_mail_templates = @procedure.mail_templates.any? { _1.updated_at.present? }
+
+      if @procedure.hidden_as_template? && !@is_same_admin
+        flash.alert = "Cette démarche n’est pas clonable"
+        redirect_to admin_procedures_path
+      end
+    end
+
     def clone
       procedure = Procedure.find(params[:procedure_id])
-      new_procedure = procedure.clone(current_administrateur, cloned_from_library?)
+
+      if procedure.hidden_as_template? && !current_administrateur.owns?(procedure)
+        flash.alert = "Cette démarche n’est pas clonable"
+        redirect_to admin_procedures_path and return
+      end
+
+      new_procedure = procedure.clone(options: clone_options_from_params, admin: current_administrateur)
 
       if new_procedure.valid?
-        flash.notice = 'Démarche clonée. Pensez à vérifier la présentation et choisir le service à laquelle cette démarche est associée.'
+        flash.notice = 'Démarche clonée. Pensez à vérifier les paramètres avant publication.'
         redirect_to admin_procedure_path(id: new_procedure.id)
       else
         if cloned_from_library?
@@ -293,6 +278,27 @@ module Administrateurs
     def jeton
     end
 
+    def pro_connect_restricted
+      @logged_in_with_pro_connect = logged_in_with_pro_connect?
+    end
+
+    def update_pro_connect_restricted
+      @procedure.update!(procedure_params)
+      # pf: Message adapté pour Microsoft @administration.gov.pf au lieu de ProConnect
+      # upstream: "La démarche est restreinte à ProConnect" / "La démarche n'est plus restreinte à ProConnect"
+      flash.notice = @procedure.pro_connect_restricted? ? "La démarche est restreinte aux comptes @administration.gov.pf" : "La démarche n'est plus restreinte aux comptes @administration.gov.pf"
+      redirect_to pro_connect_restricted_admin_procedure_path(@procedure)
+    end
+
+    def rdv
+    end
+
+    def update_rdv
+      @procedure.update!(procedure_params)
+      flash.notice = @procedure.rdv_enabled? ? "La prise de rendez-vous est activée" : "La prise de rendez-vous est désactivée"
+      redirect_to rdv_admin_procedure_path(@procedure)
+    end
+
     def modifications
       ProcedureRevisionPreloader.new(@procedure.revisions).all
     end
@@ -326,15 +332,16 @@ module Administrateurs
         flash.alert = "La date limite de dépôt des dossiers doit être postérieure à la date du jour pour réactiver la procédure. #{view_context.link_to('Veuillez la modifier', edit_admin_procedure_path(@procedure))}"
         redirect_to admin_procedure_path(@procedure)
       else
-        @procedure.path = @procedure.suggested_path(current_administrateur)
         @current_administrateur = current_administrateur
         @closed_procedures = current_administrateur.procedures.with_discarded.closes.map { |p| ["#{p.libelle} (#{p.id})", p.id] }.to_h
       end
     end
 
     def check_path
-      @path_available = @procedure.path_available?(params[:path])
-      @other_procedure = @procedure.other_procedure_with_path(params[:path])
+      path = params[:path]
+      @path_available = @procedure.path_available?(path)
+      @other_procedure = @procedure.other_procedure_with_path(path)
+
       respond_to do |format|
         format.turbo_stream do
           render :check_path
@@ -342,14 +349,33 @@ module Administrateurs
       end
     end
 
-    def publish
-      @procedure.assign_attributes(publish_params)
+    def path
+    end
 
-      @procedure.publish_or_reopen!(current_administrateur)
+    def update_path
+      new_path = params[:path]
+      other_procedure = @procedure.other_procedure_with_path(new_path)
 
-      if @procedure.draft_changed?
-        @procedure.publish_revision!
+      if other_procedure.present? && !current_administrateur.owns?(other_procedure)
+        flash.alert = "Cette URL de démarche n'est pas disponible"
+        return redirect_to [:admin, @procedure, :path]
       end
+
+      @procedure.claim_path!(current_administrateur, new_path)
+
+      if @procedure.save
+        flash.notice = "L'URL de la démarche a bien été mise à jour"
+        redirect_to admin_procedure_path(@procedure)
+      else
+        flash.alert = @procedure.errors.full_messages
+        render :path
+      end
+    end
+
+    def publish
+      @procedure.assign_attributes(publish_params.except(:path))
+
+      @procedure.publish_or_reopen!(current_administrateur, publish_params[:path])
 
       if params[:old_procedure].present? && @procedure.errors.empty?
         current_administrateur
@@ -415,7 +441,7 @@ module Administrateurs
         flash.alert = "Envoi vers #{params[:email_admin]} impossible : cet administrateur n’existe pas"
       else
         procedure = current_administrateur.procedures.find(params[:procedure_id])
-        procedure.clone(admin, false)
+        procedure.clone(admin:)
         redirect_to admin_procedure_path(params[:procedure_id])
         flash.notice = "La démarche a correctement été clonée vers le nouvel administrateur."
       end
@@ -466,7 +492,78 @@ module Administrateurs
       @admins = paginate(@admins, 'users.email')
     end
 
+    def api_champ_columns
+      if params[:stable_id].present?
+        _, @type_de_champ = @procedure.draft_revision.coordinate_and_tdc(params[:stable_id])
+      elsif params[:stub_type_champ].present?
+        @type_de_champ = @procedure.draft_revision.types_de_champ.build(type_champ: params[:stub_type_champ], libelle: 'Numéro SIRET')
+      else
+        raise ArgumentError.new "either a stable_id or a stub_type_champ, but we should know which one to build"
+      end
+      @column_labels = @type_de_champ.info_columns(procedure: @procedure)
+    end
+
+    def select_procedure
+      return redirect_to admin_procedure_path(params[:procedure_id]) if params[:procedure_id].present?
+
+      redirect_to admin_procedures_path
+    end
+
     private
+
+    def reset_draft_procedure
+      @procedure.reset!
+    end
+
+    def all_procedures
+      current_administrateur
+        .procedures
+        .kept
+        .select(:id, :libelle, :created_at)
+        .order(created_at: :desc)
+    end
+
+    def paginated_published_procedures
+      paginate_procedures(current_administrateur
+        .procedures
+        .publiees
+        .order(published_at: :desc))
+    end
+
+    def paginated_draft_procedures
+      paginate_procedures(current_administrateur
+        .procedures
+        .brouillons
+        .order(created_at: :desc))
+    end
+
+    def paginated_closed_procedures
+      paginate_procedures(current_administrateur
+        .procedures
+        .closes
+        .order(created_at: :desc))
+    end
+
+    def paginated_deleted_procedures
+      paginate_procedures(current_administrateur
+        .procedures
+        .with_discarded
+        .discarded
+        .order(created_at: :desc))
+    end
+
+    def paginate_procedures(procedures)
+      procedures
+        .with_attached_logo
+        .left_joins(groupe_instructeurs: :instructeurs)
+        .includes(:procedure_paths)
+        .select('procedures.*,
+                          COUNT(DISTINCT groupe_instructeurs.id) AS groupe_instructeurs_count,
+                          COUNT(DISTINCT instructeurs.id) AS instructeurs_count')
+        .group('procedures.id')
+        .page(params[:page])
+        .per(ITEMS_PER_PAGE)
+    end
 
     def filter_procedures(filter)
       if filter.service_siret.present?
@@ -480,7 +577,16 @@ module Administrateurs
       procedures_result = procedures_result.where(procedures_zones: { zone_id: filter.zone_ids }) if filter.zone_ids.present?
       procedures_result = procedures_result.where(hidden_at_as_template: nil)
       procedures_result = procedures_result.where(aasm_state: filter.statuses) if filter.statuses.present?
-      procedures_result = procedures_result.where("tags @> ARRAY[?]::text[]", filter.tags) if filter.tags.present?
+      if filter.tags.present?
+        tag_ids = ProcedureTag.where(name: filter.tags).pluck(:id).flatten
+
+        if tag_ids.any?
+          procedures_result = procedures_result
+            .joins(:procedure_tags)
+            .where(procedure_tags: { id: tag_ids })
+            .distinct
+        end
+      end
       procedures_result = procedures_result.where(template: true) if filter.template?
       procedures_result = procedures_result.where(published_at: filter.from_publication_date..) if filter.from_publication_date.present?
       procedures_result = procedures_result.where(service: service) if filter.service_siret.present?
@@ -536,7 +642,9 @@ module Administrateurs
         :lien_dpo,
         :opendata,
         :procedure_expires_when_termine_enabled,
-        { zone_ids: [], tags: [] }
+        :rdv_enabled,
+        :pro_connect_restricted,
+        { zone_ids: [], procedure_tag_names: [] }
       ]
 
       editable_params << :piece_justificative_multiple if @procedure && !@procedure.piece_justificative_multiple?
@@ -544,14 +652,21 @@ module Administrateurs
       permited_params = if @procedure&.locked?
         params.require(:procedure).permit(*editable_params)
       else
-        params.require(:procedure).permit(*editable_params, :for_individual, :path)
+        params.require(:procedure).permit(*editable_params, :for_individual)
       end
       if permited_params[:auto_archive_on].present?
         permited_params[:auto_archive_on] = Date.parse(permited_params[:auto_archive_on]) + 1.day
       end
+
+      if permited_params[:procedure_tag_names].present?
+        tag_ids = ProcedureTag.where(name: permited_params[:procedure_tag_names]).pluck(:id)
+        permited_params[:procedure_tag_ids] = tag_ids
+        permited_params.delete(:procedure_tag_names)
+      end
       permited_params
     end
 
+    # pf: spécificité PF - vérification obligatoire de l'acceptation des conditions RGPD et RGS
     def check_terms_of_use
       terms_of_use = [:rgs_stamp, :rgpd]
       if terms_of_use.any? { |k| params.key?(k) && params[k].to_i.zero? }
@@ -584,19 +699,50 @@ module Administrateurs
       params.require(:experts_procedure).permit(:allow_decision_access)
     end
 
-    def cloned_from_library?
-      params[:from_new_from_existing].present?
+    def clone_options_from_params
+      options = params.dig(:procedure, :clone_options).permit(
+        :champs,
+        :annotations,
+        :administrateurs,
+        :instructeurs,
+        :attestation_template,
+        :libelle,
+        :zones,
+        :service,
+        :ineligibilite,
+        :monavis_embed,
+        :dossier_submitted_message,
+        :accuse_lecture,
+        :api_entreprise_token,
+        :mail_templates,
+        :sva_svr,
+        :avis,
+        :labels
+      )
+      {
+        clone_champs: options[:champs] == '1',
+        clone_annotations: options[:annotations] == '1',
+        clone_administrateurs: options[:administrateurs] == '1',
+        clone_instructeurs: options[:instructeurs] == '1',
+        clone_attestation_template: options[:attestation_template] == '1',
+        clone_zones: options[:zones] == '1',
+        clone_service: options[:service] == '1',
+        clone_ineligibilite: options[:ineligibilite] == '1',
+        clone_monavis_embed: options[:monavis_embed] == '1',
+        clone_dossier_submitted_message: options[:dossier_submitted_message] == '1',
+        clone_accuse_lecture: options[:accuse_lecture] == '1',
+        clone_api_entreprise_token: options[:api_entreprise_token] == '1',
+        clone_mail_templates: options[:mail_templates] == '1',
+        clone_sva_svr: options[:sva_svr] == '1',
+        clone_avis: options[:avis] == '1',
+        clone_labels: options[:labels] == '1',
+        clone_libelle: params.fetch(:procedure)[:libelle],
+        cloned_from_library: params[:from_new_from_existing]
+      }
     end
 
-    def update_lexpol(champ)
-      return unless champ.lexpol?
-
-      if champ.value.blank?
-        champ.value = LexpolAPI.new.create_dossier(champ)
-      else
-        LexpolAPI.new.update_dossier(champ)
-      end
-      champ.save
+    def cloned_from_library?
+      params[:from_new_from_existing].present?
     end
   end
 end

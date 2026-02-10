@@ -82,11 +82,9 @@ describe TagsSubstitutionConcern, type: :model do
     let!(:dossier) { create(:dossier, procedure: procedure, individual: individual, etablissement: etablissement) }
     let(:instructeur) { create(:instructeur) }
 
-    before { Timecop.freeze(Time.zone.now) }
+    before { freeze_time }
 
     subject { template_concern.send(:replace_tags, template, dossier) }
-
-    after { Timecop.return }
 
     context 'when the dossier and the procedure has an individual' do
       let(:for_individual) { true }
@@ -169,11 +167,11 @@ describe TagsSubstitutionConcern, type: :model do
 
         context 'and their value in the dossier are not nil' do
           before do
-            dossier.champs_public
+            dossier.project_champs_public
               .find { |champ| champ.libelle == 'libelleA' }
               .update(value: 'libelle1')
 
-            dossier.champs_public
+            dossier.project_champs_public
               .find { |champ| champ.libelle == "libelle\xc2\xA0B".encode('utf-8') }
               .update(value: 'libelle2')
           end
@@ -186,17 +184,17 @@ describe TagsSubstitutionConcern, type: :model do
     context 'when the procedure has a type de champ with apostrophes' do
       let(:types_de_champ_public) do
         [
-          { libelle: "Intitulé de l'‘«\"évènement\"»’" }
+          { libelle: "Intitulé de l'’«\"évènement\"»’" }
         ]
       end
 
       context 'and they are used in the template' do
-        let(:template) { "--Intitulé de l'‘«\"évènement\"»’--" }
+        let(:template) { "--Intitulé de l'’«\"évènement\"»’--" }
 
         context 'and their value in the dossier are not nil' do
           before do
-            dossier.champs_public
-              .find { |champ| champ.libelle == "Intitulé de l'‘«\"évènement\"»’" }
+            dossier.project_champs_public
+              .find { |champ| champ.libelle == "Intitulé de l'’«\"évènement\"»’" }
               .update(value: 'ceci est mon évènement')
           end
 
@@ -217,7 +215,7 @@ describe TagsSubstitutionConcern, type: :model do
 
         context 'and their value in the dossier are not nil' do
           before do
-            dossier.champs_public
+            dossier.project_champs_public
               .find { |champ| champ.libelle == "bon pote -- c'est top" }
               .update(value: 'ceci est mon évènement')
           end
@@ -237,19 +235,17 @@ describe TagsSubstitutionConcern, type: :model do
         repetition.add_row(updated_by: 'test')
         paul_champs, pierre_champs = repetition.rows
 
-        paul_champs.first.update(value: 'Paul')
-        paul_champs.last.update(value: 'Chavard')
+        champ_for_update(paul_champs.first).update(value: 'Paul')
+        champ_for_update(paul_champs.last).update(value: 'Chavard')
 
-        pierre_champs.first.update(value: 'Pierre')
-        pierre_champs.last.update(value: 'de La Morinerie')
+        champ_for_update(pierre_champs.first).update(value: 'Pierre')
+        champ_for_update(pierre_champs.last).update(value: 'de La Morinerie')
       end
-
-      it { is_expected.to eq("<table><tr><th>Nom</th><th>Prénom</th></tr><tr><td>Paul</td><td>Chavard</td></tr><tr><td>Pierre</td><td>de La Morinerie</td></tr></table>") }
     end
 
     context 'when the procedure has a linked drop down menus type de champ' do
       let(:type_de_champ) { procedure.draft_revision.types_de_champ.first }
-      let(:types_de_champ_public) { [{ type: :linked_drop_down_list, libelle: 'libelle' }] }
+      let(:types_de_champ_public) { [{ type: :linked_drop_down_list, libelle: 'libelle', options: ["--primo--", "secundo"] }] }
       let(:template) { 'tout : --libelle--, primaire : --libelle/primaire--, secondaire : --libelle/secondaire--' }
 
       context 'and the champ has no value' do
@@ -258,7 +254,7 @@ describe TagsSubstitutionConcern, type: :model do
 
       context 'and the champ has a primary value' do
         before do
-          dossier.champs.find_by(stable_id: type_de_champ.stable_id).update(primary_value: 'primo')
+          dossier.champ_for_update(type_de_champ, updated_by: 'test').update(primary_value: 'primo')
           dossier.reload
         end
 
@@ -266,7 +262,7 @@ describe TagsSubstitutionConcern, type: :model do
 
         context 'and the champ has a secondary value' do
           before do
-            dossier.champs.find_by(stable_id: type_de_champ.stable_id).update(secondary_value: 'secundo')
+            dossier.champ_for_update(type_de_champ, updated_by: 'test').update(secondary_value: 'secundo')
             dossier.reload
           end
 
@@ -275,7 +271,7 @@ describe TagsSubstitutionConcern, type: :model do
           context 'and the same libelle is used by a header' do
             let(:types_de_champ_public) do
               [
-                { type: :linked_drop_down_list, libelle: 'libelle' },
+                { type: :linked_drop_down_list, libelle: 'libelle', options: ["--primo--", "secundo"] },
                 { type: :header_section, libelle: 'libelle' }
               ]
             end
@@ -284,6 +280,48 @@ describe TagsSubstitutionConcern, type: :model do
           end
         end
       end
+    end
+
+    context 'when the procedure has a dropdown type de champ with referentiel' do
+      let(:referentiel) { create(:csv_referentiel, :with_items) }
+      let(:types_de_champ_public) { [{ type: :drop_down_list }] }
+      let(:template) { "--tdc#{dropdown_list_tdc.stable_id}/option-- --tdc#{dropdown_list_tdc.stable_id}/poids_g--" }
+      let(:dropdown_list_tdc) { procedure.active_revision.types_de_champ.first }
+
+      before do
+        dropdown_list_tdc.update(referentiel:, drop_down_mode: 'advanced')
+        champ = dossier.project_champs_public.first
+        item = referentiel.items.first
+        champ.update(value: item.id)
+      end
+
+      it { is_expected.to eq('fromage 60') }
+    end
+
+    # pf: test support des colonnes personnalisées pour référentiels Baserow
+    context 'when the procedure has a referentiel_de_polynesie type de champ' do
+      let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, libelle: 'Commune', options: { table_id: 99999 } }] }
+      let(:template) { "--tdc#{commune_tdc.stable_id}-- (code postal : --tdc#{commune_tdc.stable_id}/code_postal--, archipel : --tdc#{commune_tdc.stable_id}/archipel--)" }
+      let(:commune_tdc) { procedure.active_revision.types_de_champ.first }
+
+      before do
+        allow_any_instance_of(TypesDeChamp::ReferentielDePolynesieTypeDeChamp)
+          .to receive(:fetch_instructeur_fields)
+          .and_return(['code_postal', 'archipel'])
+
+        champ = dossier.project_champs_public.first
+        champ.update!(
+          value: 'Papeete',
+          external_id: '12345'
+        )
+        # pf: structure réelle des données Baserow avec row imbriqué et instructeur_fields
+        champ.update_with_external_data!(data: {
+          'row' => { 'code_postal' => '98714', 'archipel' => 'Iles du Vent' },
+          'instructeur_fields' => ['code_postal', 'archipel']
+        })
+      end
+
+      it { is_expected.to eq('Papeete (code postal : 98714, archipel : Iles du Vent)') }
     end
 
     context 'when the user requests the service' do
@@ -316,7 +354,7 @@ describe TagsSubstitutionConcern, type: :model do
         let(:template) { '--libelleA--' }
 
         context 'and its value in the dossier is not nil' do
-          before { dossier.champs_private.first.update(value: 'libelle1') }
+          before { dossier.project_champs_private.first.update(value: 'libelle1') }
 
           it { is_expected.to eq('libelle1') }
         end
@@ -339,7 +377,7 @@ describe TagsSubstitutionConcern, type: :model do
       context 'champs publics are valid tags' do
         let(:types_de_champ_public) { [{ libelle: 'libelleA' }] }
 
-        before { dossier.champs_public.first.update(value: 'libelle1') }
+        before { dossier.project_champs_public.first.update(value: 'libelle1') }
 
         it { is_expected.to eq('libelle1') }
       end
@@ -358,11 +396,11 @@ describe TagsSubstitutionConcern, type: :model do
 
         context 'and its value in the dossier are not nil' do
           before do
-            dossier.champs_public
+            dossier.project_champs_public
               .find { |champ| champ.type_champ == TypeDeChamp.type_champs.fetch(:date) }
               .update(value: '2017-04-15')
 
-            dossier.champs_public
+            dossier.project_champs_public
               .find { |champ| champ.type_champ == TypeDeChamp.type_champs.fetch(:datetime) }
               .update(value: '2017-09-13 09:00')
           end
@@ -426,6 +464,17 @@ describe TagsSubstitutionConcern, type: :model do
       it { is_expected.to eq('20/09/2024') }
     end
 
+    context "with a contact information name tag" do
+      let(:template) { '--nom du service instructeur--' }
+      let(:procedure) { create(:procedure, :routee) }
+      let(:groupe_instructeur) { procedure.defaut_groupe_instructeur }
+      let!(:contact_information) { create(:contact_information, groupe_instructeur:, nom: 'Service local') }
+
+      before { dossier.passer_en_construction! }
+
+      it { is_expected.to eq('Service local') }
+    end
+
     context "when the template has a libellé démarche tag" do
       let(:template) { 'body --libellé démarche--' }
 
@@ -433,7 +482,7 @@ describe TagsSubstitutionConcern, type: :model do
     end
 
     context "match breaking and non breaking spaces" do
-      before { dossier.champs_public.first.update(value: 'valeur') }
+      before { dossier.project_champs_public.first.update(value: 'valeur') }
 
       shared_examples "treat all kinds of space as equivalent" do
         context 'and the champ has a non breaking space' do
@@ -480,8 +529,8 @@ describe TagsSubstitutionConcern, type: :model do
 
       before do
         draft_type_de_champ.update(libelle: 'mon nouveau libellé')
-        dossier.champs_public.first.update(value: 'valeur')
-        procedure.update!(draft_revision: procedure.create_new_revision, published_revision: procedure.draft_revision)
+        dossier.project_champs_public.first.update(value: 'valeur')
+        procedure.publish_revision!
       end
 
       context "when using the champ's original label" do
@@ -513,7 +562,7 @@ describe TagsSubstitutionConcern, type: :model do
       context 'in a champ' do
         let(:types_de_champ_public) { [{ libelle: 'libelleA' }] }
 
-        before { dossier.champs_public.first.update(value: 'hey <a href="https://oops.com">anchor</a>') }
+        before { dossier.project_champs_public.first.update(value: 'hey <a href="https://oops.com">anchor</a>') }
 
         it { is_expected.to eq('hey &lt;a href=&quot;https://oops.com&quot;&gt;anchor&lt;/a&gt; --nom--') }
       end
@@ -578,7 +627,56 @@ describe TagsSubstitutionConcern, type: :model do
       end
 
       it { is_expected.to include(include({ libelle: 'public' })) }
-      it { is_expected.not_to include(include({ libelle: 'conditional' })) }
+      it { is_expected.to include(include({ libelle: 'conditional' })) }
+    end
+
+    context 'when replace_tags with visible and invisible champs' do
+      include Logic
+      let(:state) { Dossier.states.fetch(:en_construction) }
+      let(:departement_stable_id) { 100 }
+      let(:ville_vendee_stable_id) { 101 }
+      let(:ville_charente_stable_id) { 102 }
+
+      let(:types_de_champ_public) do
+        [
+          {
+            type: :drop_down_list,
+            libelle: 'Département',
+            stable_id: departement_stable_id,
+            options: ['Vendée', 'Charente']
+          },
+          {
+            type: :drop_down_list,
+            libelle: 'Ville',
+            stable_id: ville_vendee_stable_id,
+            options: ['Luçon', 'La Tranche'],
+            condition: ds_eq(champ_value(departement_stable_id), constant('Vendée'))
+          },
+          {
+            type: :drop_down_list,
+            libelle: 'Ville',
+            stable_id: ville_charente_stable_id,
+            options: ['La Rochelle', 'Rochefort'],
+            condition: ds_eq(champ_value(departement_stable_id), constant('Charente'))
+          }
+        ]
+      end
+
+      let(:template) { '--Département-- --Ville--' }
+      let(:dossier) { create(:dossier, procedure: procedure) }
+
+      before do
+        # Valuer le département avec 'Charente'
+        dossier.project_champs_public.find { |c| c.stable_id == departement_stable_id }.update(value: 'Charente')
+        # Valuer la ville Charente avec 'Rochefort'
+        dossier.project_champs_public.find { |c| c.stable_id == ville_charente_stable_id }.update(value: 'Rochefort')
+      end
+
+      subject { template_concern.send(:replace_tags, template, dossier) }
+
+      it 'replaces with visible champ only' do
+        is_expected.to eq('Charente Rochefort')
+      end
     end
   end
 

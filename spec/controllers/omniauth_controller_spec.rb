@@ -89,14 +89,9 @@ describe OmniauthController, type: :controller do
           let(:fc_user) { nil }
 
           context 'and no user with the same email exists' do
-            it 'creates an user with the same email and log in' do
-              expect { subject }.to change { User.count }.by(1)
-
-              user = User.last
-
-              expect(user.email).to eq(email.downcase)
-              expect(controller.current_user).to eq(user)
-              expect(response).to redirect_to(root_path)
+            it 'renders choose_email template and does not create user yet' do
+              expect { subject }.not_to change { User.count }
+              expect(response).to render_template(:choose_email)
             end
           end
 
@@ -133,7 +128,7 @@ describe OmniauthController, type: :controller do
           it { expect(stored_fci).to have_attributes(user_info.merge(birthdate: Time.zone.parse(birthdate).to_datetime)) }
         end
 
-        it { is_expected.to redirect_to(root_path) }
+        it { is_expected.to render_template(:choose_email) }
       end
     end
 
@@ -227,6 +222,7 @@ describe OmniauthController, type: :controller do
         fci.reload
 
         expect(fci.user).to eq(user)
+        expect(user.reload.email_verified_at).to be_present
         expect(fci.merge_token).to be_nil
         expect(controller.current_user).to eq(user)
       end
@@ -236,10 +232,9 @@ describe OmniauthController, type: :controller do
 
         it 'redirects to the root page' do
           subject
-          fci.reload
 
-          expect(fci.user).to be_nil
-          expect(fci.merge_token).not_to be_nil
+          expect { fci.reload }.to raise_error(ActiveRecord::RecordNotFound)
+
           expect(controller.current_user).to be_nil
         end
       end
@@ -274,6 +269,7 @@ describe OmniauthController, type: :controller do
         fci.reload
 
         expect(fci.user).to eq(user)
+        expect(user.reload.email_verified_at).to be_present
         expect(fci.merge_token).to be_nil
         expect(controller.current_user).to eq(user)
         expect(flash[:notice]).to eq("Les comptes Google et #{APPLICATION_NAME} sont à présent fusionnés")
@@ -325,6 +321,7 @@ describe OmniauthController, type: :controller do
         fci.reload
 
         expect(fci.user.email).to eq(email.downcase.strip)
+        expect(fci.user.email_verified_at).to be_present
         expect(fci.merge_token).to be_nil
         expect(controller.current_user).to eq(fci.user)
         expect(response).to redirect_to(root_path)
@@ -334,17 +331,18 @@ describe OmniauthController, type: :controller do
     context 'when an account with the same email exists' do
       let!(:user) { create(:user, email: email) }
 
-      render_views
-
-      it 'asks for the corresponding password' do
+      it 'sends email confirmation and redirects to root' do
         subject
         fci.reload
 
         expect(fci.user).to be_nil
         expect(fci.merge_token).not_to be_nil
+        expect(fci.requested_email).to eq(email.downcase.strip)
+        expect(fci.email_merge_token).to be_present
         expect(controller.current_user).to be_nil
 
-        expect(response.body).to include('entrez votre mot de passe')
+        expect(response).to redirect_to(root_path)
+        expect(flash[:notice]).to eq(I18n.t('omniauth.flash.confirmation_mail_sent'))
       end
     end
   end

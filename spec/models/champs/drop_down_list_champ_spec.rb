@@ -1,13 +1,17 @@
 # frozen_string_literal: true
 
 describe Champs::DropDownListChamp do
+  let(:types_de_champ_public) { [{ type: :drop_down_list, drop_down_other: other, referentiel:, drop_down_mode: }] }
+  let(:procedure) { create(:procedure, types_de_champ_public:) }
+  let(:dossier) { create(:dossier, procedure:) }
+  let(:referentiel) { nil }
+  let(:drop_down_mode) { nil }
+  let(:champ) { dossier.champs.first.tap { _1.update(value:, other:) } }
+  let(:value) { nil }
+  let(:other) { nil }
+
   describe 'validations' do
     describe 'inclusion' do
-      let(:champ) { described_class.new(other:, value:, dossier: build(:dossier)) }
-      before do
-        allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_drop_down_list, drop_down_other: other))
-        allow(champ).to receive(:in_dossier_revision?).and_return(true)
-      end
       subject { champ.validate(:champs_public_value) }
 
       context 'when the other value is accepted' do
@@ -57,25 +61,62 @@ describe Champs::DropDownListChamp do
   end
 
   describe '#drop_down_other?' do
-    let(:drop_down) { described_class.new(dossier: build(:dossier)) }
-    before { allow(drop_down).to receive(:type_de_champ).and_return(build(:type_de_champ_drop_down_list)) }
-
     context 'when drop_down_other is nil' do
       it do
-        drop_down.type_de_champ.drop_down_other = nil
-        expect(drop_down.drop_down_other?).to be false
+        champ.type_de_champ.drop_down_other = nil
+        expect(champ.drop_down_other?).to be false
 
-        drop_down.type_de_champ.drop_down_other = "0"
-        expect(drop_down.drop_down_other?).to be false
+        champ.type_de_champ.drop_down_other = "0"
+        expect(champ.drop_down_other?).to be false
 
-        drop_down.type_de_champ.drop_down_other = false
-        expect(drop_down.drop_down_other?).to be false
+        champ.type_de_champ.drop_down_other = false
+        expect(champ.drop_down_other?).to be false
 
-        drop_down.type_de_champ.drop_down_other = "1"
-        expect(drop_down.drop_down_other?).to be true
+        champ.type_de_champ.drop_down_other = "1"
+        expect(champ.drop_down_other?).to be true
 
-        drop_down.type_de_champ.drop_down_other = true
-        expect(drop_down.drop_down_other?).to be true
+        champ.type_de_champ.drop_down_other = true
+        expect(champ.drop_down_other?).to be true
+      end
+    end
+  end
+
+  describe 'referentiel' do
+    let(:drop_down_mode) { 'advanced' }
+    let(:referentiel) { create(:csv_referentiel, :with_items) }
+    let(:item) { referentiel.items.first }
+    let(:value) { item.id.to_s }
+
+    it '#referentiel_headers' do
+      expect(champ.referentiel_headers).to eq([["option", "option"], ["calorie (kcal)", "calorie_kcal"], ["poids (g)", "poids_g"]])
+    end
+
+    it '#to_s' do
+      expect(champ.value).to eq(value)
+      expect(champ.to_s).to eq(item.value(champ.referentiel_headers.first.second))
+    end
+
+    it '#referentiel_item_column_values' do
+      expect(champ.referentiel_item_column_values).to eq([["option", "fromage"], ["calorie (kcal)", "145"], ["poids (g)", "60"]])
+    end
+
+    context "when value is a value from simple mode" do
+      let(:types_de_champ_public) { [{ type: :drop_down_list, drop_down_mode: "simple" }] }
+      let(:value) { "fromage" }
+
+      before do
+        champ.save!
+        champ.reload
+      end
+
+      it "clear old value without error" do
+        expect(champ.value).to eq("fromage")
+
+        champ.type_de_champ.update!(options: { "drop_down_mode": "advanced" }, referentiel:)
+        champ.reload
+
+        champ.save!
+        expect(champ.value).to be_nil
       end
     end
   end

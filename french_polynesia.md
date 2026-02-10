@@ -37,5 +37,132 @@ This journal lists modifications built on top of demarches-simplifiees.
 | 11/4/2024 | Télécharger le PDF                  | Le lien en bas du formulaire permettant de télécharger le PDF est moins visible car les usagers ont tendance à l'utiliser même quand ils remplissent le formulaire en ligne                   |
 | 23/5/2024 | EQUIPE_EMAIL                        | Mail not removed as it is used to communicate on published procedures                                                                                                                         |
 | 23/5/2024 | Connecté via                        | Le mail de l'usager en haut à droite affiche quel fournisseur d'identité a servi à connecter l'usager                                                                                         |
+| 24/7/2024 | Navigation contextuelle personas    | Les utilisateurs ayant plusieurs rôles peuvent naviguer entre leurs personas en restant dans le contexte actuel (même dossier/démarche) lorsque c'est possible                                  |
 
+# Commentaires techniques dans le code (# pf)
 
+Cette section documente les modifications techniques spécifiques à la Polynésie française identifiées dans le code par des commentaires `# pf`.
+
+## Modèles et structures de données
+
+### Modèle Champ (`app/models/champ.rb:79`)
+- Délégation des méthodes spécifiques PF (accredited_user_list, visa?, table_id) vers type_de_champ
+
+### Modèle GeoArea (`app/models/geo_area.rb`)
+- **Ligne 214, 219** : Champs `commune_associee` et `ile` spécifiques à la Polynésie française
+
+### Modèle User (`app/models/user.rb:238`)
+- Gestion du France Connect quand l'utilisateur s'est connecté avec un mot de passe régulier
+
+## Contrôleurs
+
+### CommencerController (`app/controllers/users/commencer_controller.rb:40`)
+- Gestion de la redirection après connexion sociale (Google, France Connect, etc.)
+
+### ApplicationController (`app/controllers/application_controller.rb:11`)
+- **Ligne 10-11** : Include du concern ContextualNavigationConcern pour la navigation contextuelle entre personas
+
+### ContextualNavigationConcern (`app/controllers/concerns/contextual_navigation_concern.rb`)
+- **Nouveau fichier** : Logique principale de la navigation contextuelle entre personas
+- Méthodes de détection du contexte actuel (dossier/procédure)  
+- Vérification des permissions avant redirection contextuelle
+- Feature flag utilisateur via Flipper
+
+### PieceJustificativeController (`app/controllers/champs/piece_justificative_controller.rb`)
+- **Ligne 5** : Redirection des anciens liens PF (paramètre h) vers les nouvelles routes
+- **Ligne 77** : Migration prévue après le 01/09/2025 pour l'accès par dossier_id uniquement
+
+## GraphQL
+
+### MutationType (`app/graphql/types/mutation_type.rb:19`)
+- Section dédiée aux mutations spécifiques PF
+
+## Helpers
+
+### ContextualNavigationHelper (`app/helpers/contextual_navigation_helper.rb`)
+- **Nouveau fichier** : Helper pour la navigation contextuelle entre personas
+- Méthode `contextual_or_default_path_for_profile` avec fallback sur le comportement standard
+
+## Vues
+
+### AccountDropdown (`app/views/layouts/_account_dropdown.haml`)
+- **Lignes 20, 26, 36** : Modifications minimales pour utiliser la navigation contextuelle
+- Utilisation de `contextual_or_default_path_for_profile` au lieu des chemins fixes
+- Commentaires `# pf:` pour identifier les modifications spécifiques PF
+
+### Types GeoArea
+- **ParcelleCadastraleType** : Champs `commune_associee` et `ile` pour la Polynésie française
+- **SelectionUtilisateurType** : Champs géographiques spécifiques PF
+
+## Configuration
+
+### Routes (`config/routes.rb:279`)
+- Configuration des routes pour le référentiel configurable (table row selector)
+
+### Application (`config/application.rb:46`)
+- Configuration de la sanitisation HTML pour autoriser les balises `<a>`, `<font>` et `<table>`
+
+### Flipper (`config/initializers/flipper.rb:40`)
+- **Ligne 39-40** : Ajout du feature flag `:contextual_persona_navigation` pour la navigation contextuelle
+
+## Types de champ
+
+### PieceJustificativeTypeDeChamp (`app/models/types_de_champ/piece_justificative_type_de_champ.rb:10`)
+- Autorisation de référencement des PJ dans les templates
+
+### SiretTypeDeChamp (`app/models/types_de_champ/siret_type_de_champ.rb:4`)
+- Les champs commune, code postal, département, région ne sont pas remplis pour les Numéros Tahiti
+
+### DecimalNumberChamp (`app/models/champs/decimal_number_champ.rb:7`)
+- Optimisation des messages d'erreur pour éviter les erreurs "trois chiffres" avec des caractères non numériques
+
+## API Enterprise Token (`app/models/api_entreprise_token.rb`)
+- **Lignes 11, 19, 24** : Gestion gracieuse de l'absence de token entreprise
+
+## Spécificités techniques des tests
+
+### Affichage des PJ (`spec/models/champ_spec.rb:240,254`)
+- Les pièces justificatives s'affichent sous forme de liens
+
+### RepetitionChamp (`spec/models/champs/repetition_champ_spec.rb:25`)
+- Version modifiée retournant un SafeBuffer incompatible avec tiptap_node
+
+### Helpers système (`spec/support/system_helpers.rb:23`)
+- Attente nécessaire pour l'envoi des mails
+
+### Tests système
+- **BrouillonSpec** : Adaptations pour les fonctionnalités et données géographiques PF
+- **DropdownSpec** : Attente pour les contrôleurs Stimulus connectés
+- **InstructeurDossiersControllerSpec** : Comportements différents de DS principal
+- **ProcedureCloningSpec** : Calcul de chemin par défaut différent
+- **EPCIChampSpec** : Modification pour les champs EPCI optionnels
+- **ComponentSpecs** : Gestion des feature flags et comportements de formatage spécifiques
+
+### Tests navigation contextuelle
+- **ContextualNavigationConcernSpec** (`spec/controllers/concerns/contextual_navigation_concern_spec.rb`) : Tests unitaires du concern
+- **ContextualPersonaNavigationSpec** (`spec/system/contextual_persona_navigation_spec.rb`) : Tests d'intégration avec feature flag
+- Tests de sécurité, fallback et protection contre les régressions de routes upstream
+
+## Résumé par catégorie
+
+1. **Données géographiques** : Champs personnalisés pour la Polynésie (ile, commune_associee)
+2. **Authentification** : Gestion des connexions sociales et intégration France Connect
+3. **Gestion des fichiers** : Traitement des PJ et support des liens legacy
+4. **Intégration API** : Validation des tokens entreprise avec gestion d'erreur gracieuse
+5. **Interface utilisateur** : Sanitisation HTML, validation de formulaires, personnalisations d'affichage
+6. **Configuration** : Configuration des routes pour les données référentielles
+7. **Navigation contextuelle** : Navigation intelligente entre personas avec feature flag utilisateur
+8. **Tests** : Adaptations des tests pour les fonctionnalités spécifiques PF
+
+## Développement : WeasyPrint local
+L'attestation v2 utilise **WeasyPrint** pour générer les PDF. Par défaut, le service n'est pas activé dans [`Procfile.dev`](Procfile.dev ) pour éviter de bloquer le démarrage de [`bin/dev`](bin/dev ) si WeasyPrint n'est pas installé.
+
+Pour l'installation, veuillez suivre les étapes dans le fichier [`specs_attestation_v2_pf_complet.md`](specs_attestation_v2_pf_complet.md ) lignes 884-897. 
+
+Une fois l'installation terminée :
+1. Décommentez la ligne suivante dans [`Procfile.dev`](Procfile.dev ) :
+   ```
+   # weasyprint: cd /tmp/weasyprint-server && . venv/bin/activate && python3 app.py
+   ```
+2. Vérifiez que le chemin `/tmp/weasyprint-server` correspond à votre installation
+3. Relancez [`bin/dev`](bin/dev )

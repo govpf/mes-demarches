@@ -61,7 +61,8 @@
 %fieldset.fr-fieldset
   .fr-fieldset__element
     = render Dsfr::InputComponent.new(form: f, attribute: :lien_dpo, input_type: :text_field, opts: {}, required: false) do |c|
-      - c.with_hint_content("Pour certaines démarches, veuillez indiquer soit le mail de contact de votre délégué à la protection des données, soit un lien web pointant vers les informations")
+      -# pf : lien spécifique proposé pour les services de l'administration
+      - c.with_hint_content("Pour certaines démarches, veuillez indiquer soit le mail de contact de votre délégué à la protection des données, soit un lien web pointant vers les informations.<br>Pour les services du pays, recopiez l'adresse: <br>https://api.dastra.eu/v1/client/data-subject-request/page?id=1192&key=9C2yjQRSM2lGliz14I0r746ZKnGsHjLcEba2YV99Exj".html_safe)
 
   - if Rails.application.config.ds_opendata_enabled
     .fr-fieldset__element
@@ -121,15 +122,17 @@
 
   .fr-fieldset__element
     = f.label :tags, 'Associez des thématiques à la démarche', class: 'fr-label'
-    %p.fr-hint-text Par des mots ou des expressions que vous attribuez aux démarches pour décrire leur contenu et pour les retrouver. Les tags sont partagés avec la communauté, ce qui vous permet de voir les tags attribués aux démarches créées par les autres administrateurs.
+    %p.fr-hint-text
+      Par des mots ou des expressions que vous attribuez aux démarches pour décrire leur contenu et pour les retrouver.
+      Les thèmes sont partagées avec la communauté, ce qui vous permet de voir les thèmes attribués aux démarches créées par les autres administrateurs.
     %react-fragment
       = render ReactComponent.new "ComboBox/MultiComboBox",
         id: "procedure_tags_combo",
-        items: Procedure.tags,
-        selected_keys: @procedure.tags,
-        name: 'procedure[tags][]',
+        items: ProcedureTag.order(:name).pluck(:name),
+        selected_keys: @procedure.procedure_tags.pluck(:name),
+        name: 'procedure[procedure_tag_names][]',
         value_separator: ',|;',
-        allows_custom_value: true,
+        allows_custom_value: false,
         'aria-label': 'Tags',
         'aria-describedby': 'procedure-tags'
 
@@ -223,7 +226,8 @@
           Démarche déclarative
           %span.fr-hint-text.fr-mt-0
             Par défaut, un dossier déposé peut être complété ou corrigé par le demandeur jusqu'à sa mise en instruction.<br>
-            Dans une démarche déclarative, une fois déposé, un dossier ne peut plus être modifié. Soit il passe immédiatement « en instruction » pour être traité, soit il est immédiatement « accepté ».
+            Dans une démarche déclarative, une fois déposé, un dossier ne peut plus être modifié. Soit il passe immédiatement « en instruction » pour être traité, soit il est immédiatement « accepté ».<br>
+            Si vous envisagez activer la règle du ”Silence Vaut Accord” ou “Silence Vaut Rejet“, laissez en démarche non déclarative.
         .fr-fieldset__element
           .fr-radio-group
             = f.radio_button :declarative_with_state, ''

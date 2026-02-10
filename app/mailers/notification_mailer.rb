@@ -47,10 +47,12 @@ class NotificationMailer < ApplicationMailer
 
   def send_accuse_lecture_notification(dossier)
     @dossier = dossier
-    @subject = "La décision a été rendue pour votre démarche #{@dossier.procedure.libelle.truncate_words(50)}"
+    @subject = "La décision a été rendue pour votre dossier n°#{@dossier.id} (#{@dossier.procedure.libelle.truncate_words(50)})"
     @email = @dossier.user_email_for(:notification)
 
     @logo_url = procedure_logo_url(@dossier.procedure)
+
+    configure_defaults_for_email(@email)
 
     mail(subject: @subject, to: @email, template_name: 'send_accuse_lecture_notification')
   end

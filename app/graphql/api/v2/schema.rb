@@ -20,6 +20,8 @@ class API::V2::Schema < GraphQL::Schema
       object.is_a?(DeletedDossier) ? object.to_typed_id : GraphQL::Schema::UniqueWithinType.encode('DeletedDossier', object.id)
     elsif object.is_a?(Hash)
       object[:id]
+    elsif object.is_a?(Column)
+      GraphQL::Schema::UniqueWithinType.encode('Column', object.h_id.fetch(:column_id))
     else
       object.to_typed_id
     end
@@ -79,11 +81,13 @@ class API::V2::Schema < GraphQL::Schema
     Types::Champs::RegionChampType,
     Types::Champs::RepetitionChampType,
     Types::Champs::SiretChampType,
+    Types::Champs::ReferentielDePolynesieChampType,
     Types::Champs::TextChampType,
     Types::Champs::TitreIdentiteChampType,
     Types::Champs::VisaChampType,
     Types::Champs::LexpolChampType,
     Types::Champs::EngagementJuridiqueChampType,
+    Types::Champs::YesNoChampType,
     Types::GeoAreas::ParcelleCadastraleType,
     Types::GeoAreas::SelectionUtilisateurType,
     Types::PersonneMoraleType,
@@ -99,6 +103,7 @@ class API::V2::Schema < GraphQL::Schema
     Types::Champs::Descriptor::COJOChampDescriptorType,
     Types::Champs::Descriptor::CommuneChampDescriptorType,
     Types::Champs::Descriptor::CommuneDePolynesieChampDescriptorType,
+    Types::Champs::Descriptor::ReferentielDePolynesieChampDescriptorType,
     Types::Champs::Descriptor::DateChampDescriptorType,
     Types::Champs::Descriptor::DatetimeChampDescriptorType,
     Types::Champs::Descriptor::DecimalNumberChampDescriptorType,
@@ -134,8 +139,18 @@ class API::V2::Schema < GraphQL::Schema
     Types::Champs::Descriptor::VisaChampDescriptorType,
     Types::Champs::Descriptor::LexpolChampDescriptorType,
     Types::Champs::Descriptor::YesNoChampDescriptorType,
-    Types::Champs::Descriptor::ExpressionReguliereChampDescriptorType,
-    Types::Champs::Descriptor::EngagementJuridiqueChampDescriptorType
+    Types::Champs::Descriptor::ReferentielChampDescriptorType,
+    Types::Champs::Descriptor::FormattedChampDescriptorType,
+    Types::Champs::Descriptor::EngagementJuridiqueChampDescriptorType,
+    Types::Columns::AttachmentsColumnType,
+    Types::Columns::BooleanColumnType,
+    Types::Columns::DateColumnType,
+    Types::Columns::DateTimeColumnType,
+    Types::Columns::DecimalColumnType,
+    Types::Columns::EnumColumnType,
+    Types::Columns::EnumsColumnType,
+    Types::Columns::IntegerColumnType,
+    Types::Columns::TextColumnType
 
   def self.unauthorized_object(error)
     # Add a top-level error to the response instead of returning nil:
@@ -146,7 +161,14 @@ class API::V2::Schema < GraphQL::Schema
     # Capture type errors in Sentry. Thouse errors are our responsability and usually linked to
     # instances of "bad data".
     Sentry.capture_exception(error, extra: ctx.query_info)
-    super
+
+    if error.is_a?(GraphQL::InvalidNullError)
+      execution_error = GraphQL::ExecutionError.new(error.message, ast_node: error.ast_node, extensions: { code: :invalid_null })
+      execution_error.path = ctx[:current_path]
+      ctx.errors << execution_error
+    else
+      super
+    end
   end
 
   rescue_from(ActiveRecord::RecordNotFound) do |_error, _object, _args, _ctx, field|
@@ -162,6 +184,7 @@ class API::V2::Schema < GraphQL::Schema
   use Timeout, max_seconds: 30
   use GraphQL::Batch
   use GraphQL::Backtrace
+  use GraphQL::Schema::Visibility
 
   if Rails.env.development?
     class LogQueryDepth < GraphQL::Analysis::AST::QueryDepth

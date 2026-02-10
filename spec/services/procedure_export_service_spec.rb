@@ -3,6 +3,8 @@
 require 'csv'
 
 describe ProcedureExportService do
+  include ZipHelpers
+
   let(:instructeur) { create(:instructeur) }
   let(:service) { ProcedureExportService.new(procedure, procedure.dossiers, instructeur, export_template) }
   let(:export_template) { nil }
@@ -39,7 +41,12 @@ describe ProcedureExportService do
     subject do
       service
         .to_xlsx
-        .open { |f| SimpleXlsxReader.open(f.path) }
+        .open { |f|
+          xlsx = SimpleXlsxReader.open(f.path)
+          # Slurp all data at once for each sheet
+          xlsx.sheets.each { |sheet| sheet.rows.slurp }
+          xlsx
+        }
     end
 
     let(:dossiers_sheet) { subject.sheets.first }
@@ -80,7 +87,7 @@ describe ProcedureExportService do
             "Dépôt pour un tiers",
             "Nom du mandataire",
             "Prénom du mandataire",
-            "Archivé",
+            "À archiver",
             "État du dossier",
             "Dernière mise à jour le",
             "Dernière mise à jour du dossier le",
@@ -138,7 +145,7 @@ describe ProcedureExportService do
         let!(:dossier) { create(:dossier, :en_instruction, :with_populated_champs, :with_individual, procedure:) }
         let!(:dossier_2) { create(:dossier, :en_instruction, :with_populated_champs, :with_individual, procedure:) }
         before do
-          dossier_2.champs_public
+          dossier_2.project_champs_public
             .find { _1.is_a? Champs::PieceJustificativeChamp }
             .piece_justificative_file
             .attach(io: StringIO.new("toto"), filename: "toto.txt", content_type: "text/plain")
@@ -157,6 +164,32 @@ describe ProcedureExportService do
           expect(dossiers_sheet.headers).to include('Centre De Coût')
         end
       end
+
+      context 'with BOM input' do
+        let(:procedure) { create(:procedure, :published, :for_individual, types_de_champ_public:) }
+        let!(:dossier) { create(:dossier, :en_instruction, :with_individual, procedure: procedure) }
+        let(:types_de_champ_public) { [{ type: :text, libelle: 'text' }] }
+        before { dossier.champs.first.update(value: user_input) }
+        let(:user_input) { "franco￾allemand" }
+        it 'can be read with BOM content' do
+          expect(dossiers_sheet).not_to be_nil
+          expect(dossiers_sheet.headers).to include('text')
+          expect(dossiers_sheet.data[0][dossiers_sheet.headers.index('text')]).to eq("franco allemand")
+        end
+      end
+
+      context 'with simili html input' do
+        let(:procedure) { create(:procedure, :published, :for_individual, types_de_champ_public:) }
+        let!(:dossier) { create(:dossier, :en_instruction, :with_individual, procedure: procedure) }
+        let(:types_de_champ_public) { [{ type: :text, libelle: 'text' }] }
+        before { dossier.champs.first.update(value: user_input) }
+        let(:user_input) { "Notation <A B C is OK" }
+        it 'is not escaped' do
+          expect(dossiers_sheet).not_to be_nil
+          expect(dossiers_sheet.headers).to include('text')
+          expect(dossiers_sheet.data[0][dossiers_sheet.headers.index('text')]).to eq("Notation <A B C is OK")
+        end
+      end
     end
 
     describe 'Etablissement sheet' do
@@ -173,7 +206,7 @@ describe ProcedureExportService do
           "Email",
           "Connecté via",
           "Entreprise raison sociale",
-          "Archivé",
+          "À archiver",
           "État du dossier",
           "Dernière mise à jour le",
           "Dernière mise à jour du dossier le",
@@ -229,7 +262,7 @@ describe ProcedureExportService do
             "Association date de création",
             "Association date de déclaration",
             "Association date de publication",
-            "Archivé",
+            "À archiver",
             "État du dossier",
             "Dernière mise à jour le",
             "Dernière mise à jour du dossier le",
@@ -334,7 +367,7 @@ describe ProcedureExportService do
           create(:dossier, :en_instruction, :with_populated_champs, :with_individual, procedure: procedure)
         ]
       end
-      let(:champ_repetition) { dossiers.first.champs_public.find { |champ| champ.type_champ == 'repetition' } }
+      let(:champ_repetition) { dossiers.first.project_champs_public.find { |champ| champ.type_champ == 'repetition' } }
 
       it 'should have sheets' do
         expect(subject.sheets.map(&:name)).to eq(['Dossiers', 'Etablissements', 'Avis', champ_repetition.type_de_champ.libelle_for_export])
@@ -399,7 +432,7 @@ describe ProcedureExportService do
 
       context 'with empty repetition' do
         before do
-          dossiers.flat_map { |dossier| dossier.champs_public.filter(&:repetition?) }.each do |champ|
+          dossiers.flat_map { |dossier| dossier.project_champs_public.filter(&:repetition?) }.each do |champ|
             Champ.where(row_id: champ.row_ids).destroy_all
           end
         end
@@ -443,9 +476,11 @@ describe ProcedureExportService do
         it 'returns a blob with custom filenames' do
           VCR.use_cassette('archive/new_file_to_get_200') do
             subject
-            File.write('tmp.zip', subject.download, mode: 'wb')
-            File.open('tmp.zip') do |fd|
-              files = ZipTricks::FileReader.read_zip_structure(io: fd)
+            Tempfile.create(['archive', '.zip']) do |temp_file|
+              temp_file.binmode
+              subject.download { |chunk| temp_file.write(chunk) }
+              temp_file.close
+
               base_fn = "export"
               structure = [
                 "#{base_fn}/",
@@ -453,9 +488,8 @@ describe ProcedureExportService do
                 "#{base_fn}/dossier-#{dossier.id}/piece_justificative-#{dossier.id}-01.txt",
                 "#{base_fn}/dossier-#{dossier.id}/export-#{dossier.id}.pdf"
               ]
-              expect(files.map(&:filename)).to match_array(structure)
+              expect(read_zip_entries(temp_file.path)).to match_array(structure)
             end
-            FileUtils.remove_entry_secure('tmp.zip')
           end
         end
       end
@@ -471,9 +505,11 @@ describe ProcedureExportService do
           VCR.use_cassette('archive/new_file_to_get_200') do
             subject
 
-            File.write('tmp.zip', subject.download, mode: 'wb')
-            File.open('tmp.zip') do |fd|
-              files = ZipTricks::FileReader.read_zip_structure(io: fd)
+            Tempfile.create(['archive', '.zip']) do |temp_file|
+              temp_file.binmode
+              subject.download { |chunk| temp_file.write(chunk) }
+              temp_file.close
+
               base_fn = 'export'
               structure = [
                 "#{base_fn}/",
@@ -482,10 +518,8 @@ describe ProcedureExportService do
                 "#{base_fn}/dossier-#{dossier.id}/#{ActiveStorage::DownloadableFile.timestamped_filename(ActiveStorage::Attachment.where(record_type: "Champ").first)}",
                 "#{base_fn}/dossier-#{dossier.id}/#{ActiveStorage::DownloadableFile.timestamped_filename(dossier_exports.first.first)}"
               ]
-              expect(files.size).to eq(structure.size)
-              expect(files.map(&:filename)).to match_array(structure)
+              expect(read_zip_entries(temp_file.path)).to match_array(structure)
             end
-            FileUtils.remove_entry_secure('tmp.zip')
           end
         end
       end
@@ -503,7 +537,7 @@ describe ProcedureExportService do
     end
 
     let(:dossier) { create(:dossier, :en_instruction, :with_populated_champs, :with_individual, procedure: procedure) }
-    let(:champ_carte) { dossier.champs_public.find(&:carte?) }
+    let(:champ_carte) { dossier.project_champs_public.find(&:carte?) }
     let(:properties) { subject['features'].first['properties'] }
 
     before do

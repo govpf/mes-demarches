@@ -6,7 +6,7 @@
           .flex.flex-gap-2{ class: class_names("attachment-error": attachment.virus_scanner_error?) }
             - if user_can_destroy?
               = render NestedForms::OwnedButtonComponent.new(formaction: destroy_attachment_path, http_method: :delete, opt: {class: "fr-btn fr-btn--tertiary fr-btn--sm fr-icon-delete-line", title: t(".delete_file", filename: attachment.filename)}) do
-                = t('.delete')
+                = t('.delete_file', filename: attachment.filename)
 
               - if downloadable?(attachment)
                 = render Dsfr::DownloadComponent.new(attachment: attachment)
@@ -24,7 +24,7 @@
         .flex.flex-gap-2{ class: class_names("attachment-error": attachment.virus_scanner_error?) }
           - if user_can_destroy?
             = render NestedForms::OwnedButtonComponent.new(formaction: destroy_attachment_path, http_method: :delete, opt: {class: "fr-btn fr-btn--tertiary fr-btn--sm fr-icon-delete-line", title: t(".delete_file", filename: attachment.filename)}) do
-              = t('.delete')
+              = t('.delete_file', filename: attachment.filename)
 
           - if downloadable?(attachment)
             = render Dsfr::DownloadComponent.new(attachment:)
@@ -37,8 +37,8 @@
         - if error?(attachment)
           %p.fr-error-text= error_message(attachment)
 
-  - if first? && !persisted?
-    %p.fr-hint-text.fr-mb-1w
+  - if show_hint?
+    %p.fr-hint-text.fr-mb-1w{ id: describedby_hint_id }
       - if max_file_size.present?
         = t('.max_file_size', max_file_size: number_to_human_size(max_file_size))
       - if allowed_formats.present?

@@ -159,8 +159,10 @@ def add_single_champ(pdf, champ)
   return if champ.conditional? && !champ.visible?
 
   case champ.type
-  when 'Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp'
+  when 'Champs::ExplicationChamp'
     return
+  when 'Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp'
+    format_in_2_lines(pdf, tdc.libelle, champ.piece_justificative_file.map { |pj| "- #{pj.filename}" }.join("\n"))
   when 'Champs::HeaderSectionChamp'
     libelle = if @dossier.auto_numbering_section_headers_for?(tdc)
       "#{@dossier.index_for_section_header(tdc)}. #{tdc.libelle}"
@@ -169,8 +171,6 @@ def add_single_champ(pdf, champ)
     end
 
     add_section_title(pdf, libelle)
-  when 'Champs::ExplicationChamp'
-    format_in_2_lines(pdf, tdc.libelle, strip_tags(tdc.description))
   when 'Champs::CarteChamp'
     pdf.pad_bottom(4) do
       pdf.font 'marianne', style: :bold, size: 12 do
@@ -180,6 +180,13 @@ def add_single_champ(pdf, champ)
       pdf.indent(default_margin) do
         champ.geo_areas.each do |area|
           pdf.text "- #{clean_string(area.label)}"
+          if area.description.present?
+            pdf.indent(8) do
+              pdf.pad_bottom(4) do
+                pdf.text clean_string(area.description)
+              end
+            end
+          end
         end
       end
     end
@@ -190,13 +197,13 @@ def add_single_champ(pdf, champ)
     if champ.etablissement.present?
       add_identite_etablissement(pdf, champ.etablissement)
     end
-  when 'Champs::NumberChamp'
+  when 'Champs::NumberChamp', 'Champs::IntegerNumberChamp', 'Champs::DecimalNumberChamp'
     value = champ.blank? ? 'Non communiqué' : number_with_delimiter(champ.to_s)
     format_in_2_lines(pdf, tdc.libelle, value)
   when 'Champs::AddressChamp'
     value = champ.blank? ? 'Non communiqué' : champ.to_s
     format_in_2_lines(pdf, tdc.libelle, value)
-    if champ.full_address?
+    if champ.full_address? && champ.france?
       format_in_2_lines(pdf, "Code INSEE :", champ.commune&.fetch(:code))
       format_in_2_lines(pdf, "Code Postal :", champ.commune&.fetch(:postal_code))
       format_in_2_lines(pdf, "Département :", champ.departement_code_and_name)
@@ -215,14 +222,12 @@ def add_single_champ(pdf, champ)
   end
 end
 
-def add_champs(pdf, types_de_champ)
-  types_de_champ.each do |tdc|
-    champ = @dossier.project_champ(tdc, nil)
-    if tdc.repetition?
-      inner_types_de_champ = @dossier.revision.children_of(tdc)
-      champ.row_ids.each do |row_id|
-        inner_types_de_champ.each do |inner_tdc|
-          add_single_champ(pdf, @dossier.project_champ(inner_tdc, row_id))
+def add_champs(pdf, champs)
+  champs.each do |champ|
+    if champ.repetition?
+      champ.rows.each do |row|
+        row.each do |champ|
+          add_single_champ(pdf, champ)
         end
         pdf.move_down(default_margin)
       end
@@ -337,9 +342,11 @@ prawn_document(page_size: "A4") do |pdf|
     italic: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf')
   })
   pdf.font 'marianne'
+  pdf.fallback_fonts = ['Helvetica']
 
   pdf.pad_bottom(40) do
     pdf.image DOSSIER_PDF_EXPORT_LOGO_SRC, width: 300, position: :center
+    add_pdf_draft_warning(pdf, @dossier)
   end
 
   pdf.move_down(40)
@@ -371,11 +378,11 @@ prawn_document(page_size: "A4") do |pdf|
   end
 
   add_title(pdf, 'Formulaire')
-  add_champs(pdf, @dossier.revision.types_de_champ_public)
+  add_champs(pdf, @dossier.project_champs_public)
 
   if @acls[:include_infos_administration] && @dossier.has_annotations?
     add_title(pdf, "Annotations privées")
-    add_champs(pdf, @dossier.revision.types_de_champ_private)
+    add_champs(pdf, @dossier.project_champs_private)
   end
 
   if @acls[:include_infos_administration] && @dossier.avis.present?
@@ -400,7 +407,7 @@ prawn_document(page_size: "A4") do |pdf|
 
   if @acls[:include_messagerie] && @dossier.commentaires.present?
     add_title(pdf, 'Messagerie')
-    @dossier.commentaires.each do |commentaire|
+    @dossier.commentaires_chronological.each do |commentaire|
       add_message(pdf, commentaire)
     end
   end

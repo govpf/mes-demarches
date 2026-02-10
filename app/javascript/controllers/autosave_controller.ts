@@ -1,13 +1,13 @@
-import { httpRequest, ResponseError, getConfig } from '@utils';
-import { matchInputElement, isButtonElement } from '@coldwired/utils';
+import { isButtonElement, matchInputElement } from '@coldwired/utils';
+import { getConfig, httpRequest, ResponseError } from '@utils';
 
-import { ApplicationController } from './application_controller';
 import { AutoUpload } from '../shared/activestorage/auto-upload';
 import {
-  FileUploadError,
+  ERROR_CODE_READ,
   FAILURE_CLIENT,
-  ERROR_CODE_READ
+  FileUploadError
 } from '../shared/activestorage/file-upload-error';
+import { ApplicationController } from './application_controller';
 
 const {
   autosave: { debounce_delay }
@@ -82,15 +82,17 @@ export class AutosaveController extends ApplicationController {
         // Wait next tick so champs having JS can interact
         // with form elements before extracting form data.
         setTimeout(() => {
-          this.enqueueAutosaveRequest();
+          this.enqueueAutosaveWithValidationRequest();
           this.showConditionnalSpinner(target);
         }, 0);
       },
-      inputable: (target) => this.enqueueOnInput(target, true),
+      inputable: (target) => {
+        this.enqueueOnInput(target);
+      },
       hidden: (target) => {
         // In comboboxes we dispatch a "change" event on hidden inputs to trigger autosave.
         // We want to debounce them.
-        this.enqueueOnInput(target, true);
+        this.enqueueOnInput(target);
       }
     });
   }
@@ -100,29 +102,21 @@ export class AutosaveController extends ApplicationController {
       inputable: (target) => {
         // Ignore input from React comboboxes. We trigger "change" events on them when selection is changed.
         if (target.getAttribute('role') != 'combobox') {
-          const validate = this.needsValidation(target);
-          this.enqueueOnInput(target, validate);
+          this.enqueueOnInput(target);
         }
       }
     });
   }
 
-  private enqueueOnInput(
-    target: HTMLInputElement | HTMLTextAreaElement,
-    validate: boolean
-  ) {
+  private enqueueOnInput(target: HTMLInputElement | HTMLTextAreaElement) {
     this.globalDispatch('autosave:input');
 
-    const callback = validate
-      ? this.enqueueAutosaveWithValidationRequest
-      : this.enqueueAutosaveRequest;
-    this.debounce(callback, AUTOSAVE_DEBOUNCE_DELAY);
+    this.debounce(
+      this.enqueueAutosaveWithValidationRequest,
+      AUTOSAVE_DEBOUNCE_DELAY
+    );
 
     this.showConditionnalSpinner(target);
-  }
-
-  private needsValidation(target: HTMLElement) {
-    return target.getAttribute('aria-invalid') == 'true';
   }
 
   private showConditionnalSpinner(
@@ -154,7 +148,7 @@ export class AutosaveController extends ApplicationController {
 
   private didRequestRetry() {
     if (this.#needsRetry) {
-      this.enqueueAutosaveRequest();
+      this.enqueueAutosaveWithValidationRequest();
     }
   }
 
@@ -167,7 +161,10 @@ export class AutosaveController extends ApplicationController {
     this.#pendingPromiseCount -= 1;
     if (this.#pendingPromiseCount == 0) {
       this.globalDispatch('autosave:end');
-      clearTimeout(this.#spinnerTimeoutId);
+      if (this.#spinnerTimeoutId) {
+        clearTimeout(this.#spinnerTimeoutId);
+        this.#spinnerTimeoutId = undefined;
+      }
     }
   }
 
@@ -184,7 +181,7 @@ export class AutosaveController extends ApplicationController {
       .catch((e) => {
         const error = e as FileUploadError;
 
-        this.globalDispatch('autosave:error');
+        this.globalDispatch('autosave:error', { error });
 
         // Report unexpected client errors to Sentry.
         // (But ignore usual client errors, or errors we can monitor better on the server side.)
@@ -198,18 +195,6 @@ export class AutosaveController extends ApplicationController {
       .then(() => {
         this.globalDispatch('autosave:end');
       });
-  }
-
-  // Add a new autosave request to the queue.
-  // It will be started after the previous one finishes (to prevent older form data
-  // to overwrite newer data if the server does not respond in order.)
-  private enqueueAutosaveRequest() {
-    this.#latestPromise = this.#latestPromise.finally(() =>
-      this.sendAutosaveRequest()
-        .then(() => this.didSucceed())
-        .catch((error) => this.didFail(error))
-    );
-    this.didEnqueue();
   }
 
   private enqueueAutosaveWithValidationRequest() {
@@ -254,7 +239,10 @@ export class AutosaveController extends ApplicationController {
     return httpRequest(form.action, {
       method: 'post',
       body: formData,
-      headers: { 'x-http-method-override': 'PATCH' },
+      headers: {
+        'x-http-method-override':
+          form.dataset.turboMethod?.toUpperCase() || 'PATCH'
+      },
       signal: this.#abortController.signal,
       timeout: AUTOSAVE_TIMEOUT_DELAY
     }).turbo();

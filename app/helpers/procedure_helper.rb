@@ -1,16 +1,14 @@
 # frozen_string_literal: true
 
 module ProcedureHelper
-  def procedure_libelle(procedure)
-    parts = procedure.brouillon? ? [procedure_badge(procedure)] : []
-    parts << procedure.libelle
-    safe_join(parts, ' ')
+  def procedure_libelle_with_number(procedure)
+    "#{procedure.libelle} - n°#{procedure.id} "
   end
 
-  def procedure_badge(procedure)
-    return nil unless procedure.brouillon?
-
-    tag.span(t('helpers.procedure.testing_procedure'), class: 'fr-badge fr-badge--sm')
+  def procedure_badge(procedure, alignment_class = '')
+    if procedure.close? || procedure.depubliee? || procedure.brouillon?
+      tag.span(t("activerecord.attributes.procedure.aasm_state.#{procedure.aasm_state}"), class: "fr-badge fr-badge--sm #{alignment_class}")
+    end
   end
 
   def procedure_publish_label(procedure, key)
@@ -71,5 +69,21 @@ module ProcedureHelper
       end
     end
     admin_procedures_path(statut:)
+  end
+
+  def can_recreate_a_dossier_from_a_procedure?(procedure)
+    procedure.closing_reason_internal_procedure? &&
+    procedure.replaced_by_procedure.present? &&
+    !procedure.replaced_by_procedure.discarded? &&
+    procedure.replaced_by_procedure.path.present? # TODO: to remove when all path are added, cf: https://github.com/demarches-simplifiees/demarches-simplifiees.fr/pull/11453
+  end
+
+  def procedure_has_unseen_revisions?(instructeur_procedure)
+    return false if instructeur_procedure.procedure.published_revision_id.blank?
+
+    last_seen_id = instructeur_procedure.last_revision_seen_id
+    return false if last_seen_id.blank?
+
+    last_seen_id < instructeur_procedure.procedure.published_revision_id
   end
 end

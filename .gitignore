@@ -27,6 +27,7 @@ storage/
 /node_modules
 /yarn-error.log
 /.vscode
+/.zed
 /.idea
 /public/assets
 /spec/support/spec_config.local.rb

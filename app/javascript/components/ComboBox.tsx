@@ -10,15 +10,15 @@ import {
   Button,
   TagGroup,
   TagList,
-  Tag
+  Tag,
+  Virtualizer,
+  ListLayout
 } from 'react-aria-components';
 import { useMemo, useRef, createContext, useContext } from 'react';
 import type { RefObject } from 'react';
-import { findOrCreateContainerElement } from '@coldwired/react';
 import * as s from 'superstruct';
 
 import {
-  useLabelledBy,
   useDispatchChangeEvent,
   useMultiList,
   useSingleList,
@@ -34,31 +34,48 @@ import {
   RemoteComboBoxProps
 } from './react-aria/props';
 
-const getPortal = () => findOrCreateContainerElement('rac-portal');
-
 export function ComboBox({
   children,
   label,
   description,
   className,
   inputRef,
+  isLoading,
+  isOpen,
+  placeholder,
   ...props
-}: ComboBoxProps & { inputRef?: RefObject<HTMLInputElement> }) {
+}: ComboBoxProps & {
+  inputRef?: RefObject<HTMLInputElement | null>;
+  isOpen?: boolean;
+  placeholder?: string;
+}) {
   return (
     <AriaComboBox
       {...props}
       className={`fr-ds-combobox ${className ?? ''}`}
       shouldFocusWrap={true}
     >
-      {label ? <Label className="fr-label">{label}</Label> : null}
-      {description ? (
-        <Text slot="description" className="fr-hint-text">
-          {description}
-        </Text>
+      {label ? (
+        <Label className="fr-label">
+          {label}
+          {description ? (
+            <Text slot="description" className="fr-hint-text fr-mb-1w">
+              {description}
+            </Text>
+          ) : null}
+        </Label>
       ) : null}
       <div className="fr-ds-combobox__input" style={{ position: 'relative' }}>
-        <Input className="fr-select fr-autocomplete" ref={inputRef} />
+        <Input
+          className="fr-select fr-autocomplete"
+          ref={inputRef}
+          aria-busy={isLoading}
+          placeholder={placeholder || undefined}
+          translate="no"
+        />
         <Button
+          aria-haspopup="false"
+          aria-label=""
           style={{
             width: '40px',
             height: '100%',
@@ -71,17 +88,25 @@ export function ComboBox({
           {' '}
         </Button>
       </div>
-      <Popover
-        className="fr-ds-combobox__menu fr-menu"
-        UNSTABLE_portalContainer={getPortal()!}
-      >
-        <ListBox className="fr-menu__list">{children}</ListBox>
+      <Popover className="fr-ds-combobox__menu fr-menu" isOpen={isOpen}>
+        <Virtualizer layout={ListLayout}>
+          <ListBox className="fr-menu__list">{children}</ListBox>
+        </Virtualizer>
       </Popover>
     </AriaComboBox>
   );
 }
 
 export function ComboBoxItem(props: ListBoxItemProps<Item>) {
+  if (props.id == 'combo-alert-message') {
+    return (
+      <ListBoxItem
+        {...props}
+        isDisabled={true}
+        className="fr-menu__item fr-badge fr-badge--info fr-badge--no-text-transform width-100"
+      />
+    );
+  }
   return <ListBoxItem {...props} className="fr-menu__item" />;
 }
 
@@ -90,9 +115,9 @@ export function SingleComboBox({
   ...maybeProps
 }: SingleComboBoxProps) {
   const {
-    'aria-labelledby': ariaLabelledby,
     items: defaultItems,
     selectedKey: defaultSelectedKey,
+    placeholder,
     emptyFilterKey,
     name,
     formValue,
@@ -101,7 +126,6 @@ export function SingleComboBox({
     ...props
   } = useMemo(() => s.create(maybeProps, SingleComboBoxProps), [maybeProps]);
 
-  const labelledby = useLabelledBy(props.id, ariaLabelledby);
   const { ref, dispatch } = useDispatchChangeEvent();
 
   const { selectedItem, onReset, ...comboBoxProps } = useSingleList({
@@ -114,8 +138,8 @@ export function SingleComboBox({
   return (
     <>
       <ComboBox
-        aria-labelledby={labelledby}
         menuTrigger="focus"
+        placeholder={placeholder}
         {...comboBoxProps}
         {...props}
       >
@@ -143,19 +167,19 @@ export function SingleComboBox({
 
 export function MultiComboBox(maybeProps: MultiComboBoxProps) {
   const {
-    'aria-labelledby': ariaLabelledby,
     items: defaultItems,
     selectedKeys: defaultSelectedKeys,
+    placeholder,
     name,
     form,
     formValue,
     allowsCustomValue,
     valueSeparator,
     className,
+    focusOnSelect,
     ...props
   } = useMemo(() => s.create(maybeProps, MultiComboBoxProps), [maybeProps]);
 
-  const labelledby = useLabelledBy(props.id, ariaLabelledby);
   const { ref, dispatch } = useDispatchChangeEvent();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -168,12 +192,17 @@ export function MultiComboBox(maybeProps: MultiComboBoxProps) {
   } = useMultiList({
     defaultItems,
     defaultSelectedKeys,
-    onChange: dispatch,
     formValue,
     allowsCustomValue,
     valueSeparator,
     focusInput: () => {
       inputRef.current?.focus();
+    },
+    onChange: () => {
+      dispatch();
+      if (focusOnSelect) {
+        document.getElementById(focusOnSelect)?.focus();
+      }
     }
   });
   const formResetRef = useOnFormReset(onReset);
@@ -198,10 +227,10 @@ export function MultiComboBox(maybeProps: MultiComboBoxProps) {
         </TagGroup>
       ) : null}
       <ComboBox
-        aria-labelledby={labelledby}
         allowsCustomValue={allowsCustomValue}
         inputRef={inputRef}
         menuTrigger="focus"
+        placeholder={placeholder}
         {...comboBoxProps}
         {...props}
       >
@@ -242,10 +271,9 @@ export function RemoteComboBox({
   ...maybeProps
 }: RemoteComboBoxProps) {
   const {
-    'aria-labelledby': ariaLabelledby,
     items: defaultItems,
     selectedKey: defaultSelectedKey,
-    allowsCustomValue,
+    placeholder,
     minimumInputLength,
     limit,
     debounce,
@@ -257,7 +285,6 @@ export function RemoteComboBox({
     ...props
   } = useMemo(() => s.create(maybeProps, RemoteComboBoxProps), [maybeProps]);
 
-  const labelledby = useLabelledBy(props.id, ariaLabelledby);
   const { ref, dispatch } = useDispatchChangeEvent();
 
   const load = useMemo(
@@ -267,24 +294,26 @@ export function RemoteComboBox({
         : loader,
     [loader, minimumInputLength, limit, coerce]
   );
-  const { selectedItem, onReset, ...comboBoxProps } = useRemoteList({
-    allowsCustomValue,
-    defaultItems,
-    defaultSelectedKey,
-    debounce,
-    load,
-    onChange: (item) => {
-      onChange?.(item);
-      dispatch();
-    }
-  });
+  const { selectedItem, onReset, shouldShowPopover, ...comboBoxProps } =
+    useRemoteList({
+      defaultItems,
+      defaultSelectedKey,
+      debounce,
+      load,
+      onChange: (item) => {
+        onChange?.(item);
+        dispatch();
+      }
+    });
 
   return (
     <>
       <ComboBox
-        allowsEmptyCollection={comboBoxProps.inputValue.length > 0}
-        allowsCustomValue={allowsCustomValue}
-        aria-labelledby={labelledby}
+        placeholder={placeholder}
+        allowsEmptyCollection={
+          comboBoxProps.inputValue.length >= (minimumInputLength ?? 0)
+        }
+        isOpen={shouldShowPopover}
         {...comboBoxProps}
         {...props}
       >
@@ -295,9 +324,7 @@ export function RemoteComboBox({
           <SelectedItemProvider value={selectedItem}>
             {name ? (
               <ComboBoxValueSlot
-                field={
-                  formValue == 'text' || allowsCustomValue ? 'label' : 'value'
-                }
+                field={formValue == 'text' ? 'label' : 'value'}
                 name={name}
                 form={form}
                 onReset={onReset}

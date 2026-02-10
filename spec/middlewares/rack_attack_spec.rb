@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 describe Rack::Attack, type: :request do
-  let(:limit) { 5 }
-  let(:period) { 20 }
+  let(:limit) { 30 }
+  let(:period) { 15 }
   let(:ip) { "1.2.3.4" }
 
   before(:each) do
@@ -43,6 +43,7 @@ describe Rack::Attack, type: :request do
     context 'when the ip is whitelisted' do
       before do
         allow(IPService).to receive(:ip_trusted?).and_return(true)
+        allow(ProConnectService).to receive(:enabled?).and_return(false)
         allow_any_instance_of(Users::SessionsController).to receive(:create).and_return(:ok)
       end
 

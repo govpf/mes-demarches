@@ -29,11 +29,34 @@ RSpec.describe Attachment::EditComponent, type: :component do
     end
 
     it 'renders max size' do
-      expect(subject).to have_content(/Taille maximale :\s+20 Mo/)
+      expect(subject).to have_content(/Taille maximale autorisée :\s+20 Mo/)
     end
 
     it 'renders allowed formats' do
       expect(subject).to have_content(/Formats supportés : jpeg, png/)
+    end
+
+    describe 'aria describedby' do
+      let(:describedby_attribute) { page.find('input')['aria-describedby'].split }
+
+      it 'targets describedby_id and pj-hint' do
+        subject
+
+        hint_element = page.find('.fr-hint-text')
+        expect(hint_element['id']).to eq("#{champ.input_id}-pj-hint")
+
+        expect(describedby_attribute).to eq([champ.describedby_id, "#{champ.input_id}-pj-hint"])
+      end
+
+      context 'when there is an error' do
+        before { champ.errors.add(:value, 'is invalid') }
+
+        it 'targets error_id' do
+          subject
+
+          expect(describedby_attribute).to eq([champ.describedby_id, "#{champ.input_id}-pj-hint", champ.error_id])
+        end
+      end
     end
   end
 
@@ -76,7 +99,7 @@ RSpec.describe Attachment::EditComponent, type: :component do
     end
 
     it 'renders max size for first index' do
-      expect(subject).to have_content(/Taille maximale :\s+20 Mo/)
+      expect(subject).to have_content(/Taille maximale autorisée :\s+20 Mo/)
     end
 
     context 'when index is not 0' do

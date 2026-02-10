@@ -7,9 +7,12 @@ fr:
     attributes:
       service: &service
         adresse: 'Adresse postale'
-        email: 'Email de contact'
+        email: 'Adresse électronique de contact'
         telephone: 'Téléphone'
         nom: Nom du service
+        faq_link: Lien vers une page d'aide ou FAQ
+        contact_link: Lien vers une page ou formulaire de contact
+        other_contact_info: Précisions
         organisme: Organisme(s)
         siret: Numéro TAHITI
         hints:
@@ -18,27 +21,43 @@ fr:
             Exemple : cellule subventions, Direction de la santé
             Exemple : Services techniques, commune d'Uturoa
           organisme: |
-            Indiquez les organismes depuis l\u2019échelon territorial jusqu\u2019au ministère séparés par une virgule.
+            Indiquez les organismes depuis l’échelon territorial jusqu’au ministère séparés par une virgule.
             Exemple : Ministère de la Santé, chargé de la Prévention et de la Protection sociale généralisée
             Exemple : Raiatea, Iles sous le vent
+          faq_link: |
+            Indiquez l'url d'une page présentant des contenus d'aide et/ou questions-réponses permettant d'orienter les usagers.
+            Exemple : https://www.mairie-de-mours.fr/faq
+          contact_link: |
+            Indiquez l'url d'une page présentant vos coordonnées et/ou un formulaire de contact en ligne.
+            Exemple : https://www.mairie-de-mours.fr/contact
           email: |
-            Indiquez une adresse email valide qui permettra de recevoir et de répondre aux questions des usagers.
+            Indiquez une adresse électronique valide qui permettra de recevoir et de répondre aux questions des usagers.
             Exemple : contact.service@administration.gov.pf
           telephone: "Indiquez le numéro de téléphone du service valide le plus à même de fournir des réponses pertinentes à vos usagers. Exemple : 40 41 42 43"
           horaires: |
             Indiquez les jours ouvrables et les horaires où les usagers peuvent vous joindre.
             Exemple : Du lundi au vendredi de 7h30 à 15h30, le vendredi de 7h30 à 14h30.
           adresse: |
-            Indiquez l\u2019adresse à laquelle un usager peut vous contacter, par exemple s\u2019il n\u2019est pas en capacité de compléter son formulaire en ligne.
-
+            Indiquez l’adresse à laquelle un usager peut vous contacter, par exemple s’il n’est pas en capacité de compléter son formulaire en ligne.
+          other_contact_info: |
+            Autres indications éventuelles que vous souhaitez fournir aux usagers concernant les modalités de contact du service.
+      contact_information: *service
     errors:
       models:
         service:
+          at_least_one_contact: Veuillez renseigner au moins un des deux champs de contact
           attributes:
             siret:
-              format: "Le numéro TAHITI %{message}"
-              length: "doit commencer par une lettre ou un chiffre, suivi de 5 chiffres"
-              checksum: "est invalide"
+              format: 'Le numéro TAHITI %{message}'
+              length: 'doit commencer par une lettre ou un chiffre, suivi de 5 chiffres'
+              checksum: 'comporte une erreur de saisie. Corrigez-la.'
+              not_prefillable: 'Impossible de préremplir les informations pour ce numéro TAHITI, veuillez les saisir manuellement'
+            contact_link:
+              format: ""
+            email:
+              format: "%{message}"
+
+
   type_organisme:
     administration_centrale: 'Administration centrale'
     association: 'Association'

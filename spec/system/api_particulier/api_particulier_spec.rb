@@ -62,7 +62,7 @@ describe 'fetch API Particulier Data', js: true do
       find('#api-particulier').click
       expect(page).to have_current_path(admin_procedure_api_particulier_path(procedure))
 
-      find('#add-jeton').click
+      find('#edit-jeton').click
       expect(page).to have_current_path(admin_procedure_api_particulier_jeton_path(procedure))
 
       fill_in 'procedure_api_particulier_token', with: expected_token
@@ -154,7 +154,7 @@ describe 'fetch API Particulier Data', js: true do
       end
 
       within('#pole_emploi-contact') do
-        check('email')
+        check('adresse électronique')
         check('téléphone')
         check('téléphone 2')
       end
@@ -268,7 +268,6 @@ describe 'fetch API Particulier Data', js: true do
         visit commencer_path(path: procedure.path)
         click_on 'Commencer la démarche'
 
-        find('label', text: 'Monsieur').click
         within('.individual-infos') do
           fill_in('Prénom', with: 'prenom')
           fill_in('Nom', with: 'nom')
@@ -282,7 +281,7 @@ describe 'fetch API Particulier Data', js: true do
         fill_in 'Le code postal', with: 'wrong_code'
 
         dossier = Dossier.last
-        cnaf_champ = dossier.champs_public.find(&:cnaf?)
+        cnaf_champ = dossier.project_champs_public.find(&:cnaf?)
 
         wait_until { cnaf_champ.reload.code_postal == 'wrong_code' }
 
@@ -292,8 +291,8 @@ describe 'fetch API Particulier Data', js: true do
         fill_in 'Le code postal', with: code_postal
         wait_until { cnaf_champ.reload.external_id.present? }
 
-        click_on 'Déposer le dossier'
         perform_enqueued_jobs
+        click_on 'Déposer le dossier'
 
         expect(page).to have_current_path(merci_dossier_path(Dossier.last))
 
@@ -308,7 +307,6 @@ describe 'fetch API Particulier Data', js: true do
         login_as instructeur.user, scope: :user
 
         visit instructeur_dossier_path(procedure, dossier)
-
         expect(page).to have_content('code postal et ville 92110 Clichy')
         expect(page).to have_content('identité Mr SNOW Eric')
         expect(page).to have_content('complément d’identité ne connait rien')
@@ -316,9 +314,9 @@ describe 'fetch API Particulier Data', js: true do
         expect(page).to have_content('pays FRANCE')
         expect(page).to have_content('complément d’identité géographique au nord de paris')
         expect(page).to have_content('lieu-dit glagla')
-        expect(page).to have_content('ERIC SNOW masculin 07/01/1991')
-        expect(page).to have_content('SANSA SNOW féminin 15/01/1992')
-        expect(page).to have_content('PAUL SNOW masculin 04/01/2018')
+        expect(page).to have_content('ERIC SNOW masculin 07 janvier 1991')
+        expect(page).to have_content('SANSA SNOW féminin 15 janvier 1992')
+        expect(page).to have_content('PAUL SNOW masculin 04 janvier 2018')
         expect(page).to have_content('1856 6 2021')
       end
     end
@@ -330,7 +328,6 @@ describe 'fetch API Particulier Data', js: true do
         visit commencer_path(path: procedure.path)
         click_on 'Commencer la démarche'
 
-        find('label', text: 'Monsieur').click
         within('.individual-infos') do
           fill_in('Prénom', with: 'Georges')
           fill_in('Nom', with: 'Moustaki')
@@ -342,7 +339,7 @@ describe 'fetch API Particulier Data', js: true do
         fill_in "Identifiant", with: 'wrong code'
 
         dossier = Dossier.last
-        pole_emploi_champ = dossier.champs_public.find(&:pole_emploi?)
+        pole_emploi_champ = dossier.project_champs_public.find(&:pole_emploi?)
 
         wait_until { pole_emploi_champ.reload.identifiant == 'wrong code' }
 
@@ -352,8 +349,8 @@ describe 'fetch API Particulier Data', js: true do
         fill_in "Identifiant", with: identifiant
         wait_until { pole_emploi_champ.reload.external_id.present? }
 
-        click_on 'Déposer le dossier'
         perform_enqueued_jobs
+        click_on 'Déposer le dossier'
 
         expect(page).to have_current_path(merci_dossier_path(Dossier.last))
 
@@ -383,7 +380,7 @@ describe 'fetch API Particulier Data', js: true do
         expect(page).to have_content('voie 3 rue des Huttes')
         expect(page).to have_content('nom MOUSTAKI')
 
-        expect(page).to have_content('email georges@moustaki.fr')
+        expect(page).to have_content('adresse électronique georges@moustaki.fr')
         expect(page).to have_content('téléphone 0629212921')
 
         expect(page).to have_content("date d’inscription 3 mai 1965")
@@ -394,7 +391,7 @@ describe 'fetch API Particulier Data', js: true do
 
         expect(page).not_to have_content('téléphone 2')
         expect(page).not_to have_content('destinataire')
-        expect(page).not_to have_content('adresse')
+        expect(page).not_to have_content('complément d’identité')
         expect(page).not_to have_content('distribution')
       end
     end
@@ -406,7 +403,6 @@ describe 'fetch API Particulier Data', js: true do
         visit commencer_path(path: procedure.path)
         click_on 'Commencer la démarche'
 
-        find('label', text: 'Madame').click
         within('.individual-infos') do
           fill_in('Prénom', with: 'Angela Claire Louise')
           fill_in('Nom', with: 'Dubois')
@@ -418,7 +414,7 @@ describe 'fetch API Particulier Data', js: true do
         fill_in "INE", with: 'wrong code'
 
         dossier = Dossier.last
-        mesri_champ = dossier.champs_public.find(&:mesri?)
+        mesri_champ = dossier.project_champs_public.find(&:mesri?)
 
         wait_until { mesri_champ.reload.ine == 'wrong code' }
         clear_enqueued_jobs
@@ -427,8 +423,8 @@ describe 'fetch API Particulier Data', js: true do
         VCR.use_cassette('api_particulier/success/etudiants') do
           fill_in "INE", with: ine
           wait_until { mesri_champ.reload.external_id.present? }
-          click_on 'Déposer le dossier'
           perform_enqueued_jobs
+          click_on 'Déposer le dossier'
         end
         expect(page).to have_current_path(merci_dossier_path(Dossier.last))
 
@@ -472,7 +468,6 @@ describe 'fetch API Particulier Data', js: true do
         visit commencer_path(path: procedure.path)
         click_on 'Commencer la démarche'
 
-        find('label', text: 'Madame').click
         within('.individual-infos') do
           fill_in('Prénom', with: 'Karine')
           fill_in('Nom', with: 'FERRI')
@@ -485,7 +480,7 @@ describe 'fetch API Particulier Data', js: true do
         fill_in "La référence d’avis d’imposition", with: 'wrong_code'
 
         dossier = Dossier.last
-        dgfip_champ = dossier.champs_public.find(&:dgfip?)
+        dgfip_champ = dossier.project_champs_public.find(&:dgfip?)
 
         wait_until { dgfip_champ.reload.reference_avis == 'wrong_code' }
 
@@ -495,8 +490,8 @@ describe 'fetch API Particulier Data', js: true do
         fill_in "La référence d’avis d’imposition", with: reference_avis
         wait_until { dgfip_champ.reload.external_id.present? }
 
-        click_on 'Déposer le dossier'
         perform_enqueued_jobs
+        click_on 'Déposer le dossier'
 
         expect(page).to have_current_path(merci_dossier_path(Dossier.last))
 

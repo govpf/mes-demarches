@@ -77,8 +77,15 @@ module TagsSubstitutionConcern
       id: 'dossier_motivation',
       libelle: 'motivation',
       description: 'Motivation facultative associée à la décision finale d’acceptation, refus ou classement sans suite',
-      lambda: -> (d) { simple_format(d.motivation) },
-      escapable: false, # sanitized by simple_format
+      # pf: simple_format appliqué ici sur la motivation (texte brut → HTML avec <p> et <br>)
+      # sanitize: false car la sanitization est faite dans MailTemplatePresenterService via MailScrubber
+      # (qui réautorise <a> et <img> retirés globalement dans config/application.rb)
+      lambda: -> (d) {
+        if d.motivation.present?
+          ActionController::Base.helpers.simple_format(d.motivation, {}, sanitize: false)
+        end
+      },
+      escapable: false, # sanitized later with MailScrubber (preserves links/images for instructeurs)
       available_for_states: Dossier::TERMINE
     },
     {
@@ -119,7 +126,7 @@ module TagsSubstitutionConcern
     {
       id: 'dossier_service_name',
       libelle: 'nom du service',
-      description: 'Le nom du service instructeur qui traite le dossier',
+      description: 'Le nom du service de la démarche',
       lambda: -> (d) { d.procedure.organisation_name || '' },
       available_for_states: Dossier::SOUMIS
     }
@@ -238,6 +245,14 @@ module TagsSubstitutionConcern
     }
   ]
 
+  CONTACT_INFORMATION_NAME_TAG = {
+    id: 'dossier_contact_information_name',
+    libelle: 'nom du service instructeur',
+    description: 'Le nom du service qui traite le dossier (celui des informations de contact du groupe instructeur s’il existe, sinon celui de la démarche)',
+    lambda: -> (d) { d.service_or_contact_information&.nom || '' },
+    available_for_states: Dossier::SOUMIS
+  }
+
   SHARED_TAG_IDS = (DOSSIER_TAGS + DOSSIER_TAGS_FOR_MAIL + INDIVIDUAL_TAGS + ENTREPRISE_TAGS + ROUTAGE_TAGS).map { _1[:id] }
 
   def identity_tags
@@ -349,6 +364,7 @@ module TagsSubstitutionConcern
   def contextual_dossier_tags
     tags = []
     tags << DOSSIER_SVA_SVR_DECISION_DATE_TAG if respond_to?(:procedure) && procedure.sva_svr_enabled?
+    tags << CONTACT_INFORMATION_NAME_TAG if respond_to?(:procedure) && procedure.routing_enabled? && procedure.groupe_instructeurs.any? { _1.contact_information.present? }
     tags
   end
 
@@ -370,17 +386,21 @@ module TagsSubstitutionConcern
   end
 
   def champ_public_tags(dossier: nil)
-    types_de_champ = (dossier || procedure.active_revision).types_de_champ_public.filter { !_1.condition? }
+    types_de_champ = (dossier || procedure.active_revision).types_de_champ_public
     types_de_champ_tags(types_de_champ, Dossier::SOUMIS)
   end
 
   def champ_private_tags(dossier: nil)
-    types_de_champ = (dossier || procedure.active_revision).types_de_champ_private.filter { !_1.condition? }
+    types_de_champ = (dossier || procedure.active_revision).types_de_champ_private
     types_de_champ_tags(types_de_champ, Dossier::INSTRUCTION_COMMENCEE)
   end
 
   def types_de_champ_tags(types_de_champ, available_for_states)
-    tags = types_de_champ.flat_map(&:tags_for_template)
+    tags = types_de_champ.flat_map do |tdc|
+      tdc.tags_for_template.map do |tag|
+        tag.merge(conditional: tdc.condition?)
+      end
+    end
     tags.each do |tag|
       tag[:available_for_states] = available_for_states
     end
@@ -396,21 +416,21 @@ module TagsSubstitutionConcern
 
     tokens = parse_tags(text)
 
-    tags_and_datas = available_tags(dossier).filter_map do |tags|
-      dossier && [tags_for_dossier_state(tags).index_by { _1[:id] }, dossier]
-    end
+    # pf: filtrage des champs conditionnels invisibles pour attestations/emails
+    # On ignore les champs non visibles (condition falsy) pour éviter d'afficher des champs masqués
 
-    tags_and_datas.reduce(tokens) do |tokens, (tags, data)|
-      # Replace tags with their value
-      tokens.map do |token|
-        case token
-        in { tag: _, id: id } if tags.key?(id)
-          { text: replace_tag(tags.fetch(id), data) }
-        in { tag: tag } if tags.key?(tag)
-          { text: replace_tag(tags.fetch(tag), data) }
-        else
-          token
-        end
+    tags = tags_for_dossier_state(procedure_types_de_champ_tags.flatten)
+    # attestation uses --ids-- whereas mails use --libelle-- so merge both (conflicts should not occur)
+    tags = tags.group_by { _1[:libelle] }.merge(tags.group_by { _1[:id] })
+
+    tokens.map do |token|
+      case token
+      in { tag: tag } if tags.key?(tag)
+        tag_params = tags[tag].find { !_1.key?(:visible) || instance_exec(dossier, &_1[:visible]) }
+        # si aucun champ n'est visible (condition fausse), l'admin de la démarche s'attends à un remplacement par ''
+        { text: tag_params ? replace_tag(tag_params, dossier) : '' }
+      else
+        token
       end
     end.map do |token|
       # Get tokens text representation

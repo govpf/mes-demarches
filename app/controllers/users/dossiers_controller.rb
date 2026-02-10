@@ -11,17 +11,19 @@ module Users
     INSTANCE_ACTIONS_ALLOWED_TO_ANY_USER = [:qrcode]
     INSTANCE_ACIONS_ALLOWED_TO_OWNER_OR_INVITE = []
 
-    ACTIONS_ALLOWED_TO_ANY_USER = [:index, :new, :transferer_all, :deleted_dossiers] + INSTANCE_ACTIONS_ALLOWED_TO_ANY_USER
-    ACTIONS_ALLOWED_TO_OWNER_OR_INVITE = [:show, :destroy, :demande, :messagerie, :brouillon, :submit_brouillon, :submit_en_construction, :modifier, :modifier_legacy, :update, :create_commentaire, :papertrail, :restore, :champ] + INSTANCE_ACIONS_ALLOWED_TO_OWNER_OR_INVITE
+    ACTIONS_ALLOWED_TO_ANY_USER = [:index, :new, :deleted_dossiers] + INSTANCE_ACTIONS_ALLOWED_TO_ANY_USER
+    ACTIONS_ALLOWED_TO_OWNER_OR_INVITE = [:show, :destroy, :demande, :messagerie, :brouillon, :modifier, :update, :create_commentaire, :papertrail, :restore, :champ] + INSTANCE_ACIONS_ALLOWED_TO_OWNER_OR_INVITE
 
     before_action :ensure_ownership!, except: ACTIONS_ALLOWED_TO_ANY_USER + ACTIONS_ALLOWED_TO_OWNER_OR_INVITE
     before_action :ensure_ownership_or_invitation!, only: ACTIONS_ALLOWED_TO_OWNER_OR_INVITE
-    before_action :ensure_dossier_can_be_updated, only: [:update_identite, :update_siret, :brouillon, :submit_brouillon, :submit_en_construction, :modifier, :modifier_legacy, :update, :champ]
+    before_action :ensure_dossier_can_be_updated, only: [:update_identite, :update_siret, :brouillon, :submit_brouillon, :submit_en_construction, :modifier, :update, :champ]
     before_action :ensure_dossier_can_be_filled, only: [:brouillon, :modifier, :submit_brouillon, :submit_en_construction, :update]
     before_action :ensure_dossier_can_be_viewed, only: [:show]
-    before_action :forbid_invite_submission!, only: [:submit_brouillon]
+    before_action :ensure_editing_brouillon, only: [:brouillon]
     before_action :forbid_closed_submission!, only: [:submit_brouillon]
-    before_action :set_dossier_as_editing_fork, only: [:submit_en_construction]
+    before_action :ensure_dossier_has_changes, only: [:submit_en_construction], if: :update_with_stream?
+    before_action :set_dossier_as_editing_fork, only: [:submit_en_construction], if: :update_with_fork?
+    before_action :set_dossier_stream, only: [:modifier, :update, :submit_en_construction, :champ], if: :update_with_stream?
     before_action :show_demarche_en_test_banner
     before_action :store_user_location!, only: :new
 
@@ -30,7 +32,7 @@ module Users
     end
 
     def index
-      ordered_dossiers = Dossier.includes(:procedure).order_by_updated_at
+      ordered_dossiers = Dossier.includes(:procedure).order_by_depose_at
 
       user_revisions = ProcedureRevision.where(dossiers: current_user.dossiers.visible_by_user)
       invite_revisions = ProcedureRevision.where(dossiers: current_user.dossiers_invites.visible_by_user)
@@ -107,6 +109,11 @@ module Users
       @commentaire = Commentaire.new
     end
 
+    def rendez_vous
+      @dossier = dossier
+      @rdv = @dossier.rdvs.booked.by_starts_at.last
+    end
+
     def attestation
       if dossier.attestation&.pdf&.attached?
         redirect_to dossier.attestation.pdf.url, allow_other_host: true
@@ -167,6 +174,8 @@ module Users
         end
 
         @dossier.update!(autorisation_donnees: true, identity_updated_at: Time.zone.now)
+        DossierNotification.create_notification(dossier, :dossier_modifie)
+
         flash.notice = t('.identity_saved')
 
         if dossier.en_construction?
@@ -205,56 +214,82 @@ module Users
       end
 
       sanitized_siret = siret_model.siret
-      etablissement, @other_etablissements = begin
-                        APIEntrepriseService.create_etablissement(@dossier, sanitized_siret, current_user.id)
-                                             rescue => error
-                                               if error.try(:network_error?) && !APIEntrepriseService.api_insee_up?
-                                                 # TODO: notify ops
-                                                 APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, sanitized_siret, current_user.id)
-                                               else
-                                                 Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: })
 
-                                                 # probably random error, invite user to retry
-                                                 return render_siret_error(t('errors.messages.siret_network_error'))
-                                               end
-                      end
+      # PF: Handle ambiguous TAHITI numbers (< 9 chars)
+      if sanitized_siret.length < 9
+        @etablissements = begin
+          APIEntrepriseService.list_etablissements(sanitized_siret, @dossier.procedure.id)
+                          rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
+                            Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: sanitized_siret })
+                            return render_siret_error(t('errors.messages.siret_network_error'))
+        end
 
-      if etablissement.nil?
-        return render_siret_error(t('errors.messages.siret_unknown'))
-      end
-
-      current_user.update!(siret: sanitized_siret)
-      @dossier.update!(autorisation_donnees: true)
-
-      if @other_etablissements && @other_etablissements.size > 1
-        redirect_to etablissements_dossier_path
+        if @etablissements.blank?
+          return render_siret_error(t('errors.messages.siret_unknown'))
+        elsif @etablissements.size == 1
+          # PF: Auto-select when only one establishment matches
+          full_siret = "#{sanitized_siret}#{format('%03d', @etablissements[0][:num_entreprise])}"
+          create_etablissement_and_redirect(full_siret)
+        else
+          # PF: Multiple establishments found, redirect to selection page
+          # This is specific to PF where partial TAHITI numbers are ambiguous
+          session[:siret_prefix] = sanitized_siret
+          redirect_to etablissements_dossier_path
+        end
       else
-        redirect_to etablissement_dossier_path
+        # SIRET >= 9 chars, create directly with enhanced error handling
+        etablissement = begin
+          APIEntrepriseService.create_etablissement(@dossier, sanitized_siret, current_user.id)
+                        rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
+                          if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
+                            APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, sanitized_siret, current_user.id)
+                          else
+                            Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: sanitized_siret })
+                            if sanitized_siret.length == 14
+                              return render_siret_error(t('errors.messages.siret.network_error'))
+                            else
+                              return render_siret_error(t('errors.messages.siret_network_error'))
+                            end
+                          end
+        end
+
+        if etablissement.nil?
+          if sanitized_siret.length == 14
+            return render_siret_error(t('errors.messages.siret.not_found'))
+          else
+            return render_siret_error(t('errors.messages.siret_unknown'))
+          end
+        end
+
+        create_etablissement_and_redirect(sanitized_siret)
       end
     end
 
+    # PF: New action for handling establishment selection
+    # When a partial TAHITI number matches multiple establishments,
+    # this page lets users choose the correct one
     def etablissements
       @dossier = dossier
+      @siret_prefix = session[:siret_prefix] || params[:siret_prefix]
 
-      # Redirect if the user attempts to access the page URL directly
-      if !@dossier.etablissement
+      # Redirect if accessing directly without a SIRET prefix
+      if @siret_prefix.blank?
         flash.alert = t('users.dossiers.etablissement.no_establishment')
         return redirect_to siret_dossier_path(@dossier)
       end
 
-      @dossier.etablissement, @other_etablissements = begin
-                                                        APIEntrepriseService.create_etablissement(@dossier, @dossier.siret[0..5], current_user.id)
-                                                      rescue => error
-                                                        if error.try(:network_error?) && !APIEntrepriseService.api_insee_up?
-                                                          # TODO: notify ops
-                                                          APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, @dossier.siret[0..5], current_user.id)
-                                                        else
-                                                          Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: @dossier.siret[0..5] })
+      @etablissements = begin
+        APIEntrepriseService.list_etablissements(@siret_prefix, @dossier.procedure.id)
+                        rescue => error
+                          Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: @siret_prefix })
+                          flash.alert = t('errors.messages.siret_network_error')
+                          return redirect_to siret_dossier_path(@dossier)
+      end
 
-                                                          # probably random error, invite user to retry
-                                                          return render_siret_error(t('errors.messages.siret_network_error'))
-                                                        end
-                                                      end
+      if @etablissements.blank?
+        flash.alert = t('errors.messages.siret_unknown')
+        return redirect_to siret_dossier_path(@dossier)
+      end
     end
 
     def etablissement
@@ -296,17 +331,10 @@ module Users
 
       if @dossier.errors.blank? && @dossier.can_passer_en_construction?
         @dossier.passer_en_construction!
-        @dossier.process_declarative!
-        @dossier.process_sva_svr!
-        @dossier.groupe_instructeur.instructeurs.with_instant_email_dossier_notifications.each do |instructeur|
-          DossierMailer.notify_new_dossier_depose_to_instructeur(@dossier, instructeur.email).deliver_later
-        end
+        DossierNotification.create_notification(@dossier, :dossier_depose)
         redirect_to merci_dossier_path(@dossier)
       else
-        respond_to do |format|
-          format.html { render :brouillon }
-          format.turbo_stream
-        end
+        render :brouillon
       end
     end
 
@@ -324,58 +352,60 @@ module Users
 
     def modifier
       @dossier = dossier_with_champs
-    end
 
-    # Transition to en_construction forks,
-    # so users editing en_construction dossiers won't completely break their changes.
-    # TODO: remove me after fork en_construction feature deploy (PR #8790)
-    def modifier_legacy
-      respond_to do |format|
-        format.turbo_stream do
-          flash.alert = "Une mise à jour de cette page est nécessaire pour poursuivre, veuillez la recharger (touche F5). Attention: le dernier champ modifié n’a pas été sauvegardé, vous devrez le ressaisir."
-        end
+      if update_with_stream?
+        @dossier_for_editing = dossier
+      else
+        # TODO remove when all forks are gone
+        @dossier_for_editing = dossier.owner_editing_fork
+        DossierPreloader.load_one(@dossier_for_editing)
       end
     end
 
     def submit_en_construction
       @dossier = dossier_with_champs(pj_template: false)
-      editing_fork_origin = @dossier.editing_fork_origin
+      editing_fork_origin = dossier.editing_fork_origin
+      dossier_en_construction = editing_fork_origin || dossier
 
       if cast_bool(params.dig(:dossier, :pending_correction))
-        editing_fork_origin.resolve_pending_correction
+        dossier_en_construction.resolve_pending_correction
       end
 
       submit_dossier_and_compute_errors
 
-      if @dossier.errors.blank? && @dossier.can_passer_en_construction?
-        editing_fork_origin.merge_fork(@dossier)
-        editing_fork_origin.submit_en_construction!
-
-        redirect_to dossier_path(editing_fork_origin)
-      else
-        respond_to do |format|
-          format.html do
-            render :modifier
-          end
-
-          format.turbo_stream do
-            @to_show, @to_hide, @to_update = champs_to_turbo_update(champs_public_attributes_params, dossier.champs.filter(&:public?))
-            render :update, layout: false
-          end
+      if dossier.errors.blank? && dossier.can_passer_en_construction?
+        if editing_fork_origin.present?
+          # TODO remove when all forks are gone
+          editing_fork_origin.merge_fork(dossier)
+          # merge_fork do a `reload`, the preloader is used to reload the whole tree
+          DossierPreloader.load_one(editing_fork_origin)
+        else
+          dossier.merge_user_buffer_stream!
         end
+
+        dossier_en_construction.submit_en_construction!
+
+        DossierNotification.create_notification(dossier_en_construction, :dossier_modifie)
+
+        redirect_to dossier_path(dossier_en_construction)
+      else
+        @dossier_for_editing = dossier
+        if editing_fork_origin.present?
+          @dossier = editing_fork_origin
+        end
+
+        render :modifier
       end
     end
 
     def update
-      @dossier = dossier.en_construction? ? dossier.find_editing_fork(dossier.user) : dossier
+      @dossier = update_with_fork? ? dossier.find_editing_fork(dossier.user) : dossier
       @dossier = dossier_with_champs(pj_template: false)
-      @can_passer_en_construction_was, @can_passer_en_construction_is = @dossier.track_can_passer_en_construction do
-        update_dossier_and_compute_errors
-      end
+      update_dossier_and_compute_errors
 
       respond_to do |format|
         format.turbo_stream do
-          @to_show, @to_hide, @to_update = champs_to_turbo_update(champs_public_attributes_params, dossier.champs.filter(&:public?))
+          @to_show, @to_hide, @to_update = champs_to_turbo_update(champs_public_attributes_params, dossier.project_champs_public_all)
           render :update, layout: false
         end
       end
@@ -385,16 +415,17 @@ module Users
       @dossier = current_user.dossiers.includes(:procedure).find(params[:id])
     end
 
+    # polling url for champ
     def champ
       @dossier = dossier_with_champs(pj_template: false)
-      type_de_champ = @dossier.find_type_de_champ_by_stable_id(params[:stable_id], :public)
-      champ = @dossier.project_champ(type_de_champ, params[:row_id])
+      type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id], :public)
+      champ = dossier.project_champ(type_de_champ, row_id: params[:row_id])
 
+      champ.validate(:champs_public_value) if champ.external_data_fetched?
       respond_to do |format|
         format.turbo_stream do
           @to_show, @to_hide = []
-          @to_update = [champ]
-
+          @to_update = [champ].concat(champ.prefillable_champs)
           render :update, layout: false
         end
       end
@@ -404,7 +435,12 @@ module Users
       @commentaire = CommentaireService.create(current_user, dossier, commentaire_params)
 
       if @commentaire.errors.empty?
-        @commentaire.dossier.update!(last_commentaire_updated_at: Time.zone.now)
+        timestamps = [:last_commentaire_updated_at, :updated_at]
+        timestamps << :last_commentaire_piece_jointe_updated_at if @commentaire.piece_jointe.attached?
+
+        @commentaire.dossier.touch(*timestamps)
+
+        DossierNotification.create_notification(dossier, :message)
 
         flash.notice = t('.message_send')
         redirect_to messagerie_dossier_path(dossier)
@@ -448,9 +484,10 @@ module Users
         user: current_user,
         state: Dossier.states.fetch(:brouillon)
       )
-      dossier.build_default_individual
+      dossier.build_default_values
       dossier.save!
-      DossierMailer.with(dossier:).notify_new_draft.deliver_later
+      # pf: notifications différées pour réduire le spam (délai basé sur estimation de remplissage)
+      DraftNotificationJob.schedule_for_dossier(dossier)
 
       if dossier.procedure.for_individual
         redirect_to identite_dossier_path(dossier)
@@ -476,7 +513,8 @@ module Users
 
     def clone
       cloned_dossier = @dossier.clone
-      DossierMailer.with(dossier: cloned_dossier).notify_new_draft.deliver_later
+      # pf: notifications différées pour réduire le spam (délai basé sur estimation de remplissage)
+      DraftNotificationJob.schedule_for_dossier(cloned_dossier)
       flash.notice = t('users.dossiers.cloned_success')
       redirect_to brouillon_dossier_path(cloned_dossier)
     rescue ActiveRecord::RecordInvalid => e
@@ -550,8 +588,36 @@ module Users
       end
     end
 
+    def ensure_editing_brouillon
+      if !dossier.brouillon?
+        redirect_to modifier_dossier_path(@dossier)
+      end
+    end
+
     def page
       [params[:page].to_i, 1].max
+    end
+
+    def create_etablissement_and_redirect(siret)
+      etablissement = begin
+        APIEntrepriseService.create_etablissement(@dossier, siret, current_user.id)
+                      rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
+                        if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
+                          # TODO: notify ops
+                          APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, siret, current_user.id)
+                        else
+                          Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: siret })
+                          return render_siret_error(t('errors.messages.siret_network_error'))
+                        end
+      end
+
+      if etablissement.nil?
+        return render_siret_error(t('errors.messages.siret_unknown'))
+      end
+
+      current_user.update!(siret: siret)
+      @dossier.update!(autorisation_donnees: true)
+      redirect_to etablissement_dossier_path
     end
 
     def champs_public_params
@@ -573,7 +639,13 @@ module Users
         :code_departement,
         :accreditation_number,
         :accreditation_birthdate,
-        :feature,
+        :address,
+        :not_in_ban,
+        :street_address,
+        :city_name,
+        :country_code,
+        :commune_code,
+        :postal_code,
         value: []
       ] + TypeDeChamp::INSTANCE_CHAMPS_PARAMS
       # Strong attributes do not support records (indexed hash); they only support hashes with
@@ -591,8 +663,10 @@ module Users
       if action_name == 'update' || action_name == 'champ'
         Dossier.visible_by_user.or(Dossier.for_procedure_preview).or(Dossier.for_editing_fork)
       elsif action_name == 'restore'
-        Dossier.hidden_by_user
-      elsif action_name == 'extend_conservation_and_restore' || (action_name == 'show' && request.format.pdf?)
+        Dossier.hidden_by_user.or(Dossier.hidden_by_not_modified_for_a_long_time)
+      elsif action_name == 'extend_conservation_and_restore' ||
+            (action_name == 'show' && request.format.pdf?) ||
+            action_name == 'attestation'
         Dossier.visible_by_user.or(Dossier.hidden_by_expired)
       else
         Dossier.visible_by_user
@@ -618,37 +692,57 @@ module Users
       redirect_to dossier_path(dossier)
     end
 
+    def ensure_dossier_has_changes
+      return if dossier.user_buffer_changes?
+
+      flash[:alert] = t('users.dossiers.en_construction_submitted')
+      redirect_to dossier_path(dossier)
+    end
+
+    def set_dossier_stream
+      dossier.with_update_stream(current_user)
+    end
+
+    def update_with_stream?
+      dossier.update_with_stream?
+    end
+
+    def update_with_fork?
+      dossier.update_with_fork?
+    end
+
     def update_dossier_and_compute_errors
-      @dossier.update_champs_attributes(champs_public_attributes_params, :public, updated_by: current_user.email)
-      updated_champs = @dossier.champs.filter(&:changed_for_autosave?)
-      if updated_champs.present?
-        @dossier.last_champ_updated_at = Time.zone.now
-      end
+      public_id, champ_attributes = champs_public_attributes_params.to_h.first
+      champ = dossier.public_champ_for_update(public_id, updated_by: current_user.email)
+      champ.assign_attributes(champ_attributes)
+      champ_changed = champ.changed_for_autosave?
 
       # We save the dossier without validating fields, and if it is successful and the client
       # requests it, we ask for field validation errors.
-      if @dossier.save
-        if updated_champs.any?(&:used_by_routing_rules?)
-          @update_contact_information = true
-          RoutingEngine.compute(@dossier)
+      if Dossier.no_touching { champ.save }
+        if dossier.brouillon? && champ_changed
+          champ.update_timestamps
+          if champ.used_by_routing_rules?
+            @update_contact_information = true
+            RoutingEngine.compute(dossier)
+          end
         end
 
-        if params[:validate].present?
-          @dossier.valid?(:champs_public_value)
+        if params[:validate].present? && !champ.waiting_for_external_data?
+          dossier.validate(:champs_public_value)
         end
       end
-
-      @dossier.errors
     end
 
     def submit_dossier_and_compute_errors
-      @dossier.validate(:champs_public_value)
-      @dossier.check_mandatory_and_visible_champs
+      dossier.validate(:champs_public_value)
+      dossier.check_mandatory_and_visible_champs
 
-      if @dossier.editing_fork_origin&.pending_correction?
-        @dossier.editing_fork_origin.validate(:champs_public_value)
-        @dossier.editing_fork_origin.errors.where(:pending_correction).each do |error|
-          @dossier.errors.import(error)
+      # TODO remove when all forks are gone
+      if dossier.editing_fork_origin&.pending_correction?
+        dossier.editing_fork_origin.validate(:champs_public_value)
+        dossier.editing_fork_origin.errors.where(:pending_correction).each do |error|
+          dossier.errors.import(error)
         end
       end
     end
@@ -661,12 +755,6 @@ module Users
 
     def ensure_ownership_or_invitation!
       if !current_user.owns_or_invite?(dossier)
-        forbidden!
-      end
-    end
-
-    def forbid_invite_submission!
-      if !current_user.owns?(dossier)
         forbidden!
       end
     end

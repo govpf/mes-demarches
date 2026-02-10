@@ -1,35 +1,13 @@
 - content_for(:title, "Pièces jointes")
 
-= render partial: "header", locals: { dossier: @dossier }
+= render partial: "header", locals: { dossier: @dossier, gallery_attachments: @gallery_attachments, procedure_presentation: @procedure_presentation, notifications: @notifications, notifications_sticker: @notifications_sticker }
 
 .fr-container
+  - if @gallery_attachments.blank?
+    = render Dsfr::AlertComponent.new(state: :info, extra_class_names: "fr-my-6w") do |c|
+      - c.with_body do
+        %p Ce dossier ne comporte pas ou plus de pièce jointe.
+
   .gallery.gallery-pieces-jointes{ "data-controller": "lightbox" }
-    - @attachments_and_libelles.each do |attachment, libelle|
-      .gallery-item
-        - blob = attachment.blob
-        - if displayable_pdf?(blob)
-          = link_to blob.url, id: blob.id, data: { iframe: true, src: blob.url }, class: 'gallery-link', type: blob.content_type, title: "#{libelle} -- #{sanitize(blob.filename.to_s)}" do
-            .thumbnail
-              = image_tag(preview_url_for(attachment), loading: :lazy)
-              .fr-btn.fr-btn--tertiary.fr-btn--icon-left.fr-icon-eye{ role: :button }
-                Visualiser
-          .champ-libelle
-            = libelle.truncate(25)
-          = render Attachment::ShowComponent.new(attachment: attachment, truncate: true)
-
-        - elsif displayable_image?(blob)
-          = link_to image_url(blob_url(attachment)), title: "#{libelle} -- #{sanitize(blob.filename.to_s)}", data: { src: blob.url }, class: 'gallery-link' do
-            .thumbnail
-              = image_tag(variant_url_for(attachment), loading: :lazy)
-              .fr-btn.fr-btn--tertiary.fr-btn--icon-left.fr-icon-eye{ role: :button }
-                Visualiser
-          .champ-libelle
-            = libelle.truncate(25)
-          = render Attachment::ShowComponent.new(attachment: attachment, truncate: true)
-
-        - else
-          .thumbnail
-            = image_tag('apercu-indisponible.png')
-          .champ-libelle
-            = libelle.truncate(25)
-          = render Attachment::ShowComponent.new(attachment: attachment, truncate: true)
+    - @gallery_attachments.each do |attachment|
+      = render Attachment::GalleryItemComponent.new(attachment:, seen_at: @pieces_jointes_seen_at)

@@ -40,7 +40,9 @@ class EditableChamp::EditableChampComponent < ApplicationComponent
         }.merge(champ_component.input_group_error_class_names)
       ),
       data: { controller: stimulus_controller, **data_dependent_conditions, **stimulus_values }
-    }.deep_merge(champ_component.fieldset_error_opts)
+    }
+      .deep_merge(champ_component.fieldset_aria_opts)
+      .deep_merge(champ_component.fieldset_error_opts)
   end
 
   def fieldset_element_attributes
@@ -51,8 +53,12 @@ class EditableChamp::EditableChampComponent < ApplicationComponent
   end
 
   def stimulus_values
-    if @champ.fetch_external_data_pending?
-      { turbo_poll_url_value: }
+    if @champ.waiting_for_external_data?
+      {
+        turbo_poll_url_value:,
+        turbo_poll_interval_value: 2_000,
+        turbo_poll_strategy_value: 'fixed'
+      }
     else
       {}
     end
@@ -60,9 +66,9 @@ class EditableChamp::EditableChampComponent < ApplicationComponent
 
   def turbo_poll_url_value
     if @champ.private?
-      annotation_instructeur_dossier_path(@champ.dossier.procedure, @champ.dossier, @champ.stable_id, row_id: @champ.row_id, with_public_id: true)
+      annotation_instructeur_dossier_path(@champ.dossier.procedure, @champ.dossier, @champ.stable_id, row_id: @champ.row_id)
     else
-      champ_dossier_path(@champ.dossier, @champ.stable_id, row_id: @champ.row_id, with_public_id: true)
+      champ_dossier_path(@champ.dossier, @champ.stable_id, row_id: @champ.row_id)
     end
   end
 
@@ -71,7 +77,7 @@ class EditableChamp::EditableChampComponent < ApplicationComponent
       # This is an editable champ. Lets find what controllers it might need.
       controllers = ['autosave']
 
-      if @champ.fetch_external_data_pending?
+      if @champ.waiting_for_external_data?
         controllers << 'turbo-poll'
       end
 
@@ -88,6 +94,6 @@ class EditableChamp::EditableChampComponent < ApplicationComponent
   end
 
   def autosave_enabled?
-    !@champ.carte? && !@champ.block? && @champ.fillable?
+    !@champ.carte? && !@champ.repetition? && @champ.fillable?
   end
 end

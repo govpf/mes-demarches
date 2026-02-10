@@ -4,11 +4,110 @@ describe Administrateurs::ServicesController, type: :controller do
   let(:admin) { administrateurs(:default_admin) }
   let(:procedure) { create(:procedure, administrateur: admin) }
 
+  describe '#new' do
+    let(:admin) { administrateurs(:default_admin) }
+    let(:procedure) { create(:procedure, administrateur: admin) }
+
+    before do
+      sign_in(admin.user)
+    end
+
+    subject { get :new, params: { procedure_id: procedure.id } }
+
+    context 'when admin has a SIRET from ProConnect' do
+      let(:siret) { "20004021000060" }
+
+      before do
+        agi = create(:pro_connect_information, siret:, user: admin.instructeur.user)
+      end
+
+      it 'prefills the SIRET and fetches service information' do
+        VCR.use_cassette("annuaire_service_public_success_#{siret}") do
+          subject
+          expect(assigns[:service].siret).to eq(siret)
+          expect(assigns[:service].nom).to eq("Communauté de communes - Lacs et Gorges du Verdon")
+          expect(assigns[:service].adresse).to eq("242 avenue Albert-1er 83630 Aups")
+          expect(assigns[:prefilled]).to eq(:success)
+        end
+      end
+    end
+
+    context 'when admin has no SIRET from ProConnect' do
+      it 'does not prefill the SIRET' do
+        subject
+        expect(assigns[:service].siret).to be_nil
+        expect(assigns[:prefilled]).to be_nil
+      end
+    end
+  end
+
+  describe '#prefill' do
+    before do
+      sign_in(admin.user)
+    end
+
+    subject { get :prefill, params:, xhr: true }
+
+    context 'when prefilling from a SIRET' do
+      let(:params) do
+        {
+          procedure_id: procedure.id,
+          siret: "20004021000060"
+        }
+      end
+
+      it "prefill from annuaire public" do
+        VCR.use_cassette('annuaire_service_public_success_20004021000060') do
+          subject
+          expect(response.body).to include('turbo-stream')
+          expect(assigns[:service].nom).to eq("Communauté de communes - Lacs et Gorges du Verdon")
+          expect(assigns[:service].adresse).to eq("242 avenue Albert-1er 83630 Aups")
+        end
+      end
+    end
+
+    context 'when attempting to prefilling from invalid SIRET' do
+      let(:params) do
+        {
+          procedure_id: procedure.id,
+          siret: "20004021000000"
+        }
+      end
+
+      it "render an error" do
+        subject
+        expect(response.body).to include('turbo-stream')
+        expect(assigns[:service].nom).to be_nil
+        expect(assigns[:service].errors.key?(:siret)).to be_present
+      end
+    end
+
+    context 'when attempting to prefilling from not service public SIRET' do
+      let(:params) do
+        {
+          procedure_id: procedure.id,
+          siret: "41816609600051"
+        }
+      end
+
+      it "render partial information" do
+        VCR.use_cassette('annuaire_service_public_success_41816609600051') do
+          subject
+          expect(response.body).to include('turbo-stream')
+          expect(assigns[:service].nom).to eq("OCTO-TECHNOLOGY")
+          expect(assigns[:service].horaires).to be_nil
+          expect(assigns[:service].errors.key?(:siret)).not_to be_present
+        end
+      end
+    end
+  end
+
   describe '#create' do
     before do
       sign_in(admin.user)
-      post :create, params: params
     end
+
+    subject { post :create, params: }
 
     context 'when submitting a new service' do
       let(:params) do
@@ -28,6 +127,7 @@ describe Administrateurs::ServicesController, type: :controller do
       end
 
       it do
+        subject
         expect(flash.alert).to be_nil
         expect(flash.notice).to eq('super service créé')
         expect(Service.last.nom).to eq('super service')
@@ -47,9 +147,12 @@ describe Administrateurs::ServicesController, type: :controller do
     context 'when submitting an invalid service' do
       let(:params) { { service: { nom: 'super service' }, procedure_id: procedure.id } }
 
-      it { expect(flash.alert).not_to be_nil }
-      it { expect(response).to render_template(:new) }
-      it { expect(assigns(:service).nom).to eq('super service') }
+      it do
+        subject
+        expect(flash.alert).not_to be_nil
+        expect(response).to render_template(:new)
+        expect(assigns(:service).nom).to eq('super service')
+      end
     end
   end
 
@@ -175,7 +278,7 @@ describe Administrateurs::ServicesController, type: :controller do
         service.siret = nil
         service.save(validate: false)
         get :index, params: { procedure_id: procedure.id }
-        expect(flash.alert.first).to eq "Vous n’avez pas renseigné le siret du service pour certaines de vos démarches. Merci de les modifier."
+        expect(flash.alert.first).to eq "Vous n'avez pas renseigné le numéro TAHITI du service pour certaines de vos démarches. Merci de les modifier."
         expect(flash.alert.last).to include(service.nom)
       end
     end

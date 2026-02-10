@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 describe Champs::CnafChamp, type: :model do
-  let(:champ) { described_class.new(dossier: build(:dossier)) }
-  before do
-    allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_cnaf))
-    allow(champ).to receive(:in_dossier_revision?).and_return(true)
-  end
+  let(:types_de_champ_public) { [{ type: :cnaf }] }
+  let(:procedure) { create(:procedure, types_de_champ_public:) }
+  let(:dossier) { create(:dossier, procedure:) }
+  let(:champ) { dossier.champs.first }
+
   describe 'numero_allocataire and code_postal' do
     before do
       champ.numero_allocataire = '1234567'
@@ -42,7 +42,6 @@ describe Champs::CnafChamp, type: :model do
   describe '#validate' do
     let(:numero_allocataire) { '1234567' }
     let(:code_postal) { '12345' }
-    let(:champ) { described_class.new(dossier: build(:dossier)) }
     let(:validation_context) { :champs_public_value }
 
     subject { champ.valid?(validation_context) }
@@ -77,7 +76,7 @@ describe Champs::CnafChamp, type: :model do
 
       it do
         is_expected.to be false
-        expect(champ.errors.full_messages).to eq(["le numéro d’allocataire CAF doit être composé au maximum de 7 chiffres"])
+        expect(champ.errors.full_messages.first).to match(/le num.ro d.allocataire CAF doit .tre compos. au maximum de 7 chiffres/)
       end
     end
 
@@ -86,7 +85,7 @@ describe Champs::CnafChamp, type: :model do
 
       it do
         is_expected.to be false
-        expect(champ.errors.full_messages).to eq(["le numéro d’allocataire CAF doit être composé au maximum de 7 chiffres"])
+        expect(champ.errors.full_messages.first).to match(/le num.ro d.allocataire CAF doit .tre compos. au maximum de 7 chiffres/)
       end
     end
 

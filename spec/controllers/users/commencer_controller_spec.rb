@@ -2,7 +2,8 @@
 
 describe Users::CommencerController, type: :controller do
   let(:user) { create(:user) }
-  let(:published_procedure) { create(:procedure, :for_individual, :published) }
+  let(:published_procedure) { create(:procedure, :for_individual, :published, types_de_champ_public:) }
+  let(:types_de_champ_public) { [] }
   let(:draft_procedure) { create(:procedure, :with_path) }
 
   describe '#commencer' do
@@ -20,15 +21,20 @@ describe Users::CommencerController, type: :controller do
       end
     end
 
-    context 'when a path rewrite is present' do
-      let(:path) { 'from' }
-      let!(:path_rewrite) { PathRewrite.create(from: 'from', to: published_procedure.path) }
+    context 'when there is an old path' do
+      let!(:old_path) do
+        travel_to(1.day.ago) do
+          create(:procedure_path, procedure: published_procedure, path: 'old_path')
+        end
+      end
+
+      let!(:new_path) { create(:procedure_path, procedure: published_procedure, path: 'new_path') }
+
+      let(:path) { old_path.path }
 
       it 'redirects to the new path' do
-        expect(subject.status).to eq(200)
-        expect(subject).to render_template('show')
-        expect(assigns(:procedure)).to eq published_procedure
-        expect(assigns(:revision)).to eq published_procedure.published_revision
+        expect(subject.status).to eq(301)
+        expect(subject).to redirect_to(commencer_path(path: new_path.path))
       end
     end
 
@@ -161,7 +167,8 @@ describe Users::CommencerController, type: :controller do
     end
 
     context 'when a dossier is being prefilled by GET' do
-      let(:type_de_champ_text) { create(:type_de_champ_text, procedure: published_procedure) }
+      let(:types_de_champ_public) { [{}] }
+      let(:type_de_champ_text) { published_procedure.published_revision.types_de_champ.first }
       let(:path) { published_procedure.path }
       let(:user) { create(:user) }
 
@@ -348,7 +355,7 @@ describe Users::CommencerController, type: :controller do
         expect(controller.stored_location_for(:user)).to eq(commencer_path(path: published_procedure.path))
       end
 
-      it { expect(subject).to redirect_to(france_connect_particulier_path) }
+      it { expect(subject).to redirect_to(france_connect_path) }
 
       context 'when a prefill token is given' do
         subject { get :france_connect, params: { path: published_procedure.path, prefill_token: 'prefill_token' } }
@@ -365,7 +372,7 @@ describe Users::CommencerController, type: :controller do
         expect(controller.stored_location_for(:user)).to eq(commencer_path(path: draft_procedure.path))
       end
 
-      it { expect(subject).to redirect_to(france_connect_particulier_path) }
+      it { expect(subject).to redirect_to(france_connect_path) }
 
       context 'when a prefill token is given' do
         subject { get :france_connect, params: { path: draft_procedure.path, prefill_token: 'prefill_token' } }

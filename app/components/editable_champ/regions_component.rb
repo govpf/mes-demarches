@@ -10,10 +10,10 @@ class EditableChamp::RegionsComponent < EditableChamp::EditableChampBaseComponen
   private
 
   def options
-    APIGeoService.regions.map { [_1[:name], _1[:code]] }
+    @champ.options_for_select
   end
 
   def select_options
-    { selected: @champ.selected }.merge(@champ.mandatory? ? { prompt: '' } : { include_blank: '' })
+    { selected: @champ.selected }.merge(@champ.mandatory? ? { prompt: t('views.components.select_list') } : { include_blank: t('views.components.select_list') })
   end
 end

@@ -18,16 +18,16 @@ describe RechercheController, type: :controller do
   before do
     instructeur.assign_to_procedure(dossier.procedure)
 
-    dossier.champs_public[0].value = "Name of district A"
-    dossier.champs_public[1].value = "Name of city A"
-    dossier.champs_private[0].value = "Dossier A is complete"
-    dossier.champs_private[1].value = "Dossier A is valid"
+    dossier.project_champs_public[0].value = "Name of district A"
+    dossier.project_champs_public[1].value = "Name of city A"
+    dossier.project_champs_private[0].value = "Dossier A is complete"
+    dossier.project_champs_private[1].value = "Dossier A is valid"
     dossier.save!
 
-    dossier_with_expert.champs_public[0].value = "Name of district B"
-    dossier_with_expert.champs_public[1].value = "name of city B"
-    dossier_with_expert.champs_private[0].value = "Dossier B is incomplete"
-    dossier_with_expert.champs_private[1].value = "Dossier B is invalid"
+    dossier_with_expert.project_champs_public[0].value = "Name of district B"
+    dossier_with_expert.project_champs_public[1].value = "name of city B"
+    dossier_with_expert.project_champs_private[0].value = "Dossier B is incomplete"
+    dossier_with_expert.project_champs_private[1].value = "Dossier B is invalid"
     dossier_with_expert.save!
 
     perform_enqueued_jobs(only: DossierIndexSearchTermsJob)
@@ -48,7 +48,7 @@ describe RechercheController, type: :controller do
 
         it 'returns the expected dossier' do
           expect(assigns(:projected_dossiers).count).to eq(1)
-          expect(assigns(:projected_dossiers).first.dossier_id).to eq(dossier.id)
+          expect(assigns(:projected_dossiers).first).to eq(dossier)
         end
       end
 
@@ -62,7 +62,7 @@ describe RechercheController, type: :controller do
 
         it 'returns the expected dossier' do
           expect(assigns(:projected_dossiers).count).to eq(1)
-          expect(assigns(:projected_dossiers).first.dossier_id).to eq(dossier_with_expert.id)
+          expect(assigns(:projected_dossiers).first).to eq(dossier_with_expert)
         end
       end
 
@@ -146,18 +146,15 @@ describe RechercheController, type: :controller do
       it 'returns the expected dossier' do
         subject
         expect(assigns(:projected_dossiers).count).to eq(1)
-        expect(assigns(:projected_dossiers).first.dossier_id).to eq(dossier.id)
+        expect(assigns(:projected_dossiers).first).to eq(dossier)
       end
 
       context 'when dossier has notification' do
-        before do
-          instructeur.follow(dossier)
-          dossier.touch(:last_commentaire_updated_at)
-        end
+        let!(:notification) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: :dossier_modifie) }
 
         it 'assigns notification' do
           subject
-          expect(assigns(:notifications_dossier_ids)).to eq([dossier.id])
+          expect(assigns(:notifications)).to eq({ dossier.id => [notification] })
         end
       end
 
@@ -170,7 +167,7 @@ describe RechercheController, type: :controller do
         it 'returns only the dossier available to the expert' do
           subject
           expect(assigns(:projected_dossiers).count).to eq(1)
-          expect(assigns(:projected_dossiers).first.dossier_id).to eq(dossier_with_expert.id)
+          expect(assigns(:projected_dossiers).first).to eq(dossier_with_expert)
         end
       end
     end
@@ -184,7 +181,7 @@ describe RechercheController, type: :controller do
 
       it 'returns the expected dossier' do
         expect(assigns(:projected_dossiers).count).to eq(1)
-        expect(assigns(:projected_dossiers).first.dossier_id).to eq(dossier_with_expert.id)
+        expect(assigns(:projected_dossiers).first).to eq(dossier_with_expert)
       end
 
       context 'as an expert' do

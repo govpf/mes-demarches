@@ -1,7 +1,7 @@
 fr:
   shared:
     dossiers:
-      beneficiaire: '%{beneficiaire}, dossier rempli par %{mandataire}'
+      beneficiaire: '%{mandataire} (pour %{beneficiaire})'
       france_connect_informations:
         details_no_name: "Le dossier a été déposé par un compte %{provider}."
         details: "Le dossier a été déposé par le compte de %{name}."
@@ -10,7 +10,7 @@ fr:
         refused_by_svr: "Le service traitant n’a pas été en mesure de traiter votre demande dans le délai imparti par la règle du Silence Vaut Rejet."
       header:
         expires_at:
-          brouillon: "Expirera le %{date} (%{duree_conservation_totale} mois après la création du dossier)"
+          brouillon: "Expirera le %{date} (%{duree_conservation_totale} mois après la dernière modification du dossier)"
           en_construction: "Expirera le %{date} (%{duree_conservation_totale} mois après le dépôt du dossier)"
           en_instruction: "Ce dossier est en instruction, il n’expirera pas"
           accepte: "Expirera le %{date}  (%{duree_conservation_totale} mois après le traitement du dossier)"
@@ -19,6 +19,9 @@ fr:
 
 
     champs:
+      referentiel_de_polynesie:
+        show:
+          toggle_champ: "Afficher/Cacher les champs de « %{champ} »"
       cnaf:
         show:
           not_filled: non renseigné
@@ -30,9 +33,8 @@ fr:
           not_filled: non renseigné
           not_found: "RNA %{rna} (aucun établissement trouvé)"
         association:
-          data_fetched: "Ce RNA correspond à %{title}, %{address}"
-          not_found: "Aucun établissement trouvé"
-          network_error: "Une erreur réseau a empêché l’association liée à ce RNA d’être trouvée"
+          data_fetched: "Ce RNA correspond à : %{title}, %{address}"
+          invalid_number: "doit commencer par un W majuscule suivi de 9 chiffres ou lettres. Exemple : W503726238"
       rnf:
         show:
           not_found: "RNF %{rnf} (aucune fondation trouvée)"

@@ -321,10 +321,14 @@ class API::V2::StoredQuery
       email
     }
     traitements @include(if: $includeTraitements) {
-      state
+      event
       emailAgentTraitant
       dateTraitement
       motivation
+      revision {
+        id
+        datePublication
+      }
     }
     champs @include(if: $includeChamps) {
       ...ChampFragment
@@ -500,6 +504,9 @@ class API::V2::StoredQuery
     stringValue
     updatedAt
     prefilled
+    columns {
+      ...ColumnFragment
+    }
     ... on DateChamp {
       date
     }
@@ -508,6 +515,9 @@ class API::V2::StoredQuery
     }
     ... on CheckboxChamp {
       checked: value
+    }
+    ... on YesNoChamp {
+      selected: value
     }
     ... on DecimalNumberChamp {
       decimalNumber: value
@@ -737,6 +747,41 @@ class API::V2::StoredQuery
     startCursor
     endCursor
   }
+
+  fragment ColumnFragment on Column {
+    __typename
+    id
+    label
+    ... on TextColumn {
+      value
+    }
+    ... on BooleanColumn {
+      value
+    }
+    ... on DateColumn {
+      value
+    }
+    ... on DateTimeColumn {
+      value
+    }
+    ... on IntegerColumn {
+      value
+    }
+    ... on DecimalColumn {
+      value
+    }
+    ... on EnumColumn {
+      value
+    }
+    ... on EnumsColumn {
+      value
+    }
+    ... on AttachmentsColumn {
+      value {
+        ...FileFragment
+      }
+    }
+  }
   GRAPHQL
 
   MUTATION_V2 = <<-'GRAPHQL'
@@ -951,6 +996,22 @@ class API::V2::StoredQuery
       annotation {
         id
         ... on IntegerNumberChamp {
+          value
+        }
+      }
+      errors {
+        message
+      }
+    }
+  }
+
+  mutation dossierModifierAnnotationDecimalNumber(
+    $input: DossierModifierAnnotationDecimalNumberInput!
+  ) {
+    dossierModifierAnnotationDecimalNumber(input: $input) {
+      annotation {
+        id
+        ... on DecimalNumberChamp {
           value
         }
       }

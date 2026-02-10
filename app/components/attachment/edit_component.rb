@@ -12,14 +12,13 @@ class Attachment::EditComponent < ApplicationComponent
 
   EXTENSIONS_ORDER = ['jpeg', 'png', 'pdf', 'zip'].freeze
 
-  def initialize(champ: nil, auto_attach_url: nil, attached_file:, direct_upload: true, index: 0, as_multiple: false, view_as: :link, user_can_destroy: true, user_can_replace: false, attachments: [], max: nil, **kwargs)
+  def initialize(champ: nil, auto_attach_url: nil, attached_file:, direct_upload: true, index: 0, as_multiple: false, view_as: :link, user_can_destroy: true, attachments: [], max: nil, **kwargs)
     @champ = champ
     @attached_file = attached_file
     @direct_upload = direct_upload
     @index = index
     @view_as = view_as
     @user_can_destroy = user_can_destroy
-    @user_can_replace = user_can_replace
     @as_multiple = as_multiple
     @auto_attach_url = auto_attach_url
 
@@ -59,7 +58,7 @@ class Attachment::EditComponent < ApplicationComponent
 
   def destroy_attachment_path
     if champ.present?
-      attachment_path(dossier_id: champ&.dossier_id, stable_id: champ&.stable_id, row_id: champ&.row_id)
+      attachment_path
     else
       attachment_path(auto_attach_url: @auto_attach_url, view_as: @view_as, direct_upload: @direct_upload)
     end
@@ -69,6 +68,10 @@ class Attachment::EditComponent < ApplicationComponent
     "attachment-input-#{attachment_id}"
   end
 
+  def show_hint?
+    first? && !persisted?
+  end
+
   def file_field_options
     track_issue_with_missing_validators if missing_validators?
 
@@ -76,12 +79,19 @@ class Attachment::EditComponent < ApplicationComponent
       class: class_names("fr-upload attachment-input": true, "#{attachment_input_class}": true),
       direct_upload: @direct_upload,
       id: input_id,
-      aria: { describedby: champ&.describedby_id },
       data: {
         auto_attach_url:,
-        turbo_force: :server
+        turbo_force: :server,
+        'enable-submit-if-uploaded-target': 'input'
       }.merge(has_file_size_validator? ? { max_file_size: max_file_size } : {})
     }
+
+    describedby = []
+    describedby << champ.describedby_id if champ&.description.present?
+    describedby << describedby_hint_id if show_hint?
+    describedby << champ.error_id if champ&.errors&.has_key?(:value)
+
+    options[:aria] = { describedby: describedby.join(' ') }
 
     options.merge!(has_content_type_validator? ? { accept: accept_content_type } : {})
     options[:multiple] = true if as_multiple?
@@ -169,6 +179,10 @@ class Attachment::EditComponent < ApplicationComponent
   end
 
   private
+
+  def describedby_hint_id
+    "#{input_id}-pj-hint"
+  end
 
   def input_id
     if champ.present?

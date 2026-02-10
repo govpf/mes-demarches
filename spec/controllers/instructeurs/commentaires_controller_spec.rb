@@ -5,6 +5,7 @@ describe Instructeurs::CommentairesController, type: :controller do
   let(:instructeur) { create(:instructeur) }
   let(:procedure) { create(:procedure, :published, :for_individual, instructeurs: [instructeur]) }
   let(:dossier) { create(:dossier, :en_construction, :with_individual, procedure: procedure) }
+
   render_views
 
   context 'as instructeur' do
@@ -13,7 +14,7 @@ describe Instructeurs::CommentairesController, type: :controller do
     describe 'destroy' do
       context 'when it works' do
         let(:commentaire) { create(:commentaire, instructeur: instructeur, dossier: dossier) }
-        subject { delete :destroy, params: { dossier_id: dossier.id, procedure_id: procedure.id, id: commentaire.id }, format: :turbo_stream }
+        subject { delete :destroy, params: { dossier_id: dossier.id, procedure_id: procedure.id, id: commentaire.id, statut: 'a-suivre' }, format: :turbo_stream }
 
         it 'respond with OK and flash' do
           expect(subject).to have_http_status(:ok)
@@ -48,7 +49,7 @@ describe Instructeurs::CommentairesController, type: :controller do
 
       context 'when dossier had been discarded' do
         let(:commentaire) { create(:commentaire, instructeur: instructeur, dossier: dossier, discarded_at: 2.hours.ago) }
-        subject { delete :destroy, params: { dossier_id: dossier.id, procedure_id: procedure.id, id: commentaire.id }, format: :turbo_stream }
+        subject { delete :destroy, params: { dossier_id: dossier.id, procedure_id: procedure.id, id: commentaire.id, statut: 'a-suivre' }, format: :turbo_stream }
 
         it 'respond with OK and flash' do
           expect(subject).to have_http_status(:ok)
@@ -65,7 +66,7 @@ describe Instructeurs::CommentairesController, type: :controller do
     describe 'destroy' do
       context 'when it works' do
         let(:commentaire) { create(:commentaire, expert: expert, dossier: dossier) }
-        subject { delete :destroy, params: { dossier_id: dossier.id, procedure_id: procedure.id, id: commentaire.id }, format: :turbo_stream }
+        subject { delete :destroy, params: { dossier_id: dossier.id, procedure_id: procedure.id, id: commentaire.id, statut: 'a-suivre' }, format: :turbo_stream }
 
         it 'respond with OK and flash' do
           expect(subject).to have_http_status(:ok)

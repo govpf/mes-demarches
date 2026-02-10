@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
 class Champs::RepetitionChamp < Champ
-  include ActionView::Helpers::TagHelper
-
-  accepts_nested_attributes_for :champs
   delegate :libelle_for_export, to: :type_de_champ
 
   def rows
@@ -15,11 +12,7 @@ class Champs::RepetitionChamp < Champ
   end
 
   def add_row(updated_by:)
-    # TODO: clean this up when parent_id is deprecated
-    row_id, added_champs = dossier.repetition_add_row(type_de_champ, updated_by:)
-    self.champs << added_champs
-    dossier.champs.reload if dossier.persisted?
-    row_id
+    dossier.repetition_add_row(type_de_champ, updated_by:)
   end
 
   def remove_row(row_id, updated_by:)
@@ -30,32 +23,16 @@ class Champs::RepetitionChamp < Champ
     rows.last&.first&.focusable_input_id
   end
 
-  def blank?
-    row_ids.empty?
+  def discarded?
+    discarded_at.present?
+  end
+
+  def discard!
+    touch(:discarded_at)
   end
 
   def search_terms
     # The user cannot enter any information here so it doesn’t make much sense to search
-  end
-
-  def for_tag(path = :value)
-    # replace DS text value with table
-    # ([libelle] + rows.map do |champs|
-    #   champs.map do |champ|
-    #     "#{champ.libelle} : #{champ}"
-    #   end.join("\n")
-    # end).join("\n\n")
-
-    return "" if rows.empty?
-
-    header = tag.tr(rows[0].map { |c| tag.th(c.libelle) }.reduce(&:+))
-    lines = rows.map do |champs|
-      tag.tr(champs.map do |champ|
-        for_tag = champ.for_tag
-        tag.td(for_tag)
-      end.reduce(&:+))
-    end.reduce(&:+)
-    tag.table(header + lines)
   end
 
   def rows_for_export
@@ -77,11 +54,11 @@ class Champs::RepetitionChamp < Champ
       self[attribute]
     end
 
-    def spreadsheet_columns(types_de_champ)
+    def spreadsheet_columns(types_de_champ, export_template: nil, format:)
       [
         ['Dossier ID', :dossier_id],
         ['Ligne', :index]
-      ] + dossier.champs_for_export(types_de_champ, row_id)
+      ] + dossier.champ_values_for_export(types_de_champ, row_id:, export_template:, format:)
     end
   end
 end

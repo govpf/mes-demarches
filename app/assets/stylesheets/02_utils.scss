@@ -1,5 +1,5 @@
-@import "colors";
-@import "constants";
+@import 'colors';
+@import 'constants';
 
 // floats
 .pull-left {
@@ -37,15 +37,11 @@
 }
 
 .text-right {
-  text-align: right;
+  text-align: right !important;
 }
 
 .text-sm {
   font-size: 14px !important;
-}
-
-.text-lg {
-  font-size: 18px;
 }
 
 .font-weight-bold {
@@ -65,6 +61,19 @@
   list-style-type: none;
 }
 
+.horizontal-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  & li {
+    display: inline-block;
+    margin-right: 10px;
+  }
+  & li:last-child {
+    margin-right: 0;
+  }
+}
+
 .empty-text {
   font-size: 20px;
   font-weight: bold;
@@ -79,6 +88,14 @@
   .empty-text + & {
     margin-top: -50px;
   }
+}
+
+.text-high-blue {
+  color: var(--text-action-high-blue-france);
+}
+
+.text-info-blue {
+  color: var(--text-default-info);
 }
 
 .relative {
@@ -122,6 +139,12 @@
   }
 }
 
+.width-100-for-xs {
+  @media (max-width: 48em) {
+    width: 100%;
+  }
+}
+
 .width-33 {
   width: 33.33%;
 
@@ -142,7 +165,6 @@
   }
 }
 
-
 // who known
 .highlighted {
   background-color: var(
@@ -160,9 +182,31 @@
   vertical-align: super;
 }
 
+.align-middle {
+  vertical-align: middle;
+}
+
+.border-background-contrast-grey {
+  border: 3px solid var(--background-contrast-grey);
+}
+
 .border-left {
   border-left: 4px solid var(--background-contrast-grey);
   padding-left: $default-padding;
+}
+
+.border-left-light {
+  border-left: 1px solid var(--border-default-grey);
+  padding-left: $default-padding;
+}
+
+.border-left-dark {
+  border-left: 1px solid var(--border-plain-grey);
+  padding-left: $default-padding;
+}
+
+.box-shadow-none {
+  box-shadow: none !important;
 }
 
 // Labels that we only want for screen readers
@@ -194,13 +238,29 @@
 // using $direction.key as css modifier, $direction.values to set css properties
 // scale it using $steps
 $directions: (
-  "t": ("margin-top"),
-  "r": ("margin-right"),
-  "b": ("margin-bottom"),
-  "l": ("margin-left"),
-  "x": ("margin-left", "margin-right"),
-  "y": ("margin-top", "margin-bottom"),
-  "":  ("margin")
+  't': (
+    'margin-top'
+  ),
+  'r': (
+    'margin-right'
+  ),
+  'b': (
+    'margin-bottom'
+  ),
+  'l': (
+    'margin-left'
+  ),
+  'x': (
+    'margin-left',
+    'margin-right'
+  ),
+  'y': (
+    'margin-top',
+    'margin-bottom'
+  ),
+  '': (
+    'margin'
+  )
 );
 $steps: (0, 1, 2, 3, 4, 5, 6, 7, 8);
 
@@ -215,13 +275,29 @@ $steps: (0, 1, 2, 3, 4, 5, 6, 7, 8);
 }
 
 $directions: (
-  "t": ("padding-top"),
-  "r": ("padding-right"),
-  "b": ("padding-bottom"),
-  "l": ("padding-left"),
-  "x": ("padding-left", "padding-right"),
-  "y": ("padding-top", "padding-bottom"),
-  "":  ("padding")
+  't': (
+    'padding-top'
+  ),
+  'r': (
+    'padding-right'
+  ),
+  'b': (
+    'padding-bottom'
+  ),
+  'l': (
+    'padding-left'
+  ),
+  'x': (
+    'padding-left',
+    'padding-right'
+  ),
+  'y': (
+    'padding-top',
+    'padding-bottom'
+  ),
+  '': (
+    'padding'
+  )
 );
 $steps: (0, 1, 2, 3, 4, 5, 6, 7, 8);
 
@@ -233,4 +309,8 @@ $steps: (0, 1, 2, 3, 4, 5, 6, 7, 8);
       }
     }
   }
+}
+
+.rounded-4 {
+  border-radius: 4px;
 }

@@ -14,12 +14,51 @@ class Etablissement < ApplicationRecord
   validates :siret, presence: true
   validates :dossier_id, uniqueness: { allow_nil: true }
 
-  enum entreprise_etat_administratif: {
+  enum :entreprise_etat_administratif, {
     actif: "actif",
     fermé: "fermé"
-  }, _prefix: true
+  }, prefix: true
 
   after_commit -> { dossier&.index_search_terms_later }
+
+  alias_attribute :code_naf, :naf
+
+  # See https://github.com/demarches-simplifiees/demarches-simplifiees.fr/pull/10591#discussion_r1819399688
+  # SIRET is already exposed as base column.
+  DISPLAYABLE_COLUMNS = {
+    "entreprise_raison_sociale" => { type: :text },
+    "entreprise_siren" => { type: :text },
+    "entreprise_nom_commercial" => { type: :text },
+    "entreprise_forme_juridique" => { type: :text },
+    "entreprise_date_creation" => { type: :date, filterable: false },
+    "libelle_naf" => { type: :text }
+  }.freeze
+
+  EXPORTABLE_COLUMNS = {
+    "siege_social" => { type: :boolean },
+    "code_naf" => { type: :text },
+    "adresse" => { type: :text },
+    "numero_voie" => { type: :text },
+    "type_voie" => { type: :text },
+    "nom_voie" => { type: :text },
+    "complement_adresse" => { type: :text },
+    "localite" => { type: :text },
+    "code_insee_localite" => { type: :text },
+    "entreprise_capital_social" => { type: :integer },
+    "entreprise_numero_tva_intracommunautaire" => { type: :text },
+    "entreprise_forme_juridique_code" => { type: :text },
+    "entreprise_code_effectif_entreprise" => { type: :text },
+    "entreprise_etat_administratif" => { type: :text },
+    "entreprise_siret_siege_social" => { type: :text },
+    "entreprise_nom" => { type: :text },
+    "entreprise_prenom" => { type: :text },
+    "association_rna" => { type: :text },
+    "association_titre" => { type: :text },
+    "association_objet" => { type: :text },
+    "association_date_creation" => { type: :text },
+    "association_date_declaration" => { type: :text },
+    "association_date_publication" => { type: :text }
+  }.freeze
 
   def entreprise_raison_sociale
     read_attribute(:entreprise_raison_sociale).presence || raison_sociale_for_ei
@@ -191,6 +230,21 @@ class Etablissement < ApplicationRecord
 
   def as_degraded_mode?
     adresse.nil? # TOOD: maybe dedicated column or more robust way
+  end
+
+  def update_champ_value_json!
+    return if champ.nil?
+
+    champ.update!(value_json: champ_value_json)
+  end
+
+  def champ_value_json
+    address_data = APIGeoService.parse_etablissement_address(self)
+
+    DISPLAYABLE_COLUMNS.keys.each_with_object(address_data) do |attr, hash|
+      value = public_send(attr)
+      hash[attr.to_sym] = value if value.present?
+    end
   end
 
   private

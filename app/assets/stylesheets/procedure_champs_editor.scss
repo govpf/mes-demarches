@@ -1,6 +1,6 @@
-@import "colors";
-@import "constants";
-@import "placeholders";
+@import 'colors';
+@import 'constants';
+@import 'placeholders';
 
 .types-de-champ-editor {
   > .types-de-champ-block {
@@ -72,8 +72,26 @@
       }
     }
 
+    legend {
+      text-transform: uppercase;
+      padding: 0;
+      margin: 0;
+      font-size: 12px;
+      font-weight: bold;
+    }
     .cell {
-      label {
+      .checkboxes-fieldset {
+        padding: 0;
+        margin: 0;
+      }
+
+      .fr-fieldset {
+        margin-bottom: 0;
+      }
+
+      label:not(.fr-label),
+      legend label,
+      .fake-label {
         margin-bottom: 8px;
         text-transform: uppercase;
         font-size: 12px;
@@ -108,7 +126,7 @@
 
     a {
       // Remove the icon indicating an external link (for less visual noise)
-      &[target="_blank"]::after {
+      &[target='_blank']::after {
         display: none;
       }
     }

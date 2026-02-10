@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 describe ProcedureArchiveService do
+  include ZipHelpers
+
   let(:procedure) { create(:procedure, :published, administrateurs: [administrateur]) }
   let(:instructeur) { create(:instructeur) }
   let(:administrateur) { administrateurs(:default_admin) }
@@ -18,8 +20,6 @@ describe ProcedureArchiveService do
     let!(:dossier) { create_dossier_for_month(year, month) }
     let!(:dossier_2020) { create_dossier_for_month(2020, month) }
 
-    after { Timecop.return }
-
     context 'for a specific month' do
       let(:archive) { create(:archive, user_profile: administrateur, time_span_type: 'monthly', job_status: 'pending', month: date_month, groupe_instructeurs: groupe_instructeurs) }
       let(:year) { 2021 }
@@ -32,8 +32,6 @@ describe ProcedureArchiveService do
         end
 
         archive.file.open do |f|
-          files = ZipTricks::FileReader.read_zip_structure(io: f)
-
           structure = [
             "export/",
             "export/dossier-#{dossier.id}/",
@@ -41,7 +39,7 @@ describe ProcedureArchiveService do
             "export/dossier-#{dossier.id}/pieces_justificatives/attestation-dossier--05-03-2021-00-00-#{dossier.attestation.pdf.id % 10000}.pdf",
             "export/dossier-#{dossier.id}/export-#{dossier.id}-05-03-2021-00-00-#{dossier.id % 10000}.pdf"
           ]
-          expect(files.map(&:filename)).to match_array(structure)
+          expect(read_zip_entries(f.path)).to match_array(structure)
         end
         expect(archive.file.attached?).to be_truthy
       end
@@ -53,7 +51,6 @@ describe ProcedureArchiveService do
           service.make_and_upload_archive(archive)
         end
         archive.file.open do |f|
-          files = ZipTricks::FileReader.read_zip_structure(io: f)
           structure = [
             "export/",
             "export/-LISTE-DES-FICHIERS-EN-ERREURS.txt",
@@ -61,7 +58,7 @@ describe ProcedureArchiveService do
             "export/dossier-#{dossier.id}/pieces_justificatives/",
             "export/dossier-#{dossier.id}/export-#{dossier.id}-05-03-2021-00-00-#{dossier.id % 10000}.pdf"
           ]
-          expect(files.map(&:filename)).to match_array(structure)
+          expect(read_zip_entries(f.path)).to match_array(structure)
         end
         expect(archive.file.attached?).to be_truthy
       end
@@ -100,7 +97,6 @@ describe ProcedureArchiveService do
           service.make_and_upload_archive(archive)
 
           archive.file.open do |f|
-            zip_entries = ZipTricks::FileReader.read_zip_structure(io: f)
             structure = [
               "export/",
               "export/-LISTE-DES-FICHIERS-EN-ERREURS.txt",
@@ -109,14 +105,11 @@ describe ProcedureArchiveService do
               "export/dossier-#{dossier.id}/pieces_justificatives/",
               "export/dossier-#{dossier.id}/export-#{dossier.id}-05-03-2021-00-00-#{dossier.id % 10000}.pdf"
             ]
-            expect(zip_entries.map(&:filename)).to match_array(structure)
-            zip_entries.map do |entry|
-              next unless entry.filename == "#{service.send(:zip_root_folder, archive)}/-LISTE-DES-FICHIERS-EN-ERREURS.txt"
-              extracted_content = +""
-              extractor = entry.extractor_from(f)
-              extracted_content << extractor.extract(1024 * 1024) until extractor.eof?
-              expect(extracted_content).to match(/Impossible de .* .*cni.*png/)
-            end
+            expect(read_zip_entries(f.path)).to match_array(structure)
+
+            error_file_path = "export/-LISTE-DES-FICHIERS-EN-ERREURS.txt"
+            content = read_zip_file_content(f.path, error_file_path)
+            expect(content).to match(/Impossible de .* .*cni.*png/)
           end
         end
       end
@@ -134,7 +127,6 @@ describe ProcedureArchiveService do
 
         archive = Archive.last
         archive.file.open do |f|
-          files = ZipTricks::FileReader.read_zip_structure(io: f)
           structure = [
             "export/",
             "export/dossier-#{dossier.id}/",
@@ -146,7 +138,7 @@ describe ProcedureArchiveService do
             "export/dossier-#{dossier_2020.id}/pieces_justificatives/",
             "export/dossier-#{dossier_2020.id}/pieces_justificatives/attestation-dossier--05-03-2020-00-00-#{dossier_2020.attestation.pdf.id % 10000}.pdf"
           ]
-          expect(files.map(&:filename)).to match_array(structure)
+          expect(read_zip_entries(f.path)).to match_array(structure)
         end
         expect(archive.file.attached?).to be_truthy
       end
@@ -156,12 +148,7 @@ describe ProcedureArchiveService do
   private
 
   def create_dossier_for_month(year, month)
-    Timecop.freeze(Time.zone.local(year, month, 5))
+    travel_to(Time.zone.local(year, month, 5))
     create(:dossier, :accepte, :with_attestation, procedure: procedure)
-  end
-
-  def extract(zip_file, zip_entry)
-    extractor = zip_entry.extractor_from(zip_file)
-    extractor.extract
   end
 end

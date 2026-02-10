@@ -23,7 +23,7 @@ module Dsfr
 
         {
           "#{dsfr_group_classname}--error" => errors_on_attribute?,
-          "#{dsfr_group_classname}--valid" => !errors_on_attribute? && errors_on_another_attribute?
+          "#{dsfr_group_classname}--valid" => !errors_on_attribute? && errors_on_another_attribute? && object.try(attribute).present?
         }
       end
 
@@ -38,7 +38,13 @@ module Dsfr
 
       def fieldset_error_opts
         if dsfr_champ_container == :fieldset && errors_on_attribute?
-          { aria: { labelledby: "#{describedby_id} #{object.labelledby_id}" } }
+          labelledby = [@champ.labelledby_id]
+          labelledby << describedby_id if @champ.description.present?
+          labelledby << @champ.error_id
+
+          {
+            aria: { labelledby: labelledby.join(' ') }
+          }
         else
           {}
         end
@@ -51,9 +57,9 @@ module Dsfr
       def attribute_or_rich_body
         case @input_type
         when :rich_text_area
-          @attribute.to_s.sub(/\Arich_/, '').to_sym
+          attribute.to_s.sub(/\Arich_/, '').to_sym
         else
-          @attribute
+          attribute
         end
       end
 
@@ -64,14 +70,6 @@ module Dsfr
       def input_error_class_names
         {
           "#{dsfr_input_classname}--error": errors_on_attribute?
-        }
-      end
-
-      def input_error_opts
-        {
-          aria: {
-            describedby: describedby_id
-          }
         }
       end
 
@@ -87,11 +85,18 @@ module Dsfr
                                              'fr-input': !react,
                                              'fr-mb-0': true
                                       }.merge(input_error_class_names)))
-        if errors_on_attribute?
-          @opts.deep_merge!('aria-describedby': describedby_id)
+
+        aria_describedby = []
+
+        if object.respond_to?(:description) && object.description.present?
+          aria_describedby << describedby_id
         elsif hintable?
-          @opts.deep_merge!('aria-describedby': hint_id)
+          aria_describedby << hint_id
         end
+
+        aria_describedby << object.error_id if errors_on_attribute? && object.respond_to?(:error_id)
+
+        @opts.deep_merge!('aria-describedby': aria_describedby.join(' ')) if aria_describedby.present?
 
         if @required
           @opts[react ? :is_required : :required] = true

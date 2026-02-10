@@ -8,10 +8,10 @@ class Procedure::Card::AttestationComponent < ApplicationComponent
   private
 
   def edit_attestation_path
-    if @procedure.attestation_templates_v2.any? || @procedure.feature_enabled?(:attestation_v2)
-      helpers.edit_admin_procedure_attestation_template_v2_path(@procedure)
-    else
+    if @procedure.attestation_template&.version == 1
       helpers.edit_admin_procedure_attestation_template_path(@procedure)
+    else
+      helpers.edit_admin_procedure_attestation_template_v2_path(@procedure)
     end
   end
 

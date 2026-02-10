@@ -31,8 +31,8 @@ class TypesDeChamp::PrefillTypeDeChamp < SimpleDelegator
       TypesDeChamp::PrefillAddressTypeDeChamp.new(type_de_champ, revision)
     when TypeDeChamp.type_champs.fetch(:epci)
       TypesDeChamp::PrefillEpciTypeDeChamp.new(type_de_champ, revision)
-    when TypeDeChamp.type_champs.fetch(:annuaire_education)
-      TypesDeChamp::PrefillAnnuaireEducationTypeDeChamp.new(type_de_champ, revision)
+    when TypeDeChamp.type_champs.fetch(:formatted)
+      TypesDeChamp::PrefillFormattedTypeDeChamp.new(type_de_champ, revision)
     else
       new(type_de_champ, revision)
     end
@@ -74,7 +74,7 @@ class TypesDeChamp::PrefillTypeDeChamp < SimpleDelegator
 
     link_to(
       I18n.t("views.prefill_descriptions.edit.possible_values.link.text"),
-      Rails.application.routes.url_helpers.prefill_type_de_champ_path(revision.procedure_path, self),
+      Rails.application.routes.url_helpers.prefill_type_de_champ_path(@revision.procedure_path, self),
       title: new_tab_suffix(I18n.t("views.prefill_descriptions.edit.possible_values.link.title")),
       **external_link_attributes
     )

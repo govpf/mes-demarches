@@ -98,8 +98,27 @@ FactoryBot.define do
       type_champ { TypeDeChamp.type_champs.fetch(:linked_drop_down_list) }
       drop_down_options { ["--primary--", "secondary"] }
     end
-    factory :type_de_champ_expression_reguliere do
-      type_champ { TypeDeChamp.type_champs.fetch(:expression_reguliere) }
+    factory :type_de_champ_formatted do
+      type_champ { TypeDeChamp.type_champs.fetch(:formatted) }
+      trait :simple do
+        options do
+          { formatted: "simple" }
+        end
+      end
+      trait :numbers_accepted do
+        options do
+          {
+            formatted_mode: 'simple',
+            numbers_accepted: '1',
+            letters_accepted: '0'
+          }
+        end
+      end
+      trait :advanced do
+        options do
+          { formatted_mode: "advanced" }
+        end
+      end
     end
     factory :type_de_champ_pays do
       type_champ { TypeDeChamp.type_champs.fetch(:pays) }
@@ -201,11 +220,17 @@ FactoryBot.define do
     factory :type_de_champ_lexpol do
       type_champ { TypeDeChamp.type_champs.fetch(:lexpol) }
     end
+    factory :type_de_champ_referentiel_de_polynesie do
+      type_champ { TypeDeChamp.type_champs.fetch(:referentiel_de_polynesie) }
+    end
     factory :type_de_champ_epci do
       type_champ { TypeDeChamp.type_champs.fetch(:epci) }
     end
     factory :type_de_champ_engagement_juridique do
       type_champ { TypeDeChamp.type_champs.fetch(:engagement_juridique) }
+    end
+    factory :type_de_champ_referentiel do
+      type_champ { TypeDeChamp.type_champs.fetch(:referentiel) }
     end
     factory :type_de_champ_cojo do
       type_champ { TypeDeChamp.type_champs.fetch(:cojo) }

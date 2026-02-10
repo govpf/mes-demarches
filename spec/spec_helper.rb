@@ -24,7 +24,7 @@ require 'simplecov' if ENV["CI"] || ENV["COVERAGE"] # see config in .simplecov f
 
 require 'rspec/retry'
 
-SECURE_PASSWORD = 'PARAU TAHITI ‘OE'
+SECURE_PASSWORD = '{My-$3cure-p4ssWord}'
 
 RSpec.configure do |config|
   config.filter_run_excluding disable: true
@@ -67,6 +67,8 @@ RSpec.configure do |config|
       end
     end
   end
+
+  RSpec::Matchers.define_negated_matcher(:not_change, :change)
 end
 
 RSpec.configure do |config|

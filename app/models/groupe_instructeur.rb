@@ -11,7 +11,8 @@ class GroupeInstructeur < ApplicationRecord
   has_many :batch_operations, through: :dossiers, source: :batch_operations
   has_many :assignments, class_name: 'DossierAssignment', dependent: :nullify, inverse_of: :groupe_instructeur
   has_many :previous_assignments, class_name: 'DossierAssignment', dependent: :nullify, inverse_of: :previous_groupe_instructeur
-  has_many :export_templates
+  has_many :export_templates, dependent: :destroy
+  has_many :dossier_notifications, dependent: :destroy
   has_and_belongs_to_many :exports, dependent: :destroy
 
   has_one :defaut_procedure, -> { with_discarded }, class_name: 'Procedure', foreign_key: :defaut_groupe_instructeur_id, dependent: :nullify, inverse_of: :defaut_groupe_instructeur
@@ -19,7 +20,7 @@ class GroupeInstructeur < ApplicationRecord
 
   has_one_attached :signature
 
-  SIGNATURE_MAX_SIZE = 1.megabytes
+  SIGNATURE_MAX_SIZE = 1.megabyte
   validates :signature, content_type: ['image/png', 'image/jpg', 'image/jpeg'], size: { less_than: SIGNATURE_MAX_SIZE }
 
   validates :label, presence: true, allow_nil: false
@@ -46,10 +47,13 @@ class GroupeInstructeur < ApplicationRecord
     return if !in?(instructeur.groupe_instructeurs)
 
     instructeur.groupe_instructeurs.destroy(self)
+
     instructeur.follows
       .joins(:dossier)
       .where(dossiers: { groupe_instructeur: self })
       .update_all(unfollowed_at: Time.zone.now)
+
+    DossierNotification.destroy_notifications_instructeur_of_groupe_instructeur(self, instructeur)
   end
 
   def add_instructeurs(ids: [], emails: [])
@@ -73,6 +77,10 @@ class GroupeInstructeur < ApplicationRecord
 
   def can_delete?
     dossiers.empty? && (procedure.groupe_instructeurs.active.many? || (procedure.groupe_instructeurs.active.one? && closed))
+  end
+
+  def can_close?
+    id != procedure.defaut_groupe_instructeur_id
   end
 
   def routing_to_configure?
@@ -125,5 +133,5 @@ class GroupeInstructeur < ApplicationRecord
     rule.errors(tdcs).blank?
   end
 
-  serialize :routing_rule, LogicSerializer
+  serialize :routing_rule, coder: LogicSerializer
 end

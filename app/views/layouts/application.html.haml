@@ -7,10 +7,20 @@
     %meta{ name: "application-name", content: Current.application_name }
     %meta{ name: "apple-mobile-web-app-title", content: Current.application_name }
     %meta{ name: "format-detection", content: "telephone=no,date=no,address=no,email=no,url=no" }
+
+    - if request.host != ENV["APP_HOST"]
+      %link{ rel: "canonical", href: "https://#{ENV['APP_HOST']}#{request.fullpath}" }
+
     = csrf_meta_tags
 
+    -# pf: La Suite numérique n'est pas encore accessible aux agents de Polynésie française
+    -# Accès en cours de négociation pour extension aux territoires d'outre-mer
+    -# Réactiver quand l'accès sera confirmé (décommenter ci-dessous)
+    -# - if administrateur_signed_in? || instructeur_signed_in?
+    -#   %script#lasuite-gaufre-script{ async: '', defer: 'defer', src: 'https://integration.lasuite.numerique.gouv.fr/api/v1/gaufre.js' }
+
     %title
-      = content_for?(:title) ? "#{sanitize(yield(:title))} · #{Current.application_name}" : Current.application_name
+      = content_for?(:title) ? "#{sanitize(yield(:title)).gsub("&nbsp;", " ")} · #{Current.application_name}" : Current.application_name
 
     = render partial: "layouts/favicons"
 
@@ -31,7 +41,7 @@
     = yield(:invisible_captcha_styles)
     = render partial: 'layouts/setup_theme'
 
-  %body{ { id: content_for(:page_id), class: browser.platform.ios? ? 'ios' : nil, data: { controller: 'turbo number-input' } }.compact }
+  %body{ { id: content_for(:page_id), class: browser.platform.ios? ? 'ios' : nil, data: { controller: 'turbo number-input fix-table-border' } }.compact }
     = render partial: 'layouts/skiplinks'
     = render partial: 'layouts/display_theme_modal'
 

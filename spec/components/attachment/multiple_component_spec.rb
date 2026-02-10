@@ -25,7 +25,7 @@ RSpec.describe Attachment::MultipleComponent, type: :component do
     it 'renders a form field for uploading a file and max attachment size' do
       expect(subject).to have_no_selector('.hidden input[type=file]')
       expect(subject).to have_selector('input[type=file]:not(.hidden)')
-      expect(subject).to have_content(/Taille maximale :\s+20 Mo/)
+      expect(subject).to have_content(/Taille maximale autorisée :\s+20 Mo/)
     end
   end
 
@@ -93,14 +93,6 @@ RSpec.describe Attachment::MultipleComponent, type: :component do
 
     it 'setup polling' do
       expect(subject).to have_selector('[data-controller=turbo-poll]')
-    end
-  end
-
-  context 'when user can replace' do
-    let(:kwargs) { { user_can_replace: true } }
-
-    before do
-      attach_to_champ(attached_file, champ)
     end
   end
 

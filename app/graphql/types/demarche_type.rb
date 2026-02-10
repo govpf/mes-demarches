@@ -4,7 +4,9 @@ module Types
   class DemarcheType < Types::BaseObject
     class DemarcheState < Types::BaseEnum
       Procedure.aasm.states.reject { |state| state.name == :hidden }.each do |state|
-        value(state.name.to_s, state.display_name, value: state.name)
+        value(state.name.to_s,
+            I18n.t(state, scope: [:activerecord, :attributes, :procedure, :api_state]),
+           value: state.name)
       end
     end
 
@@ -41,7 +43,7 @@ module Types
       argument :created_since, GraphQL::Types::ISO8601DateTime, required: false, description: "Dossiers déposés depuis la date."
       argument :updated_since, GraphQL::Types::ISO8601DateTime, required: false, description: "Dossiers mis à jour depuis la date."
       argument :state, Types::DossierType::DossierState, required: false, description: "Dossiers avec statut."
-      argument :archived, Boolean, required: false, description: "Seulement les dossiers archivés."
+      argument :archived, Boolean, required: false, description: "Seulement les dossiers à archiver."
       argument :revision, ID, required: false, description: "Seulement les dossiers pour la révision donnée."
       argument :max_revision, ID, required: false, description: "Seulement les dossiers pour les révisons avant la révision donnée."
       argument :min_revision, ID, required: false, description: "Seulement les dossiers pour les révisons après la révision donnée."
@@ -64,6 +66,8 @@ module Types
     field :published_revision, Types::RevisionType, null: true
     field :revisions, [Types::RevisionType], null: false
     field :chorus_configuration, Types::ChorusConfigurationType, null: true, description: "Cadre budgétaire Chorus"
+    field :labels, [Types::LabelType], null: false, description: 'Liste des labels associables aux dossiers'
+    field :administrateurs, [Types::ProfileType], null: false, description: "Liste les administrateurs de la démarche"
 
     def state
       object.aasm.current_state
@@ -80,7 +84,7 @@ module Types
     end
 
     def service
-      Loaders::Record.for(Service).load(object.service_id)
+      Loaders::Association.for(object.class, :service).load(object)
     end
 
     def revisions
@@ -105,11 +109,11 @@ module Types
         dossiers = dossiers.where(revision: find_revision(revision))
       else
         if !min_revision.nil?
-          dossiers = dossiers.joins(:revision).where('procedure_revisions.created_at >= ?', find_revision(min_revision).created_at)
+          dossiers = dossiers.joins(:revision).where(procedure_revisions: { created_at: find_revision(min_revision).created_at.. })
         end
 
         if !max_revision.nil?
-          dossiers = dossiers.joins(:revision).where('procedure_revisions.created_at <= ?', find_revision(max_revision).created_at)
+          dossiers = dossiers.joins(:revision).where(procedure_revisions: { created_at: ..find_revision(max_revision).created_at })
         end
       end
 

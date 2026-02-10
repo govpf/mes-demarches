@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class RecoveriesController < ApplicationController
-  before_action :ensure_agent_connect_is_used, except: [:nature, :post_nature, :support]
+  before_action :ensure_pro_connect_is_used, except: [:nature, :post_nature, :support]
   before_action :ensure_collectivite_territoriale, except: [:nature, :post_nature, :support]
 
   def nature
@@ -22,13 +22,13 @@ class RecoveriesController < ApplicationController
   def post_identification
     # cipher previous_user email
     # to avoid leaks in the url
-    ciphered_email = cipher(previous_email)
+    ciphered_email = message_encryptor_service.encrypt_and_sign(previous_email, purpose: :agent_files_recovery, expires_in: 1.hour)
 
     redirect_to selection_recovery_path(ciphered_email:)
   end
 
   def selection
-    @previous_email = uncipher(params[:ciphered_email])
+    @previous_email = message_encryptor_service.decrypt_and_verify(params[:ciphered_email], purpose: :agent_files_recovery) rescue nil
 
     previous_user = User.find_by(email: @previous_email)
 
@@ -58,22 +58,19 @@ class RecoveriesController < ApplicationController
   private
 
   def nature_params = params[:nature]
-  def siret = current_instructeur.last_agent_connect_information.siret
+  def siret = current_instructeur.last_pro_connect_information.siret
   def previous_email = params[:previous_email]
   def procedure_ids = params[:procedure_ids].map(&:to_i)
-
-  def cipher(email) = message_verifier.generate(email, purpose: :agent_files_recovery, expires_in: 1.hour)
-  def uncipher(email) = message_verifier.verified(email, purpose: :agent_files_recovery) rescue nil
 
   def structure_name
     # we know that the structure exists because
     # of the ensure_collectivite_territoriale guard
-    APIRechercheEntreprisesService.new.(siret:).value![:nom_complet]
+    APIRechercheEntreprisesService.new.call(siret:).value![:nom_complet]
   end
 
-  def ensure_agent_connect_is_used
-    if current_instructeur&.last_agent_connect_information.nil?
-      redirect_to support_recovery_path(error: :must_use_agent_connect)
+  def ensure_pro_connect_is_used
+    if current_instructeur&.last_pro_connect_information.nil?
+      redirect_to support_recovery_path(error: :must_use_pro_connect)
     end
   end
 

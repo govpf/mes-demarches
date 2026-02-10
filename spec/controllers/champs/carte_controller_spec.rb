@@ -21,14 +21,6 @@ describe Champs::CarteController, type: :controller do
   describe 'features' do
     let(:feature) { attributes_for(:geo_area, :polygon) }
     let(:geo_area) { create(:geo_area, :selection_utilisateur, :polygon, champ: champ) }
-    let(:params) do
-      {
-        dossier_id: champ.dossier_id,
-        stable_id: champ.stable_id,
-        feature: feature,
-        source: GeoArea.sources.fetch(:selection_utilisateur)
-      }
-    end
 
     before do
       sign_in user
@@ -37,12 +29,42 @@ describe Champs::CarteController, type: :controller do
     end
 
     describe 'POST #create' do
-      before do
-        post :create, params: params
+      subject { post :create, params: params }
+
+      context 'when success (selection utilisateur)' do
+        let(:params) do
+          {
+            dossier_id: champ.dossier_id,
+            stable_id: champ.stable_id,
+            feature: feature,
+            source: GeoArea.sources.fetch(:selection_utilisateur)
+          }
+        end
+
+        it do
+          expect { subject } .to change { dossier.reload.last_champ_updated_at }
+          expect(response).to have_http_status(:created)
+        end
       end
 
-      context 'success' do
-        it { expect(response.status).to eq 201 }
+      context 'when success (cadastre)' do
+        let(:params) do
+          {
+            dossier_id: champ.dossier_id,
+            stable_id: champ.stable_id,
+            feature: feature,
+            source: GeoArea.sources.fetch(:cadastre)
+          }
+        end
+
+        it do
+          expect { subject } .to change { dossier.reload.last_champ_updated_at }
+          expect(response).to have_http_status(:created)
+        end
+
+        it 'enqueues a FetchCadastreRealGeometryJob' do
+          expect { subject }.to have_enqueued_job(FetchCadastreRealGeometryJob)
+        end
       end
 
       context 'error' do
@@ -56,7 +78,10 @@ describe Champs::CarteController, type: :controller do
           }
         end
 
-        it { expect(response.status).to eq 422 }
+        it do
+          expect { subject } .not_to change { dossier.reload.last_champ_updated_at }
+          expect(response).to have_http_status(:unprocessable_entity)
+        end
       end
     end
 
@@ -70,12 +95,13 @@ describe Champs::CarteController, type: :controller do
         }
       end
 
-      before do
-        patch :update, params: params
-      end
+      subject { patch :update, params: params }
 
       context 'update geometry' do
-        it { expect(response.status).to eq 204 }
+        it do
+          expect { subject } .to change { dossier.reload.last_champ_updated_at }
+          expect(response).to have_http_status(:no_content)
+        end
       end
 
       context 'update description' do
@@ -87,16 +113,20 @@ describe Champs::CarteController, type: :controller do
           }
         end
 
-        it {
+        it do
+          subject
           expect(response.status).to eq 204
           expect(geo_area.reload.description).to eq('un point')
-        }
+        end
       end
 
       context 'error' do
         let(:feature) { attributes_for(:geo_area, :invalid_point) }
 
-        it { expect(response.status).to eq 422 }
+        it do
+          expect { subject } .not_to change { dossier.reload.last_champ_updated_at }
+          expect(response).to have_http_status(:unprocessable_entity)
+        end
       end
     end
 
@@ -109,11 +139,12 @@ describe Champs::CarteController, type: :controller do
         }
       end
 
-      before do
-        delete :destroy, params: params
-      end
+      subject { delete :destroy, params: params }
 
-      it { expect(response.status).to eq 204 }
+      it do
+        expect { subject } .to change { dossier.reload.last_champ_updated_at }
+        expect(response).to have_http_status(:no_content)
+      end
     end
 
     describe 'GET #index' do

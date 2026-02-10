@@ -9,10 +9,10 @@ fr:
         demande_revoquee_le: "Demande d’avis révoquée le %{date}"
         relance_effectuee_le: "Relance effectuée le %{date}"
         reponse_donnee_le: "Réponse donnée le %{date}"
-        en_attente: "En attente de réponse"
+        en_attente: "En attente d'avis"
       france_connect_login:
         title: 'Pour les personnes enregistrées en métropole'
-        description: "FranceConnect est la solution proposée par l’État pour sécuriser et simplifier la connexion aux services en ligne."
+        description: "FranceConnect est la solution proposée par l’État pour sécuriser et simplifier la connexion à vos services en ligne."
         login_button: "S’identifier avec"
         help_link: "Qu’est-ce que FranceConnect ?"
         separator: 'ou'
@@ -31,3 +31,21 @@ fr:
       messages:
         remove_file: 'Supprimer le fichier'
         remove_all: "Supprimer tous les fichiers"
+      piece_justificative:
+        name: "Télécharger le modèle"
+      merge:
+        button_merge: "Fusionner les comptes"
+      groupe_instructeurs:
+        title: Affecter un nouvel instructeur
+        table_title: Instructeurs
+        assigned_instructeur:
+          one: "%{count} instructeur affecté"
+          other: "%{count} instructeurs affectés"
+        instructeur_assignation: Affectation des instructeurs
+        assign: Affecter
+        remove: Retirer
+        instructeur_emails: Adresse(s) électronique(s)
+        copy_paste_hint: "Vous pouvez saisir les adresses individuellement, ou bien copier-coller dans le champ ci-dessous une liste d’adresses séparées par des points-virgules (exemple : adresse1@mail.com; adresse2@mail.com; adresse3@mail.com)."
+        actions: Action
+        notification_alert_html: Même si votre démarche est encore en test / non publiée, tous les instructeurs que vous ajouterez à la démarche <strong>seront notifiés par email</strong>.
+        notification_alert_publiee_html: Tous les instructeurs que vous ajouterez à la démarche <strong>seront notifiés par email</strong>.

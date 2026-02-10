@@ -35,17 +35,7 @@ class ProcedureRevision < ApplicationRecord
     if: -> { ineligibilite_enabled? },
     on: [:ineligibilite_rules_editor, :publication]
 
-  serialize :ineligibilite_rules, LogicSerializer
-
-  def build_champs_public(dossier)
-    # reload: it can be out of sync in test if some tdcs are added wihtout using add_tdc
-    types_de_champ_public.reload.map { _1.build_champ(dossier:) }
-  end
-
-  def build_champs_private(dossier)
-    # reload: it can be out of sync in test if some tdcs are added wihtout using add_tdc
-    types_de_champ_private.reload.map { _1.build_champ(dossier:) }
-  end
+  serialize :ineligibilite_rules, coder: LogicSerializer
 
   def add_type_de_champ(params)
     parent_stable_id = params.delete(:parent_stable_id)
@@ -55,22 +45,26 @@ class ProcedureRevision < ApplicationRecord
     after_stable_id = params.delete(:after_stable_id)
     after_coordinate, _ = coordinate_and_tdc(after_stable_id)
 
-    siblings = siblings_for(parent_coordinate:, private_tdc: params[:private])
+    type_de_champ = TypeDeChamp.new(params)
 
-    tdc = TypeDeChamp.new(params)
-    if tdc.save
-      # moving all the impacted tdc down
-      position = next_position_for(after_coordinate:, siblings:)
-      siblings.where("position >= ?", position).update_all("position = position + 1")
+    if type_de_champ.save
+      siblings = siblings_for(type_de_champ:, parent_coordinate:)
+      position = next_position_for(after_coordinate:)
 
-      # insertion of the new tdc
-      h = { type_de_champ: tdc, parent_id: parent_id, position: position }
-      revision_types_de_champ.create!(h)
+      transaction do
+        # moving all the impacted tdc down
+        siblings.where(position: position..).update_all("position = position + 1")
+
+        # insertion of the new tdc
+        revision_types_de_champ.create!(type_de_champ:, parent_id:, position:)
+      end
+
+      revision_types_de_champ.reset
     end
 
-    tdc
+    type_de_champ
   rescue => e
-    TypeDeChamp.new.tap { |tdc| tdc.errors.add(:base, e.message) }
+    TypeDeChamp.new.tap { _1.errors.add(:base, e.message) }
   end
 
   def find_and_ensure_exclusive_use(stable_id)
@@ -87,12 +81,17 @@ class ProcedureRevision < ApplicationRecord
     coordinate, _ = coordinate_and_tdc(stable_id)
     siblings = coordinate.siblings
 
-    if position > coordinate.position
-      siblings.where(position: coordinate.position..position).update_all("position = position - 1")
-    else
-      siblings.where(position: position..coordinate.position).update_all("position = position + 1")
+    transaction do
+      if position > coordinate.position
+        siblings.where(position: coordinate.position..position).update_all("position = position - 1")
+      else
+        siblings.where(position: position..coordinate.position).update_all("position = position + 1")
+      end
+      coordinate.update_column(:position, position)
     end
-    coordinate.update_column(:position, position)
+
+    revision_types_de_champ.reset
+    coordinate.reload
     coordinate
   end
 
@@ -100,16 +99,18 @@ class ProcedureRevision < ApplicationRecord
     coordinate, _ = coordinate_and_tdc(stable_id)
     siblings = coordinate.siblings
 
-    if position > coordinate.position
-      siblings.where(position: coordinate.position..position).update_all("position = position - 1")
-      coordinate.update_column(:position, position)
-    else
-      siblings.where(position: (position + 1)...coordinate.position).update_all("position = position + 1")
-      coordinate.update_column(:position, position + 1)
+    transaction do
+      if position > coordinate.position
+        siblings.where(position: coordinate.position..position).update_all("position = position - 1")
+        coordinate.update_column(:position, position)
+      else
+        siblings.where(position: (position + 1)...coordinate.position).update_all("position = position + 1")
+        coordinate.update_column(:position, position + 1)
+      end
     end
 
+    revision_types_de_champ.reset
     coordinate.reload
-
     coordinate
   end
 
@@ -120,13 +121,17 @@ class ProcedureRevision < ApplicationRecord
     return nil if coordinate.nil?
 
     children = children_of(tdc).to_a
-    coordinate.destroy
 
-    children.each(&:destroy_if_orphan)
-    tdc.destroy_if_orphan
+    transaction do
+      coordinate.destroy
 
-    coordinate.siblings.where("position >= ?", coordinate.position).update_all("position = position - 1")
+      children.each(&:destroy_if_orphan)
+      tdc.destroy_if_orphan
 
+      coordinate.siblings.where(position: coordinate.position..).update_all("position = position - 1")
+    end
+
+    revision_types_de_champ.reset
     coordinate
   end
 
@@ -172,7 +177,7 @@ class ProcedureRevision < ApplicationRecord
       .find_or_initialize_by(revision: self, user: user, for_procedure_preview: true, state: Dossier.states.fetch(:brouillon))
 
     if dossier.new_record?
-      dossier.build_default_individual
+      dossier.build_default_values
       dossier.save!
     end
 
@@ -191,33 +196,11 @@ class ProcedureRevision < ApplicationRecord
   end
 
   def children_of(tdc)
-    if revision_types_de_champ.loaded?
-      parent_coordinate_id = revision_types_de_champ
-        .filter { _1.type_de_champ_id == tdc.id }
-        .map(&:id)
-
-      revision_types_de_champ
-        .filter { _1.parent_id.in?(parent_coordinate_id) }
-        .sort_by(&:position)
-        .map(&:type_de_champ)
-    else
-      parent_coordinate_id = revision_types_de_champ.where(type_de_champ: tdc).select(:id)
-
-      types_de_champ
-        .where(procedure_revision_types_de_champ: { parent_id: parent_coordinate_id })
-        .order("procedure_revision_types_de_champ.position")
-    end
+    coordinate_for(tdc).types_de_champ
   end
 
   def parent_of(tdc)
-    revision_types_de_champ
-      .find { _1.type_de_champ_id == tdc.id }.parent&.type_de_champ
-  end
-
-  def remove_children_of(tdc)
-    children_of(tdc).each do |child|
-      remove_type_de_champ(child.stable_id)
-    end
+    coordinate_for(tdc).parent_type_de_champ
   end
 
   def dependent_conditions(tdc)
@@ -240,7 +223,7 @@ class ProcedureRevision < ApplicationRecord
   end
 
   def coordinate_for(tdc)
-    revision_types_de_champ.find_by!(type_de_champ: tdc)
+    revision_types_de_champ.find { _1.stable_id == tdc.stable_id }
   end
 
   def carte?
@@ -278,24 +261,17 @@ class ProcedureRevision < ApplicationRecord
     end
   end
 
-  def children_types_de_champ_as_json(tdcs_as_json, parent_tdcs)
-    parent_tdcs.each do |parent_tdc|
-      tdc_as_json = tdcs_as_json.find { |json| json["id"] == parent_tdc.stable_id }
-      tdc_as_json&.merge!(types_de_champ: children_of(parent_tdc).includes(piece_justificative_template_attachment: :blob).map(&:as_json_for_editor))
-    end
-  end
-
-  def siblings_for(parent_coordinate: nil, private_tdc: false)
+  def siblings_for(type_de_champ:, parent_coordinate: nil)
     if parent_coordinate
       parent_coordinate.revision_types_de_champ
-    elsif private_tdc
+    elsif type_de_champ.private?
       revision_types_de_champ_private
     else
       revision_types_de_champ_public
     end
   end
 
-  def next_position_for(siblings:, after_coordinate: nil)
+  def next_position_for(after_coordinate: nil)
     # either we are at the beginning of the list or after another item
     if after_coordinate.nil? # first element of the list, starts at 0
       0
@@ -410,32 +386,73 @@ class ProcedureRevision < ApplicationRecord
             to_type_de_champ.accredited_user_list)
         end
       end
-      if from_type_de_champ.integer_number? || from_type_de_champ.decimal_number?
-        if from_type_de_champ.min != to_type_de_champ.min
-          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ, :min, from_type_de_champ.min, to_type_de_champ.min)
+      if from_type_de_champ.date? || from_type_de_champ.datetime?
+        # Tracking de date_in_past
+        if from_type_de_champ.date_in_past? != to_type_de_champ.date_in_past?
+          changes << ProcedureRevisionChange::UpdateChamp.new(
+            from_type_de_champ,
+            :date_in_past,
+            from_type_de_champ.date_in_past,
+            to_type_de_champ.date_in_past
+          )
         end
-        if from_type_de_champ.max != to_type_de_champ.max
-          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ, :max, from_type_de_champ.max, to_type_de_champ.max)
+
+        # Tracking de range_date
+        if from_type_de_champ.range_date? != to_type_de_champ.range_date?
+          changes << ProcedureRevisionChange::UpdateChamp.new(
+            from_type_de_champ,
+            :range_date,
+            from_type_de_champ.range_date,
+            to_type_de_champ.range_date
+          )
         end
-      end
-      if from_type_de_champ.date?
-        if from_type_de_champ.min != to_type_de_champ.min
-          to_date = to_type_de_champ.min.present? ? Date.iso8601(to_type_de_champ.min) : ''
-          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ, :min, nil, to_date)
+
+        # Tracking de start_date (seulement si range_date est activé)
+        if to_type_de_champ.range_date? && from_type_de_champ.start_date != to_type_de_champ.start_date
+          changes << ProcedureRevisionChange::UpdateChamp.new(
+            from_type_de_champ,
+            :start_date,
+            from_type_de_champ.start_date,
+            to_type_de_champ.start_date
+          )
         end
-        if from_type_de_champ.max != to_type_de_champ.max
-          to_date = to_type_de_champ.max.present? ? Date.iso8601(to_type_de_champ.max) : ''
-          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ, :max, nil, to_date)
+
+        # Tracking de end_date (seulement si range_date est activé)
+        if to_type_de_champ.range_date? && from_type_de_champ.end_date != to_type_de_champ.end_date
+          changes << ProcedureRevisionChange::UpdateChamp.new(
+            from_type_de_champ,
+            :end_date,
+            from_type_de_champ.end_date,
+            to_type_de_champ.end_date
+          )
         end
       end
     end
-    if to_type_de_champ.drop_down_list?
-      if from_type_de_champ.drop_down_options != to_type_de_champ.drop_down_options
+    if to_type_de_champ.any_drop_down_list?
+      if from_type_de_champ.drop_down_mode != to_type_de_champ.drop_down_mode
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
-          :drop_down_options,
-          from_type_de_champ.drop_down_options,
-          to_type_de_champ.drop_down_options)
+          :drop_down_mode,
+          from_type_de_champ.drop_down_mode,
+          to_type_de_champ.drop_down_mode)
       end
+
+      if to_type_de_champ.drop_down_advanced?
+        if from_type_de_champ.referentiel_id != to_type_de_champ.referentiel_id
+          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+            :referentiel,
+            from_type_de_champ.referentiel_id,
+            to_type_de_champ.referentiel_id)
+        end
+      else
+        from_drop_down_options = from_type_de_champ.drop_down_advanced? ? [] : from_type_de_champ.drop_down_options
+        if from_drop_down_options != to_type_de_champ.drop_down_options
+          changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+            :drop_down_options,
+            from_drop_down_options,
+            to_type_de_champ.drop_down_options)
+        end
+      end
+
       if to_type_de_champ.linked_drop_down_list?
         if from_type_de_champ.drop_down_secondary_libelle != to_type_de_champ.drop_down_secondary_libelle
           changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
@@ -450,6 +467,7 @@ class ProcedureRevision < ApplicationRecord
             to_type_de_champ.drop_down_secondary_description)
         end
       end
+
       if from_type_de_champ.drop_down_other? != to_type_de_champ.drop_down_other?
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
           :drop_down_other,
@@ -463,12 +481,18 @@ class ProcedureRevision < ApplicationRecord
           from_type_de_champ.carte_optional_layers,
           to_type_de_champ.carte_optional_layers)
       end
-    elsif to_type_de_champ.piece_justificative?
+    elsif to_type_de_champ.piece_justificative_or_titre_identite?
       if from_type_de_champ.checksum_for_attachment(:piece_justificative_template) != to_type_de_champ.checksum_for_attachment(:piece_justificative_template)
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
           :piece_justificative_template,
           from_type_de_champ.filename_for_attachement(:piece_justificative_template),
           to_type_de_champ.filename_for_attachement(:piece_justificative_template))
+      end
+      if from_type_de_champ.nature != to_type_de_champ.nature
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :nature,
+          from_type_de_champ.nature,
+          to_type_de_champ.nature)
       end
     elsif to_type_de_champ.explication?
       if from_type_de_champ.checksum_for_attachment(:notice_explicative) != to_type_de_champ.checksum_for_attachment(:notice_explicative)
@@ -478,18 +502,49 @@ class ProcedureRevision < ApplicationRecord
           to_type_de_champ.filename_for_attachement(:notice_explicative))
       end
     elsif to_type_de_champ.textarea?
-      if from_type_de_champ.character_limit != to_type_de_champ.character_limit
+      if from_type_de_champ.character_limit.presence != to_type_de_champ.character_limit.presence
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
           :character_limit,
           from_type_de_champ.character_limit,
           to_type_de_champ.character_limit)
       end
-    elsif to_type_de_champ.expression_reguliere?
+    elsif to_type_de_champ.integer_number? || to_type_de_champ.decimal_number?
+      if from_type_de_champ.positive_number? != to_type_de_champ.positive_number?
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :positive_number,
+          from_type_de_champ.positive_number,
+          to_type_de_champ.positive_number)
+      end
+      if from_type_de_champ.range_number? != to_type_de_champ.range_number?
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :range_number,
+          from_type_de_champ.range_number,
+          to_type_de_champ.range_number)
+      end
+      if from_type_de_champ.min_number != to_type_de_champ.min_number
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :min_number,
+          from_type_de_champ.min_number,
+          to_type_de_champ.min_number)
+      end
+      if from_type_de_champ.max_number != to_type_de_champ.max_number
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :max_number,
+          from_type_de_champ.max_number,
+          to_type_de_champ.max_number)
+      end
+    elsif to_type_de_champ.formatted?
       if from_type_de_champ.expression_reguliere != to_type_de_champ.expression_reguliere
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
           :expression_reguliere,
           from_type_de_champ.expression_reguliere,
           to_type_de_champ.expression_reguliere)
+      end
+      if from_type_de_champ.expression_reguliere_indications != to_type_de_champ.expression_reguliere_indications
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :expression_reguliere_indications,
+          from_type_de_champ.expression_reguliere_indications,
+          to_type_de_champ.expression_reguliere_indications)
       end
       if from_type_de_champ.expression_reguliere_exemple_text != to_type_de_champ.expression_reguliere_exemple_text
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
@@ -503,6 +558,60 @@ class ProcedureRevision < ApplicationRecord
           from_type_de_champ.expression_reguliere_error_message,
           to_type_de_champ.expression_reguliere_error_message)
       end
+      if from_type_de_champ.formatted_mode != to_type_de_champ.formatted_mode
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :formatted_mode,
+          from_type_de_champ.formatted_mode,
+          to_type_de_champ.formatted_mode)
+      end
+      if from_type_de_champ.letters_accepted != to_type_de_champ.letters_accepted
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :letters_accepted,
+          from_type_de_champ.letters_accepted,
+          to_type_de_champ.letters_accepted)
+      end
+      if from_type_de_champ.numbers_accepted != to_type_de_champ.numbers_accepted
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :numbers_accepted,
+          from_type_de_champ.numbers_accepted,
+          to_type_de_champ.numbers_accepted)
+      end
+      if from_type_de_champ.special_characters_accepted != to_type_de_champ.special_characters_accepted
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :special_characters_accepted,
+          from_type_de_champ.special_characters_accepted,
+          to_type_de_champ.special_characters_accepted)
+      end
+      if from_type_de_champ.min_character_length != to_type_de_champ.min_character_length
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :min_character_length,
+          from_type_de_champ.min_character_length,
+          to_type_de_champ.min_character_length)
+      end
+      if from_type_de_champ.max_character_length != to_type_de_champ.max_character_length
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :max_character_length,
+          from_type_de_champ.max_character_length,
+          to_type_de_champ.max_character_length)
+      end
+    elsif to_type_de_champ.referentiel?
+      compare_referentiel_changes(from_type_de_champ, to_type_de_champ).each do |change|
+        changes << change
+      end
+    # pf: gestion du type lexpol (textes juridiques polynésiens)
+    elsif to_type_de_champ.lexpol?
+      if from_type_de_champ.lexpol_modele != to_type_de_champ.lexpol_modele
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :lexpol_modele,
+          from_type_de_champ.lexpol_modele,
+          to_type_de_champ.lexpol_modele)
+      end
+      if from_type_de_champ.lexpol_mapping != to_type_de_champ.lexpol_mapping
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :lexpol_mapping,
+          from_type_de_champ.lexpol_mapping,
+          to_type_de_champ.lexpol_mapping)
+      end
     end
     changes
   end
@@ -511,18 +620,54 @@ class ProcedureRevision < ApplicationRecord
     type_de_champ.date? && value.present? ? Date.parse(value) : value
   end
 
+  def compare_referentiel_changes(from_type_de_champ, to_type_de_champ)
+    changes = []
+    from_referentiel = from_type_de_champ.referentiel
+    to_referentiel = to_type_de_champ.referentiel
+
+    [:url, :mode, :hint, :test_data].each do |field|
+      if from_referentiel&.send(field) != to_referentiel&.send(field)
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          "referentiel_#{field}".to_sym,
+          from_referentiel&.send(field),
+          to_referentiel&.send(field))
+      end
+    end
+
+    if from_type_de_champ.referentiel_mapping != to_type_de_champ.referentiel_mapping
+      changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+        :referentiel_mapping,
+        from_type_de_champ.referentiel_mapping,
+        to_type_de_champ.referentiel_mapping)
+    end
+
+    changes
+  end
+
   def ineligibilite_rules_are_valid?
-    if ineligibilite_rules
-      ineligibilite_rules.errors(types_de_champ_for(scope: :public).to_a)
-        .each { errors.add(:ineligibilite_rules, :invalid) }
+    return unless ineligibilite_rules
+
+    rules_errors = ineligibilite_rules.errors(types_de_champ_for(scope: :public).to_a)
+
+    if rules_errors.any? || ineligibilite_rules.type == :empty
+      errors.add(:ineligibilite_rules, :invalid)
     end
   end
 
+  # pf: normalise les options drop_down pour comparer uniquement les labels
+  # Gère le cas où les options sont nil (référentiel sans CSV) ou des tuples [label, id]
+  def normalize_drop_down_labels(options)
+    return [] if options.nil?
+    options.map { |opt| opt.is_a?(Array) ? opt.first : opt }
+  end
+
   def replace_type_de_champ_by_clone(coordinate)
-    cloned_type_de_champ = coordinate.type_de_champ.deep_clone do |original, kopy|
-      ClonePiecesJustificativesService.clone_attachments(original, kopy)
+    transaction do
+      cloned_type_de_champ = coordinate.type_de_champ.deep_clone do |original, kopy|
+        ClonePiecesJustificativesService.clone_attachments(original, kopy)
+      end
+      coordinate.update!(type_de_champ: cloned_type_de_champ)
+      cloned_type_de_champ
     end
-    coordinate.update!(type_de_champ: cloned_type_de_champ)
-    cloned_type_de_champ
   end
 end

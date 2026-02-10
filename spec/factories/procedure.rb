@@ -14,9 +14,9 @@ FactoryBot.define do
     estimated_duration_visible { true }
     ask_birthday { false }
     lien_site_web { "https://mon-site.gouv" }
-    path { SecureRandom.uuid }
     declarative_with_state { nil }
     sva_svr { {} }
+    no_gender { true }
 
     groupe_instructeurs { [association(:groupe_instructeur, :default, procedure: instance, strategy: :build)] }
     administrateurs { [administrateur] }
@@ -32,6 +32,7 @@ FactoryBot.define do
       types_de_champ_private { [] }
       updated_at { nil }
       dossier_submitted_message { nil }
+      path { nil }
     end
 
     after(:build) do |procedure, evaluator|
@@ -70,6 +71,7 @@ FactoryBot.define do
     end
 
     after(:create) do |procedure, evaluator|
+      procedure.claim_path!(evaluator.administrateur, evaluator.path)
       evaluator.instructeurs.each { |i| i.assign_to_procedure(procedure) }
       if evaluator.updated_at
         procedure.update_column(:updated_at, evaluator.updated_at)
@@ -221,6 +223,10 @@ FactoryBot.define do
           end
           if type_champ == 'repetition'
             build(:type_de_champ_repetition, :with_types_de_champ, procedure: procedure, mandatory: true, libelle: libelle, position: index)
+          elsif type_champ == 'referentiel'
+            referentiel = build(:api_referentiel, :configured, url: ENV['ALLOWED_API_DOMAINS_FROM_FRONTEND'].split(',').first)
+
+            build(:type_de_champ_referentiel, procedure: procedure, mandatory: true, libelle: libelle, position: index, referentiel:)
           else
             build(:"type_de_champ_#{type_champ}", procedure: procedure, mandatory: true, libelle: libelle, position: index)
           end
@@ -290,11 +296,23 @@ FactoryBot.define do
     trait :accuse_lecture do
       accuse_lecture { true }
     end
+
+    trait :with_labels do
+      after(:create) do |procedure, _evaluator|
+        procedure.create_generic_labels
+      end
+    end
   end
 end
 
 def build_types_de_champ(types_de_champ, revision:, scope: :public, parent: nil)
-  types_de_champ.deep_dup.each.with_index do |type_de_champ_attributes, i|
+  types_de_champ.map do |type_de_champ_attributes|
+    referentiel = type_de_champ_attributes.delete(:referentiel)
+    if referentiel.present?
+      type_de_champ_attributes[:referentiel_id] = referentiel.id
+    end
+    type_de_champ_attributes
+  end.deep_dup.each.with_index do |type_de_champ_attributes, i|
     type = TypeDeChamp.type_champs.fetch(type_de_champ_attributes.delete(:type) || :text).to_sym
     position = type_de_champ_attributes.delete(:position) || i
     children = type_de_champ_attributes.delete(:children)

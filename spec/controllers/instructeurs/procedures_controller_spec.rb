@@ -46,6 +46,22 @@ describe Instructeurs::ProceduresController, type: :controller do
     let(:instructeur) { create(:instructeur) }
     subject { get :index }
 
+    describe 'tabs explanation' do
+      render_views
+
+      before do
+        sign_in(instructeur.user)
+        subject
+      end
+
+      it 'contains tabs explanation' do
+        expect(response.body).to have_text('L’onglet « en cours » regroupe')
+        expect(response.body).to have_text('L’onglet « en test » regroupe')
+        expect(response.body).to have_text('L’onglet « terminée » regroupe')
+        expect(response.body).not_to have_text('L’onglet « expirants » contient')
+      end
+    end
+
     context "when not logged" do
       before { subject }
       it { expect(response).to redirect_to(new_user_session_path) }
@@ -90,19 +106,19 @@ describe Instructeurs::ProceduresController, type: :controller do
           let(:state) { Dossier.states.fetch(:brouillon) }
           before { subject }
 
-          it { expect(assigns(:dossiers_count_per_procedure)[procedure.id]).to eq(nil) }
-          it { expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure.id]).to eq(nil) }
-          it { expect(assigns(:dossiers_archived_count_per_procedure)[procedure.id]).to eq(nil) }
-          it { expect(assigns(:followed_dossiers_count_per_procedure)[procedure.id]).to eq(nil) }
-          it { expect(assigns(:dossiers_termines_count_per_procedure)[procedure.id]).to eq(nil) }
-          it { expect(assigns(:dossiers_expirant_count_per_procedure)[procedure.id]).to eq(nil) }
+          it "assign values" do
+            expect(assigns(:dossiers_count_per_procedure)[procedure.id]).to eq(nil)
+            expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure.id]).to eq(nil)
+            expect(assigns(:followed_dossiers_count_per_procedure)[procedure.id]).to eq(nil)
+            expect(assigns(:dossiers_termines_count_per_procedure)[procedure.id]).to eq(nil)
+            expect(assigns(:dossiers_expirant_count_per_procedure)[procedure.id]).to eq(nil)
 
-          it { expect(assigns(:all_dossiers_counts)['à suivre']).to eq(0) }
-          it { expect(assigns(:all_dossiers_counts)['suivis']).to eq(0) }
-          it { expect(assigns(:all_dossiers_counts)['traités']).to eq(0) }
-          it { expect(assigns(:all_dossiers_counts)['dossiers']).to eq(0) }
-          it { expect(assigns(:all_dossiers_counts)['archivés']).to eq(0) }
-          it { expect(assigns(:all_dossiers_counts)['expirant']).to eq(0) }
+            expect(assigns(:all_dossiers_counts)['a-suivre']).to eq(0)
+            expect(assigns(:all_dossiers_counts)['suivis']).to eq(0)
+            expect(assigns(:all_dossiers_counts)['traites']).to eq(0)
+            expect(assigns(:all_dossiers_counts)['tous']).to eq(0)
+            expect(assigns(:all_dossiers_counts)['expirant']).to eq(0)
+          end
         end
 
         context "with not draft state on multiple procedures" do
@@ -146,33 +162,32 @@ describe Instructeurs::ProceduresController, type: :controller do
             subject
           end
 
-          it { expect(assigns(:dossiers_count_per_procedure)[procedure.id]).to eq(5) }
-          it { expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure.id]).to eq(3) }
-          it { expect(assigns(:followed_dossiers_count_per_procedure)[procedure.id]).to eq(nil) }
-          it { expect(assigns(:dossiers_archived_count_per_procedure)[procedure.id]).to eq(1) }
-          it { expect(assigns(:dossiers_termines_count_per_procedure)[procedure.id]).to eq(2) }
-          it { expect(assigns(:dossiers_expirant_count_per_procedure)[procedure.id]).to eq(2) }
+          it "assign values" do
+            expect(assigns(:dossiers_count_per_procedure)[procedure.id]).to eq(5)
+            expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure.id]).to eq(3)
+            expect(assigns(:followed_dossiers_count_per_procedure)[procedure.id]).to eq(nil)
+            expect(assigns(:dossiers_termines_count_per_procedure)[procedure.id]).to eq(2)
+            expect(assigns(:dossiers_expirant_count_per_procedure)[procedure.id]).to eq(2)
 
-          it { expect(assigns(:dossiers_count_per_procedure)[procedure2.id]).to eq(3) }
-          it { expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure2.id]).to eq(nil) }
-          it { expect(assigns(:followed_dossiers_count_per_procedure)[procedure2.id]).to eq(1) }
-          it { expect(assigns(:dossiers_archived_count_per_procedure)[procedure2.id]).to eq(nil) }
-          it { expect(assigns(:dossiers_termines_count_per_procedure)[procedure2.id]).to eq(1) }
+            expect(assigns(:dossiers_count_per_procedure)[procedure2.id]).to eq(3)
+            expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure2.id]).to eq(nil)
+            expect(assigns(:followed_dossiers_count_per_procedure)[procedure2.id]).to eq(1)
+            expect(assigns(:dossiers_termines_count_per_procedure)[procedure2.id]).to eq(1)
 
-          it { expect(assigns(:dossiers_count_per_procedure)[procedure3.id]).to eq(2) }
+            expect(assigns(:dossiers_count_per_procedure)[procedure3.id]).to eq(2)
 
-          it { expect(assigns(:all_dossiers_counts)['à suivre']).to eq(3 + 0) }
-          it { expect(assigns(:all_dossiers_counts)['suivis']).to eq(0 + 1) }
-          it { expect(assigns(:all_dossiers_counts)['traités']).to eq(2 + 1 + 1 + 1) }
-          it { expect(assigns(:all_dossiers_counts)['dossiers']).to eq(5 + 3 + 2 + 1) }
-          it { expect(assigns(:all_dossiers_counts)['archivés']).to eq(1 + 0) }
-          it { expect(assigns(:all_dossiers_counts)['expirant']).to eq(2 + 0) }
+            expect(assigns(:all_dossiers_counts)['a-suivre']).to eq(3 + 0)
+            expect(assigns(:all_dossiers_counts)['suivis']).to eq(0 + 1)
+            expect(assigns(:all_dossiers_counts)['traites']).to eq(2 + 1 + 1 + 1)
+            expect(assigns(:all_dossiers_counts)['tous']).to eq(5 + 3 + 2 + 1)
+            expect(assigns(:all_dossiers_counts)['expirant']).to eq(2 + 0)
 
-          it { expect(assigns(:procedures_en_cours)).to match_array([procedure2, procedure, procedure3]) }
-          it { expect(assigns(:procedures_en_cours_count)).to eq(3) }
+            expect(assigns(:procedures_en_cours)).to match_array([procedure2, procedure, procedure3])
+            expect(assigns(:procedures_en_cours_count)).to eq(3)
 
-          it { expect(assigns(:procedures_closes)).to eq([procedure4]) }
-          it { expect(assigns(:procedures_closes_count)).to eq(1) }
+            expect(assigns(:procedures_closes)).to eq([procedure4])
+            expect(assigns(:procedures_closes_count)).to eq(1)
+          end
         end
 
         context 'with not draft state on discarded procedure' do
@@ -184,12 +199,14 @@ describe Instructeurs::ProceduresController, type: :controller do
             subject
           end
 
-          it { expect(assigns(:dossiers_count_per_procedure)[procedure.id]).to eq(1) }
-          it { expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure.id]).to eq(1) }
+          it "assign values" do
+            expect(assigns(:dossiers_count_per_procedure)[procedure.id]).to eq(1)
+            expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure.id]).to eq(1)
 
-          it { expect(assigns(:dossiers_count_per_procedure)[discarded_procedure.id]).to be_nil }
+            expect(assigns(:dossiers_count_per_procedure)[discarded_procedure.id]).to be_nil
 
-          it { expect(assigns(:all_dossiers_counts)['à suivre']).to eq(1) }
+            expect(assigns(:all_dossiers_counts)['a-suivre']).to eq(1)
+          end
         end
       end
 
@@ -219,17 +236,17 @@ describe Instructeurs::ProceduresController, type: :controller do
               subject
             end
 
-            it { expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure.id]).to eq(4) }
-            it { expect(assigns(:followed_dossiers_count_per_procedure)[procedure.id]).to eq(6) }
-            it { expect(assigns(:dossiers_termines_count_per_procedure)[procedure.id]).to eq(10) }
-            it { expect(assigns(:dossiers_count_per_procedure)[procedure.id]).to eq(4 + 6 + 10) }
-            it { expect(assigns(:dossiers_archived_count_per_procedure)[procedure.id]).to eq(14) }
+            it "assign values" do
+              expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure.id]).to eq(4)
+              expect(assigns(:followed_dossiers_count_per_procedure)[procedure.id]).to eq(6)
+              expect(assigns(:dossiers_termines_count_per_procedure)[procedure.id]).to eq(10)
+              expect(assigns(:dossiers_count_per_procedure)[procedure.id]).to eq(4 + 6 + 10)
 
-            it { expect(assigns(:all_dossiers_counts)['à suivre']).to eq(4) }
-            it { expect(assigns(:all_dossiers_counts)['suivis']).to eq(6) }
-            it { expect(assigns(:all_dossiers_counts)['traités']).to eq(10) }
-            it { expect(assigns(:all_dossiers_counts)['dossiers']).to eq(4 + 6 + 10) }
-            it { expect(assigns(:all_dossiers_counts)['archivés']).to eq(14) }
+              expect(assigns(:all_dossiers_counts)['a-suivre']).to eq(4)
+              expect(assigns(:all_dossiers_counts)['suivis']).to eq(6)
+              expect(assigns(:all_dossiers_counts)['traites']).to eq(10)
+              expect(assigns(:all_dossiers_counts)['tous']).to eq(4 + 6 + 10)
+            end
           end
 
           context 'when an instructeur only belongs to one of them gi' do
@@ -239,18 +256,18 @@ describe Instructeurs::ProceduresController, type: :controller do
               subject
             end
 
-            it { expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure.id]).to eq(2) }
-            # An instructeur cannot follow a dossier which belongs to another groupe
-            it { expect(assigns(:followed_dossiers_count_per_procedure)[procedure.id]).to eq(3) }
-            it { expect(assigns(:dossiers_termines_count_per_procedure)[procedure.id]).to eq(5) }
-            it { expect(assigns(:dossiers_count_per_procedure)[procedure.id]).to eq(2 + 3 + 5) }
-            it { expect(assigns(:dossiers_archived_count_per_procedure)[procedure.id]).to eq(7) }
+            it "assign values" do
+              expect(assigns(:dossiers_a_suivre_count_per_procedure)[procedure.id]).to eq(2)
+              # An instructeur cannot follow a dossier which belongs to another groupe
+              expect(assigns(:followed_dossiers_count_per_procedure)[procedure.id]).to eq(3)
+              expect(assigns(:dossiers_termines_count_per_procedure)[procedure.id]).to eq(5)
+              expect(assigns(:dossiers_count_per_procedure)[procedure.id]).to eq(2 + 3 + 5)
 
-            it { expect(assigns(:all_dossiers_counts)['à suivre']).to eq(2) }
-            it { expect(assigns(:all_dossiers_counts)['suivis']).to eq(3) }
-            it { expect(assigns(:all_dossiers_counts)['traités']).to eq(5) }
-            it { expect(assigns(:all_dossiers_counts)['dossiers']).to eq(2 + 3 + 5) }
-            it { expect(assigns(:all_dossiers_counts)['archivés']).to eq(7) }
+              expect(assigns(:all_dossiers_counts)['a-suivre']).to eq(2)
+              expect(assigns(:all_dossiers_counts)['suivis']).to eq(3)
+              expect(assigns(:all_dossiers_counts)['traites']).to eq(5)
+              expect(assigns(:all_dossiers_counts)['tous']).to eq(2 + 3 + 5)
+            end
           end
         end
       end
@@ -263,10 +280,30 @@ describe Instructeurs::ProceduresController, type: :controller do
     let!(:gi_2) { create(:groupe_instructeur, label: '2', procedure: procedure) }
     let!(:gi_3) { create(:groupe_instructeur, label: '3', procedure: procedure) }
 
-    let(:statut) { nil }
+    let(:statut) { 'a-suivre' }
 
     subject do
       get :show, params: { procedure_id: procedure.id, statut: statut }
+    end
+
+    describe 'tabs explanation' do
+      render_views
+
+      before do
+        sign_in(instructeur.user)
+        subject
+      end
+
+      it 'contains tabs explanation' do
+        expect(response.body).to have_text('L’onglet « à suivre » contient')
+        expect(response.body).to have_text('L’onglet « suivis par moi » contient')
+        expect(response.body).to have_text('L’onglet « traités » contient')
+        expect(response.body).to have_text('L’onglet « au total » contient')
+        expect(response.body).to have_text('L’onglet « corbeille » contient')
+        expect(response.body).to have_text('L’onglet « à archiver » contient')
+        expect(response.body).to have_text('L’onglet « expirants » contient')
+        expect(response.body).not_to have_text('L’onglet « terminée » regroupe')
+      end
     end
 
     describe 'access to groupes_instructeur' do
@@ -475,10 +512,10 @@ describe Instructeurs::ProceduresController, type: :controller do
       end
 
       describe 'statut' do
-        let!(:a_suivre_dossier) { Timecop.freeze(1.day.ago) { create(:dossier, :en_instruction, procedure: procedure) } }
-        let!(:new_followed_dossier) { Timecop.freeze(2.days.ago) { create(:dossier, :en_instruction, procedure: procedure) } }
-        let!(:termine_dossier) { Timecop.freeze(3.days.ago) { create(:dossier, :accepte, procedure: procedure) } }
-        let!(:archived_dossier) { Timecop.freeze(4.days.ago) { create(:dossier, :en_instruction, procedure: procedure, archived: true) } }
+        let!(:a_suivre_dossier) { travel_to(1.day.ago) { create(:dossier, :en_instruction, procedure: procedure) } }
+        let!(:new_followed_dossier) { travel_to(2.days.ago) { create(:dossier, :en_instruction, procedure: procedure) } }
+        let!(:termine_dossier) { travel_to(3.days.ago) { create(:dossier, :accepte, procedure: procedure) } }
+        let!(:archived_dossier) { travel_to(4.days.ago) { create(:dossier, :en_instruction, procedure: procedure, archived: true) } }
 
         before do
           instructeur.followed_dossiers << new_followed_dossier
@@ -525,6 +562,20 @@ describe Instructeurs::ProceduresController, type: :controller do
 
           it { expect(assigns(:statut)).to eq('archives') }
           it { expect(assigns(:filtered_sorted_paginated_ids)).to match_array([archived_dossier].map(&:id)) }
+        end
+      end
+
+      context 'when an error occurs in the DossierFilterService' do
+        before do
+          allow(DossierFilterService).to receive(:filtered_sorted_ids).and_raise(ActiveRecord::StatementInvalid.new('PG::UndefinedFunction'))
+
+          expect_any_instance_of(ProcedurePresentation).to receive(:destroy_filters_for!)
+          subject
+        end
+
+        it do
+          expect(response).to redirect_to(instructeur_procedure_path)
+          expect(flash.alert).to include('Votre affichage a dû être réinitialisé')
         end
       end
 
@@ -593,7 +644,7 @@ describe Instructeurs::ProceduresController, type: :controller do
           let!(:export) { create(:export, :generated, groupe_instructeurs: [gi_2], updated_at: 1.minute.ago) }
           render_views
           before do
-            export.file.attach(io: StringIO.new, filename: 'file')
+            export.file.attach(io: StringIO.new('export'), filename: 'file.csv')
             subject
           end
 
@@ -637,6 +688,78 @@ describe Instructeurs::ProceduresController, type: :controller do
           it { expect(assigns(:last_export)).to eq(nil) }
         end
       end
+
+      context 'dossier labels' do
+        let(:procedure) { create(:procedure, :with_labels, instructeurs: [instructeur]) }
+        let!(:dossier) { create(:dossier, :en_construction, procedure:, groupe_instructeur: gi_2) }
+        let!(:dossier_2) { create(:dossier, :en_construction, procedure:, groupe_instructeur: gi_2) }
+        let(:statut) { 'tous' }
+        let(:label_id) { procedure.find_column(label: 'Labels') }
+        let!(:procedure_presentation) do
+          ProcedurePresentation.create!(assign_to: AssignTo.first)
+        end
+        render_views
+
+        before do
+          DossierLabel.create(dossier_id: dossier.id, label_id: dossier.procedure.labels.first.id)
+          DossierLabel.create(dossier_id: dossier.id, label_id: dossier.procedure.labels.second.id)
+          DossierLabel.create(dossier_id: dossier_2.id, label_id: dossier.procedure.labels.last.id)
+
+          procedure_presentation.update(displayed_columns: [
+            label_id.id
+          ])
+
+          subject
+        end
+
+        it 'displays correctly labels in instructeur table' do
+          expect(response.body).to include("Labels")
+          expect(response.body).to have_selector('ul.fr-tags-group li span.fr-tag', text: 'À examiner')
+          expect(response.body).to have_selector('ul.fr-tags-group li span.fr-tag', text: 'À relancer')
+          expect(response.body).not_to have_selector('ul li span.fr-tag', text: 'Urgent')
+          expect(response.body).to have_selector('span.fr-tag', text: 'Urgent')
+        end
+      end
+
+      context 'when ProConnect is required' do
+        before do
+          procedure.update!(pro_connect_restricted: true)
+        end
+
+        it 'redirects to pro_connect_path and sets a flash message' do
+          subject
+
+          expect(response).to redirect_to(pro_connect_path)
+          expect(flash[:alert]).to eq("Vous devez vous connecter avec votre compte @administration.gov.pf pour accéder à cette démarche")
+        end
+
+        context "and the user is connected via Microsoft" do
+          before do
+            # pf: En PF, on utilise loged_in_with_france_connect au lieu du cookie
+            # upstream:
+            # cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: instructeur.user.id }.to_json }
+            instructeur.user.update!(loged_in_with_france_connect: 'microsoft')
+          end
+
+          it "does not redirect to pro_connect_path" do
+            subject
+
+            expect(response).not_to redirect_to(pro_connect_path)
+          end
+        end
+      end
+    end
+
+    describe 'caches statut and page query param' do
+      let(:statut) { 'tous' }
+      let(:page) { '1' }
+      let!(:dossier) { create(:dossier, :accepte, procedure:) }
+      before { sign_in(instructeur.user) }
+      subject { get :show, params: { procedure_id: procedure.id, statut:, page: } }
+      it 'changes cached value' do
+        expect { subject }.to change { Cache::ProcedureDossierPagination.new(statut:, procedure_presentation: double(procedure:, instructeur:)).send(:read_cache) }
+          .from({}).to(ids: [dossier.id], incoming_page: page)
+      end
     end
   end
 
@@ -671,14 +794,26 @@ describe Instructeurs::ProceduresController, type: :controller do
 
         it { expect(instructeur.groupe_instructeur_with_email_notifications).to eq([procedure.defaut_groupe_instructeur]) }
       end
+
+      context 'when updating deletion_email_notifications_enabled' do
+        let(:assign_to) { instructeur.assign_to.joins(:groupe_instructeur).find_by(groupe_instructeurs: { procedure: procedure }) }
+
+        before do
+          patch :update_email_notifications, params: {
+            procedure_id: procedure.id,
+            assign_to: { id: assign_to.id, deletion_email_notifications_enabled: false }
+          }
+        end
+
+        it 'updates the setting' do
+          expect(assign_to.reload.deletion_email_notifications_enabled).to eq(false)
+        end
+      end
     end
   end
 
   describe '#email_usagers' do
-    let(:instructeur) { create(:instructeur) }
     let(:procedure) { create(:procedure) }
-    let!(:gi_1) { create(:groupe_instructeur, label: 'gi_1', procedure: procedure, instructeurs: [instructeur]) }
-    let!(:dossier_without_groupe) { create(:dossier, :brouillon, procedure: procedure, groupe_instructeur: nil) }
 
     subject do
       get :email_usagers, params: { procedure_id: procedure.id }
@@ -688,59 +823,126 @@ describe Instructeurs::ProceduresController, type: :controller do
 
     context 'when authenticated' do
       before { sign_in(instructeur.user) }
-      it 'lists dossier brouillon in groupe_instructeur as well as dossiers_brouillon outside groupe_instructeur' do
-        is_expected.to have_http_status(200)
-        expect(assigns(:dossiers_without_groupe_count)).to eq(1)
+
+      context 'the procedure is not routed (or not)' do
+        let(:instructeur) { create(:instructeur) }
+        let(:defaut_groupe_instructeur) { procedure.defaut_groupe_instructeur }
+        let!(:dossier_in_group) { create(:dossier, :brouillon, procedure:, groupe_instructeur: defaut_groupe_instructeur) }
+        let!(:dossier_without_groupe) { create(:dossier, :brouillon, procedure:, groupe_instructeur: nil) }
+        let!(:dossier_fork) { dossier_in_group.find_or_create_editing_fork(dossier_in_group.user) }
+        before { defaut_groupe_instructeur.instructeurs << instructeur }
+
+        it 'count brouillon per group and not in group' do
+          is_expected.to have_http_status(200)
+          expect(assigns(:dossiers_count_per_groupe_instructeur)).to match({ nil => 1, defaut_groupe_instructeur.id => 1 }) # only dossier_in_group
+        end
       end
     end
   end
 
   describe '#create_multiple_commentaire' do
     let(:instructeur) { create(:instructeur) }
-    let!(:gi_p1_1) { create(:groupe_instructeur, label: '1', procedure: procedure, instructeurs: [instructeur]) }
-    let!(:gi_p1_2) { create(:groupe_instructeur, label: '2', procedure: procedure) }
     let(:body) { "avant\napres" }
     let(:bulk_message) { BulkMessage.first }
-    let!(:dossier) { create(:dossier, state: "brouillon", procedure: procedure, groupe_instructeur: gi_p1_1) }
-    let!(:dossier_2) { create(:dossier, state: "brouillon", procedure: procedure, groupe_instructeur: gi_p1_1) }
-    let!(:dossier_3) { create(:dossier, state: "brouillon", procedure: procedure, groupe_instructeur: gi_p1_2) }
-    let!(:procedure) { create(:procedure, :published, instructeurs: [instructeur]) }
 
     before do
       sign_in(instructeur.user)
       procedure
     end
 
-    let!(:dossier_4) { create(:dossier, state: "brouillon", procedure: procedure, groupe_instructeur: nil) }
-    before do
-      post :create_multiple_commentaire,
-            params: {
-              procedure_id: procedure.id,
-              bulk_message: { body: body }
+    context 'when routing not enabled' do
+      let(:procedure) { create(:procedure, :published, instructeurs: [instructeur], routing_enabled: false) }
+      let!(:dossier) { create(:dossier, :brouillon, procedure:) }
+      let!(:dossier_2) { create(:dossier, :brouillon, procedure:) }
+      let!(:dossier_3) { create(:dossier, :brouillon, procedure:) }
+      let!(:dossier_4) { create(:dossier, :brouillon, procedure:) }
+
+      it "creates commentaires for all dossiers, dossier.groupe_instructeur does not matter" do
+        expect do
+            post :create_multiple_commentaire,
+              params: {
+                procedure_id: procedure.id,
+                bulk_message: { body: body }
+              }
+          end.to change { Commentaire.count }.from(0).to(4)
+        [dossier, dossier_2, dossier_3, dossier_4].each do |any_dossier|
+          expect(any_dossier.commentaires.first.body).to eq("avant\napres")
+        end
+      end
+    end
+
+    context 'when routing_enabled' do
+      let!(:procedure) { create(:procedure, :published, instructeurs: [instructeur]) }
+
+      let!(:gi_p1_2) { create(:groupe_instructeur, label: '2', procedure: procedure) }
+      let!(:gi_p1_1) { create(:groupe_instructeur, label: '1', procedure: procedure, instructeurs: [instructeur]) }
+      let!(:dossier) { create(:dossier, state: "brouillon", procedure: procedure, groupe_instructeur: gi_p1_1) }
+      let!(:dossier_2) { create(:dossier, state: "brouillon", procedure: procedure, groupe_instructeur: gi_p1_1) }
+      let!(:dossier_3) { create(:dossier, state: "brouillon", procedure: procedure, groupe_instructeur: gi_p1_2) }
+      let!(:dossier_4) { create(:dossier, state: "brouillon", procedure: procedure, groupe_instructeur: nil) }
+
+      context 'when groupe instructeur id is specified' do
+        subject do
+          post :create_multiple_commentaire,
+                params: {
+                  procedure_id: procedure.id,
+                  bulk_message: {
+                    body: body,
+                    groupe_instructeur_ids: { gi_p1_1.id => true, gi_p1_2.id => false }
+                  }
+                }
+        end
+        it "creates a Bulk Message for given group_instructeur_ids" do
+          expect { subject }.to change { Commentaire.count }.from(0).to(2)
+          expect(dossier.commentaires.first.body).to eq(body)
+          expect(dossier_2.commentaires.first.body).to eq(body)
+          expect(dossier_3.commentaires.count).to eq(0)
+          expect(dossier_4.commentaires.count).to eq(0)
+          expect(flash.notice).to be_present
+          expect(flash.notice).to eq("Tous les messages ont été envoyés avec succès")
+          expect(response).to redirect_to instructeur_procedure_path(procedure)
+        end
+
+        context 'when editing_fork exists' do
+          it 'skips fork notification' do
+            dossier.find_or_create_editing_fork(dossier_4.user)
+
+            expect { subject }.to change { Commentaire.count }.from(0).to(2)
+          end
+        end
+      end
+
+      context 'when without_group is specified' do
+        subject do
+          post :create_multiple_commentaire,
+          params: {
+            procedure_id: procedure.id,
+            bulk_message: {
+              body: body,
+              groupe_instructeur_ids: {},
+              without_group: "1"
             }
-    end
+          }
+        end
+        it "creates a Bulk Message for dossier without group_instructeur_ids" do
+          expect { subject }.to change { Commentaire.count }.from(0).to(1)
+          expect(dossier.commentaires.count).to eq(0)
+          expect(dossier_2.commentaires.count).to eq(0)
+          expect(dossier_3.commentaires.count).to eq(0)
+          expect(dossier_4.commentaires.first.body).to eq(body)
+          expect(flash.notice).to be_present
+          expect(flash.notice).to eq("Tous les messages ont été envoyés avec succès")
+          expect(response).to redirect_to instructeur_procedure_path(procedure)
+        end
 
-    it "creates a commentaire for 1 dossiers" do
-      expect(Commentaire.count).to eq(1)
-      expect(dossier.commentaires).to eq([])
-      expect(dossier_2.commentaires).to eq([])
-      expect(dossier_3.commentaires).to eq([])
-      expect(dossier_4.commentaires.first.body).to eq("avant\napres")
-    end
+        context 'when editing_fork exists' do
+          it 'skips fork notification' do
+            dossier_4.find_or_create_editing_fork(dossier_4.user)
 
-    it "creates a Bulk Message for 2 groupes instructeurs" do
-      expect(BulkMessage.count).to eq(1)
-      expect(bulk_message.body).to eq("avant\napres")
-      expect(bulk_message.procedure_id).to eq(procedure.id)
-    end
-
-    it "creates a flash notice" do
-      expect(flash.notice).to be_present
-      expect(flash.notice).to eq("Tous les messages ont été envoyés avec succès")
-    end
-
-    it "redirect to instructeur_procedure_path" do
-      expect(response).to redirect_to instructeur_procedure_path(procedure)
+            expect { subject }.to change { Commentaire.count }.from(0).to(1)
+          end
+        end
+      end
     end
   end
 
@@ -837,6 +1039,27 @@ describe Instructeurs::ProceduresController, type: :controller do
     end
   end
 
+  describe '#export_templates' do
+    render_views
+
+    let(:instructeur) { create(:instructeur) }
+    let(:procedure) { create(:procedure) }
+    let(:groupe_instructeur) { create(:groupe_instructeur, procedure: procedure) }
+    let!(:export_template) { create(:export_template, name: "My Template", groupe_instructeur: groupe_instructeur) }
+
+    before do
+      sign_in(instructeur.user)
+      create(:assign_to, instructeur: instructeur, groupe_instructeur: groupe_instructeur)
+    end
+
+    it 'displays export templates' do
+      get :export_templates, params: { procedure_id: procedure.id }
+
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("My Template")
+    end
+  end
+
   describe '#exports' do
     let(:instructeur) { create(:instructeur) }
     let!(:procedure) { create(:procedure) }
@@ -874,41 +1097,260 @@ describe Instructeurs::ProceduresController, type: :controller do
     end
   end
 
-  describe '#update_filter' do
+  describe '#preview' do
+    render_views
+
     let(:instructeur) { create(:instructeur) }
-    let(:procedure) { create(:procedure, :for_individual) }
-    def procedure_presentation = instructeur.assign_to.first.procedure_presentation_or_default_and_errors.first
+    let(:procedure) { create(:procedure, types_de_champ_public: [type: :text, libelle: "Premier champ"]) }
 
     before do
-      create(:assign_to, instructeur:, groupe_instructeur: build(:groupe_instructeur, procedure:))
-
       sign_in(instructeur.user)
+      create(:groupe_instructeur, procedure:, instructeurs: [instructeur])
     end
 
-    it 'can change order' do
-      expect { get :update_sort, params: { procedure_id: procedure.id, column_id: "individual__nom", order: 'asc' } }
-        .to change { procedure_presentation.sort }
-        .from({ "column" => "notifications", "order" => "desc", "table" => "notifications" })
-        .to({ "column" => "nom", "order" => "asc", "table" => "individual" })
+    it 'displays preview' do
+      get :apercu, params: { procedure_id: procedure.id }
+
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("Premier champ")
+      expect(response.body).not_to include("Déposer")
     end
   end
-  describe '#add_filter' do
+
+  describe '#select_procedure' do
     let(:instructeur) { create(:instructeur) }
-    let(:procedure) { create(:procedure, :for_individual) }
 
     before do
-      create(:assign_to, instructeur:, groupe_instructeur: build(:groupe_instructeur, procedure:))
-
       sign_in(instructeur.user)
     end
 
-    subject do
-      post :add_filter, params: { procedure_id: procedure.id, column: "individual__nom", value: "n" * 110, statut: "a-suivre" }
+    context 'when procedure_id is present' do
+      let(:procedure) { create(:procedure) }
+
+      it 'redirects to the procedure path' do
+        puts "procedure.id: #{procedure.id}"
+        get :select_procedure, params: { procedure_id: procedure.id }
+
+        expect(response).to redirect_to(instructeur_procedure_path(procedure_id: procedure.id))
+      end
     end
 
-    it 'should render the error' do
-      subject
-      expect(flash.alert[0]).to include("Le filtre Nom est trop long (maximum: 100 caractères)")
+    context 'when procedure_id is not present' do
+      it 'redirects to procedures index' do
+        get :select_procedure
+
+        expect(response).to redirect_to(instructeur_procedures_path)
+      end
+    end
+
+    context 'when procedure_id is empty string' do
+      it 'redirects to procedures index' do
+        get :select_procedure, params: { procedure_id: '' }
+
+        expect(response).to redirect_to(instructeur_procedures_path)
+      end
+    end
+
+    context 'when procedure_id is nil' do
+      it 'redirects to procedures index' do
+        get :select_procedure, params: { procedure_id: nil }
+
+        expect(response).to redirect_to(instructeur_procedures_path)
+      end
+    end
+  end
+
+  describe '#history' do
+    let(:instructeur) { create(:instructeur) }
+    let(:procedure) { create(:procedure, :published) }
+
+    before do
+      sign_in(instructeur.user)
+      create(:groupe_instructeur, procedure: procedure, instructeurs: [instructeur])
+      procedure.revisions.update_all(published_at: nil)
+    end
+
+    context 'when there are no published revisions' do
+      before do
+        get :history, params: { procedure_id: procedure.id }
+      end
+
+      it 'assigns an empty revisions array' do
+        expect(assigns(:revisions)).to be_empty
+      end
+
+      it 'creates an instructeur_procedure record if it does not exist' do
+        expect(assigns(:instructeur_procedure)).to be_present
+        expect(assigns(:instructeur_procedure).instructeur).to eq(instructeur)
+        expect(assigns(:instructeur_procedure).procedure).to eq(procedure)
+      end
+    end
+
+    context 'when there is only one published revision' do
+      let!(:revision) { create(:procedure_revision, procedure: procedure, published_at: 1.day.ago) }
+
+      before do
+        procedure.update(published_revision_id: revision.id)
+        get :history, params: { procedure_id: procedure.id }
+      end
+
+      it 'assigns a revisions array with one revision' do
+        expect(assigns(:revisions).length).to eq(1)
+        expect(assigns(:revisions).first).to eq(revision)
+      end
+
+      it 'updates the last_revision_seen_id in instructeur_procedure' do
+        expect(assigns(:instructeur_procedure).last_revision_seen_id).to eq(revision.id)
+        expect(assigns(:instructeur_procedure).position).to eq(99)
+      end
+    end
+
+    context 'when there are two published revisions' do
+      let!(:old_revision) { create(:procedure_revision, procedure: procedure, published_at: 2.days.ago) }
+      let!(:new_revision) { create(:procedure_revision, procedure: procedure, published_at: 1.day.ago) }
+
+      before do
+        procedure.update(published_revision_id: new_revision.id)
+        get :history, params: { procedure_id: procedure.id }
+      end
+
+      it 'assigns a revisions array with both revisions' do
+        expect(assigns(:revisions).length).to eq(2)
+      end
+
+      it 'orders revisions with the most recent first' do
+        revisions = assigns(:revisions)
+        expect(revisions[0]).to eq(new_revision)
+        expect(revisions[1]).to eq(old_revision)
+      end
+    end
+
+    context 'when there are multiple published revisions' do
+      let!(:oldest_revision) { create(:procedure_revision, procedure: procedure, published_at: 4.days.ago) }
+      let!(:middle_revision) { create(:procedure_revision, procedure: procedure, published_at: 3.days.ago) }
+      let!(:recent_revision) { create(:procedure_revision, procedure: procedure, published_at: 2.days.ago) }
+      let!(:newest_revision) { create(:procedure_revision, procedure: procedure, published_at: 1.day.ago) }
+
+      before do
+        procedure.update(published_revision_id: newest_revision.id)
+        get :history, params: { procedure_id: procedure.id }
+      end
+
+      it 'assigns a revisions array with all published revisions' do
+        expect(assigns(:revisions).length).to eq(4)
+      end
+
+      it 'orders revisions with the most recent first' do
+        revisions = assigns(:revisions)
+        expect(revisions[0]).to eq(newest_revision)
+        expect(revisions[1]).to eq(recent_revision)
+        expect(revisions[2]).to eq(middle_revision)
+        expect(revisions[3]).to eq(oldest_revision)
+      end
+    end
+
+    context 'when there are published and unpublished revisions' do
+      let!(:published_old) { create(:procedure_revision, procedure: procedure, published_at: 3.days.ago) }
+      let!(:unpublished) { create(:procedure_revision, procedure: procedure, published_at: nil) }
+      let!(:published_new) { create(:procedure_revision, procedure: procedure, published_at: 1.day.ago) }
+
+      before do
+        procedure.update(published_revision_id: published_new.id)
+        get :history, params: { procedure_id: procedure.id }
+      end
+
+      it 'only includes published revisions' do
+        revisions = assigns(:revisions)
+        expect(revisions.length).to eq(2)
+        expect(revisions).to include(published_new)
+        expect(revisions).to include(published_old)
+        expect(revisions).not_to include(unpublished)
+      end
+    end
+
+    context 'when instructeur_procedure does not exist' do
+      let!(:revision) { create(:procedure_revision, procedure: procedure, published_at: 1.day.ago) }
+
+      before do
+        procedure.update(published_revision_id: revision.id)
+        # Make sure no instructeur_procedure exists
+        InstructeursProcedure.where(instructeur: instructeur, procedure: procedure).destroy_all
+
+        get :history, params: { procedure_id: procedure.id }
+      end
+
+      it 'creates a new instructeur_procedure record' do
+        expect(assigns(:instructeur_procedure)).to be_present
+        expect(assigns(:instructeur_procedure).instructeur).to eq(instructeur)
+        expect(assigns(:instructeur_procedure).procedure).to eq(procedure)
+        expect(assigns(:instructeur_procedure).last_revision_seen_id).to eq(revision.id)
+      end
+    end
+  end
+
+  describe '#mark_latest_revision_as_seen' do
+    let(:instructeur) { create(:instructeur) }
+    let(:procedure) { create(:procedure, :published) }
+
+    before do
+      sign_in(instructeur.user)
+      create(:groupe_instructeur, procedure: procedure, instructeurs: [instructeur])
+      create(:instructeurs_procedure, instructeur: instructeur, procedure: procedure, last_revision_seen_id: nil)
+    end
+
+    context 'when there is no published revision' do
+      before do
+        procedure.revisions.update_all(published_at: nil)
+        procedure.update(published_revision_id: nil)
+        get :history, params: { procedure_id: procedure.id }
+      end
+
+      it 'does not update last_revision_seen_id' do
+        expect(assigns(:instructeur_procedure).last_revision_seen_id).to be_nil
+      end
+    end
+
+    context 'when there is a published revision' do
+      let!(:revision) { create(:procedure_revision, procedure: procedure, published_at: 1.day.ago) }
+
+      before do
+        procedure.update(published_revision_id: revision.id)
+      end
+
+      it 'updates last_revision_seen_id when viewing history page' do
+        get :history, params: { procedure_id: procedure.id }
+
+        expect(assigns(:instructeur_procedure).last_revision_seen_id).to eq(revision.id)
+      end
+
+      context 'when already seen the latest revision' do
+        before do
+          instructeur_procedure = InstructeursProcedure.find_by(instructeur: instructeur, procedure: procedure)
+          instructeur_procedure.update(last_revision_seen_id: revision.id)
+
+          get :history, params: { procedure_id: procedure.id }
+        end
+
+        it 'does not change last_revision_seen_id' do
+          expect(assigns(:instructeur_procedure).last_revision_seen_id).to eq(revision.id)
+        end
+      end
+
+      context 'when a new revision is published' do
+        let!(:new_revision) { create(:procedure_revision, procedure: procedure, published_at: 1.hour.ago) }
+
+        before do
+          instructeur_procedure = InstructeursProcedure.find_by(instructeur: instructeur, procedure: procedure)
+          instructeur_procedure.update(last_revision_seen_id: revision.id)
+
+          procedure.update(published_revision_id: new_revision.id)
+          get :history, params: { procedure_id: procedure.id }
+        end
+
+        it 'updates last_revision_seen_id to the latest published revision' do
+          expect(assigns(:instructeur_procedure).last_revision_seen_id).to eq(new_revision.id)
+        end
+      end
     end
   end
 end

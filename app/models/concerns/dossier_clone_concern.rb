@@ -26,12 +26,6 @@ module DossierCloneConcern
     find_or_create_editing_fork(user).tap { DossierPreloader.load_one(_1) }
   end
 
-  def reset_editing_fork!
-    if editing_fork? && forked_with_changes?
-      destroy_editing_fork!
-    end
-  end
-
   def destroy_editing_fork!
     if editing_fork?
       update!(hidden_by_administration_at: Time.current, hidden_by_reason: :stale_fork)
@@ -43,11 +37,20 @@ module DossierCloneConcern
     editing_fork_origin_id.present?
   end
 
+  def with_editing_fork?
+    editing_forks.present?
+  end
+
+  # TODO remove when all forks are gone
+  def en_construction_for_editor?
+    en_construction? || editing_fork?
+  end
+
   def make_diff(editing_fork)
-    origin_champs_index = champs_for_revision(scope: :public).index_by(&:public_id)
-    forked_champs_index = editing_fork.champs_for_revision(scope: :public).index_by(&:public_id)
+    origin_champs_index = project_champs_public_all.index_by(&:public_id)
+    forked_champs_index = editing_fork.project_champs_public_all.index_by(&:public_id)
     updated_champs_index = editing_fork
-      .champs_for_revision(scope: :public)
+      .project_champs_public_all
       .filter { _1.updated_at > editing_fork.created_at }
       .index_by(&:public_id)
 
@@ -67,10 +70,12 @@ module DossierCloneConcern
     return false if revision_id > editing_fork.revision_id
 
     transaction do
-      rebase!(force: true)
+      rebase!
       diff = make_diff(editing_fork)
       apply_diff(diff)
-      touch(:last_champ_updated_at)
+
+      changed_champs = diff.values.flatten
+      update_champs_timestamps(changed_champs)
     end
     reload
     index_search_terms_later
@@ -82,7 +87,11 @@ module DossierCloneConcern
     dossier_attributes += [:groupe_instructeur_id] if fork
     relationships = [:individual, :etablissement]
 
-    cloned_champs = champs_for_revision
+    discarded_row_ids = champs_on_main_stream
+      .filter { _1.row? && _1.discarded? }
+      .to_set(&:row_id)
+    cloned_champs = champs_on_main_stream
+      .reject { discarded_row_ids.member?(_1.row_id) }
       .index_by(&:id)
       .transform_values { [_1, _1.clone(fork)] }
 
@@ -100,7 +109,6 @@ module DossierCloneConcern
         kopy.state = Dossier.states.fetch(:brouillon)
         kopy.champs = cloned_champs.values.map do |(_, champ)|
           champ.dossier = kopy
-          champ.parent = cloned_champs[champ.parent_id].second if champ.child?
           champ
         end
       end
@@ -126,15 +134,21 @@ module DossierCloneConcern
     cloned_dossier.reload
   end
 
+  protected
+
   def forked_with_changes?
-    if forked_diff.present?
+    if with_editing_fork?
+      find_editing_fork(user, rebase: false)&.forked_with_changes?
+    elsif forked_diff.present?
       forked_diff.values.any?(&:present?) || forked_groupe_instructeur_changed?
     end
   end
 
   def champ_forked_with_changes?(champ)
-    if forked_diff.present?
-      forked_diff.values.any? { _1.include?(champ) }
+    if with_editing_fork?
+      find_editing_fork(user, rebase: false)&.champ_forked_with_changes?(champ)
+    elsif forked_diff.present?
+      forked_diff.values.any? { |champs| champs.any? { _1.public_id == champ.public_id } }
     end
   end
 
@@ -149,35 +163,38 @@ module DossierCloneConcern
   end
 
   def apply_diff(diff)
-    champs_index = (champs_for_revision(scope: :public) + diff[:added]).index_by(&:public_id)
-
+    added_row_ids = {}
     diff[:added].each do |champ|
-      if champ.child?
-        champ.update_columns(dossier_id: id, parent_id: champs_index.fetch(champ.parent.public_id).id)
-      else
+      next if !champ.child?
+      next if added_row_ids.key?(champ.row_id)
+      added_row_ids[champ.row_id] = revision.parent_of(champ.type_de_champ)
+    end
+
+    removed_row_ids = {}
+    diff[:removed].each do |champ|
+      next if !champ.child?
+      next if removed_row_ids.key?(champ.row_id)
+      removed_row_ids[champ.row_id] = revision.parent_of(champ.type_de_champ)
+    end
+
+    added_champs = diff[:added].filter { _1.persisted? && _1.fillable? }
+    updated_champs = diff[:updated].filter { _1.persisted? && _1.fillable? }
+
+    added_champs.each { _1.update_column(:dossier_id, id) }
+
+    if updated_champs.present?
+      champs_index = champs.index_by(&:public_id)
+      updated_champs.each do |champ|
+        champs_index[champ.public_id]&.destroy!
         champ.update_column(:dossier_id, id)
       end
     end
 
-    champs_to_remove = []
-    diff[:updated].each do |champ|
-      old_champ = champs_index.fetch(champ.public_id)
-      champs_to_remove << old_champ
-
-      if champ.child?
-        # we need to do that in order to avoid a foreign key constraint
-        old_champ.update(row_id: nil)
-        champ.update_columns(dossier_id: id, parent_id: champs_index.fetch(champ.parent.public_id).id)
-      else
-        champ.update_column(:dossier_id, id)
-      end
+    added_row_ids.each do |row_id, repetition_type_de_champ|
+      champ_for_update(repetition_type_de_champ, row_id:, updated_by: user.email).save!
     end
-
-    champs_to_remove += diff[:removed]
-    children_champs_to_remove, root_champs_to_remove = champs_to_remove.partition(&:child?)
-
-    children_champs_to_remove.each(&:destroy!)
-    Champ.where(parent_id: root_champs_to_remove.map(&:id)).destroy_all
-    root_champs_to_remove.each(&:destroy!)
+    removed_row_ids.each do |row_id, repetition_type_de_champ|
+      champ_for_update(repetition_type_de_champ, row_id:, updated_by: user.email).discard!
+    end
   end
 end

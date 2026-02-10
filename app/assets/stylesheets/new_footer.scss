@@ -1,4 +1,4 @@
-@import "mixins";
+@import 'mixins';
 
 .landing-footer {
   @include vertical-padding(72px);
@@ -23,4 +23,10 @@
   margin-bottom: 0;
   font-size: 0.75rem;
   line-height: 1.25rem;
+}
+
+.fr-footer .fr-download__link {
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  color: var(--text-default-grey);
 }

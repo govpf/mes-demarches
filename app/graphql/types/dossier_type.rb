@@ -37,8 +37,8 @@ module Types
 
     field :date_derniere_correction_en_attente, GraphQL::Types::ISO8601DateTime, "Date de la dernière demande de correction qui n’a pas encore été traitée par l’usager.", null: true
 
-    field :date_previsionnelle_decision_sva_svr, GraphQL::Types::ISO8601Date, "Date prévisionnelle de décision automatique par le SVA/SVR.", null: true, method: :sva_svr_decision_on
-    field :date_traitement_sva_svr, GraphQL::Types::ISO8601DateTime, "Date du traitement automatique par le SVA/SVR.", null: true, method: :sva_svr_decision_triggered_at
+    field :datePrevisionnelleDecisionSVASVR, GraphQL::Types::ISO8601Date, "Date prévisionnelle de décision automatique par le SVA/SVR.", null: true, method: :sva_svr_decision_on, camelize: false
+    field :dateTraitementSVASVR, GraphQL::Types::ISO8601DateTime, "Date du traitement automatique par le SVA/SVR.", null: true, method: :sva_svr_decision_triggered_at, camelize: false
 
     field :archived, Boolean, null: false
     field :prefilled, Boolean, null: false, method: :prefilled?
@@ -79,6 +79,7 @@ module Types
       argument :id, ID, required: false
     end
     field :traitements, [Types::TraitementType], null: false
+    field :labels, [Types::LabelType], "Labels associés au dossier", null: false
 
     def state
       object.state
@@ -86,7 +87,7 @@ module Types
 
     def date_expiration
       if !object.en_instruction?
-        object.expiration_date
+        object.expired_at
       end
     end
 
@@ -105,14 +106,10 @@ module Types
     def connection_usager
       if object.user_deleted?
         :deleted
+      elsif object.user_from_france_connect?
+        :france_connect
       else
-        user_loader.then do |_user|
-          if object.user_from_france_connect?
-            :france_connect
-          else
-            :password
-          end
-        end
+        :password
       end
     end
 
@@ -120,12 +117,12 @@ module Types
       if object.user_deleted?
         { email: object.user_email_for(:display), id: '<deleted>' }
       else
-        user_loader
+        object.user
       end
     end
 
     def groupe_instructeur
-      Loaders::Record.for(GroupeInstructeur, includes: [:procedure]).load(object.groupe_instructeur_id)
+      Loaders::Association.for(object.class, groupe_instructeur: [:procedure]).load(object)
     end
 
     def demandeur
@@ -145,30 +142,32 @@ module Types
     end
 
     def messages(id: nil)
-      if id.present?
-        Loaders::Record
-          .for(Commentaire, where: { dossier: object }, includes: [:instructeur, :expert], array: true)
-          .load(ApplicationRecord.id_from_typed_id(id))
-      else
-        Loaders::Association.for(object.class, commentaires: [:instructeur, :expert]).load(object)
-      end
+      Loaders::Association.for(object.class, commentaires_chronological: [:instructeur, :expert])
+        .load(object)
+        .then do |records|
+          if id.present?
+            find_record_by_typed_id(records, id)
+          else
+            records
+          end
+        end
     end
 
     def avis(id: nil)
-      if id.present?
-        Loaders::Record
-          .for(Avis, where: { dossier: object }, includes: [:expert, :claimant], array: true)
-          .load(ApplicationRecord.id_from_typed_id(id))
-      else
-        Loaders::Association.for(object.class, avis: [:expert, :claimant]).load(object)
-      end
+      Loaders::Association.for(object.class, avis: [:expert, :claimant])
+        .load(object)
+        .then do |records|
+          if id.present?
+            find_record_by_typed_id(records, id)
+          else
+            records
+          end
+        end
     end
 
     def champs(id: nil)
       if id.present?
-        Loaders::Champ
-          .for(object, private: false)
-          .load(ApplicationRecord.id_from_typed_id(id))
+        find_record_by_typed_id(object.project_champs_public, id, attribute: :stable_id)
       else
         object.project_champs_public.filter(&:visible?)
       end
@@ -176,9 +175,7 @@ module Types
 
     def annotations(id: nil)
       if id.present?
-        Loaders::Champ
-          .for(object, private: true)
-          .load(ApplicationRecord.id_from_typed_id(id))
+        find_record_by_typed_id(object.project_champs_private, id, attribute: :stable_id)
       else
         object.project_champs_private.filter(&:visible?)
       end
@@ -218,14 +215,21 @@ module Types
       end
     end
 
+    def labels
+      Loaders::Association.for(object.class, :labels)
+        .load(object)
+    end
+
     def self.authorized?(object, context)
       context.authorized_demarche?(object.revision.procedure)
     end
 
     private
 
-    def user_loader
-      Loaders::Record.for(User, includes: :france_connect_informations).load(object.user_id)
+    def find_record_by_typed_id(records, id, attribute: :id)
+      record_id = ApplicationRecord.id_from_typed_id(id).to_s
+      record = records.find { _1.public_send(attribute).to_s == record_id }
+      record ? [record] : []
     end
   end
 end

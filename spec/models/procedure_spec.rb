@@ -22,9 +22,9 @@ describe Procedure do
       expect { procedure.compute_dossiers_count }.to change(procedure, :estimated_dossiers_count).from(nil).to(2)
       expect { create(:dossier, procedure: procedure).passer_en_construction! }.not_to change(procedure, :estimated_dossiers_count)
 
-      Timecop.freeze(Time.zone.now + Procedure::DOSSIERS_COUNT_EXPIRING)
+      travel_to(Time.zone.now + Procedure::DOSSIERS_COUNT_EXPIRING + 1.minute)
       expect { procedure.compute_dossiers_count }.to change(procedure, :estimated_dossiers_count).from(2).to(3)
-      Timecop.return
+      travel_back
     end
   end
 
@@ -210,6 +210,20 @@ describe Procedure do
       it { is_expected.not_to allow_value([]).for(:administrateurs) }
     end
 
+    context 'before_remove callback for minimal administrator presence' do
+      let(:procedure) { create(:procedure) }
+
+      it 'raises an error when trying to remove the last administrateur' do
+        expect(procedure.administrateurs.count).to eq(1)
+        expect {
+          procedure.administrateurs.destroy(procedure.administrateurs.first)
+        }.to raise_error(
+          ActiveRecord::RecordNotDestroyed,
+          "Cannot remove the last administrateur of procedure #{procedure.libelle} (#{procedure.id})"
+        )
+      end
+    end
+
     context 'juridique' do
       it { is_expected.not_to allow_value(nil).on(:publication).for(:cadre_juridique) }
       it { is_expected.to allow_value('text').on(:publication).for(:cadre_juridique) }
@@ -384,22 +398,81 @@ describe Procedure do
           expect(procedure.errors.messages_for(:draft_types_de_champ_public)).to include(invalid_repetition_error_message)
 
           new_draft = procedure.draft_revision
-          repetition = procedure.draft_revision.types_de_champ_public.find(&:repetition?)
-          parent_coordinate = new_draft.revision_types_de_champ.find_by(type_de_champ: repetition)
-          new_draft.revision_types_de_champ.create(type_de_champ: create(:type_de_champ), position: 0, parent: parent_coordinate)
+          repetition = new_draft.types_de_champ_public.find(&:repetition?)
+          new_draft.add_type_de_champ(type_champ: :text, libelle: 'Nom', parent_stable_id: repetition.stable_id)
 
           procedure.validate(:publication)
           expect(procedure.errors.messages_for(:draft_types_de_champ_public)).not_to include(invalid_repetition_error_message)
         end
 
         it 'validates that no drop-down type de champ is empty' do
-          procedure.validate(:publication)
+          drop_down = procedure.draft_revision.types_de_champ_public.find(&:any_drop_down_list?)
+
+          drop_down.update!(drop_down_options: [])
+          procedure.reload.validate(:publication)
           expect(procedure.errors.messages_for(:draft_types_de_champ_public)).to include(invalid_drop_down_error_message)
 
-          drop_down = procedure.draft_revision.types_de_champ_public.find(&:drop_down_list?)
           drop_down.update!(drop_down_options: ["--title--", "some value"])
           procedure.reload.validate(:publication)
           expect(procedure.errors.messages_for(:draft_types_de_champ_public)).not_to include(invalid_drop_down_error_message)
+        end
+
+        context 'validates formatted champ character rules' do
+          let(:types_de_champ_private) { [] }
+          let(:formatted_mode) { "simple" }
+          let(:letters_accepted) { "1" }
+          let(:numbers_accepted) { "0" }
+          let(:special_characters_accepted) { "0" }
+          let(:types_de_champ_public) do
+            [
+              { type: :formatted, formatted_mode:, letters_accepted:, numbers_accepted:, special_characters_accepted: }
+            ]
+          end
+
+          it 'accepts valid character rules' do
+            expect(procedure.valid?(:publication)).to be_truthy
+          end
+
+          context "all rules are disabled" do
+            let(:letters_accepted) { "0" }
+            it 'publication is invalid' do
+              expect(procedure.invalid?(:publication)).to be_truthy
+
+              expect(procedure.errors.messages_for(:draft_types_de_champ_public).first).to include("au moins un type de caractère")
+            end
+          end
+        end
+
+        context 'validates formatted champ character length' do
+          let(:types_de_champ_private) { [] }
+          let(:formatted_mode) { "simple" }
+          let(:min_character_length) { "3" }
+          let(:max_character_length) { "10" }
+          let(:types_de_champ_public) do
+            [
+              { type: :formatted, formatted_mode:, min_character_length:, max_character_length: }
+            ]
+          end
+
+          it 'accepts valid character length rules' do
+            expect(procedure.valid?(:publication)).to be_truthy
+          end
+
+          context "when min > max" do
+            let(:min_character_length) { "20" }
+
+            it 'publication is invalid' do
+              expect(procedure.invalid?(:publication)).to be_truthy
+              expect(procedure.errors.messages_for(:draft_types_de_champ_public).first).to include("inférieur au nombre maximum de caractères")
+            end
+          end
+
+          context "when max is empty" do
+            let(:max_character_length) { "" }
+            it 'is valid' do
+              expect(procedure.valid?(:publication)).to be_truthy
+            end
+          end
         end
       end
 
@@ -418,14 +491,17 @@ describe Procedure do
         it 'validates that no repetition type de champ is empty' do
           procedure.validate(:publication)
           expect(procedure.errors.messages_for(:draft_types_de_champ_private)).to include(invalid_repetition_error_message)
+
           repetition = procedure.draft_revision.types_de_champ_private.find(&:repetition?)
           expect(procedure.errors.to_enum.to_a.map { _1.options[:type_de_champ] }).to include(repetition)
         end
 
         it 'validates that no drop-down type de champ is empty' do
-          procedure.validate(:publication)
+          drop_down = procedure.draft_revision.types_de_champ_private.find(&:any_drop_down_list?)
+          drop_down.update!(drop_down_options: [])
+          procedure.reload.validate(:publication)
+
           expect(procedure.errors.messages_for(:draft_types_de_champ_private)).to include(invalid_drop_down_error_message)
-          drop_down = procedure.draft_revision.types_de_champ_private.find(&:drop_down_list?)
           expect(procedure.errors.to_enum.to_a.map { _1.options[:type_de_champ] }).to include(drop_down)
         end
       end
@@ -616,388 +692,13 @@ describe Procedure do
     end
   end
 
-  describe 'api_entreprise_token_expired?' do
-    let(:token) { "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" }
-    let(:procedure) { create(:procedure, api_entreprise_token: token) }
-    let(:payload) {
-      [
-        { "exp" => expiration_time }
-      ]
-    }
-    let(:subject) { procedure.api_entreprise_token_expired? }
-
-    before do
-      allow(JWT).to receive(:decode).with(token, nil, false).and_return(payload)
-    end
-
-    context "with token expired" do
-      let(:expiration_time) { (1.day.ago).to_i }
-      it { is_expected.to be_truthy }
-    end
-
-    context "with token not expired" do
-      let(:expiration_time) { (1.day.from_now).to_i }
-      it { is_expected.to be_falsey }
-    end
-  end
-
-  describe 'clone' do
-    let(:service) { create(:service) }
-    let(:procedure) do
-      create(:procedure,
-        received_mail: received_mail,
-        service: service,
-        opendata: opendata,
-        duree_conservation_etendue_par_ds: true,
-        duree_conservation_dossiers_dans_ds: Procedure::OLD_MAX_DUREE_CONSERVATION,
-        max_duree_conservation_dossiers_dans_ds: Procedure::OLD_MAX_DUREE_CONSERVATION,
-        attestation_template: build(:attestation_template, logo: logo, signature: signature),
-        types_de_champ_public: [{}, {}, { type: :drop_down_list }, { type: :piece_justificative }, { type: :repetition, children: [{}] }],
-        types_de_champ_private: [{}, {}, { type: :drop_down_list }, { type: :repetition, children: [{}] }],
-        api_particulier_token: '123456789012345',
-        api_particulier_scopes: ['cnaf_famille'],
-        estimated_dossiers_count: 4,
-        template: true)
-    end
-    let(:type_de_champ_repetition) { procedure.draft_revision.types_de_champ_public.last }
-    let(:type_de_champ_private_repetition) { procedure.draft_revision.types_de_champ_private.last }
-    let(:received_mail) { build(:received_mail) }
-    let(:from_library) { false }
-    let(:opendata) { true }
-    let(:administrateur) { procedure.administrateurs.first }
-    let(:logo) { Rack::Test::UploadedFile.new('spec/fixtures/files/white.png', 'image/png') }
-    let(:signature) { Rack::Test::UploadedFile.new('spec/fixtures/files/black.png', 'image/png') }
-
-    let(:groupe_instructeur_1) { create(:groupe_instructeur, procedure: procedure, label: "groupe_1", contact_information: create(:contact_information)) }
-    let(:instructeur_1) { create(:instructeur) }
-    let(:instructeur_2) { create(:instructeur) }
-    let!(:assign_to_1) { create(:assign_to, procedure: procedure, groupe_instructeur: groupe_instructeur_1, instructeur: instructeur_1) }
-    let!(:assign_to_2) { create(:assign_to, procedure: procedure, groupe_instructeur: groupe_instructeur_1, instructeur: instructeur_2) }
-
-    subject do
-      @procedure = procedure.clone(administrateur, from_library)
-      @procedure.save
-      @procedure
-    end
-
-    it { expect(subject.parent_procedure).to eq(procedure) }
-
-    it 'the cloned procedure should not be a template anymore' do
-      expect(subject.template).to be_falsey
-    end
-
-    describe "should keep groupe instructeurs " do
-      it "should clone groupe instructeurs" do
-        expect(subject.groupe_instructeurs.size).to eq(2)
-        expect(subject.groupe_instructeurs.size).to eq(procedure.groupe_instructeurs.size)
-        expect(subject.groupe_instructeurs.where(label: "groupe_1").first).not_to be nil
-        expect(subject.defaut_groupe_instructeur_id).to eq(subject.groupe_instructeurs.find_by(label: 'défaut').id)
-      end
-
-      it "should clone instructeurs in the groupe" do
-        expect(subject.groupe_instructeurs.where(label: "groupe_1").first.instructeurs.map(&:email)).to eq(procedure.groupe_instructeurs.where(label: "groupe_1").first.instructeurs.map(&:email))
-      end
-
-      it 'should clone with success a second group instructeur closed' do
-        procedure.groupe_instructeurs.last.update(closed: true)
-
-        expect { subject }.not_to raise_error
-      end
-
-      it 'should clone groupe instructeur services' do
-        expect(procedure.groupe_instructeurs.last.contact_information).not_to eq nil
-        expect(subject.groupe_instructeurs.last.contact_information).not_to eq nil
-      end
-    end
-
-    it 'should reset duree_conservation_etendue_par_ds' do
-      expect(subject.duree_conservation_etendue_par_ds).to eq(false)
-      expect(subject.duree_conservation_dossiers_dans_ds).to eq(Expired::DEFAULT_DOSSIER_RENTENTION_IN_MONTH)
-    end
-
-    it 'should duplicate specific objects with different id' do
-      expect(subject.id).not_to eq(procedure.id)
-
-      expect(subject.draft_revision.types_de_champ_public.size).to eq(procedure.draft_revision.types_de_champ_public.size)
-      expect(subject.draft_revision.types_de_champ_private.size).to eq(procedure.draft_revision.types_de_champ_private.size)
-
-      procedure.draft_revision.types_de_champ_public.zip(subject.draft_revision.types_de_champ_public).each do |ptc, stc|
-        expect(stc).to have_same_attributes_as(ptc)
-        expect(stc.revision).to eq(subject.draft_revision)
-      end
-
-      public_repetition = type_de_champ_repetition
-      cloned_public_repetition = subject.draft_revision.types_de_champ_public.repetition.first
-      procedure.draft_revision.children_of(public_repetition).zip(subject.draft_revision.children_of(cloned_public_repetition)).each do |ptc, stc|
-        expect(stc).to have_same_attributes_as(ptc)
-        expect(stc.revision).to eq(subject.draft_revision)
-      end
-
-      procedure.draft_revision.types_de_champ_private.zip(subject.draft_revision.types_de_champ_private).each do |ptc, stc|
-        expect(stc).to have_same_attributes_as(ptc)
-        expect(stc.revision).to eq(subject.draft_revision)
-      end
-
-      private_repetition = type_de_champ_private_repetition
-      cloned_private_repetition = subject.draft_revision.types_de_champ_private.repetition.first
-      procedure.draft_revision.children_of(private_repetition).zip(subject.draft_revision.children_of(cloned_private_repetition)).each do |ptc, stc|
-        expect(stc).to have_same_attributes_as(ptc)
-        expect(stc.revision).to eq(subject.draft_revision)
-      end
-
-      expect(subject.attestation_template.title).to eq(procedure.attestation_template.title)
-
-      expect(subject.cloned_from_library).to be(false)
-
-      cloned_procedure = subject
-      cloned_procedure.parent_procedure_id = nil
-      expect(cloned_procedure).to have_same_attributes_as(procedure, except: [
-        "path", "draft_revision_id", "service_id", 'estimated_dossiers_count',
-        "duree_conservation_etendue_par_ds", "duree_conservation_dossiers_dans_ds", 'max_duree_conservation_dossiers_dans_ds',
-        "defaut_groupe_instructeur_id", "template"
-      ])
-    end
-
-    context 'which is opendata' do
-      let(:opendata) { false }
-      it 'should keep opendata for same admin' do
-        expect(subject.opendata).to be_falsy
-      end
-    end
-
-    context 'when the procedure is cloned from the library' do
-      let(:from_library) { true }
-
-      it 'should set cloned_from_library to true' do
-        expect(subject.cloned_from_library).to be(true)
-      end
-
-      it 'should set service_id to nil' do
-        expect(subject.service).to eq(nil)
-      end
-
-      it 'should discard old pj information' do
-        subject.draft_revision.types_de_champ_public.each do |stc|
-          expect(stc.old_pj).to be_nil
-        end
-      end
-
-      it 'should have one administrateur' do
-        expect(subject.administrateurs).to eq([administrateur])
-      end
-
-      it 'should set ask_birthday to false' do
-        expect(subject.ask_birthday?).to eq(false)
-      end
-    end
-
-    context 'when the procedure is cloned from the library' do
-      let(:procedure) { create(:procedure, received_mail: received_mail, service: service, ask_birthday: true) }
-
-      it 'should set ask_birthday to false' do
-        expect(subject.ask_birthday?).to eq(false)
-      end
-    end
-
-    it 'should skips service_id' do
-      expect(subject.service).to eq(nil)
-    end
-
-    context 'when the procedure is cloned to another administrateur' do
-      let(:administrateur) { create(:administrateur) }
-      let(:opendata) { false }
-
-      context 'and the procedure does not have a groupe with the defaut label' do
-        before do
-          procedure.defaut_groupe_instructeur.update!(label: 'another label')
-        end
-
-        it "affects the first groupe as the defaut groupe" do
-          expect(subject.defaut_groupe_instructeur).to eq(subject.groupe_instructeurs.first)
-        end
-      end
-
-      it 'should not clone service' do
-        expect(subject.service).to eq(nil)
-      end
-
-      context 'with groupe instructeur services' do
-        it 'should not clone groupe instructeur services' do
-          expect(procedure.groupe_instructeurs.last.contact_information).not_to eq nil
-          expect(subject.groupe_instructeurs.last.contact_information).to eq nil
-        end
-      end
-
-      it 'should discard old pj information' do
-        subject.draft_revision.types_de_champ_public.each do |stc|
-          expect(stc.old_pj).to be_nil
-        end
-      end
-
-      it 'should discard specific api_entreprise_token' do
-        expect(subject.read_attribute(:api_entreprise_token)).to be_nil
-      end
-
-      it 'should reset opendata to true' do
-        expect(subject.opendata).to be_truthy
-      end
-
-      it 'should have one administrateur' do
-        expect(subject.administrateurs).to eq([administrateur])
-      end
-
-      it "should discard the existing groupe instructeurs" do
-        expect(subject.groupe_instructeurs.size).not_to eq(procedure.groupe_instructeurs.size)
-        expect(subject.groupe_instructeurs.where(label: "groupe_1").first).to be nil
-      end
-
-      it "should discard api_particulier_scopes and token" do
-        expect(subject.encrypted_api_particulier_token).to be_nil
-        expect(subject.api_particulier_scopes).to be_empty
-      end
-
-      it 'should not route the procedure' do
-        expect(subject.routing_enabled).to eq(false)
-      end
-
-      it 'should have a default groupe instructeur' do
-        expect(subject.groupe_instructeurs.size).to eq(1)
-        expect(subject.groupe_instructeurs.first.label).to eq(GroupeInstructeur::DEFAUT_LABEL)
-        expect(subject.groupe_instructeurs.first.instructeurs.size).to eq(0)
-      end
-    end
-
-    it 'should duplicate existing mail_templates' do
-      expect(subject.received_mail.attributes.except("id", "procedure_id", "created_at", "updated_at")).to eq procedure.received_mail.attributes.except("id", "procedure_id", "created_at", "updated_at")
-      expect(subject.received_mail.id).not_to eq procedure.received_mail.id
-      expect(subject.received_mail.id).not_to be nil
-      expect(subject.received_mail.procedure_id).not_to eq procedure.received_mail.procedure_id
-      expect(subject.received_mail.procedure_id).not_to be nil
-    end
-
-    it 'should not duplicate default mail_template' do
-      expect(subject.passer_en_construction_email_template.attributes).to eq Mails::InitiatedMail.default_for_procedure(subject).attributes
-    end
-
-    it 'should not duplicate specific related objects' do
-      expect(subject.dossiers).to eq([])
-    end
-
-    it "should reset estimated_dossiers_count" do
-      expect(subject.estimated_dossiers_count).to eq(0)
-    end
-
-    describe 'should not duplicate lien_notice' do
-      let(:procedure) { create(:procedure, lien_notice: "http://toto.com") }
-
-      it { expect(subject.lien_notice).to be_nil }
-    end
-
-    describe 'procedure status is reset' do
-      let(:procedure) { create(:procedure, :closed, received_mail: received_mail, service: service, auto_archive_on: 3.weeks.from_now) }
-
-      it 'Not published nor closed' do
-        expect(subject.closed_at).to be_nil
-        expect(subject.published_at).to be_nil
-        expect(subject.unpublished_at).to be_nil
-        expect(subject.auto_archive_on).to be_nil
-        expect(subject.aasm_state).to eq "brouillon"
-        expect(subject.path).not_to be_nil
-      end
-    end
-
-    it 'should keep types_de_champ ids stable' do
-      expect(subject.draft_revision.types_de_champ_public.first.id).not_to eq(procedure.draft_revision.types_de_champ_public.first.id)
-      expect(subject.draft_revision.types_de_champ_public.first.stable_id).to eq(procedure.draft_revision.types_de_champ_public.first.id)
-    end
-
-    it 'should duplicate piece_justificative_template on a type_de_champ' do
-      expect(subject.draft_revision.types_de_champ_public.where(type_champ: "piece_justificative").first.piece_justificative_template.attached?).to be_truthy
-    end
-
-    context 'with a notice attached' do
-      let(:procedure) { create(:procedure, :with_notice, received_mail: received_mail, service: service) }
-
-      it 'should duplicate notice' do
-        expect(subject.notice.attached?).to be_truthy
-        expect(subject.notice.attachment).not_to eq(procedure.notice.attachment)
-        expect(subject.notice.attachment.blob).to eq(procedure.notice.attachment.blob)
-
-        subject.notice.attach(logo)
-        subject.reload
-        procedure.reload
-
-        expect(subject.notice.attached?).to be_truthy
-        expect(subject.notice.attachment.blob).not_to eq(procedure.notice.attachment.blob)
-
-        subject.notice.purge
-        subject.reload
-        procedure.reload
-
-        expect(subject.notice.attached?).to be_falsey
-        expect(procedure.notice.attached?).to be_truthy
-      end
-    end
-
-    context 'with a deliberation attached' do
-      let(:procedure) { create(:procedure, :with_deliberation, received_mail: received_mail, service: service) }
-
-      it 'should duplicate deliberation' do
-        expect(subject.deliberation.attached?).to be true
-      end
-    end
-
-    context 'with canonical procedure' do
-      let(:canonical_procedure) { create(:procedure) }
-      let(:procedure) { create(:procedure, canonical_procedure: canonical_procedure, received_mail: received_mail, service: service) }
-
-      it 'do not clone canonical procedure' do
-        expect(subject.canonical_procedure).to be_nil
-      end
-    end
-
-    describe 'feature flag' do
-      context 'with a feature flag enabled' do
-        before do
-          Flipper.enable(:dossier_pdf_vide, procedure)
-        end
-
-        it 'should enable feature' do
-          expect(subject.feature_enabled?(:dossier_pdf_vide)).to be true
-          expect(Flipper.feature(:dossier_pdf_vide).enabled_gate_names).to include(:actor)
-        end
-      end
-
-      context 'with feature flag is fully enabled' do
-        before do
-          Flipper.enable(:dossier_pdf_vide)
-        end
-
-        it 'should not clone feature for actor' do
-          expect(subject.feature_enabled?(:dossier_pdf_vide)).to be true
-          expect(Flipper.feature(:dossier_pdf_vide).enabled_gate_names).not_to include(:actor)
-        end
-      end
-
-      context 'with a feature flag disabled' do
-        before do
-          Flipper.disable(:dossier_pdf_vide, procedure)
-        end
-
-        it 'should not enable feature' do
-          expect(subject.feature_enabled?(:dossier_pdf_vide)).to be false
-        end
-      end
-    end
-  end
-
   describe '#publish!' do
     let(:procedure) { create(:procedure, path: 'example-path', zones: [create(:zone)]) }
     let(:now) { Time.zone.now.beginning_of_minute }
 
     context 'when publishing a new procedure' do
       before do
-        Timecop.freeze(now) do
+        travel_to(now) do
           procedure.publish!
         end
       end
@@ -1009,8 +710,8 @@ describe Procedure do
       it 'changes the procedure state to published' do
         expect(procedure.closed_at).to be_nil
         expect(procedure.published_at).to eq(now)
-        expect(Procedure.find_by(path: "example-path")).to eq(procedure)
-        expect(Procedure.find_by(path: "example-path").administrateurs).to eq(procedure.administrateurs)
+        expect(Procedure.find_with_path("example-path").first).to eq(procedure)
+        expect(Procedure.find_with_path("example-path").first.administrateurs).to eq(procedure.administrateurs)
       end
 
       it 'creates a new draft revision' do
@@ -1025,7 +726,7 @@ describe Procedure do
       let(:canonical_procedure) { create(:procedure, :published) }
 
       before do
-        Timecop.freeze(now) do
+        travel_to(now) do
           procedure.publish!(canonical_procedure)
         end
       end
@@ -1050,9 +751,8 @@ describe Procedure do
 
     context 'when publishing over a previous canonical procedure' do
       before do
-        procedure.path = canonical_procedure.path
-        Timecop.freeze(now) do
-          procedure.publish_or_reopen!(administrateur)
+        travel_to(now) do
+          procedure.publish_or_reopen!(administrateur, canonical_procedure.path)
         end
         procedure.reload
         canonical_procedure.reload
@@ -1081,14 +781,15 @@ describe Procedure do
     end
 
     context 'when publishing over a previous procedure with canonical procedure' do
-      let(:canonical_procedure) { create(:procedure, :closed) }
+      let(:canonical_path) { 'canonical-path' }
+      let(:canonical_procedure) { create(:procedure, :closed, path: canonical_path) }
       let(:parent_procedure) { create(:procedure, :published, administrateurs: [administrateur]) }
 
       before do
-        parent_procedure.update!(path: canonical_procedure.path, canonical_procedure: canonical_procedure)
-        procedure.path = canonical_procedure.path
-        Timecop.freeze(now) do
-          procedure.publish_or_reopen!(administrateur)
+        parent_procedure.update!(canonical_procedure: canonical_procedure)
+        parent_procedure.claim_path!(administrateur, canonical_path)
+        travel_to(now) do
+          procedure.publish_or_reopen!(administrateur, canonical_path)
         end
         parent_procedure.reload
       end
@@ -1114,8 +815,8 @@ describe Procedure do
 
       before do
         procedure.close!
-        Timecop.freeze(now) do
-          procedure.publish_or_reopen!(administrateur)
+        travel_to(now) do
+          procedure.publish_or_reopen!(administrateur, procedure.path)
         end
       end
 
@@ -1132,6 +833,15 @@ describe Procedure do
         expect(procedure.revisions).to eq([procedure.published_revision, procedure.draft_revision])
       end
     end
+
+    context 'when publishing a procedure with the same path as another procedure from another admin' do
+      let(:procedure) { create(:procedure, path: 'example-path', administrateurs: [administrateur]) }
+      let(:other_procedure) { create(:procedure, path: 'example-path', administrateurs: [create(:administrateur)]) }
+
+      it 'raises an error' do
+        expect { procedure.publish_or_reopen!(administrateur, other_procedure.path) }.to raise_error(ActiveRecord::RecordInvalid)
+      end
+    end
   end
 
   describe "#publish_revision!" do
@@ -1144,7 +854,7 @@ describe Procedure do
     end
 
     subject do
-      Timecop.freeze(publication_date) do
+      travel_to(publication_date) do
         procedure.publish_revision!
       end
     end
@@ -1176,6 +886,21 @@ describe Procedure do
         expect(DossierRebaseJob).to have_been_enqueued.with(dossier_draft)
         expect(DossierRebaseJob).to have_been_enqueued.with(dossier_submitted)
         expect(DossierRebaseJob).not_to have_been_enqueued.with(dossier_termine)
+      end
+    end
+
+    context 'when a type de champ is transformed from a drop_down_list with referentiel to a textarea' do
+      let(:procedure) { create(:procedure, types_de_champ_public:) }
+      let(:types_de_champ_public) { [{ type: :drop_down_list, referentiel:, drop_down_mode: 'advanced' }] }
+      let(:referentiel) { create(:csv_referentiel, :with_items) }
+      let(:tdc) { procedure.draft_revision.types_de_champ_public.last }
+
+      before do
+        procedure.draft_revision.types_de_champ_public.last.update(type_champ: :textarea, options: { "character_limit" => "" })
+      end
+
+      it 'nullifies the referentiel' do
+        expect(procedure.draft_revision.types_de_champ_public.first.referentiel).to be_nil
       end
     end
   end
@@ -1238,7 +963,7 @@ describe Procedure do
     let(:now) { Time.zone.now.beginning_of_minute }
 
     before do
-      Timecop.freeze(now) do
+      travel_to(now) do
         procedure.unpublish!
       end
     end
@@ -1321,7 +1046,7 @@ describe Procedure do
     let(:procedure) { create(:procedure, :published) }
     let(:now) { Time.zone.now.beginning_of_minute }
     before do
-      Timecop.freeze(now) do
+      travel_to(now) do
         procedure.close!
       end
       procedure.reload
@@ -1335,22 +1060,6 @@ describe Procedure do
       expect(procedure.draft_revision).not_to be_nil
       expect(procedure.revisions.count).to eq(2)
       expect(procedure.revisions).to eq([procedure.published_revision, procedure.draft_revision])
-    end
-  end
-
-  describe 'path_customized?' do
-    let(:procedure) { create :procedure }
-
-    subject { procedure.path_customized? }
-
-    context 'when the path is still the default' do
-      it { is_expected.to be_falsey }
-    end
-
-    context 'when the path has been changed' do
-      before { procedure.path = 'custom_path' }
-
-      it { is_expected.to be_truthy }
     end
   end
 
@@ -1369,12 +1078,18 @@ describe Procedure do
   end
 
   describe 'suggested_path' do
-    let(:procedure) { create(:procedure, aasm_state: :publiee, libelle: 'Inscription au Collège', zones: [create(:zone)]) }
+    let!(:procedure) { create(:procedure, aasm_state: :publiee, libelle: 'Inscription au Collège', zones: [create(:zone)]) }
+    let(:path) { nil }
 
-    subject { procedure.suggested_path(procedure.administrateurs.first) }
+    before do
+      travel(3.seconds)
+      procedure.claim_path!(procedure.administrateurs.first, path)
+    end
+
+    subject { procedure.suggested_path }
 
     context 'when the path has been customized' do
-      before { procedure.path = 'custom_path' }
+      let(:path) { 'custom_path' }
 
       it { is_expected.to eq 'custom_path' }
     end
@@ -1455,10 +1170,6 @@ describe Procedure do
       it { expect(Dossier.count).to eq(0) }
       it { expect(instructeur.followed_dossiers).not_to include(dossier) }
     end
-  end
-
-  describe ".default_sort" do
-    it { expect(Procedure.default_sort).to eq({ "table" => "self", "column" => "id", "order" => "desc" }) }
   end
 
   describe "#organisation_name" do
@@ -1899,6 +1610,66 @@ describe Procedure do
         procedure_detail_draft.latest_zone_labels = ''
         expect(procedure_detail_draft.parsed_latest_zone_labels).to eq([])
       end
+    end
+  end
+
+  describe '#all_revisions_types_de_champ' do
+    let(:types_de_champ_public) do
+      [
+        { type: :text },
+        { type: :header_section }
+      ]
+    end
+
+    context 'when procedure brouillon' do
+      let(:procedure) { create(:procedure, types_de_champ_public:) }
+
+      it 'returns one type de champ' do
+        expect(procedure.all_revisions_types_de_champ.size).to eq 1
+      end
+
+      it 'returns also section type de champ' do
+        expect(procedure.all_revisions_types_de_champ(with_header_section: true).size).to eq 2
+      end
+
+      it "returns types de champ on draft revision" do
+        procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'onemorechamp')
+        expect(procedure.reload.all_revisions_types_de_champ.size).to eq 2
+      end
+    end
+
+    context 'when procedure is published' do
+      let(:procedure) { create(:procedure, :published, types_de_champ_public:) }
+
+      it 'returns one type de champ' do
+        expect(procedure.all_revisions_types_de_champ.size).to eq 1
+      end
+
+      it 'returns also section type de champ' do
+        expect(procedure.all_revisions_types_de_champ(with_header_section: true).size).to eq 2
+      end
+
+      it "doesn't return types de champ on draft revision" do
+        procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'onemorechamp')
+        expect(procedure.reload.all_revisions_types_de_champ.size).to eq 1
+      end
+    end
+  end
+
+  describe '#update_labels_position' do
+    let(:procedure) { create(:procedure) }
+    let!(:labels) { create_list(:label, 5, procedure_id: procedure.id) }
+
+    it 'updates the positions of the specified instructeurs_procedures' do
+      procedure.update_labels_position(labels.map(&:id))
+
+      expect(procedure.labels.reload.pluck(:id, :position)).to match_array([
+        [labels[0].id, 0],
+        [labels[1].id, 1],
+        [labels[2].id, 2],
+        [labels[3].id, 3],
+        [labels[4].id, 4]
+      ])
     end
   end
 

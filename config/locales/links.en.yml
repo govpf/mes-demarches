@@ -68,11 +68,11 @@ en:
       releases:
         label: "Releases notes"
         title: "Releases notes: Our last updates"
-        url: "https://github.com/demarches-simplifiees/demarches-simplifiees.fr/releases"
+        url: "https://github.com/govpf/mes-demarches/releases"
       security:
         label: "Security"
         title: "Security policy and procedures"
-        url: "https://github.com/betagouv/demarches-simplifiees.fr/blob/main/SECURITY.md"
+        url: 'https://github.com/demarches-simplifiees/demarches-simplifiees.fr/blob/main/SECURITY.md'
       carte:
         label: "Deployment map"
         title: "Deployment map by department"
@@ -87,3 +87,6 @@ en:
       contact:
         label: Contact
       display_params: Display params
+    instructeur:
+      notification_notice:
+        url: "https://doc.demarches-simplifiees.fr/tutoriels/tutoriel-instructeur#a.-notifications-sur-les-dossiers"

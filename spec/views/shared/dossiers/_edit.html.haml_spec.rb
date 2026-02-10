@@ -6,10 +6,11 @@ describe 'shared/dossiers/edit', type: :view do
     allow(view).to receive(:administrateur_signed_in?).and_return(false)
   end
 
-  subject { render 'shared/dossiers/edit', dossier: dossier, apercu: false }
+  subject { render 'shared/dossiers/edit', dossier:, dossier_for_editing:, apercu: false }
 
   let(:procedure) { create(:procedure, types_de_champ_public:) }
   let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
+  let(:dossier_for_editing) { dossier }
 
   context 'when there are some champs' do
     let(:type_de_champ_header_section) { procedure.draft_types_de_champ_public.find(&:header_section?) }
@@ -18,9 +19,9 @@ describe 'shared/dossiers/edit', type: :view do
     let(:type_de_champ_checkbox) { procedure.draft_types_de_champ_public.find(&:checkbox?) }
     let(:type_de_champ_textarea) { procedure.draft_types_de_champ_public.find(&:textarea?) }
 
-    let(:champ_checkbox) { dossier.project_champ(type_de_champ_checkbox, nil) }
-    let(:champ_dossier_link) { dossier.project_champ(type_de_champ_dossier_link, nil) }
-    let(:champ_textarea) { dossier.project_champ(type_de_champ_textarea, nil) }
+    let(:champ_checkbox) { dossier.project_champ(type_de_champ_checkbox) }
+    let(:champ_dossier_link) { dossier.project_champ(type_de_champ_dossier_link) }
+    let(:champ_textarea) { dossier.project_champ(type_de_champ_textarea) }
 
     let(:types_de_champ_public) { [{ type: :checkbox }, { type: :header_section }, { type: :explication }, { type: :dossier_link }, { type: :textarea }] }
 
@@ -42,9 +43,25 @@ describe 'shared/dossiers/edit', type: :view do
     end
   end
 
+  context 'with a public text champ containing HTML in value' do
+    let(:types_de_champ_public) { [{ type: :textarea }] }
+    let(:procedure) { create(:procedure, types_de_champ_public:) }
+    let(:dossier) { create(:dossier, procedure:) }
+    let(:champ) { dossier.project_champs_public.first }
+
+    before do
+      champ.update(value: 'This <strong>should be escaped</strong>')
+    end
+
+    it 'renders the value escaped in the input' do
+      expect(subject).not_to include('<strong>should be escaped</strong>'.html_safe)
+      expect(subject).to include('This &lt;strong&gt;should be escaped&lt;/strong&gt;')
+    end
+  end
+
   context 'with a single-value list' do
     let(:types_de_champ_public) { [{ type: :drop_down_list, options:, mandatory: }] }
-    let(:champ) { dossier.champs_public.first }
+    let(:champ) { dossier.project_champs_public.first }
     let(:type_de_champ) { champ.type_de_champ }
     let(:enabled_options) { type_de_champ.drop_down_options }
     let(:mandatory) { true }
@@ -76,7 +93,7 @@ describe 'shared/dossiers/edit', type: :view do
       before { champ.update(value:) }
 
       it 'renders the list as a dropdown' do
-        expect(subject).to have_select(type_de_champ.libelle, options: enabled_options + [''])
+        expect(subject).to have_select(type_de_champ.libelle, options: enabled_options)
       end
     end
   end
@@ -116,6 +133,16 @@ describe 'shared/dossiers/edit', type: :view do
 
     context 'when dossier is en construction' do
       let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
+      let(:dossier_for_editing) { dossier.owner_editing_fork }
+
+      it 'can delete a piece justificative' do
+        expect(subject).to have_selector("[title='Supprimer le fichier #{champ.piece_justificative_file.attachments[0].filename}']")
+      end
+    end
+
+    context 'when dossier is en construction (stream)' do
+      let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
+      let(:dossier_for_editing) { dossier.with_update_stream(dossier.user) }
 
       it 'can delete a piece justificative' do
         expect(subject).to have_selector("[title='Supprimer le fichier #{champ.piece_justificative_file.attachments[0].filename}']")
@@ -158,10 +185,11 @@ describe 'shared/dossiers/edit', type: :view do
 
     before do
       allow(dossier).to receive(:can_passer_en_construction?).and_return(false)
+      allow(dossier.revision).to receive(:ineligibilite_enabled?).and_return(true)
     end
 
     it 'renders broken transitions rules dialog' do
-      expect(subject).to have_selector("##{ActionView::RecordIdentifier.dom_id(dossier, :ineligibilite_rules_broken)}")
+      expect(subject).to have_selector("#ineligibilite_rules_modal [data-fr-opened='true']")
     end
   end
 end

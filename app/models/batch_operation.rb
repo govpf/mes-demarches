@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class BatchOperation < ApplicationRecord
-  enum operation: {
+  enum :operation, {
     accepter: 'accepter',
     refuser: 'refuser',
     classer_sans_suite: 'classer_sans_suite',
@@ -13,7 +13,8 @@ class BatchOperation < ApplicationRecord
     repasser_en_construction: 'repasser_en_construction',
     restaurer: 'restaurer',
     unfollow: 'unfollow',
-    supprimer: 'supprimer'
+    supprimer: 'supprimer',
+    create_avis: 'create_avis'
   }
 
   has_many :dossiers, dependent: :nullify
@@ -21,7 +22,7 @@ class BatchOperation < ApplicationRecord
   has_many :groupe_instructeurs, through: :dossier_operations
   belongs_to :instructeur
 
-  store_accessor :payload, :motivation, :justificatif_motivation
+  store_accessor :payload, :motivation, :justificatif_motivation, :emails, :introduction, :question_label, :introduction_file, :confidentiel
 
   validates :operation, presence: true
 
@@ -32,12 +33,12 @@ class BatchOperation < ApplicationRecord
 
   scope :stale, lambda {
     where.not(finished_at: nil)
-      .where('updated_at < ?', (Time.zone.now - RETENTION_DURATION))
+      .where(updated_at: ...(Time.zone.now - RETENTION_DURATION))
   }
 
   scope :stuck, lambda {
     where(finished_at: nil)
-      .where('updated_at < ?', (Time.zone.now - MAX_DUREE_GENERATION))
+      .where(updated_at: ...(Time.zone.now - MAX_DUREE_GENERATION))
   }
 
   def dossiers_safe_scope(dossier_ids = self.dossier_ids)
@@ -69,6 +70,8 @@ class BatchOperation < ApplicationRecord
       query.visible_by_administration.state_termine
     when BatchOperation.operations.fetch(:restaurer) then
       query.hidden_by_administration
+    when BatchOperation.operations.fetch(:create_avis) then
+      query.visible_by_administration.state_not_termine
     end
   end
 
@@ -103,6 +106,19 @@ class BatchOperation < ApplicationRecord
       dossier.hide_and_keep_track!(instructeur, :instructeur_request)
     when BatchOperation.operations.fetch(:restaurer)
       dossier.restore(instructeur)
+    when BatchOperation.operations.fetch(:create_avis)
+      CreateAvisService.call(
+        dossier: dossier,
+        instructeur_or_expert: instructeur,
+        params: {
+          emails: emails || [],
+          introduction: introduction,
+          introduction_file: introduction_file,
+          confidentiel: confidentiel,
+          invite_linked_dossiers: payload['invite_linked_dossiers'],
+          question_label: question_label
+        }.with_indifferent_access
+      )
     end
   end
 

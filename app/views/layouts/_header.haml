@@ -6,8 +6,8 @@
 - is_administrateur_context = nav_bar_profile == :administrateur && administrateur_signed_in?
 - is_expert_context = nav_bar_profile == :expert && expert_signed_in?
 - is_user_context = nav_bar_profile == :user
-- is_search_enabled = [params[:controller] == 'recherche', is_instructeur_context, is_expert_context, is_user_context && current_user.dossiers.count].any?
-%header{ class: ["fr-header", content_for?(:notice_info) && "fr-header__with-notice-info"], role: "banner", "data-controller": "dsfr-header" }
+- is_search_enabled = [params[:controller] == 'recherche', is_instructeur_context, is_expert_context].any?
+%header.fr-header{ role: "banner" }
   %nav{ :role => "navigation", "aria-label" => t('layouts.header.main_menu') }
     .fr-header__body
       .fr-container
@@ -26,6 +26,13 @@
               .fr-header__navbar
                 - if is_search_enabled
                   %button.fr-btn--search.fr-btn{ "aria-controls" => "search-modal", "data-fr-opened" => "false", :title => t('views.users.dossiers.search.search_file') }= t('views.users.dossiers.search.search_file')
+
+                -# pf: La Suite numérique n'est pas encore accessible aux agents de Polynésie française
+                -# Accès en cours de négociation pour extension aux territoires d'outre-mer
+                -# Réactiver quand l'accès sera confirmé (décommenter ci-dessous)
+                -# - if is_instructeur_context || is_administrateur_context
+                -#   %button.lasuite-gaufre-btn.lasuite-gaufre-btn--vanilla.js-lasuite-gaufre-btn.lasuite-gaufre-btn--small{ title: "Les services de La Suite numérique", type: "button" }
+                -#     Les services de La Suite numérique
                 %button#navbar-burger-button.fr-btn--menu.fr-btn{ "aria-controls" => "modal-header__menu", "data-fr-opened" => "false", title: "Menu" } Menu
             -# .fr-header__service
               - root_profile_link, root_profile_libelle = root_path_info_for_profile(nav_bar_profile)
@@ -39,11 +46,11 @@
               %ul.fr-btns-group.flex.align-center
                 - if instructeur_signed_in? || user_signed_in?
                   %li
-                    = render partial: 'layouts/account_dropdown', locals: { nav_bar_profile: nav_bar_profile, dossier: dossier }
-                - elsif (request.path != new_user_session_path && request.path !=agent_connect_path)
+                    = render AccountDropdownComponent.new(dossier: @dossier, nav_bar_profile:)
+                - elsif (request.path != new_user_session_path && request.path !=pro_connect_path)
                   - if request.path == new_user_registration_path
                     %li.fr-hidden-sm.fr-unhidden-lg.fr-link--sm.fr-mb-2w.fr-mr-1v= t('views.shared.account.already_user_question')
-                  %li= link_to 'Agent', agent_connect_path, class: "fr-btn fr-btn--tertiary fr-icon-government-fill fr-btn--icon-left"
+                  %li= link_to 'Agent', pro_connect_path, class: "fr-btn fr-btn--tertiary fr-icon-government-fill fr-btn--icon-left"
                   %li= link_to t('views.shared.account.signin'), new_user_session_path, class: "fr-btn fr-btn--tertiary fr-icon-account-circle-fill fr-btn--icon-left"
 
                 %li
@@ -56,13 +63,20 @@
                   - elsif nav_bar_profile == :instructeur
                     = render partial: 'shared/help/help_dropdown_instructeur'
                   - else
-                    // NB: on mobile in order to have links correctly aligned, we need a left icon
-                    = link_to t('help'), t("links.common.faq.url"), class: 'fr-btn dropdown-button'
-
+                    -# NB: on mobile in order to have links correctly aligned, we need a left icon #
+                    = link_to t('help'), t("links.common.faq.url"), class: 'fr-btn'
 
 
                 - if localization_enabled?
                   %li= render partial: 'layouts/locale_dropdown'
+
+                -# pf: La Suite numérique n'est pas encore accessible aux agents de Polynésie française
+                -# Accès en cours de négociation pour extension aux territoires d'outre-mer
+                -# Réactiver quand l'accès sera confirmé (décommenter ci-dessous)
+                -# - if is_instructeur_context || is_administrateur_context
+                -#   %li.fr-mr-1v.fr-hidden.fr-unhidden-lg
+                -#     %button.lasuite-gaufre-btn.lasuite-gaufre-btn--vanilla.js-lasuite-gaufre-btn.lasuite-gaufre-btn--small.box-shadow-none{ title: "Les services de La Suite numérique", type: "button" }
+                -#       Les services de La Suite numérique
 
 
             - if is_instructeur_context
@@ -78,7 +92,7 @@
 
     #modal-header__menu.fr-header__menu.fr-modal{ "aria-labelledby": "navbar-burger-button" }
       .fr-container
-        %button.fr-btn--close.fr-btn{ "aria-controls" => "modal-header__menu", title: t('close_modal', scope: [:layouts, :header]) }= t('close_modal', scope: [:layouts, :header])
+        %button.fr-btn--close.fr-btn{ "aria-controls" => "modal-header__menu", title: t('utils.modal_close_alt') }= t('utils.modal_close')
         .fr-header__menu-links
           -# populated by dsfr js
 

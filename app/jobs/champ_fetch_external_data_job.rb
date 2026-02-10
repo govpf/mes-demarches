@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
+require 'dry/monads/result/fixed'
+
 class ChampFetchExternalDataJob < ApplicationJob
   discard_on ActiveJob::DeserializationError
-
-  include Dry::Monads[:result]
+  queue_as :critical # ui feedback, asap
 
   def perform(champ, external_id)
     return if champ.external_id != external_id
@@ -12,21 +13,6 @@ class ChampFetchExternalDataJob < ApplicationJob
     Sentry.set_tags(champ: champ.id)
     Sentry.set_extras(external_id:)
 
-    result = champ.fetch_external_data
-
-    if result.is_a?(Dry::Monads::Result)
-      case result
-      in Success(data)
-        champ.update_with_external_data!(data:)
-      in Failure(retryable: true, reason:)
-        champ.log_fetch_external_data_exception(reason)
-        throw reason
-      in Failure(retryable: false, reason:)
-        champ.log_fetch_external_data_exception(reason)
-        Sentry.capture_exception(reason)
-      end
-    elsif result.present?
-      champ.update_with_external_data!(data: result)
-    end
+    champ.fetch_and_handle_result
   end
 end

@@ -15,6 +15,11 @@ describe Users::SessionsController, type: :controller do
     let(:send_password) { password }
     let(:remember_me) { '0' }
 
+    before do
+      cookies.encrypted[FranceConnectController::ID_TOKEN_COOKIE_NAME] = 'id_token'
+      cookies.encrypted[FranceConnectController::STATE_COOKIE_NAME] = 'state'
+    end
+
     subject do
       post :create, params: {
         user: {
@@ -33,6 +38,14 @@ describe Users::SessionsController, type: :controller do
         expect(controller.current_user).to eq(user)
         expect(user.reload.loged_in_with_france_connect).to be(nil)
         expect(user.reload.remember_created_at).to be_nil
+
+        [
+          FranceConnectController::ID_TOKEN_COOKIE_NAME,
+          FranceConnectController::STATE_COOKIE_NAME
+        ].map(&:to_s).each do |cookie_name|
+          expect(response.cookies.keys).to include(cookie_name)
+          expect(response.cookies[cookie_name]).to be_nil
+        end
       end
 
       context 'when remember_me is specified' do
@@ -81,7 +94,7 @@ describe Users::SessionsController, type: :controller do
         it 'update preferred domain' do
           subject
 
-          expect(user.reload.preferred_domain_demarches_gouv_fr?).to be_truthy
+          expect(user.reload.preferred_domain_demarches_numerique_gouv_fr?).to be_truthy
         end
       end
     end
@@ -96,16 +109,38 @@ describe Users::SessionsController, type: :controller do
         expect(controller.current_user).to be(nil)
       end
     end
+
+    xcontext 'when email domain is in mandatory list' do
+      let(:email) { 'user@beta.gouv.fr' }
+      it 'redirects to pro connect with force parameter and is not logged in' do
+        expect(ProConnectService).to receive(:enabled?).and_return(true)
+        subject
+        expect(response).to redirect_to(pro_connect_path(force_pro_connect: true))
+        expect(flash[:alert]).to eq("La connexion des agents passe à présent systématiquement par ProConnect")
+        expect(controller.current_user).to be_nil
+      end
+    end
   end
 
   describe '#destroy' do
     let!(:user) { create(:user, email: email, password: password, loged_in_with_france_connect: loged_in_with_france_connect) }
-    let!(:instructeur) { create(:instructeur, user: user, agent_connect_id_token:) }
-    let(:agent_connect_id_token) { nil }
+    let!(:instructeur) { create(:instructeur, user: user, pro_connect_id_token:) }
+    let(:pro_connect_id_token) { nil }
+    let(:logged_in_with_france_connect) { false }
 
     before do
-      stub_const("AGENT_CONNECT", { end_session_endpoint: 'http://agent-connect/logout' })
+      stub_const("PRO_CONNECT", { end_session_endpoint: 'http://pro-connect/logout' })
+      stub_const("FRANCE_CONNECT", { end_session_endpoint: 'http://france-connect/logout' })
+
       sign_in user
+
+      if logged_in_with_france_connect
+        cookies.encrypted[FranceConnectController::ID_TOKEN_COOKIE_NAME] = 'id_token'
+        cookies.encrypted[FranceConnectController::STATE_COOKIE_NAME] = 'state'
+      end
+
+      cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: user.id }.to_json }
+
       delete :destroy
     end
 
@@ -119,10 +154,20 @@ describe Users::SessionsController, type: :controller do
     end
 
     context 'when user is connect with france connect particulier' do
+      let(:logged_in_with_france_connect) { true }
       let(:loged_in_with_france_connect) { User.loged_in_with_france_connects.fetch(:particulier) }
 
       it 'redirect to france connect logout page' do
-        expect(response).to redirect_to(FRANCE_CONNECT[:particulier][:logout_endpoint])
+        h = { id_token_hint: 'id_token', post_logout_redirect_uri: root_url, state: 'state' }
+        expect(response).to redirect_to("#{FRANCE_CONNECT[:end_session_endpoint]}?#{h.to_query}")
+
+        [
+          FranceConnectController::ID_TOKEN_COOKIE_NAME,
+          FranceConnectController::STATE_COOKIE_NAME
+        ].map(&:to_s).each do |cookie_name|
+          expect(response.cookies.keys).to include(cookie_name)
+          expect(response.cookies[cookie_name]).to be_nil
+        end
       end
     end
 
@@ -145,20 +190,23 @@ describe Users::SessionsController, type: :controller do
     end
 
     context 'when user is not connect with france connect' do
-      let(:loged_in_with_france_connect) { '' }
-
       it 'redirect to root page' do
         expect(response).to redirect_to(root_path)
       end
     end
 
-    context 'when user is connect with agent connect' do
+    context 'when user is connect with pro connect' do
       let(:loged_in_with_france_connect) { nil }
-      let(:agent_connect_id_token) { 'qwerty' }
+      let(:pro_connect_id_token) { 'qwerty' }
 
-      it 'redirect to agent connect logout page' do
-        expect(response.location).to include(agent_connect_id_token)
-        expect(instructeur.reload.agent_connect_id_token).to be_nil
+      it 'redirect to pro connect logout page' do
+        expect(response.location).to include(pro_connect_id_token)
+        expect(instructeur.reload.pro_connect_id_token).to be_nil
+      end
+
+      it "deletes the pro_connect_session_info cookie" do
+        expect(response.cookies.keys).to include(ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME.to_s)
+        expect(response.cookies[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME]).to be_nil
       end
     end
   end
@@ -194,8 +242,10 @@ describe Users::SessionsController, type: :controller do
         if logged
           sign_in(instructeur.user)
         end
-        allow(controller).to receive(:trust_device)
+        allow(controller).to receive(:trust_device).and_call_original
         allow(controller).to receive(:send_login_token_or_bufferize)
+        allow(controller).to receive_message_chain(:message_encryptor_service, :encrypt_and_sign).with(instructeur.user.email, purpose: :reset_link, expires_in: 1.hour).and_return('panpan')
+
         allow_any_instance_of(TrustedDeviceToken).to receive(:token_valid?).and_return(valid_token)
         post :sign_in_by_link, params: { id: instructeur.id, jeton: jeton }
       end
@@ -205,12 +255,14 @@ describe Users::SessionsController, type: :controller do
           it { is_expected.to redirect_to new_user_session_path }
           it { expect(controller.current_instructeur).to be_nil }
           it { expect(controller).to have_received(:trust_device) }
+          it { expect(TrustedDeviceToken.find_by(token: jeton).activated_at).to be_present }
         end
 
         context 'when the token is invalid' do
           let(:valid_token) { false }
-
-          it { is_expected.to redirect_to link_sent_path(email: instructeur.email) }
+          it 'redirects to link_sent_path with encrypted email' do
+            expect(response).to redirect_to link_sent_path(email: 'panpan')
+          end
           it { expect(controller.current_instructeur).to be_nil }
           it { expect(controller).not_to have_received(:trust_device) }
           it { expect(controller).to have_received(:send_login_token_or_bufferize) }
@@ -241,7 +293,7 @@ describe Users::SessionsController, type: :controller do
         context 'when the token is invalid' do
           let(:valid_token) { false }
 
-          it { is_expected.to redirect_to link_sent_path(email: instructeur.email) }
+          it { is_expected.to redirect_to link_sent_path(email: 'panpan') }
           it { expect(controller.current_instructeur).to eq(instructeur) }
           it { expect(controller).not_to have_received(:trust_device) }
           it { expect(controller).to have_received(:send_login_token_or_bufferize) }
@@ -278,7 +330,7 @@ describe Users::SessionsController, type: :controller do
 
     before { get :link_sent, params: { email: signed_email } }
 
-    let(:signed_email) { controller.message_verifier.generate(link_email, purpose: :reset_link) }
+    let(:signed_email) { controller.message_encryptor_service.encrypt_and_sign(link_email, purpose: :reset_link) }
 
     context 'when the email is legit' do
       let(:link_email) { 'a@a.com' }
@@ -335,15 +387,6 @@ describe Users::SessionsController, type: :controller do
 
     it 'redirects to root_path' do
       expect(subject).to redirect_to(root_path)
-    end
-
-    context 'when the cookie redirect_to_ac_login is present' do
-      before { cookies.encrypted[AgentConnect::AgentController::REDIRECT_TO_AC_LOGIN_COOKIE_NAME] = true }
-
-      it 'redirects to relogin_after_2fa_config' do
-        expect(subject).to redirect_to(agent_connect_relogin_after_2fa_config_path)
-        expect(cookies.encrypted[AgentConnect::AgentController::REDIRECT_TO_AC_LOGIN_COOKIE_NAME]).to be_nil
-      end
     end
   end
 end

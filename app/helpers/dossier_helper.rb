@@ -82,7 +82,7 @@ module DossierHelper
 
   def status_badge_user(dossier, alignment_class = '')
     if dossier.hide_info_with_accuse_lecture?
-      tag.span 'traité', role: 'status', class: "fr-badge fr-badge--sm fr-badge--no-icon #{alignment_class}"
+      tag.span 'traité', class: "fr-badge fr-badge--sm fr-badge--no-icon #{alignment_class}"
     else
       status_badge(dossier.state, alignment_class)
     end
@@ -90,9 +90,9 @@ module DossierHelper
 
   def status_badge(state, alignment_class = '')
     status_text = dossier_display_state(state, lower: true)
-    tag.span status_text, role: 'status', class: class_names(
+    tag.span status_text, class: class_names(
       'fr-badge fr-badge--sm' => true,
-      'fr-badge--no-icon' => [Dossier.states.fetch(:en_instruction), Dossier.states.fetch(:accepte)].exclude?(state),
+      'fr-badge--no-icon' => Dossier.states.fetch(:accepte).exclude?(state),
       class_badge_state(state) => true,
       alignment_class => true
     )
@@ -110,12 +110,92 @@ module DossierHelper
     tag.span(status_text, class: "fr-badge #{status_class} ")
   end
 
-  def pending_correction_badge(for_profile, html_class: nil)
-    tag.span(Dossier.human_attribute_name("pending_correction.#{for_profile}"), class: ['fr-badge fr-badge--sm fr-badge--warning super', html_class], role: 'status')
+  def pending_correction_badge(profile, html_class: nil)
+    tag.span(Dossier.human_attribute_name("pending_correction.#{profile}"), class:
+      class_names(
+        "fr-badge fr-badge--sm",
+        "fr-badge--warning super" => profile == :for_user,
+        html_class => true
+      ))
   end
 
   def correction_resolved_badge(html_class: nil)
-    tag.span(Dossier.human_attribute_name("pending_correction.resolved"), class: ['fr-badge fr-badge--sm fr-badge--success super', html_class], role: 'status')
+    tag.span(Dossier.human_attribute_name("pending_correction.resolved"), class: ['fr-badge fr-badge--sm fr-badge--success', html_class])
+  end
+
+  def tags_label(labels)
+    if labels.size > 1
+      tag.ul(class: 'fr-tags-group') do
+        safe_join(labels.map { |l| tag.li(tag_label(l.name, l.color)) })
+      end
+    elsif labels.one?
+      label = labels.first
+      tag_label(label.name, label.color)
+    end
+  end
+
+  def tag_label(name, color)
+    tag.span(name, class: "fr-tag fr-tag--sm fr-tag--#{Label.class_name(color)} no-wrap")
+  end
+
+  def tag_summary_notification(notification_type_count)
+    type, count = notification_type_count
+
+    tag.span(class: [badge_notification_class(type), 'fr-badge--no-icon']) do
+      safe_join([
+        tag.span(count, class: "fr-background-alt--grey fr-my-1v fr-mr-1v fr-px-1v fr-text-default--grey"),
+        tag.span(nil, class: [badge_notification_class(type), 'fr-my-0', 'fr-mx-0', 'fr-px-0'], aria: { hidden: true }),
+        badge_notification_text(type, generic: true)
+      ])
+    end
+  end
+
+  def tags_summary_notification(notifications_counts_by_type)
+    tag.ul(class: 'fr-badge-group fr-mt-2w') do
+      safe_join(notifications_counts_by_type.map { |notif| tag.li(tag_summary_notification(notif)) })
+    end
+  end
+
+  def tag_notification(notification, generic: false)
+    tag.span(badge_notification_text(notification, generic:), class: badge_notification_class(notification))
+  end
+
+  def tags_notification(notifications, generic: false)
+    tag.ul(class: 'fr-badge-group') do
+      safe_join(notifications.map { |notif| tag.li(tag_notification(notif, generic:)) })
+    end
+  end
+
+  def badge_notification_class(notification)
+    type = extract_notification_type(notification)
+
+    case type
+    when DossierNotification.notification_types.fetch(:dossier_depose)
+      "fr-badge fr-badge--sm fr-badge--warning"
+    when DossierNotification.notification_types.fetch(:dossier_modifie),
+      DossierNotification.notification_types.fetch(:message),
+      DossierNotification.notification_types.fetch(:annotation_instructeur),
+      DossierNotification.notification_types.fetch(:avis_externe)
+      "fr-badge fr-badge--sm fr-badge--new"
+    when DossierNotification.notification_types.fetch(:attente_correction),
+      DossierNotification.notification_types.fetch(:attente_avis)
+      "fr-badge fr-badge--sm"
+    end
+  end
+
+  def badge_notification_text(notification, generic)
+    type = extract_notification_type(notification)
+
+    case type
+    when DossierNotification.notification_types.fetch(:dossier_depose)
+      if generic[:generic]
+        t("activerecord.attributes.notification.#{type}.generic")
+      else
+        t("activerecord.attributes.notification.#{type}.specific", days: (Time.current.to_date - (notification.display_at - DossierNotification::DELAY_DOSSIER_DEPOSE).to_date).to_i)
+      end
+    else
+      t("activerecord.attributes.notification.#{type}")
+    end
   end
 
   def demandeur_dossier(dossier)
@@ -137,7 +217,7 @@ module DossierHelper
   end
 
   def safe_expiration_date(dossier)
-    l(dossier.expiration_date, format: '%d/%m/%Y')
+    l(dossier.expired_at, format: '%d/%m/%Y')
   end
 
   def annuaire_link(siren_or_siret = nil)
@@ -161,5 +241,11 @@ module DossierHelper
     else
       t("shared.dossiers.france_connect_informations.details", name: user_information.full_name)
     end
+  end
+
+  private
+
+  def extract_notification_type(notification_or_type)
+    notification_or_type.is_a?(DossierNotification) ? notification_or_type.notification_type : notification_or_type
   end
 end

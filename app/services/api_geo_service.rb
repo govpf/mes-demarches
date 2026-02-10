@@ -27,6 +27,8 @@ class APIGeoService
       get_from_api_geo(:regions).sort_by { I18n.transliterate(_1[:name]) }
     end
 
+    def region_options = regions.map { [_1[:name], _1[:code]] }
+
     def region_name(code)
       regions.find { _1[:code] == code }&.dig(:name)
     end
@@ -42,10 +44,15 @@ class APIGeoService
     end
 
     def departements
-      [{ code: '99', name: 'Etranger' }] + get_from_api_geo(:departements).sort_by { _1[:code] }
+      ([{ code: '99', name: 'Etranger' }] + get_from_api_geo(:departements)).sort_by { _1[:code] }
+    end
+
+    def departement_options
+      departements.map { ["#{_1[:code]} – #{_1[:name]}", _1[:code]] }
     end
 
     def departement_name(code)
+      return 'Etranger' if code == '99'
       departements.find { _1[:code] == code }&.dig(:name)
     end
 
@@ -75,9 +82,11 @@ class APIGeoService
     end
 
     def communes_by_postal_code(postal_code)
-      communes_by_postal_code_map.fetch(postal_code, [])
-        .filter { !_1[:code].in?(['75056', '13055', '69123']) }
-        .sort_by { I18n.transliterate([_1[:name], _1[:postal_code]].join(' ')) }
+      Rails.cache.fetch("api_geo_communes_by_pc_#{postal_code}", expires_in: 1.week, version: 3) do
+        communes_by_postal_code_map.fetch(postal_code, [])
+          .filter { !_1[:code].in?(['75056', '13055', '69123']) }
+          .sort_by { I18n.transliterate([_1[:name], _1[:postal_code]].join(' ')) }
+      end
     end
 
     def commune_name(departement_code, code)
@@ -116,7 +125,9 @@ class APIGeoService
           region_name: region_name(region_code),
           region_code:,
           city_name: safely_normalize_city_name(department_code, city_code, properties['city']),
-          city_code:
+          city_code:,
+          country_code: 'FR',
+          country_name: country_name('FR')
         }
       else
         {
@@ -140,7 +151,7 @@ class APIGeoService
       postal_code = address[:code_postal]
       city_name_fallback = address[:commune]
       city_code = address[:code_insee]
-      departement_code, region_code = if postal_code.present? && city_code.present?
+      department_code, region_code = if postal_code.present? && city_code.present?
         commune = communes_by_postal_code(postal_code).find { _1[:code] == city_code }
         if commune.present?
           [commune[:departement_code], commune[:region_code]]
@@ -149,17 +160,22 @@ class APIGeoService
         end
       end
 
+      department_name = departement_name(department_code)
       {
         street_number: address[:numero_voie],
         street_name: address[:libelle_voie],
         street_address: address[:libelle_voie].present? ? [address[:numero_voie], address[:type_voie], address[:libelle_voie]].compact.join(' ') : nil,
         postal_code: postal_code.presence || '',
-        city_name: safely_normalize_city_name(departement_code, city_code, city_name_fallback),
+        city_name: safely_normalize_city_name(department_code, city_code, city_name_fallback),
         city_code: city_code.presence || '',
-        departement_code:,
-        departement_name: departement_name(departement_code),
+        departement_code: department_code,
+        department_code:,
+        departement_name: department_name,
+        department_name:,
         region_code:,
-        region_name: region_name(region_code)
+        region_name: region_name(region_code),
+        country_code: 'FR',
+        country_name: country_name('FR')
       }
     end
 
@@ -167,7 +183,7 @@ class APIGeoService
       postal_code = address[:postalCode]
       city_name_fallback = address[:cityName]
       city_code = address[:cityCode]
-      departement_code, region_code = if postal_code.present? && city_code.present?
+      department_code, region_code = if postal_code.present? && city_code.present?
         commune = communes_by_postal_code(postal_code).find { _1[:code] == city_code }
         if commune.present?
           [commune[:departement_code], commune[:region_code]]
@@ -175,18 +191,23 @@ class APIGeoService
           []
         end
       end
+      department_name = departement_name(department_code)
 
       {
         street_number: address[:streetNumber],
         street_name: address[:streetName],
         street_address: address[:streetAddress],
         postal_code: postal_code.presence || '',
-        city_name: safely_normalize_city_name(departement_code, city_code, city_name_fallback),
+        city_name: safely_normalize_city_name(department_code, city_code, city_name_fallback),
         city_code: city_code.presence || '',
-        departement_code:,
-        departement_name: departement_name(departement_code),
+        departement_code: department_code,
+        department_code:,
+        departement_name: department_name,
+        department_name:,
         region_code:,
-        region_name: region_name(region_code)
+        region_name: region_name(region_code),
+        country_code: 'FR',
+        country_name: country_name('FR')
       }
     end
 
@@ -194,7 +215,7 @@ class APIGeoService
       postal_code = etablissement.code_postal
       city_name_fallback = etablissement.localite.presence || ''
       city_code = etablissement.code_insee_localite
-      departement_code, region_code = if postal_code.present? && city_code.present?
+      department_code, region_code = if postal_code.present? && city_code.present?
         commune = communes_by_postal_code(postal_code).find { _1[:code] == city_code }
         if commune.present?
           [commune[:departement_code], commune[:region_code]]
@@ -203,18 +224,51 @@ class APIGeoService
         end
       end
 
+      department_name = departement_name(department_code)
+
       {
         street_number: etablissement.numero_voie,
         street_name: etablissement.nom_voie,
         street_address: etablissement.nom_voie.present? ? [etablissement.numero_voie, etablissement.type_voie, etablissement.nom_voie].compact.join(' ') : nil,
         postal_code: postal_code.presence || '',
-        city_name: safely_normalize_city_name(departement_code, city_code, city_name_fallback),
+        city_name: safely_normalize_city_name(department_code, city_code, city_name_fallback),
         city_code: city_code.presence || '',
-        departement_code:,
-        departement_name: departement_name(departement_code),
+        departement_code: department_code,
+        department_code:,
+        departement_name: department_name,
+        department_name:,
         region_code:,
-        region_name: region_name(region_code)
+        region_name: region_name(region_code),
+        country_code: etablissement.nom_pays.present? ? nil : 'FR',
+        country_name: etablissement.nom_pays || country_name('FR')
       }
+    end
+
+    def parse_city_code_and_postal_code(code)
+      if code.present? && code.match?(/-/)
+        codes = code.split('-')
+        return {} if codes.size != 2
+        city_code = codes.first
+        postal_code = codes.second
+        commune = communes_by_postal_code(postal_code).find { _1[:code] == city_code }
+        return {} if commune.blank?
+        region_code = commune[:region_code]
+        department_code = commune[:departement_code]
+
+        {
+          postal_code:,
+          city_code:,
+          city_name: commune[:name],
+          department_code:,
+          department_name: departement_name(department_code),
+          region_code:,
+          region_name: region_name(region_code),
+          country_code: 'FR',
+          country_name: country_name('FR')
+        }
+      else
+        {}
+      end
     end
 
     def safely_normalize_city_name(department_code, city_code, fallback)
@@ -227,30 +281,65 @@ class APIGeoService
       results.reject(&method(:code_metropole?)).flat_map do |result|
         item = {
           name: result[:nom].tr("'", '’'),
-          code: result[:code],
-          epci_code: result[:codeEpci],
-          departement_code: result[:codeDepartement]
+          code: result[:code]
         }.compact
 
-        if result[:codesPostaux].present?
+        items = if result[:codesPostaux].present?
           result[:codesPostaux].map { item.merge(postal_code: _1) }
         else
           [item]
-        end.map do |item|
+        end
+
+        items.map do |item|
+          label = "#{item[:name]} (#{item[:postal_code]})"
           if with_combined_code.present?
             {
-              label: "#{item[:name]} (#{item[:postal_code]})",
+              label:,
               value: "#{item[:code]}-#{item[:postal_code]}"
             }
           else
             {
-              label: "#{item[:name]} (#{item[:postal_code]})",
+              label:,
               value: item[:code],
               data: item[:postal_code]
             }
           end
         end
       end
+    end
+
+    def format_address_response(results)
+      results[:features].flat_map do |feature|
+        if feature[:properties][:type] == 'municipality'
+          departement_code = feature[:properties][:context].split(',').first
+          commune_postal_codes(departement_code, feature[:properties][:citycode]).map do |postcode|
+            feature.deep_merge(properties: { postcode:, label: "#{feature[:properties][:label]} (#{postcode})" })
+          end
+        else
+          feature
+        end
+      end.map do
+        {
+          label: _1[:properties][:label],
+          value: _1[:properties][:label],
+          data: parse_ban_address(_1.deep_stringify_keys)
+        }
+      end
+    end
+
+    def inline_service_public_address(address_data)
+      return nil if address_data.blank?
+
+      components = [
+        address_data['numero_voie'],
+        address_data['complement1'],
+        address_data['complement2'],
+        address_data['service_distribution'],
+        address_data['code_postal'],
+        address_data['nom_commune']
+      ].compact_blank
+
+      components.join(' ')
     end
 
     private

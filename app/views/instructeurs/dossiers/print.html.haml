@@ -3,13 +3,14 @@
 
 %h2 Identité du demandeur
 
-= render partial: "shared/dossiers/user_infos", locals: { user_deleted: @dossier.user_deleted?, email: @dossier.user_email_for(:display), for_tiers: @dossier.for_tiers?, beneficiaire_mail: @dossier.for_tiers? ? @dossier.individual.email : "" }
+%dl.fr-pl-0
+  = render partial: "shared/dossiers/user_infos", locals: { user_deleted: @dossier.user_deleted?, email: @dossier.user_email_for(:display), for_tiers: @dossier.for_tiers?, beneficiaire_mail: @dossier.for_tiers? ? @dossier.individual.email : "" }
+
+  - if @dossier.individual.present?
+    = render partial: "shared/dossiers/identite_individual", locals: { individual: @dossier.individual, dossier: @dossier }
 
 - if @dossier.etablissement.present?
   = render partial: "shared/dossiers/identite_entreprise", locals: { etablissement: @dossier.etablissement, profile: 'instructeur' }
-
-- if @dossier.individual.present?
-  = render partial: "shared/dossiers/identite_individual", locals: { individual: @dossier.individual, dossier: @dossier }
 
 %h2 Formulaire
 
@@ -46,8 +47,8 @@
 %h2 Messagerie
 
 .messagerie
-  %ul.messages-list
-    - @dossier.commentaires.with_attached_piece_jointe.each do |commentaire|
+  %ol.messages-list
+    - @dossier.commentaires_chronological.with_attached_piece_jointe.each do |commentaire|
       %li
         = render Dossiers::MessageComponent.new(commentaire: commentaire, connected_user: current_instructeur)
 

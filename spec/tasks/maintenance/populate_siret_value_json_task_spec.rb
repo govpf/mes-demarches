@@ -10,6 +10,10 @@ module Maintenance
       let(:element) { dossier.champs.first }
       subject(:process) { described_class.process(element) }
 
+      before do
+        element.update!(value_json: nil)
+      end
+
       it 'updates value_json' do
         expect { subject }.to change { element.reload.value_json }
           .from(anything)
@@ -23,7 +27,18 @@ module Maintenance
             "street_number" => "6",
             "street_address" => "6 RUE RAOUL NORDLING",
             "departement_code" => "92",
-            "departement_name" => "Hauts-de-Seine"
+            "department_code" => "92",
+            "departement_name" => "Hauts-de-Seine",
+            "department_name" => "Hauts-de-Seine",
+            "country_code" => "FR",
+            "country_name" => "France",
+
+            "entreprise_date_creation" => "1990-04-24",
+            "entreprise_forme_juridique" => "SA à conseil d'administration (s.a.i.)",
+            "entreprise_nom_commercial" => "GRTGAZ",
+            "entreprise_raison_sociale" => "GRTGAZ",
+            "entreprise_siren" => "440117620",
+            "libelle_naf" => "Transports par conduites"
           })
       end
     end

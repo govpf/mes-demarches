@@ -31,8 +31,8 @@ require "rack_session_access/capybara"
 # directory. Alternatively, in the individual `*_spec.rb` files, manually
 # require only the support files necessary.
 #
-Dir[Rails.root.join('spec/support/**/*.rb')].each { |f| require f }
-Dir[Rails.root.join('spec/factories/**/*.rb')].each { |f| require f }
+Rails.root.glob('spec/support/**/*.rb').each { |f| require f }
+Rails.root.glob('spec/factories/**/*.rb').each { |f| require f }
 
 ActiveSupport::Deprecation.silenced = true
 
@@ -57,7 +57,7 @@ RSpec.configure do |config|
   config.bisect_runner = :shell
 
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
-  config.fixture_path = "#{::Rails.root}/spec/fixtures"
+  config.fixture_paths = [Rails.root.join("spec/fixtures")]
 
   # If you're not using ActiveRecord, or you'd prefer not to run each of your
   # examples within a transaction, remove the following line or assign false
@@ -83,7 +83,7 @@ RSpec.configure do |config|
 
   config.infer_base_class_for_anonymous_controllers = false
 
-  config.before(:all) do
+  config.before(:each) do
     Rake.verbose false
 
     Typhoeus::Expectation.clear
@@ -125,6 +125,13 @@ RSpec.configure do |config|
     end
   end
 
+  module SpecHelpers
+    def champ_for_update(champ)
+      champ.dossier.champ_for_update(champ.type_de_champ, row_id: champ.row_id, updated_by: 'test')
+    end
+  end
+
+  config.include SpecHelpers
   config.include ActiveSupport::Testing::TimeHelpers
   config.include Shoulda::Matchers::ActiveRecord, type: :model
   config.include Shoulda::Matchers::ActiveModel, type: :model

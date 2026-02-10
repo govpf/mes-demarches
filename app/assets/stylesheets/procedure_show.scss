@@ -1,23 +1,7 @@
-@import "colors";
-@import "constants";
-
-.procedure-header {
-  a.header-link {
-    display: inline-block;
-    margin-bottom: 1 * $default-padding;
-  }
-}
+@import 'colors';
+@import 'constants';
 
 #procedure-show {
-  .titre-dossiers {
-    text-align: center;
-  }
-
-  .dossiers-table {
-    margin-top: $default-spacer;
-    margin-bottom: 3 * $default-spacer;
-  }
-
   .procedure-actions {
     margin-left: auto;
     flex-shrink: 0;
@@ -33,7 +17,7 @@
     padding-right: 10px;
     background-color: $light-blue;
     border-radius: 4px;
-    color: #FFFFFF;
+    color: #ffffff;
     height: 36px;
     line-height: 36px;
   }
@@ -47,10 +31,5 @@
 
   .fr-ds-combobox__multiple {
     margin-bottom: $default-fields-spacer;
-  }
-
-  // fix/dsfr
-  .fr-checkbox-group.fix-dsfr-notified-toggle-component {
-    margin-top: -0.5rem;
   }
 }

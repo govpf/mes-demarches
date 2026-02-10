@@ -1,27 +1,37 @@
 = content_for(:page_id, 'auth')
+= content_for(:title, t('metas.signup.title'))
 
-.auth-form
-  = devise_error_messages!
-  = form_for resource, url: user_registration_path, html: { class: "fr-py-5w" } do |f|
+= render partial: 'shared/social_login', locals: { title: t('views.users.sessions.new.social_sign_in') }
 
-    %h1.fr-h2= t('views.registrations.new.title', name: Current.application_name)
+.form-column.procedure-context-content
+  #registration-new.auth-form.sign-in-form
+    = devise_error_messages!
+    = form_for resource, url: user_registration_path, html: { class: "fr-py-5w" } do |f|
+      -# = render partial: 'shared/france_connect_login', locals: { url: france_connect_path }
+      %h1.fr-h4= t('views.registrations.new.title', name: Current.application_name)
 
-    -# = render partial: 'shared/france_connect_login', locals: { url: france_connect_particulier_path }
-
-    %fieldset.fr-mb-0.fr-fieldset{ aria: { labelledby: 'create-account-legend' } }
-      %legend.fr-fieldset__legend#create-account-legend
-        %h2.fr-h6= I18n.t('views.registrations.new.subtitle')
-
-      .fr-fieldset__element
-        %p.fr-text--sm= t('utils.mandatory_champs')
-
-      .fr-fieldset__element= render Dsfr::InputComponent.new(form: f, attribute: :email, input_type: :email_field, opts: { autocomplete: 'email', autofocus: true })
+      %fieldset.fr-mb-0.fr-fieldset{ aria: { labelledby: 'create-account-legend' } }
+        %legend.fr-fieldset__legend#create-account-legend
+          %h2.fr-h6= I18n.t('views.registrations.new.subtitle')
 
       .fr-fieldset__element
-        = render Dsfr::InputComponent.new(form: f, attribute: :password, input_type: :password_field,
-          opts: { autofocus: 'true', autocomplete: 'new-password', data: { controller: 'turbo-input', turbo_input_url_value: show_password_complexity_path }, aria: {describedby: 'password_hint'}})
+        %p.fr-text--sm= t('utils.asterisk_html')
 
-        #password_complexity
-          = render PasswordComplexityComponent.new
+        .fr-fieldset__element= render Dsfr::InputComponent.new(form: f, attribute: :email, input_type: :email_field, opts: { autocomplete: 'email', autofocus: false })
 
-    = f.submit t('views.shared.account.create'), id: 'submit-password', disabled: :disabled, class: "fr-btn fr-btn--lg fr-mt-2w", data: { disable_with: t('views.users.passwords.edit.submit_loading') }
+        .fr-fieldset__element
+          = render Dsfr::InputComponent.new(form: f, attribute: :password, input_type: :password_field,
+            opts: { autocomplete: 'new-password',
+              data: { controller: 'turbo-input', turbo_input_url_value: show_password_complexity_path(complexity: PASSWORD_COMPLEXITY_FOR_USER) },
+              aria: {describedby: 'password_hint'}})
+
+          #password_complexity
+            = render PasswordComplexityComponent.new
+
+      .fr-fieldset__element
+        .fr-btns-group= f.submit t('views.shared.account.create'), id: 'submit-password', disabled: :disabled, class: "fr-btn", data: { disable_with: t('views.users.passwords.edit.submit_loading') }
+
+  - if ProConnectService.enabled?
+    %p.fr-hr-or= t('views.shared.france_connect_login.separator')
+    %h2.important-header.mb-1= t('views.users.sessions.new.state_civil_servant')
+    .fr-btns-group= link_to t('views.users.sessions.new.connect_with_pro_connect'), pro_connect_path, class: "fr-btn fr-btn--secondary"

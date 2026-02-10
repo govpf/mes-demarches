@@ -2,7 +2,7 @@
 
 class Follow < ApplicationRecord
   belongs_to :instructeur, optional: false
-  belongs_to :dossier, optional: false
+  belongs_to :dossier, optional: false, touch: true
 
   validates :instructeur_id, uniqueness: { scope: [:dossier_id, :unfollowed_at] }
 
@@ -18,5 +18,6 @@ class Follow < ApplicationRecord
     self.annotations_privees_seen_at ||= Time.zone.now
     self.avis_seen_at ||= Time.zone.now
     self.messagerie_seen_at ||= Time.zone.now
+    self.pieces_jointes_seen_at ||= Time.zone.now
   end
 end

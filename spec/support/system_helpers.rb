@@ -3,17 +3,6 @@
 module SystemHelpers
   include ActiveJob::TestHelper
 
-  def login_admin
-    user = create :user
-    login_as user, scope: :user
-    user
-  end
-
-  def login_instructeur
-    instructeur = create(:instructeur)
-    login_as instructeur, scope: :instructeur
-  end
-
   def sign_in_with(email, password, sign_in_by_link = false)
     fill_in :user_email, with: email
     fill_in :user_password, with: password
@@ -26,6 +15,7 @@ module SystemHelpers
 
     perform_enqueued_jobs do
       click_on 'Se connecter'
+      expect(page).to have_text("Voir mon profil")
     end
 
     if sign_in_by_link
@@ -49,21 +39,21 @@ module SystemHelpers
 
   def click_confirmation_link_for(email, in_another_browser: false)
     confirmation_email = open_email(email)
-    confirmation_link = confirmation_email.body.match(/href="[^"]*(\/users\/confirmation[^"]*)"/)[1]
+    confirmation_link = confirmation_email.text.match(%r{\s+(\S+\/users\/confirmation\S+)\s+})[1]
 
     if in_another_browser
       # Simulate the user opening the link in another browser, thus loosing the session cookie
       Capybara.reset_session!
     end
 
-    visit confirmation_link
+    visit URI.parse(confirmation_link).request_uri
   end
 
   def click_procedure_sign_in_link_for(email)
     confirmation_email = open_email(email)
     procedure_sign_in_link = confirmation_email.body.match(/href="([^"]*\/commencer\/[^"]*)"/)[1]
 
-    visit URI.parse(procedure_sign_in_link).path
+    visit URI.parse(procedure_sign_in_link).request_uri
   end
 
   def click_reset_password_link_for(email)
@@ -76,13 +66,6 @@ module SystemHelpers
   # Add a new type de champ in the procedure editor
   def add_champ
     click_on 'Ajouter un champ'
-  end
-
-  def remove_flash_message
-    expect(page).to have_button('Ajouter un champ', disabled: false)
-    expect(page).to have_content('Formulaire enregistré')
-    execute_script("document.querySelector('#flash_message').remove();")
-    execute_script("document.querySelector('#autosave-notice').remove();")
   end
 
   def hide_autonotice_message

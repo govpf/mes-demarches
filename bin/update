@@ -17,7 +17,7 @@ FileUtils.chdir APP_ROOT do
   system('bundle check') || system!('bundle install')
   system! 'bun --version'
   system! 'bun install'
-  system! 'bunx playwright install chromium'
+  system! 'bun playwright install chromium'
 
   if ENV["UPDATE_WEBDRIVER"]
     puts "\n== Updating webdrivers =="
@@ -37,6 +37,9 @@ FileUtils.chdir APP_ROOT do
 
   puts "\n== Running after_party tasks =="
   system! 'bin/rails after_party:run'
+
+  puts "\n== Running on deploy maintenance tasks =="
+  system! 'RAILS_QUEUE_ADAPTER=inline bin/rails deploy:maintenance_tasks'
 
   puts "\n== Removing old logs =="
   system! 'bin/rails log:clear'

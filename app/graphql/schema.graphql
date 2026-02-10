@@ -15,6 +15,16 @@ type Address {
   cityName: String!
 
   """
+  code ISO du pays
+  """
+  countryCode: String
+
+  """
+  nom du pays
+  """
+  countryName: String
+
+  """
   n° de département
   """
   departmentCode: String
@@ -77,6 +87,13 @@ type AddressChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   commune: Commune
   departement: Departement
   id: ID!
@@ -185,6 +202,21 @@ type Association {
   titre: String!
 }
 
+type AttachmentsColumn implements Column {
+  id: ID!
+
+  """
+  Libellé de la colonne.
+  """
+  label: String!
+
+  """
+  La valeur de la colonne sous forme texte.
+  """
+  stringValue: String
+  value: [File!]
+}
+
 type Avis {
   attachment: File @deprecated(reason: "Utilisez le champ `attachments` à la place.")
   attachments: [File!]!
@@ -205,6 +237,21 @@ Represents non-fractional signed whole numeric values. Since the value may
 exceed the size of a 32-bit integer, it's encoded as a string.
 """
 scalar BigInt
+
+type BooleanColumn implements Column {
+  id: ID!
+
+  """
+  Libellé de la colonne.
+  """
+  label: String!
+
+  """
+  La valeur de la colonne sous forme texte.
+  """
+  stringValue: String
+  value: Boolean
+}
 
 type COJOChampDescriptor implements ChampDescriptor {
   """
@@ -239,6 +286,13 @@ type CarteChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   geoAreas: [GeoArea!]!
   id: ID!
 
@@ -292,6 +346,13 @@ interface Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -344,6 +405,13 @@ type CheckboxChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -426,6 +494,13 @@ type CiviliteChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -507,6 +582,13 @@ type CodePostalDePolynesieChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   commune: PfCommune
   id: ID!
 
@@ -555,6 +637,20 @@ type CodePostalDePolynesieChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+interface Column {
+  id: ID!
+
+  """
+  Libellé de la colonne.
+  """
+  label: String!
+
+  """
+  La valeur de la colonne sous forme texte.
+  """
+  stringValue: String
+}
+
 type Commune {
   """
   Le code INSEE
@@ -577,6 +673,13 @@ type CommuneChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   commune: Commune
   departement: Departement
   id: ID!
@@ -631,6 +734,13 @@ type CommuneDePolynesieChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   commune: PfCommune
   id: ID!
 
@@ -776,6 +886,13 @@ type DateChamp implements Champ {
   champDescriptorId: String!
 
   """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
+
+  """
   La valeur du champ formaté en ISO8601 (Date).
   """
   date: ISO8601Date
@@ -831,11 +948,48 @@ type DateChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type DateColumn implements Column {
+  id: ID!
+
+  """
+  Libellé de la colonne.
+  """
+  label: String!
+
+  """
+  La valeur de la colonne sous forme texte.
+  """
+  stringValue: String
+  value: ISO8601Date
+}
+
+type DateTimeColumn implements Column {
+  id: ID!
+
+  """
+  Libellé de la colonne.
+  """
+  label: String!
+
+  """
+  La valeur de la colonne sous forme texte.
+  """
+  stringValue: String
+  value: ISO8601DateTime
+}
+
 type DatetimeChamp implements Champ {
   """
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
 
   """
   La valeur du champ formaté en ISO8601 (DateTime).
@@ -888,11 +1042,33 @@ type DatetimeChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type DecimalColumn implements Column {
+  id: ID!
+
+  """
+  Libellé de la colonne.
+  """
+  label: String!
+
+  """
+  La valeur de la colonne sous forme texte.
+  """
+  stringValue: String
+  value: Float
+}
+
 type DecimalNumberChamp implements Champ {
   """
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -959,7 +1135,7 @@ type DeletedDossier {
   """
   La raison de la suppression du dossier.
   """
-  reason: String!
+  reason: DeletedDossierReason!
 
   """
   L’état du dossier supprimé.
@@ -1002,6 +1178,16 @@ type DeletedDossierEdge {
   node: DeletedDossier
 }
 
+enum DeletedDossierReason {
+  expired
+  instructeur_request
+  manager_request
+  procedure_removed
+  user_expired
+  user_removed
+  user_request
+}
+
 interface Demandeur {
   id: ID!
 }
@@ -1011,6 +1197,11 @@ Une démarche
 """
 type Demarche {
   activeRevision: Revision!
+
+  """
+  Liste les administrateurs de la démarche
+  """
+  administrateurs: [Profile!]!
   annotationDescriptors: [ChampDescriptor!]! @deprecated(reason: "Utilisez le champ `activeRevision.annotationDescriptors` à la place.")
   champDescriptors: [ChampDescriptor!]! @deprecated(reason: "Utilisez le champ `activeRevision.champDescriptors` à la place.")
 
@@ -1099,7 +1290,7 @@ type Demarche {
     after: String
 
     """
-    Seulement les dossiers archivés.
+    Seulement les dossiers à archiver.
     """
     archived: Boolean
 
@@ -1156,6 +1347,11 @@ type Demarche {
   draftRevision: Revision!
   groupeInstructeurs(closed: Boolean): [GroupeInstructeur!]!
   id: ID!
+
+  """
+  Liste des labels associables aux dossiers
+  """
+  labels: [Label!]!
 
   """
   Numero de la démarche.
@@ -1388,6 +1584,13 @@ type DepartementChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   departement: Departement
   id: ID!
 
@@ -1584,6 +1787,11 @@ type Dossier {
   groupeInstructeur: GroupeInstructeur!
   id: ID!
   instructeurs: [Profile!]!
+
+  """
+  Labels associés au dossier
+  """
+  labels: [Label!]!
   messages(id: ID): [Message!]!
   motivation: String
   motivationAttachment: File
@@ -1688,6 +1896,35 @@ type DossierAjouterInstructeurPayload {
   clientMutationId: String
   dossier: Dossier
   errors: [ValidationError!]
+}
+
+"""
+Autogenerated input type of DossierAjouterLabel
+"""
+input DossierAjouterLabelInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+  dossierId: ID!
+
+  """
+  ID du label
+  """
+  labelId: ID!
+}
+
+"""
+Autogenerated return type of DossierAjouterLabel.
+"""
+type DossierAjouterLabelPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+  dossier: Dossier
+  errors: [ValidationError!]
+  label: Label
 }
 
 """
@@ -1909,6 +2146,13 @@ type DossierLinkChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   dossier: Dossier
   id: ID!
 
@@ -2103,6 +2347,45 @@ input DossierModifierAnnotationDatetimeInput {
 Autogenerated return type of DossierModifierAnnotationDatetime.
 """
 type DossierModifierAnnotationDatetimePayload {
+  annotation: Champ
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+  errors: [ValidationError!]
+}
+
+"""
+Autogenerated input type of DossierModifierAnnotationDecimalNumber
+"""
+input DossierModifierAnnotationDecimalNumberInput {
+  """
+  Annotation ID
+  """
+  annotationId: ID!
+
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+
+  """
+  Dossier ID
+  """
+  dossierId: ID!
+
+  """
+  Instructeur qui demande la modification.
+  """
+  instructeurId: ID!
+  value: Float!
+}
+
+"""
+Autogenerated return type of DossierModifierAnnotationDecimalNumber.
+"""
+type DossierModifierAnnotationDecimalNumberPayload {
   annotation: Champ
 
   """
@@ -2446,6 +2729,31 @@ enum DossierState {
 }
 
 """
+Autogenerated input type of DossierSupprimerLabel
+"""
+input DossierSupprimerLabelInput {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+  dossierId: ID!
+  labelId: ID!
+}
+
+"""
+Autogenerated return type of DossierSupprimerLabel.
+"""
+type DossierSupprimerLabelPayload {
+  """
+  A unique identifier for the client performing the mutation.
+  """
+  clientMutationId: String
+  dossier: Dossier
+  errors: [ValidationError!]
+  label: Label
+}
+
+"""
 Autogenerated input type of DossierSupprimerMessage
 """
 input DossierSupprimerMessageInput {
@@ -2552,6 +2860,13 @@ type EngagementJuridiqueChamp implements Champ {
   champDescriptorId: String!
 
   """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
+
+  """
   Montant engagé et payé de l'EJ.
   """
   engagementJuridique: EngagementJuridique
@@ -2648,6 +2963,36 @@ enum EntrepriseEtatAdministratif {
   Ferme
 }
 
+type EnumColumn implements Column {
+  id: ID!
+
+  """
+  Libellé de la colonne.
+  """
+  label: String!
+
+  """
+  La valeur de la colonne sous forme texte.
+  """
+  stringValue: String
+  value: String
+}
+
+type EnumsColumn implements Column {
+  id: ID!
+
+  """
+  Libellé de la colonne.
+  """
+  label: String!
+
+  """
+  La valeur de la colonne sous forme texte.
+  """
+  stringValue: String
+  value: [String!]
+}
+
 type Epci {
   code: String!
   name: String!
@@ -2658,6 +3003,13 @@ type EpciChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   departement: Departement
   epci: Epci
   id: ID!
@@ -2737,7 +3089,33 @@ type ExplicationChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
-type ExpressionReguliereChampDescriptor implements ChampDescriptor {
+type File {
+  byteSize: Int! @deprecated(reason: "Utilisez le champ `byteSizeBigInt` à la place.")
+  byteSizeBigInt: BigInt!
+  checksum: String!
+  contentType: String!
+
+  """
+  Date de création du fichier.
+  """
+  createdAt: ISO8601DateTime!
+  filename: String!
+  url: URL!
+}
+
+input FindDemarcheInput @oneOf {
+  """
+  ID de la démarche.
+  """
+  id: ID
+
+  """
+  Numero de la démarche.
+  """
+  number: Int
+}
+
+type FormattedChampDescriptor implements ChampDescriptor {
   """
   Description des champs d’un bloc répétable.
   """
@@ -2763,32 +3141,6 @@ type ExpressionReguliereChampDescriptor implements ChampDescriptor {
   Type de la valeur du champ.
   """
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
-}
-
-type File {
-  byteSize: Int! @deprecated(reason: "Utilisez le champ `byteSizeBigInt` à la place.")
-  byteSizeBigInt: BigInt!
-  checksum: String!
-  contentType: String!
-
-  """
-  Date de création du fichier.
-  """
-  createdAt: ISO8601DateTime!
-  filename: String!
-  url: URL!
-}
-
-input FindDemarcheInput @oneOf {
-  """
-  ID de la démarche.
-  """
-  id: ID
-
-  """
-  Numero de la démarche.
-  """
-  number: Int
 }
 
 interface GeoArea {
@@ -3046,7 +3398,7 @@ type GroupeInstructeurWithDossiers {
     after: String
 
     """
-    Seulement les dossiers archivés.
+    Seulement les dossiers à archiver.
     """
     archived: Boolean
 
@@ -3180,12 +3532,12 @@ type HeaderSectionChampDescriptor implements ChampDescriptor {
 """
 An ISO 8601-encoded date
 """
-scalar ISO8601Date
+scalar ISO8601Date @specifiedBy(url: "https://tools.ietf.org/html/rfc3339")
 
 """
 An ISO 8601-encoded datetime
 """
-scalar ISO8601DateTime
+scalar ISO8601DateTime @specifiedBy(url: "https://tools.ietf.org/html/rfc3339")
 
 type IbanChampDescriptor implements ChampDescriptor {
   """
@@ -3215,11 +3567,33 @@ type IbanChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type IntegerColumn implements Column {
+  id: ID!
+
+  """
+  Libellé de la colonne.
+  """
+  label: String!
+
+  """
+  La valeur de la colonne sous forme texte.
+  """
+  stringValue: String
+  value: Int
+}
+
 type IntegerNumberChamp implements Champ {
   """
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -3268,6 +3642,31 @@ type IntegerNumberChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type Label {
+  """
+  Couleur du label
+  """
+  color: LabelColorEnum!
+  id: ID!
+  name: String!
+}
+
+"""
+Couleurs disponibles pour les labels
+"""
+enum LabelColorEnum {
+  beige_gris_galet
+  blue_ecume
+  brown_cafe_creme
+  green_bourgeon
+  green_emeraude
+  green_menthe
+  green_tilleul_verveine
+  pink_macaron
+  purple_glycine
+  yellow_tournesol
+}
+
 type LexpolChamp implements Champ {
   """
   L'identifiant du champDescriptor de ce champ
@@ -3275,9 +3674,16 @@ type LexpolChamp implements Champ {
   champDescriptorId: String!
 
   """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
+
+  """
   Lien vers le dossier Lexpol
   """
-  dossierURL: String
+  dossierUrl: String
   id: ID!
 
   """
@@ -3340,6 +3746,13 @@ type LinkedDropDownListChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -3438,6 +3851,13 @@ type MultipleDropDownListChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -3533,6 +3953,16 @@ type Mutation {
   ): DossierAjouterInstructeurPayload
 
   """
+  Ajouter un label à un dossier
+  """
+  dossierAjouterLabel(
+    """
+    Parameters for DossierAjouterLabel
+    """
+    input: DossierAjouterLabelInput!
+  ): DossierAjouterLabelPayload
+
+  """
   Archiver le dossier.
   """
   dossierArchiver(
@@ -3543,7 +3973,7 @@ type Mutation {
   ): DossierArchiverPayload
 
   """
-  Changer le grope instructeur du dossier.
+  Changer le groupe instructeur du dossier.
   """
   dossierChangerGroupeInstructeur(
     """
@@ -3617,6 +4047,16 @@ type Mutation {
     """
     input: DossierModifierAnnotationDatetimeInput!
   ): DossierModifierAnnotationDatetimePayload
+
+  """
+  Modifier l’annotation au format nombre décimal.
+  """
+  dossierModifierAnnotationDecimalNumber(
+    """
+    Parameters for DossierModifierAnnotationDecimalNumber
+    """
+    input: DossierModifierAnnotationDecimalNumberInput!
+  ): DossierModifierAnnotationDecimalNumberPayload
 
   """
   Modifier l’annotation d'un champs de type dropdown list.
@@ -3697,6 +4137,16 @@ type Mutation {
     """
     input: DossierRepasserEnInstructionInput!
   ): DossierRepasserEnInstructionPayload
+
+  """
+  Supprimer un label d'un dossier
+  """
+  dossierSupprimerLabel(
+    """
+    Parameters for DossierSupprimerLabel
+    """
+    input: DossierSupprimerLabelInput!
+  ): DossierSupprimerLabelPayload
 
   """
   Supprimer un message.
@@ -3810,6 +4260,13 @@ type NumeroDnChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
 
   """
   La date de naissance associée
@@ -3935,6 +4392,13 @@ type PaysChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -4082,6 +4546,13 @@ type PieceJustificativeChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   file: File @deprecated(reason: "Utilisez le champ `files` à la place.")
   files: [File!]!
   id: ID!
@@ -4236,6 +4707,13 @@ type RNAChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   commune: Commune
   departement: Departement
   id: ID!
@@ -4297,6 +4775,13 @@ type RNFChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   commune: Commune
   departement: Departement
   id: ID!
@@ -4347,6 +4832,96 @@ type RNFChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type ReferentielChampDescriptor implements ChampDescriptor {
+  """
+  Description des champs d’un bloc répétable.
+  """
+  champDescriptors: [ChampDescriptor!] @deprecated(reason: "Utilisez le champ `RepetitionChampDescriptor.champ_descriptors` à la place.")
+
+  """
+  Description du champ.
+  """
+  description: String
+  id: ID!
+
+  """
+  Libellé du champ.
+  """
+  label: String!
+
+  """
+  Est-ce que le champ est obligatoire ?
+  """
+  required: Boolean!
+
+  """
+  Type de la valeur du champ.
+  """
+  type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
+}
+
+type ReferentielDePolynesieChamp implements Champ {
+  """
+  L'identifiant du champDescriptor de ce champ
+  """
+  champDescriptorId: String!
+
+  """
+  Colonnes et valeurs de la table externe
+  """
+  columns: [TableColumn!]!
+
+  """
+  Identifiant externe de l'enregistrement dans la source de données
+  """
+  externalId: String
+  id: ID!
+
+  """
+  Libellé du champ.
+  """
+  label: String!
+  prefilled: Boolean!
+
+  """
+  La valeur du champ sous forme texte.
+  """
+  stringValue: String
+
+  """
+  Date de dernière modification du champ.
+  """
+  updatedAt: ISO8601DateTime!
+}
+
+type ReferentielDePolynesieChampDescriptor implements ChampDescriptor {
+  """
+  Description des champs d’un bloc répétable.
+  """
+  champDescriptors: [ChampDescriptor!] @deprecated(reason: "Utilisez le champ `RepetitionChampDescriptor.champ_descriptors` à la place.")
+
+  """
+  Description du champ.
+  """
+  description: String
+  id: ID!
+
+  """
+  Libellé du champ.
+  """
+  label: String!
+
+  """
+  Est-ce que le champ est obligatoire ?
+  """
+  required: Boolean!
+
+  """
+  Type de la valeur du champ.
+  """
+  type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
+}
+
 type Region {
   code: String!
   name: String!
@@ -4357,6 +4932,13 @@ type RegionChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -4416,6 +4998,13 @@ type RepetitionChamp implements Champ {
   """
   champDescriptorId: String!
   champs: [Champ!]! @deprecated(reason: "Utilisez le champ `rows` à la place.")
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -4526,6 +5115,13 @@ type SiretChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   etablissement: PersonneMorale
   id: ID!
 
@@ -4574,11 +5170,35 @@ type SiretChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type TableColumn {
+  """
+  Nom de la colonne
+  """
+  name: String!
+
+  """
+  Type de la valeur
+  """
+  type: String!
+
+  """
+  Valeur de la colonne
+  """
+  value: String
+}
+
 type TeFenuaChamp implements Champ {
   """
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   geoAreas: [GeoArea!]!
   id: ID!
 
@@ -4632,6 +5252,13 @@ type TextChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -4680,6 +5307,21 @@ type TextChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type TextColumn implements Column {
+  id: ID!
+
+  """
+  Libellé de la colonne.
+  """
+  label: String!
+
+  """
+  La valeur de la colonne sous forme texte.
+  """
+  stringValue: String
+  value: String
+}
+
 type TextareaChampDescriptor implements ChampDescriptor {
   """
   Description des champs d’un bloc répétable.
@@ -4713,6 +5355,13 @@ type TitreIdentiteChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   filled: Boolean!
   grantType: TitreIdentiteGrantType!
   id: ID!
@@ -4775,36 +5424,85 @@ enum TitreIdentiteGrantType {
 }
 
 type Traitement {
-  """
-  La date de la décision
-  """
   dateTraitement: ISO8601DateTime!
-
-  """
-  L'instructeur ayant pris la décision.
-  """
   emailAgentTraitant: String
+  event: TraitementEvent!
   id: ID!
 
   """
   L'instructeur ayant pris la décision.
   """
   instructeurEmail: String
-
-  """
-  La motivation de la décision.
-  """
   motivation: String
 
   """
   La date de la décision
   """
   processedAt: ISO8601DateTime!
+  revision: Revision
+  state: DossierState! @deprecated(reason: "Utilisez le champ `event` à la place.")
+}
+
+enum TraitementEvent {
+  """
+  Accepte
+  """
+  accepte
 
   """
-  La décision sur le dossier.
+  Accepte automatiquement
   """
-  state: DossierState!
+  accepte_automatiquement
+
+  """
+  Classe sans suite
+  """
+  classe_sans_suite
+
+  """
+  Depose
+  """
+  depose
+
+  """
+  Depose correction instructeur
+  """
+  depose_correction_instructeur
+
+  """
+  Depose correction usager
+  """
+  depose_correction_usager
+
+  """
+  Passe en instruction
+  """
+  passe_en_instruction
+
+  """
+  Passe en instruction automatiquement
+  """
+  passe_en_instruction_automatiquement
+
+  """
+  Refuse
+  """
+  refuse
+
+  """
+  Refuse automatiquement
+  """
+  refuse_automatiquement
+
+  """
+  Repasse en construction
+  """
+  repasse_en_construction
+
+  """
+  Repasse en instruction
+  """
+  repasse_en_instruction
 }
 
 enum TypeDeChamp {
@@ -4914,9 +5612,9 @@ enum TypeDeChamp {
   explication
 
   """
-  Expression régulière
+  Champ formaté
   """
-  expression_reguliere
+  formatted
 
   """
   Titre de section
@@ -4987,6 +5685,16 @@ enum TypeDeChamp {
   Situation Pôle emploi
   """
   pole_emploi
+
+  """
+  Référentiel à configurer (avancé)
+  """
+  referentiel
+
+  """
+  Référentiel des administrations
+  """
+  referentiel_de_polynesie
 
   """
   Régions
@@ -5101,6 +5809,13 @@ type VisaChamp implements Champ {
   L'identifiant du champDescriptor de ce champ
   """
   champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
   id: ID!
 
   """
@@ -5157,6 +5872,38 @@ type WarningMessage {
   La description de l’alerte
   """
   message: String!
+}
+
+type YesNoChamp implements Champ {
+  """
+  L'identifiant du champDescriptor de ce champ
+  """
+  champDescriptorId: String!
+
+  """
+  Les colonnes sont des données associées à un champ. ex: Pour un champ adresse,
+  nous pouvons renvoyer les composant (rue, code postal, departement, region)
+  sous formes de colonne
+  """
+  columns: [Column!]!
+  id: ID!
+
+  """
+  Libellé du champ.
+  """
+  label: String!
+  prefilled: Boolean!
+
+  """
+  La valeur du champ sous forme texte.
+  """
+  stringValue: String
+
+  """
+  Date de dernière modification du champ.
+  """
+  updatedAt: ISO8601DateTime!
+  value: Boolean
 }
 
 type YesNoChampDescriptor implements ChampDescriptor {

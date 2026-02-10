@@ -153,11 +153,6 @@
     %span.label.refused .label.refused
     %span.label.without-continuation .label.without-continuation
 
-    %h1 Badges
-
-    %span.badge 1
-    %span.badge.warning 1
-
     %h1 Cards
 
     .card
@@ -173,21 +168,6 @@
     %h1 Table
 
     %table.table
-      %thead
-        %tr
-          %th Header 1
-          %th Header 2
-      %tbody
-        %tr
-          %td Table Data 1
-          %td Table Data 2
-        %tr
-          %td Table Data 3
-          %td Table Data 4
-
-    %h2 Hoverable (.table.hoverable)
-
-    %table.table.hoverable
       %thead
         %tr
           %th Header 1
@@ -220,8 +200,8 @@
   .sub-header
     .container
       Titre
-      %nav.fr-tabs
-        %ul.fr-tabs__list{ role: 'tablist' }
+      %nav.fr-tabs{ role: 'navigation' }
+        %ul.fr-tabs__list
           = tab_item("Onglet actif", "#", active: true)
           = tab_item("Onglet inactif", "#")
           = tab_item("Onglet avec badge", "#", badge: 2)

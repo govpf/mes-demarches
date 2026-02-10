@@ -7,6 +7,7 @@ en:
           negative: "No"
         title: Email notifications
         subtitle: On this page, configure the notifications you wish to receive by email for this procedure.
+        save_reminder: Remember to save your changes using the button at the bottom of the page.
         for_each_file_submitted:
           title: Receive a notification for each file submitted
           notice_1: This email notifies you that a new file has been submitted.
@@ -23,8 +24,17 @@ en:
           title: Receive a weekly recap
           notice_1: This email summarizes the activity of the week on all of your procedures.
           notice_2: It is sent weekly on Monday morning.
+        avis_notifications:
+          title: Receive a notification for each expert opinion
+          notice_1: This email notifies you of a new opinion posted by an expert you solicited on a file.
+          notice_2: It is sent each time an expert gives an opinion.
+        deletion_notifications:
+          title: Receive automatic deletion notifications
+          notice_1: This email informs you about the automatic deletion of expired files.
+          notice_2: It is sent when files from this procedure are automatically deleted.
         buttons:
           back_to_procedure: Back to procedure
           save: Save
-
-  
+      apercu:
+        title_with_libelle: Preview of « %{libelle} »
+        title: Procedure preview

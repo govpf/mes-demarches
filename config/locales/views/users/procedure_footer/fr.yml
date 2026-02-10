@@ -4,16 +4,6 @@ fr:
       managed_by:
         header: 'Cette démarche est gérée par'
       contact:
-        header: 'Poser une question sur la démarche'
-        in_app_mail:
-          link: "Directement par la messagerie"
-        email:
-          link: "Directement par courriel :"
-        phone:
-          label: 'Par téléphone au : '
-          link: '%{service_telephone}'
-        schedule:
-          prefix: "Horaires d’ouverture : "
         stats:
           link: "Voir les statistiques de la démarche"
       legals:
@@ -39,7 +29,14 @@ fr:
       dematerialisation:
         header: Dématérialisation
         title_1: Télécharger le formulaire PDF
-        link: "https://www.transformation.gouv.fr/france-services"
-        alt: France services
+        link: "https://www.mes-demarches.gov.pf/users/sign_in"
+        alt: "Télécharger le formulaire PDF"
       support:
         header: Être accompagné dans votre démarche
+      support_links:
+        france_service:
+          title: Trouver une maison France Services
+          url: 'https://www.transformation.gouv.fr/france-services'
+        carte_inclusion:
+          title: Carte des lieux d’inclusion numérique
+          url: 'https://cartographie.societenumerique.gouv.fr/'

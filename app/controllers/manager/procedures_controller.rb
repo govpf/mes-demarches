@@ -2,11 +2,8 @@
 
 module Manager
   class ProceduresController < Manager::ApplicationController
-    CSV_MAX_SIZE = 1.megabytes
-    CSV_ACCEPTED_CONTENT_TYPES = [
-      "text/csv",
-      "application/vnd.ms-excel"
-    ]
+    include CsvParsingConcern
+
     #
     # Administrate overrides
     #
@@ -59,7 +56,7 @@ module Manager
     end
 
     def export_mail_brouillons
-      dossiers = procedure.dossiers.state_brouillon.includes(:user)
+      dossiers = procedure.dossiers.state_brouillon.visible_by_user.includes(:user)
       emails = dossiers.map { |dossier| dossier.user_email_for(:display) }.sort.uniq
       date = Time.zone.now.strftime('%d-%m-%Y')
       send_data(emails.join("\n"), :filename => "brouillons-#{procedure.id}-au-#{date}.csv")
@@ -157,10 +154,7 @@ module Manager
         flash[:alert] = "Importation impossible : le poids du fichier est supérieur à #{number_to_human_size(CSV_MAX_SIZE)}"
 
       else
-        file = tags_csv_file.read
-        base_encoding = CharlockHolmes::EncodingDetector.detect(file)
-        procedure_tags = ACSV::CSV.new_for_ruby3(file.encode("UTF-8", base_encoding[:encoding], invalid: :replace, replace: ""), headers: true, header_converters: :downcase)
-          .map { |r| r.to_h.slice('demarche', 'tag') }
+        procedure_tags = csv_parse(tags_csv_file).map { |r| r.to_h.slice('demarche', 'tag') }
 
         invalid_ids = []
         procedure_tags.each do |procedure_tag|
@@ -185,6 +179,14 @@ module Manager
     end
 
     private
+
+    def find_resource(param)
+      procedure = super
+
+      procedure.preload_draft_and_published_revisions
+
+      procedure
+    end
 
     def procedure
       @procedure ||= Procedure.with_discarded.find(params[:id])

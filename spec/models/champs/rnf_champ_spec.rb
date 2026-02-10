@@ -99,22 +99,36 @@ describe Champs::RNFChamp, type: :model do
       }
     end
 
-    describe 'update_with_external_data!' do
+    context 'failure (http 404)' do
+      let(:status) { 404 }
+      let(:response_type) { 'invalid' }
+      it {
+        expect(subject.failure.retryable).to be_falsey
+        expect(subject.failure.reason).to be_a(API::Client::HTTPError)
+      }
+    end
+
+    describe 'update_external_data!' do
       it 'works' do
         value_json = {
-          :street_number => "16",
-          :street_name => "Rue du Général de Boissieu",
-          :street_address => "16 Rue du Général de Boissieu",
-          :postal_code => "75015",
-          :city_name => "Paris 15e Arrondissement",
-          :city_code => "75115",
-          :departement_code => "75",
-          :departement_name => "Paris",
-          :region_code => "11",
-          :region_name => "Île-de-France"
+          street_number: "16",
+          street_name: "Rue du Général de Boissieu",
+          street_address: "16 Rue du Général de Boissieu",
+          postal_code: "75015",
+          city_name: "Paris 15e Arrondissement",
+          city_code: "75115",
+          departement_code: "75",
+          department_code: "75",
+          departement_name: "Paris",
+          department_name: "Paris",
+          region_code: "11",
+          region_name: "Île-de-France",
+          title: "Fondation SFR",
+          country_code: "FR",
+          country_name: "France"
         }
-        expect(champ).to receive(:update!).with(data: anything, value_json:)
-        champ.update_with_external_data!(data: subject.value!)
+        expect(champ).to receive(:update!).with(data: anything, value_json:, fetch_external_data_exceptions: [])
+        champ.update_external_data!(data: subject.value!)
       end
     end
   end
@@ -123,11 +137,11 @@ describe Champs::RNFChamp, type: :model do
     let(:champ) { described_class.new(external_id:, data: JSON.parse(body)) }
     before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_rnf)) }
     it do
-      expect(champ.for_export(:value)).to eq '075-FDD-00003-01'
-      expect(champ.for_export(:nom)).to eq 'Fondation SFR'
-      expect(champ.for_export(:address)).to eq '16 Rue du Général de Boissieu 75015 Paris'
-      expect(champ.for_export(:code_insee)).to eq '75115'
-      expect(champ.for_export(:departement)).to eq '75 – Paris'
+      expect(champ.type_de_champ.champ_value_for_export(champ, :value)).to eq '075-FDD-00003-01'
+      expect(champ.type_de_champ.champ_value_for_export(champ, :nom)).to eq 'Fondation SFR'
+      expect(champ.type_de_champ.champ_value_for_export(champ, :address)).to eq '16 Rue du Général de Boissieu 75015 Paris'
+      expect(champ.type_de_champ.champ_value_for_export(champ, :code_insee)).to eq '75115'
+      expect(champ.type_de_champ.champ_value_for_export(champ, :departement)).to eq '75 – Paris'
     end
   end
 end

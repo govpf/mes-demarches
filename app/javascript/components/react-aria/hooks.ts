@@ -1,25 +1,28 @@
+import { matchSorter, type MatchSorterOptions } from 'match-sorter';
+import type { Key } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ComboBoxProps as AriaComboBoxProps,
   TagGroupProps
 } from 'react-aria-components';
-import { useAsyncList, type AsyncListOptions } from 'react-stately';
-import { useMemo, useRef, useState, useEffect } from 'react';
-import type { Key } from 'react';
-import { matchSorter } from 'match-sorter';
-import { useDebounceCallback } from 'usehooks-ts';
-import { useEvent } from 'react-use-event-hook';
 import isEqual from 'react-fast-compare';
+import { useAsyncList, type AsyncListOptions } from 'react-stately';
+import { useEvent } from 'react-use-event-hook';
 import * as s from 'superstruct';
+import { useDebounceCallback } from 'usehooks-ts';
 
 import { Item } from './props';
 
 export type Loader = AsyncListOptions<Item, string>['load'];
 
-export interface ComboBoxProps
-  extends Omit<AriaComboBoxProps<Item>, 'children'> {
+export interface ComboBoxProps extends Omit<
+  AriaComboBoxProps<Item>,
+  'children'
+> {
   children: React.ReactNode | ((item: Item) => React.ReactNode);
   label?: string;
   description?: string;
+  isLoading?: boolean;
 }
 
 const inputMap = new WeakMap<HTMLInputElement, string>();
@@ -34,7 +37,7 @@ export function useDispatchChangeEvent() {
         if (ref.current) {
           const container = ref.current;
           const inputs = Array.from(container.querySelectorAll('input'));
-          const input = inputs.at(0);
+          const input = inputs[0];
           if (input && inputChanged(container, inputs)) {
             inputCountMap.set(container, inputs.length);
             for (const input of inputs) {
@@ -64,6 +67,13 @@ function inputChanged(container: HTMLSpanElement, inputs: HTMLInputElement[]) {
   }
   return false;
 }
+
+const naturalSort: MatchSorterOptions['baseSort'] = (a, b) => {
+  return String(a.rankedValue).localeCompare(String(b.rankedValue), undefined, {
+    numeric: true,
+    sensitivity: 'base'
+  });
+};
 
 export function useSingleList({
   defaultItems,
@@ -95,7 +105,10 @@ export function useSingleList({
     if (inputValue == '') {
       return items;
     }
-    const filteredItems = matchSorter(items, inputValue, { keys: ['label'] });
+    const filteredItems = matchSorter(items, inputValue, {
+      keys: ['label'],
+      baseSort: naturalSort
+    });
     if (filteredItems.length == 0 && fallbackItem) {
       return [fallbackItem];
     } else {
@@ -117,11 +130,11 @@ export function useSingleList({
   >((key) => {
     setSelection(key ? String(key) : null);
     const item =
-      typeof key != 'string'
+      (typeof key != 'string'
         ? null
         : selectedItem?.value == key
           ? selectedItem
-          : (items.find((item) => item.value == key) ?? null);
+          : items.find((item) => item.value == key)) ?? null;
     onChange?.(item);
   });
   const onInputChange = useEvent<NonNullable<ComboBoxProps['onInputChange']>>(
@@ -344,17 +357,15 @@ export function useRemoteList({
   defaultItems,
   defaultSelectedKey,
   onChange,
-  debounce,
-  allowsCustomValue
+  debounce
 }: {
   load: Loader;
   defaultItems?: Item[];
   defaultSelectedKey?: Key | null;
   onChange?: (item: Item | null) => void;
   debounce?: number;
-  allowsCustomValue?: boolean;
 }) {
-  const [defaultSelectedItem, setSelectedItem] = useState<Item | null>(() => {
+  const [selectedItem, setSelectedItem] = useState<Item | null>(() => {
     if (defaultItems) {
       return (
         defaultItems.find((item) => item.value == defaultSelectedKey) ?? null
@@ -362,18 +373,8 @@ export function useRemoteList({
     }
     return null;
   });
-  const [inputValue, setInputValue] = useState(
-    defaultSelectedItem?.label ?? ''
-  );
-  const selectedItem = useMemo<Item | null>(() => {
-    if (defaultSelectedItem) {
-      return defaultSelectedItem;
-    }
-    if (allowsCustomValue && inputValue != '') {
-      return { label: inputValue, value: inputValue };
-    }
-    return null;
-  }, [defaultSelectedItem, inputValue, allowsCustomValue]);
+  const [inputValue, setInputValue] = useState(selectedItem?.label ?? '');
+  const [isExplicitlySelected, setIsExplicitlySelected] = useState(false);
   const list = useAsyncList<Item>({ getKey, load });
   const setFilterText = useEvent((filterText: string) => {
     list.setFilterText(filterText);
@@ -382,20 +383,22 @@ export function useRemoteList({
     setFilterText,
     debounce ?? 300
   );
+  const initialSelectedKeyRef = useRef(defaultSelectedKey);
 
   const onSelectionChange = useEvent<
     NonNullable<ComboBoxProps['onSelectionChange']>
   >((key) => {
+    setIsExplicitlySelected(true);
     const item =
-      typeof key != 'string'
+      (typeof key != 'string'
         ? null
         : selectedItem?.value == key
           ? selectedItem
-          : (items.find((item) => item.value == key) ?? null);
+          : list.getItem(key)) ?? null;
     setSelectedItem(item);
     if (item) {
       setInputValue(item.label);
-    } else if (!allowsCustomValue) {
+    } else {
       setInputValue('');
     }
     onChange?.(item);
@@ -404,11 +407,10 @@ export function useRemoteList({
   const onInputChange = useEvent<NonNullable<ComboBoxProps['onInputChange']>>(
     (value) => {
       debouncedSetFilterText(value);
+      setIsExplicitlySelected(false);
       setInputValue(value);
       if (value == '') {
         onSelectionChange(null);
-      } else if (allowsCustomValue && selectedItem?.label != value) {
-        onChange?.(selectedItem);
       }
     }
   );
@@ -424,6 +426,38 @@ export function useRemoteList({
       ? [selectedItem, ...list.items]
       : list.items;
 
+  const shouldShowPopover = useMemo(() => {
+    if (isExplicitlySelected || list.items.length == 0) {
+      return false;
+    }
+
+    // Visible while loading new items or when loaded but explicit selection not yet done
+    return list.loadingState == 'filtering' || !list.isLoading;
+  }, [
+    list.isLoading,
+    list.loadingState,
+    list.items.length,
+    isExplicitlySelected
+  ]);
+
+  // reset default selected key when props change
+  useEffect(() => {
+    if (initialSelectedKeyRef.current != defaultSelectedKey) {
+      initialSelectedKeyRef.current = defaultSelectedKey;
+      const item = defaultSelectedKey
+        ? items.find((item) => item.value == defaultSelectedKey)
+        : null;
+      if (item) {
+        setSelectedItem(item);
+        setInputValue(item.label);
+      } else {
+        setSelectedItem(null);
+        setInputValue('');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultSelectedKey]);
+
   return {
     selectedItem,
     selectedKey: selectedItem?.value ?? null,
@@ -431,7 +465,9 @@ export function useRemoteList({
     inputValue,
     onInputChange,
     items,
-    onReset
+    onReset,
+    isLoading: list.isLoading,
+    shouldShowPopover
   };
 }
 
@@ -495,13 +531,18 @@ export const createLoader: (
         const struct = Coerce[options?.coerce ?? 'Default'];
         const [err, items] = s.validate(json, struct, { coerce: true });
         if (!err) {
-          if (items.length > limit) {
-            const filteredItems = matchSorter(items, filterText, {
-              keys: ['label']
-            });
-            return { items: filteredItems.slice(0, limit) };
-          }
-          return { items };
+          const filteredItems = matchSorter(items, filterText, {
+            keys: [
+              (item) => item.label.replace(/[_ -]/g, ' '), // accept filter to match saint martin => "Saint-Martin"
+              'label' // keep original label for exact match and filter (saint-martin => Saint-Martin)
+            ],
+            baseSort: naturalSort,
+            threshold:
+              items.length > limit
+                ? matchSorter.rankings.MATCHES // default filter when there are many items
+                : matchSorter.rankings.NO_MATCH // don't reject items when filter contains have typos or non exact matches with dashes/space etc…
+          });
+          return { items: filteredItems.slice(0, limit) };
         }
       }
       return { items: [] };
@@ -509,24 +550,6 @@ export const createLoader: (
       return { items: [] };
     }
   };
-
-export function useLabelledBy(id?: string, ariaLabelledby?: string) {
-  return useMemo(
-    () => (ariaLabelledby ? ariaLabelledby : findLabelledbyId(id)),
-    [id, ariaLabelledby]
-  );
-}
-
-function findLabelledbyId(id?: string) {
-  if (!id) {
-    return;
-  }
-  const label = document.querySelector(`[for="${id}"]`);
-  if (!label?.id) {
-    return;
-  }
-  return label.id;
-}
 
 export function useOnFormReset(onReset?: () => void) {
   const ref = useRef<HTMLInputElement>(null);

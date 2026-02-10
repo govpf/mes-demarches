@@ -13,13 +13,22 @@ class Commentaire < ApplicationRecord
 
   validates :body, presence: { message: "ne peut être vide" }, unless: :discarded?
 
+  normalizes :body, with: NORMALIZES_NON_PRINTABLE_PROC
+
   FILE_MAX_SIZE = 20.megabytes
+  SYSTEM_EMAILS = ["demarches.numerique.gouv.fr", CONTACT_EMAIL, OLD_CONTACT_EMAIL]
+
   validates :piece_jointe,
     content_type: AUTHORIZED_CONTENT_TYPES,
     size: { less_than: FILE_MAX_SIZE }
 
-  default_scope { order(created_at: :asc) }
+  scope :chronological, -> { order(created_at: :asc) }
   scope :updated_since?, -> (date) { where('commentaires.updated_at > ?', date) }
+  scope :to_notify, -> (instructeur) {
+    where.not(email: SYSTEM_EMAILS)
+      .where(discarded_at: nil)
+      .where("instructeur_id IS NULL OR instructeur_id != ?", instructeur.id)
+  }
 
   after_create :notify
 
@@ -50,7 +59,7 @@ class Commentaire < ApplicationRecord
   end
 
   def sent_by_system?
-    ["demarches.gouv.fr", CONTACT_EMAIL, OLD_CONTACT_EMAIL].include?(email)
+    SYSTEM_EMAILS.any? { email.include?(it) }
   end
 
   def sent_by_instructeur?
@@ -59,6 +68,10 @@ class Commentaire < ApplicationRecord
 
   def sent_by_expert?
     expert_id.present?
+  end
+
+  def sent_by_usager?
+    !(sent_by_system? || sent_by_instructeur? || sent_by_expert?)
   end
 
   def sent_by?(someone)
@@ -130,7 +143,7 @@ class Commentaire < ApplicationRecord
   def messagerie_available?
     return if sent_by_system?
     if dossier.present? && !dossier.messagerie_available?
-      errors.add(:dossier, "Il n’est pas possible d’envoyer un message sur un dossier supprimé, archivé ou en brouillon")
+      errors.add(:dossier, "Il n’est pas possible d’envoyer un message sur un dossier supprimé, à archiver ou en brouillon")
     end
   end
 end

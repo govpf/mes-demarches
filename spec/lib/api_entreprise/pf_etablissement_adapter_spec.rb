@@ -7,10 +7,9 @@ describe APIEntreprise::PfEtablissementAdapter do
 
   context 'Numéro TAHITI valide', vcr: { cassette_name: 'pf_api_entreprise' } do
     let(:siret) { '075390' }
-    subject { described_class.new(siret + num_etablissement, procedure_id).to_params }
 
-    context 'numéro établissement empty' do
-      let(:num_etablissement) { '' }
+    context 'numéro établissement empty (list all establishments)' do
+      subject { described_class.new(siret, procedure_id).to_all_etablissements }
       let!(:adresse) {
         [
           "BP 130, 98713 PAPEETE BP, 115, rue Dumont d'Urville, quartier Orovini, Papeete",
@@ -44,66 +43,77 @@ describe APIEntreprise::PfEtablissementAdapter do
         ].join(' | ')
       }
 
-      it 'L\'entreprise contient bien les bons renseignements' do
-        expect(subject[0]).to be_a_instance_of(Hash)
-        expect(subject[0][:siret]).to eq(siret)
-        expect(subject[0][:naf]).to eq('6419Z | 5221Z')
-        expect(subject[0][:libelle_naf]).to eq('Autres intermédiations monétaires | Services auxiliaires des transports terrestres')
-        got = subject[0][:adresse].split(' | ')
-        expected = adresse.split(' | ')
-        got.zip(expected).filter { |a, b| a != b }.each { |a, b| puts "==>#{a.tr("\n", ' ')}\n!= #{b.tr("\n", ' ')}" }
-        expect(subject[0][:adresse]).to eq(adresse)
-        expect(subject[0][:numero_voie]).to eq('115 | 415 | 10')
-        expect(subject[0][:nom_voie]).to eq("rue Dumont d'Urville | rue Tihoni Tefaatau | Boulevard Pomare | Av Bruat")
-        expect(subject[0][:code_postal]).to eq('98713')
-        expect(subject[0][:localite]).to eq('Papeete | Uturoa | Pirae | Punaauia | Mahina | Taiohae | Faaa | Fare | Atuona | Afaahiti | Paopao | Hakahau | Papara | Moerai | Nunue | Mataura | Rangiroa | Iripau | Arue | Paea')
-        expect(subject[0][:entreprise_siren]).to eq('075390')
-        expect(subject[0][:entreprise_siret_siege_social]).to eq('075390')
-        expect(subject[0][:entreprise_raison_sociale]).to eq('BANQUE SOCREDO')
-        expect(subject[0][:entreprise_forme_juridique]).to eq('Société Anonyme à Directoire (dont S.A.E.M.)')
-        expect(subject[0][:entreprise_forme_juridique_code]).to eq('560')
-        expect(subject[0][:entreprise_code_effectif_entreprise]).to eq('8')
-        expect(subject[0][:entreprise_nom]).to eq('')
-        expect(subject[0][:entreprise_prenom]).to eq('')
-        expect(subject[0][:entreprise_numero_tva_intracommunautaire]).to eq('')
-        expect(subject[1].size).to eq(28)
+      it 'La liste contient tous les établissements' do
+        expect(subject).to be_a_instance_of(Array)
+        expect(subject.size).to eq(28)
+
+        # Check first establishment has required fields
+        first_etablissement = subject.first
+        expect(first_etablissement[:entreprise_raison_sociale]).to eq('BANQUE SOCREDO')
+        expect(first_etablissement[:entreprise_siren]).to eq('075390')
+        expect(first_etablissement[:num_entreprise]).to be_present
       end
     end
 
     context 'numéro établissement valide' do
       let(:num_etablissement) { '031' }
+      subject { described_class.new(siret + num_etablissement, procedure_id).to_params }
+
+      it 'L\'entreprise contient bien les bons renseignements (SIRET complet)' do
+        expect(subject).to be_a_instance_of(Hash)
+        expect(subject[:siret]).to eq(siret + num_etablissement)
+        expect(subject[:naf]).to eq('6419Z')
+        expect(subject[:libelle_naf]).to eq('Autres intermédiations monétaires')
+
+        expect(subject[:adresse]).to eq('BP 130, 98713 PAPEETE BP, 10, Av Bruat, Papeete')
+        expect(subject[:numero_voie]).to eq('10')
+        expect(subject[:nom_voie]).to eq("Av Bruat")
+        expect(subject[:code_postal]).to eq('98713')
+        expect(subject[:localite]).to eq('Papeete')
+        expect(subject[:entreprise_siren]).to eq('075390')
+        expect(subject[:entreprise_siret_siege_social]).to eq('075390')
+        expect(subject[:entreprise_raison_sociale]).to eq('BANQUE SOCREDO')
+        expect(subject[:entreprise_forme_juridique]).to eq('Société Anonyme à Directoire (dont S.A.E.M.)')
+        expect(subject[:entreprise_forme_juridique_code]).to eq('560')
+        expect(subject[:entreprise_code_effectif_entreprise]).to eq('8')
+        expect(subject[:entreprise_nom]).to eq('')
+        expect(subject[:entreprise_prenom]).to eq('')
+        expect(subject[:entreprise_numero_tva_intracommunautaire]).to eq('')
+      end
+    end
+
+    context 'numéro établissement valide' do
+      let(:num_etablissement) { '031' }
+      subject { described_class.new(siret + num_etablissement, procedure_id).to_params }
 
       it 'L\'entreprise contient bien les bons renseignements' do
-        expect(subject[0]).to be_a_instance_of(Hash)
-        expect(subject[0][:siret]).to eq(siret + num_etablissement)
-        expect(subject[0][:naf]).to eq('6419Z')
-        expect(subject[0][:libelle_naf]).to eq('Autres intermédiations monétaires')
+        expect(subject).to be_a_instance_of(Hash)
+        expect(subject[:siret]).to eq(siret + num_etablissement)
+        expect(subject[:naf]).to eq('6419Z')
+        expect(subject[:libelle_naf]).to eq('Autres intermédiations monétaires')
 
-        expect(subject[0][:adresse]).to eq('BP 130, 98713 PAPEETE BP, 10, Av Bruat, Papeete')
-        expect(subject[0][:numero_voie]).to eq('10')
-        expect(subject[0][:nom_voie]).to eq("Av Bruat")
-        expect(subject[0][:code_postal]).to eq('98713')
-        expect(subject[0][:localite]).to eq('Papeete')
-        expect(subject[0][:entreprise_siren]).to eq('075390')
-        expect(subject[0][:entreprise_siret_siege_social]).to eq('075390')
-        expect(subject[0][:entreprise_raison_sociale]).to eq('BANQUE SOCREDO')
-        expect(subject[0][:entreprise_forme_juridique]).to eq('Société Anonyme à Directoire (dont S.A.E.M.)')
-        expect(subject[0][:entreprise_forme_juridique_code]).to eq('560')
-        expect(subject[0][:entreprise_code_effectif_entreprise]).to eq('8')
-        expect(subject[0][:entreprise_nom]).to eq('')
-        expect(subject[0][:entreprise_prenom]).to eq('')
-        expect(subject[0][:entreprise_numero_tva_intracommunautaire]).to eq('')
-        expect(subject[1].size).to eq(1)
+        expect(subject[:adresse]).to eq('BP 130, 98713 PAPEETE BP, 10, Av Bruat, Papeete')
+        expect(subject[:numero_voie]).to eq('10')
+        expect(subject[:nom_voie]).to eq("Av Bruat")
+        expect(subject[:code_postal]).to eq('98713')
+        expect(subject[:localite]).to eq('Papeete')
+        expect(subject[:entreprise_siren]).to eq('075390')
+        expect(subject[:entreprise_siret_siege_social]).to eq('075390')
+        expect(subject[:entreprise_raison_sociale]).to eq('BANQUE SOCREDO')
+        expect(subject[:entreprise_forme_juridique]).to eq('Société Anonyme à Directoire (dont S.A.E.M.)')
+        expect(subject[:entreprise_forme_juridique_code]).to eq('560')
+        expect(subject[:entreprise_code_effectif_entreprise]).to eq('8')
+        expect(subject[:entreprise_nom]).to eq('')
+        expect(subject[:entreprise_prenom]).to eq('')
+        expect(subject[:entreprise_numero_tva_intracommunautaire]).to eq('')
       end
     end
 
     context 'numéro établissement not found' do
       let(:num_etablissement) { '035' }
+      subject { described_class.new(siret + num_etablissement, procedure_id).to_params }
 
-      it {
-        expect(subject[0]).to eq(nil)
-        expect(subject[1]).to eq(nil)
-      }
+      it { expect(subject).to eq({}) }
     end
   end
 

@@ -3,6 +3,7 @@
 describe 'Inviting an expert:', js: true do
   include ActiveJob::TestHelper
   include ActionView::Helpers
+  include ZipHelpers
 
   context 'as an invited Expert' do
     let(:expert) { create(:expert) }
@@ -40,7 +41,7 @@ describe 'Inviting an expert:', js: true do
         visit new_user_session_path
         sign_in_with avis.expert.email, password
 
-        expect(page).to have_content('Vous pouvez à tout moment alterner entre vos différents profils : expert, usager.')
+        expect(page).to have_content('Vous pouvez à tout moment alterner entre vos différents profils : expert et usager.')
         expect(page).to have_current_path(expert_all_avis_path)
       end
     end
@@ -72,7 +73,7 @@ describe 'Inviting an expert:', js: true do
       expect(page).to have_text('1 avis à donner')
       expect(page).to have_text('0 avis donnés')
 
-      expect(page).to have_selector('.badge', text: 1)
+      expect(page).to have_selector('.fr-badge', text: 1)
       expect(page).to have_selector('.notifications')
 
       click_on '1 avis à donner'
@@ -93,7 +94,7 @@ describe 'Inviting an expert:', js: true do
       expect(page).to have_text('0 avis à donner')
       expect(page).to have_text('1 avis donné')
 
-      expect(page).not_to have_selector('.badge', text: 1)
+      expect(page).not_to have_selector('.fr-badge', text: 1)
       expect(page).not_to have_selector('.notifications')
     end
 
@@ -152,12 +153,16 @@ describe 'Inviting an expert:', js: true do
         click_on 'Télécharger le dossier et toutes ses pièces jointes'
 
         DownloadHelpers.wait_for_download
-        files = ZipTricks::FileReader.read_zip_structure(io: File.open(DownloadHelpers.download))
-        expect(DownloadHelpers.download).to include "dossier-#{dossier.id}.zip"
+        zip_path = DownloadHelpers.download
+        expect(zip_path).to include "dossier-#{dossier.id}.zip"
+
+        files = read_zip_entries(zip_path)
         expect(files.size).to be 2
-        expect(files[0].filename.include?('export')).to be_truthy
-        expect(files[1].filename.include?('toto')).to be_truthy
-        expect(files[1].uncompressed_size).to be 4
+        expect(files[0].include?('export')).to be_truthy
+        expect(files[1].include?('toto')).to be_truthy
+
+        content = read_zip_file_content(zip_path, files[1])
+        expect(content.size).to eq(4)
       end
 
       before { DownloadHelpers.clear_downloads }

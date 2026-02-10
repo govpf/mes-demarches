@@ -86,7 +86,10 @@ def add_identite_individual(pdf)
   format_in_2_columns(pdf, "Civilité")
   format_in_2_columns(pdf, "Nom")
   format_in_2_columns(pdf, "Prénom")
-  format_in_2_columns(pdf, "Date de naissance")
+
+  if @procedure.ask_birthday?
+    format_in_2_columns(pdf, "Date de naissance")
+  end
 end
 
 def add_identite_etablissement(pdf, libelle)
@@ -160,13 +163,17 @@ def render_single_champ(pdf, revision, type_de_champ)
   when TypeDeChamp.type_champs.fetch(:address), TypeDeChamp.type_champs.fetch(:carte), TypeDeChamp.type_champs.fetch(:textarea)
     format_in_2_lines(pdf, type_de_champ, 5)
   when TypeDeChamp.type_champs.fetch(:drop_down_list)
-    add_libelle(pdf, type_de_champ)
-    add_optionnal_description(pdf, type_de_champ)
-    add_explanation(pdf, 'Cochez la mention applicable, une seule valeur possible')
-    type_de_champ.drop_down_options.each do |option|
-      format_with_checkbox(pdf, option)
+    if type_de_champ.drop_down_advanced?
+      format_in_2_lines(pdf, type_de_champ)
+    else
+      add_libelle(pdf, type_de_champ)
+      add_optionnal_description(pdf, type_de_champ)
+      add_explanation(pdf, 'Cochez la mention applicable, une seule valeur possible')
+      type_de_champ.drop_down_options.each do |option|
+        format_with_checkbox(pdf, option)
+      end
+      pdf.text "\n"
     end
-    pdf.text "\n"
   when TypeDeChamp.type_champs.fetch(:multiple_drop_down_list)
     add_libelle(pdf, type_de_champ)
     add_optionnal_description(pdf, type_de_champ)
@@ -204,6 +211,7 @@ prawn_document(page_size: "A4") do |pdf|
     italic: Rails.root.join('lib/prawn/fonts/marianne/marianne-thin.ttf')
   })
   pdf.font 'marianne'
+  pdf.fallback_fonts = ['Helvetica']
   pdf.image DOSSIER_PDF_EXPORT_LOGO_SRC, width: 300, position: :center
   pdf.move_down(40)
 

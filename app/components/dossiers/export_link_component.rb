@@ -30,7 +30,7 @@ class Dossiers::ExportLinkComponent < ApplicationComponent
   end
 
   def export_title(export)
-    if export.procedure_presentation_id.nil?
+    if !export.built_from_procedure_presentation?
       t(".export_title_everything", export_format: export.format)
     elsif export.tous?
       t(".export_title", export_format: export.format, count: export.count)
@@ -40,9 +40,7 @@ class Dossiers::ExportLinkComponent < ApplicationComponent
   end
 
   def human_export_status(export)
-    key = tab_i18n_key_from_status(export.statut)
-
-    t(key, count: export.count) || export.statut
+    i18n_tab_from_status(export.statut) || export.statut
   end
 
   def badge(export)
@@ -57,7 +55,7 @@ class Dossiers::ExportLinkComponent < ApplicationComponent
 
   def export_button(export)
     if export.available?
-      render Dsfr::DownloadComponent.new(attachment: export.file, name: t('.download_export'))
+      render Dsfr::DownloadComponent.new(attachment: export.file, name: t('.download_export'), has_name: true)
     elsif export.pending?
       content_tag(:a, t('.refresh_page'), { href: "", class: 'fr-btn fr-btn--sm fr-btn--tertiary' })
     end

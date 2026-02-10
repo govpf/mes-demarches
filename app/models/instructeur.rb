@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 class Instructeur < ApplicationRecord
+  alias_attribute :pro_connect_id_token, :agent_connect_id_token
+
   include UserFindByConcern
   has_and_belongs_to_many :administrateurs
-
-  has_many :agent_connect_information, dependent: :destroy
 
   has_many :assign_to, dependent: :destroy
   has_many :groupe_instructeurs, -> { order(:label) }, through: :assign_to
@@ -15,7 +15,6 @@ class Instructeur < ApplicationRecord
   has_many :assign_to_with_email_notifications, -> { with_email_notifications }, class_name: 'AssignTo', inverse_of: :instructeur
   has_many :groupe_instructeur_with_email_notifications, through: :assign_to_with_email_notifications, source: :groupe_instructeur
   has_many :export_templates, through: :groupe_instructeurs
-
   has_many :commentaires, inverse_of: :instructeur, dependent: :nullify
   has_many :dossiers, -> { state_not_brouillon }, through: :unordered_groupe_instructeurs
   has_many :all_follows, class_name: 'Follow', inverse_of: :instructeur
@@ -27,6 +26,10 @@ class Instructeur < ApplicationRecord
   has_many :bulk_messages, dependent: :destroy
   has_many :exports, as: :user_profile
   has_many :archives, as: :user_profile
+  has_many :instructeurs_procedures, dependent: :destroy
+  has_many :dossier_notifications, dependent: :destroy
+
+  has_one :rdv_connection, dependent: :destroy
 
   belongs_to :user
 
@@ -51,6 +54,10 @@ class Instructeur < ApplicationRecord
   def follow(dossier)
     begin
       followed_dossiers << dossier
+
+      DossierNotification.destroy_notifications_by_dossier_and_type(dossier, :dossier_depose)
+      DossierNotification.refresh_notifications_instructeur_for_dossier(self, dossier)
+
       # If the user tries to follow a dossier she already follows,
       # we just fail silently: it means the goal is already reached.
     rescue ActiveRecord::RecordNotUnique
@@ -65,6 +72,7 @@ class Instructeur < ApplicationRecord
     f = follows.find_by(dossier: dossier)
     if f.present?
       f.update(unfollowed_at: Time.zone.now)
+      DossierNotification.destroy_notifications_instructeur_of_dossier(self, dossier)
     end
   end
 
@@ -78,7 +86,7 @@ class Instructeur < ApplicationRecord
     end
   end
 
-  NOTIFICATION_SETTINGS = [:daily_email_notifications_enabled, :instant_email_dossier_notifications_enabled, :instant_email_message_notifications_enabled, :weekly_email_notifications_enabled, :instant_expert_avis_email_notifications_enabled]
+  NOTIFICATION_SETTINGS = [:daily_email_notifications_enabled, :instant_email_dossier_notifications_enabled, :instant_email_message_notifications_enabled, :weekly_email_notifications_enabled, :instant_expert_avis_email_notifications_enabled, :deletion_email_notifications_enabled]
 
   def notification_settings(procedure_id)
     assign_to
@@ -106,60 +114,34 @@ class Instructeur < ApplicationRecord
     end
   end
 
-  def procedure_presentation_and_errors_for_procedure_id(procedure_id)
-    assign_to
-      .joins(:groupe_instructeur)
-      .includes(:instructeur, :procedure)
-      .find_by(groupe_instructeurs: { procedure_id: procedure_id })
-      .procedure_presentation_or_default_and_errors
+  def ensure_instructeur_procedures_for(procedures)
+    current_instructeur_procedures = instructeurs_procedures.where(procedure_id: procedures.map(&:id))
+    top_position = current_instructeur_procedures.map(&:position).max || 0
+    missing_instructeur_procedures = procedures.sort_by(&:published_at).map(&:id).filter_map do |procedure_id|
+      if !procedure_id.in?(current_instructeur_procedures.map(&:procedure_id))
+        { instructeur_id: id, procedure_id:, position: top_position += 1 }
+      end
+    end
+    InstructeursProcedure.insert_all(missing_instructeur_procedures) if missing_instructeur_procedures.size.positive?
   end
 
-  def notifications_for_dossier(dossier)
-    follow = Follow.find_by(instructeur: self, dossier:)
-
-    if follow.present?
-      demande = dossier.last_champ_updated_at&.>(follow.demande_seen_at) ||
-        dossier.groupe_instructeur_updated_at&.>(follow.demande_seen_at) ||
-        dossier.identity_updated_at&.>(follow.demande_seen_at) ||
-        false
-
-      annotations_privees = dossier.last_champ_private_updated_at&.>(follow.annotations_privees_seen_at) || false
-      avis_notif = dossier.last_avis_updated_at&.>(follow.avis_seen_at) || false
-      messagerie = dossier.last_commentaire_updated_at&.>(follow.messagerie_seen_at) || false
-
-      annotations_hash(demande, annotations_privees, avis_notif, messagerie)
-    else
-      annotations_hash(false, false, false, false)
+  def update_instructeur_procedures_positions(ordered_procedure_ids)
+    procedure_id_position = ordered_procedure_ids.reverse.each.with_index.to_h
+    InstructeursProcedure.transaction do
+      procedure_id_position.each do |procedure_id, position|
+        InstructeursProcedure.where(procedure_id:, instructeur_id: id).update(position:)
+      end
     end
   end
 
-  def notifications_for_groupe_instructeurs(groupe_instructeurs)
-    notifications_for(groupe_instructeur: groupe_instructeurs)
-      .pluck(:state, :id)
-      .reduce({ termines: [], en_cours: [] }) do |acc, e|
-        if Dossier::TERMINE.include?(e[0])
-          acc[:termines] << e[1]
-        elsif Dossier::EN_CONSTRUCTION_OU_INSTRUCTION.include?(e[0])
-          acc[:en_cours] << e[1]
-        end
-        acc
-      end
+  def procedure_presentation_for_procedure_id(procedure_id)
+    assign_to = assign_to_for_procedure_id(procedure_id)
+    assign_to.procedure_presentation || assign_to.create_procedure_presentation!
   end
 
-  def notifications_for_dossiers(dossier_ids)
-    notifications_for(id: dossier_ids)
-      .pluck(:id)
-  end
-
-  def procedure_ids_with_notifications(scope)
-    groupe_instructeur_ids = Dossier
-      .send(scope) # :en_cours or :termine (or any other Dossier scope)
-      .merge(followed_dossiers)
-      .visible_by_administration
-      .with_notifications
-      .select(:groupe_instructeur_id)
-
-    GroupeInstructeur.where(id: groupe_instructeur_ids).pluck(:procedure_id)
+  def procedure_presentation_and_errors_for_procedure_id(procedure_id)
+    assign_to = assign_to_for_procedure_id(procedure_id)
+    assign_to.procedure_presentation_or_default_and_errors
   end
 
   def mark_tab_as_seen(dossier, tab)
@@ -173,8 +155,7 @@ class Instructeur < ApplicationRecord
       .reduce([]) do |acc, groupe|
       procedure = groupe.procedure
 
-      notifications = notifications_for_groupe_instructeurs([groupe.id])
-      nb_notification = notifications[:en_cours].count + notifications[:termines].count
+      nb_notification = DossierNotification.notifications_count_for_email_data([groupe.id], self)
 
       h = {
         nb_en_construction: groupe.dossiers.visible_by_administration.en_construction.count,
@@ -224,10 +205,6 @@ class Instructeur < ApplicationRecord
 
   # required to display feature flags field in manager
   def features
-  end
-
-  def flipper_id
-    "Instructeur:#{id}"
   end
 
   def dossiers_count_summary(groupe_instructeur_ids)
@@ -305,31 +282,28 @@ class Instructeur < ApplicationRecord
       .update_all(claimant_id: id)
   end
 
-  def last_agent_connect_information
-    agent_connect_information.order(updated_at: :desc).first
+  def last_pro_connect_information
+    user.last_pro_connect_information
   end
 
   def export_templates_for(procedure)
     procedure.export_templates.where(groupe_instructeur: groupe_instructeurs).order(:name)
   end
 
-  private
-
-  def annotations_hash(demande, annotations_privees, avis, messagerie)
-    {
-      demande: demande,
-      annotations_privees: annotations_privees,
-      avis: avis,
-      messagerie: messagerie
-    }
+  def groupe_instructeur_options_for(procedure)
+    groupe_instructeurs.filter_map { [_1.label, _1.id] if _1.procedure == procedure }
   end
 
-  def notifications_for(condition)
-    Dossier
-      .visible_by_administration
-      .not_archived
-      .where(condition)
-      .merge(followed_dossiers)
-      .with_notifications
+  def feature_enabled?(feature)
+    Flipper.enabled?(feature, self)
+  end
+
+  private
+
+  def assign_to_for_procedure_id(procedure_id)
+    assign_to
+      .joins(:groupe_instructeur)
+      .includes(:instructeur, :procedure)
+      .find_by(groupe_instructeurs: { procedure_id: procedure_id })
   end
 end

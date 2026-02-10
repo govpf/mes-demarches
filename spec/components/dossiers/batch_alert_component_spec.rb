@@ -5,6 +5,15 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
   let(:procedure) { create(:procedure) }
 
   subject { render_inline(component).to_html }
+  let(:component) do
+    described_class.new(
+      batch: batch_operation,
+      procedure:
+    )
+  end
+  before do
+    allow(component).to receive(:procedure_path).and_return(Rails.application.routes.url_helpers.instructeur_procedure_path(procedure, statut: 'a-suivre'))
+  end
 
   describe 'archiver' do
     let(:component) do
@@ -24,7 +33,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
 
       it { is_expected.to have_selector('.fr-alert--info') }
       it { is_expected.to have_text("Une action de masse est en cours") }
-      it { is_expected.to have_text("1/2 dossiers ont été archivés") }
+      it { is_expected.to have_text("1/2 dossiers sont en cours de déplacement dans « à archiver »") }
       it { is_expected.to have_text("Cette opération a été lancée par #{instructeur.email}, il y a moins d'une minute") }
     end
 
@@ -37,7 +46,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
 
       it { is_expected.to have_selector('.fr-alert--success') }
       it { is_expected.to have_text("L’action de masse est terminée") }
-      it { is_expected.to have_text("2 dossiers ont été archivés") }
+      it { is_expected.to have_text("2 dossiers ont été placés dans « à archiver »") }
       it { expect(batch_operation.seen_at).to eq(nil) }
     end
 
@@ -50,11 +59,11 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
 
       it { is_expected.to have_selector('.fr-alert--warning') }
       it { is_expected.to have_text("L’action de masse est terminée") }
-      it { is_expected.to have_text("1/2 dossiers ont été archivés") }
+      it { is_expected.to have_text("1/2 dossiers ont été placés dans « à archiver »") }
       it { expect(batch_operation.seen_at).to eq(nil) }
 
       it 'on next render "seen_at" is set to avoid rendering alert' do
-        render_inline(component).to_html
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
         expect(batch_operation.seen_at).not_to eq(nil)
       end
     end
@@ -78,7 +87,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
 
       it { is_expected.to have_selector('.fr-alert--info') }
       it { is_expected.to have_text("Une action de masse est en cours") }
-      it { is_expected.to have_text("1/2 dossiers ont été désarchivés") }
+      it { is_expected.to have_text("1/2 dossiers sont en cours de retrait de « à archiver »") }
       it { is_expected.to have_text("Cette opération a été lancée par #{instructeur.email}, il y a moins d'une minute") }
     end
 
@@ -91,7 +100,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
 
       it { is_expected.to have_selector('.fr-alert--success') }
       it { is_expected.to have_text("L’action de masse est terminée") }
-      it { is_expected.to have_text("2 dossiers ont été désarchivés") }
+      it { is_expected.to have_text("2 dossiers ont été retirés de « à archiver »") }
       it { expect(batch_operation.seen_at).to eq(nil) }
     end
 
@@ -104,11 +113,11 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
 
       it { is_expected.to have_selector('.fr-alert--warning') }
       it { is_expected.to have_text("L’action de masse est terminée") }
-      it { is_expected.to have_text("1/2 dossiers ont été désarchivés") }
+      it { is_expected.to have_text("1/2 dossiers ont été retirés de « à archiver »") }
       it { expect(batch_operation.seen_at).to eq(nil) }
 
       it 'on next render "seen_at" is set to avoid rendering alert' do
-        render_inline(component).to_html
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
         expect(batch_operation.seen_at).not_to eq(nil)
       end
     end
@@ -162,7 +171,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
       it { expect(batch_operation.seen_at).to eq(nil) }
 
       it 'on next render "seen_at" is set to avoid rendering alert' do
-        render_inline(component).to_html
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
         expect(batch_operation.seen_at).not_to eq(nil)
       end
     end
@@ -216,7 +225,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
       it { expect(batch_operation.seen_at).to eq(nil) }
 
       it 'on next render "seen_at" is set to avoid rendering alert' do
-        render_inline(component).to_html
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
         expect(batch_operation.seen_at).not_to eq(nil)
       end
     end
@@ -270,7 +279,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
       it { expect(batch_operation.seen_at).to eq(nil) }
 
       it 'on next render "seen_at" is set to avoid rendering alert' do
-        render_inline(component).to_html
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
         expect(batch_operation.seen_at).not_to eq(nil)
       end
     end
@@ -396,7 +405,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
       it { expect(batch_operation.seen_at).to eq(nil) }
 
       it 'on next render "seen_at" is set to avoid rendering alert' do
-        render_inline(component).to_html
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
         expect(batch_operation.seen_at).not_to eq(nil)
       end
     end
@@ -450,7 +459,61 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
       it { expect(batch_operation.seen_at).to eq(nil) }
 
       it 'on next render "seen_at" is set to avoid rendering alert' do
-        render_inline(component).to_html
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
+        expect(batch_operation.seen_at).not_to eq(nil)
+      end
+    end
+  end
+
+  describe 'create avis' do
+    let(:component) do
+      described_class.new(
+        batch: batch_operation,
+        procedure: procedure
+      )
+    end
+    let!(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+    let!(:dossier_2) { create(:dossier, :en_instruction, procedure: procedure) }
+    let!(:batch_operation) { create(:batch_operation, operation: :create_avis, dossiers: [dossier, dossier_2], instructeur: instructeur) }
+
+    context 'in_progress' do
+      before {
+         batch_operation.track_processed_dossier(true, dossier)
+         batch_operation.reload
+       }
+
+      it { is_expected.to have_selector('.fr-alert--info') }
+      it { is_expected.to have_text("Une action de masse est en cours") }
+      it { is_expected.to have_text("Des demandes d’avis sont en cours d’envoi pour 1/2 dossier") }
+    end
+
+    context 'finished and success' do
+      before {
+         batch_operation.track_processed_dossier(true, dossier)
+         batch_operation.track_processed_dossier(true, dossier_2)
+         batch_operation.reload
+       }
+
+      it { is_expected.to have_selector('.fr-alert--success') }
+      it { is_expected.to have_text("L’action de masse est terminée") }
+      it { is_expected.to have_text("Des demandes d’avis ont été envoyées pour 2/2 dossiers") }
+      it { expect(batch_operation.seen_at).to eq(nil) }
+    end
+
+    context 'finished and fail' do
+      before {
+        batch_operation.track_processed_dossier(false, dossier)
+        batch_operation.track_processed_dossier(true, dossier_2)
+        batch_operation.reload
+      }
+
+      it { is_expected.to have_selector('.fr-alert--warning') }
+      it { is_expected.to have_text("L’action de masse est terminée") }
+      it { is_expected.to have_text("Des demandes d’avis ont été envoyées pour 1/2 dossier") }
+      it { expect(batch_operation.seen_at).to eq(nil) }
+
+      it 'on next render "seen_at" is set to avoid rendering alert' do
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
         expect(batch_operation.seen_at).not_to eq(nil)
       end
     end
@@ -504,7 +567,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
       it { expect(batch_operation.seen_at).to eq(nil) }
 
       it 'on next render "seen_at" is set to avoid rendering alert' do
-        render_inline(component).to_html
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
         expect(batch_operation.seen_at).not_to eq(nil)
       end
     end
@@ -558,7 +621,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
       it { expect(batch_operation.seen_at).to eq(nil) }
 
       it 'on next render "seen_at" is set to avoid rendering alert' do
-        render_inline(component).to_html
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
         expect(batch_operation.seen_at).not_to eq(nil)
       end
     end
@@ -583,7 +646,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
 
       it { is_expected.to have_selector('.fr-alert--info') }
       it { is_expected.to have_text("Une action de masse est en cours") }
-      it { is_expected.to have_text("1/2 dossiers ont été supprimés") }
+      it { is_expected.to have_text("1/2 dossiers ont été placés à la corbeille") }
     end
 
     context 'finished and success' do
@@ -595,7 +658,7 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
 
       it { is_expected.to have_selector('.fr-alert--success') }
       it { is_expected.to have_text("L’action de masse est terminée") }
-      it { is_expected.to have_text("2 dossiers ont été supprimés") }
+      it { is_expected.to have_text("2 dossiers ont été placés à la corbeille") }
       it { expect(batch_operation.seen_at).to eq(nil) }
     end
 
@@ -608,11 +671,11 @@ RSpec.describe Dossiers::BatchAlertComponent, type: :component do
 
       it { is_expected.to have_selector('.fr-alert--warning') }
       it { is_expected.to have_text("L’action de masse est terminée") }
-      it { is_expected.to have_text("1/2 dossiers ont été supprimés") }
+      it { is_expected.to have_text("1/2 dossiers ont été placés à la corbeille") }
       it { expect(batch_operation.seen_at).to eq(nil) }
 
       it 'on next render "seen_at" is set to avoid rendering alert' do
-        render_inline(component).to_html
+        render_inline(described_class.new(batch: batch_operation, procedure:)).to_html
         expect(batch_operation.seen_at).not_to eq(nil)
       end
     end

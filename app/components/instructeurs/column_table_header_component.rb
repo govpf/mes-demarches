@@ -1,47 +1,44 @@
 # frozen_string_literal: true
 
 class Instructeurs::ColumnTableHeaderComponent < ApplicationComponent
-  attr_reader :procedure_presentation, :column
-  # maybe extract a ColumnSorter class?
-  #
-
-  def initialize(procedure_presentation:, column:)
+  def initialize(procedure_presentation:)
     @procedure_presentation = procedure_presentation
-    @column = column
-  end
-
-  def column_id
-    column.id
-  end
-
-  def sorted_by_current_column?
-    procedure_presentation.sort['table'] == column.table &&
-    procedure_presentation.sort['column'] == column.column
-  end
-
-  def sorted_ascending?
-    current_sort_order == 'asc'
-  end
-
-  def sorted_descending?
-    current_sort_order == 'desc'
-  end
-
-  def aria_sort
-    if sorted_by_current_column?
-      if sorted_ascending?
-        { "aria-sort": "ascending" }
-      elsif sorted_descending?
-        { "aria-sort": "descending" }
-      end
-    else
-      {}
-    end
+    @columns = procedure_presentation.displayed_fields_for_headers
+    @sorted_column = procedure_presentation.sorted_column
   end
 
   private
 
-  def current_sort_order
-    procedure_presentation.sort['order']
+  def classname(column)
+    return 'number-col' if column.dossier_id?
+    return 'sva-col' if column.column == 'sva_svr_decision_on'
+  end
+
+  def column_header(column)
+    id = column.id
+    order = opposite_order_for(column)
+
+    button_to(
+      label_and_arrow(column),
+      [:instructeur, @procedure_presentation],
+      params: { sorted_column: { id: id, order: order } },
+      class: 'fr-text--bold'
+    )
+  end
+
+  def opposite_order_for(column)
+    @sorted_column.column == column ? @sorted_column.opposite_order : 'asc'
+  end
+
+  def label_and_arrow(column)
+    return column.label if @sorted_column.column != column
+
+    @sorted_column.ascending? ? "#{column.label} ↑" : "#{column.label} ↓"
+  end
+
+  def aria_sort(column)
+    return {} if @sorted_column.column != column
+
+    @sorted_column.ascending? ? { "aria-sort": "ascending" } : { "aria-sort": "descending" }
   end
 end

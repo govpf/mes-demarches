@@ -18,9 +18,9 @@ import {
 } from '../../shared/maplibre/utils';
 import {
   SOURCE_SELECTION_UTILISATEUR,
-  CreateFeatures,
-  UpdateFatures,
-  DeleteFeatures
+  type CreateFeatures,
+  type UpdateFatures,
+  type DeleteFeatures
 } from '../hooks';
 
 export function DrawLayer({
@@ -37,7 +37,7 @@ export function DrawLayer({
   enabled: boolean;
 }) {
   const map = useMapLibre();
-  const drawRef = useRef<DrawControl | null>();
+  const drawRef = useRef<DrawControl | null>(null);
 
   useEffect(() => {
     if (!drawRef.current && enabled) {

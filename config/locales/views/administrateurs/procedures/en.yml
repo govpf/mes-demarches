@@ -1,6 +1,11 @@
 en:
   administrateurs:
     procedures:
+      api_champ_columns:
+        title: 'Informations complementary to the field %{type_de_champ}'
+        hint_html: |
+          The following data is automatically retrieved via API and displayed in files or exports.
+          <strong>No need to ask the user for this information in other fields!</strong>
       close:
         page_title: Close the procedure
         replacement_procedure_callout_title: You are about to close a procedure
@@ -71,11 +76,73 @@ en:
         dpd_part_polynesie_body: "Hi%0AWould it be possible to get feedbacks on procedure %{id} available on %{path}%0AThanks in advance."
         back_to_procedure: 'Cancel and return to the procedure page'
         submit: Publish
+      technical_issues: "Issues are affecting the proper functioning of the process"
       check_path:
         path_not_available:
-          owner: This URL is identical to another of your published procedures. If you publish this procedure, the old one will be unpublished and will no longer be accessible to the public.
+          owner: This URL is identical to another of your published procedures. If you publish this procedure, the URL will no longer point to the old procedure.
           not_owner: This URL is identical to another procedure, you must modify it.
       unpublished_changes_sticky_header:
         intro_html: Changes made will only be visible <strong>after the next publication</strong>
         see_changes: View changes
         publish_changes: Publish changes
+      clone:
+        title: Clone a procedure
+        info: All procedure parameters will remain modifiable after cloning.
+        rename_title: Rename your procedure
+        configurate_title: Choose the procedure parameters you want to keep when cloning
+        types_de_champ_public: Form fields
+        types_de_champ_private: Private annotations
+        types_de_champ_count:
+          zero: No field
+          one: "%{count} field"
+          other: "%{count} fields"
+        administrateurs: Administrators
+        administrateurs_count:
+          one: "%{count} administrator"
+          other: "%{count} administrators"
+        instructeurs: Instructors
+        instructeurs_count:
+          zero: No instructor
+          one: "%{count} instructor"
+          other: "%{count} instructors"
+        attestation_template: Certificate of acceptance of the file
+        attestation_template_hint: Activated
+        zones: Zones
+        service: Service
+        instructeurs_self_management:
+          true: "- Self-management activated"
+          false: "- Self-management deactivated"
+        routing_enabled:
+          true: "- Routing activated"
+          false: "- Routing deactivated"
+        ineligibilite: Ineligibility of files
+        ineligibilite_hint: Enabled
+        monavis_embed: MonAvis button
+        monavis_embed_hint: "Code generated on MonAvis website : %{code}"
+        dossier_submitted_message: End of submission
+        dossier_submitted_message_hint: "(Custom message) %{message}"
+        accuse_lecture: Acknowledgment of receipt of the decision
+        accuse_lecture_hint: Enabled
+        api_entreprise_token: API company token
+        api_entreprise_token_hint: Configured token
+        mail_templates: Email configuration
+        mail_templates_hint: Content of the automatic emails
+        sva_svr: Silence is Worth Agreement or Rejection
+        sva_svr_hint:
+          sva: SVA enabled
+          svr: SVR enabled
+        sva_svr_period: "- After %{period}"
+        sva_svr_unit_labels:
+          months: months
+          weeks: weeks
+          days: days
+        avis: External opinions
+        avis_hint: Enabled - External opinions management with predefined list
+        labels: Labels
+        labels_count:
+          one: "%{count} label"
+          other: "%{count} labels"
+        actions:
+          clone: Clone the procedure
+          cancel: Cancel
+          disable_with: Cloning in progress

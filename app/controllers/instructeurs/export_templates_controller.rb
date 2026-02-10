@@ -5,16 +5,17 @@ module Instructeurs
     before_action :set_procedure_and_groupe_instructeurs
     before_action :set_export_template, only: [:edit, :update, :destroy]
     before_action :ensure_legitimate_groupe_instructeur, only: [:create, :update]
+    before_action :set_types_de_champ, only: [:new, :edit]
 
     def new
-      @export_template = ExportTemplate.default(groupe_instructeur: @groupe_instructeurs.first)
+      @export_template = export_template
     end
 
     def create
       @export_template = ExportTemplate.new(export_template_params)
 
       if @export_template.save
-        redirect_to [:exports, :instructeur, @procedure], notice: "Le modèle d'export #{@export_template.name} a bien été créé"
+        redirect_to [:export_templates, :instructeur, @procedure], notice: "Le modèle d'export #{@export_template.name} a bien été créé"
       else
         flash[:alert] = @export_template.errors.full_messages
         render :new
@@ -49,9 +50,30 @@ module Instructeurs
 
     private
 
+    def export_template = @export_template ||= ExportTemplate.default(groupe_instructeur: @groupe_instructeurs.first, kind:)
+
+    def kind = params[:kind] == 'zip' ? 'zip' : 'xlsx'
+
+    def set_types_de_champ
+      if export_template.tabular?
+        @types_de_champ_public = @procedure.all_revisions_types_de_champ(parent: nil, with_header_section: true).public_only
+        @types_de_champ_private = @procedure.all_revisions_types_de_champ(parent: nil, with_header_section: true).private_only
+      end
+    end
+
     def export_template_params
-      params.require(:export_template)
-        .permit(:name, :kind, :groupe_instructeur_id, dossier_folder: [:enabled, :template], export_pdf: [:enabled, :template], pjs: [:stable_id, :enabled, :template])
+      params
+        .require(:export_template)
+        .permit(
+          :name,
+          :kind,
+          :groupe_instructeur_id,
+          dossier_folder: [:enabled, :template],
+          export_pdf: [:enabled, :template],
+          attestation: [:enabled, :template],
+          pjs: [:stable_id, :enabled, :template],
+          exported_columns: []
+        )
     end
 
     def set_procedure_and_groupe_instructeurs

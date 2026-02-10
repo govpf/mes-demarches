@@ -4,22 +4,25 @@ module AddressableColumnConcern
   extend ActiveSupport::Concern
 
   included do
-    def columns(displayable: true, prefix: nil)
-      super.concat([
-        ["code postal (5 chiffres)", ['postal_code'], :text],
-        ["commune", ['city_name'], :text],
-        ["département", ['departement_code'], :enum],
-        ["region", ['region_name'], :enum]
-      ].map do |(label, value_column, type)|
+    def addressable_columns(procedure:, displayable: true, prefix: nil)
+      [
+        ["Code postal (5 chiffres)", '$.postal_code', :text, []],
+        ["Commune", '$.city_name', :text, []],
+        ["Département", '$.department_code', :enum, APIGeoService.departement_options],
+        ["Région", '$.region_name', :enum, APIGeoService.region_options]
+      ].map do |(label, jsonpath, type, options_for_select)|
         Columns::JSONPathColumn.new(
-          table: Column::TYPE_DE_CHAMP_TABLE,
-          column: stable_id,
+          procedure_id: procedure.id,
+          stable_id:,
+          tdc_type: type_champ,
           label: "#{libelle_with_prefix(prefix)} – #{label}",
-          displayable: false,
+          jsonpath:,
+          displayable:,
+          options_for_select:,
           type:,
-          value_column:
+          mandatory: mandatory?
         )
-      end)
+      end
     end
   end
 end

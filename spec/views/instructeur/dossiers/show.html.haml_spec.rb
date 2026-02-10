@@ -3,17 +3,31 @@
 describe 'instructeurs/dossiers/show', type: :view do
   let(:current_instructeur) { create(:instructeur) }
   let(:dossier) { create(:dossier, :en_construction) }
+  let(:statut) { { statut: 'tous' } }
+  let(:procedure_presentation) { double(instructeur: current_instructeur, procedure: dossier.procedure, displayed_columns: []) }
+  let(:notifications) { [] }
+  let(:notifications_sticker) { { demande: false, annotations_instructeur: false, avis_externe: false, messagerie: false } }
 
   before do
     sign_in(current_instructeur.user)
     allow(view).to receive(:current_instructeur).and_return(current_instructeur)
+    allow(controller).to receive(:params).and_return(statut:)
     assign(:dossier, dossier)
+    assign(:procedure_presentation, procedure_presentation)
+    assign(:notifications, notifications)
+    assign(:notifications_sticker, notifications_sticker)
   end
 
   subject { render }
 
   it 'renders the header' do
     expect(subject).to have_text("Dossier nº #{dossier.id}")
+  end
+
+  context 'when procedure statut / page was saved in session' do
+    it 'renders back button with saved state' do
+      expect(subject).to have_selector("a[href=\"#{instructeur_procedure_path(dossier.procedure, statut: statut)}\"]")
+    end
   end
 
   it 'renders the dossier infos' do
@@ -26,25 +40,32 @@ describe 'instructeurs/dossiers/show', type: :view do
   end
 
   context 'en_construction' do
+    let!(:instructeur) { create(:instructeur) }
     let(:dossier) { create(:dossier, :en_construction) }
+
     it 'displays the correct actions' do
       within("form[action=\"#{passer_en_instruction_instructeur_dossier_path(dossier.procedure, dossier)}\"]") do
         expect(subject).to have_button('Passer en instruction', disabled: false)
       end
       within("form[action=\"#{follow_instructeur_dossier_path(dossier.procedure, dossier)}\"]") do
-        expect(subject).to have_button('Suivre le dossier')
+        expect(subject).to have_button('Suivre')
       end
       expect(subject).to have_button('Demander une correction')
       expect(subject).to have_selector('.header-actions ul:first-child > li.instruction-button', count: 1)
     end
 
     context 'with pending correction' do
-      before { create(:dossier_correction, dossier:) }
+      let!(:notification) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: 'attente_correction') }
+
+      before do
+        create(:dossier_correction, dossier:)
+        assign(:notifications, [notification])
+      end
 
       it { expect(subject).to have_button('Passer en instruction', disabled: false) }
 
       it 'shows the correction badge' do
-        expect(subject).to have_selector('.fr-badge--warning', text: "en attente")
+        expect(subject).to have_selector('.fr-badge', text: "En attente de correction")
       end
 
       context 'with procedure blocking pending correction' do
@@ -58,10 +79,12 @@ describe 'instructeurs/dossiers/show', type: :view do
     end
 
     context 'with resolved correction' do
-      before { create(:dossier_correction, dossier:, resolved_at: 1.minute.ago) }
+      let!(:notification) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: 'dossier_modifie') }
+
+      before { assign(:notifications, [notification]) }
 
       it 'shows the resolved badge' do
-        expect(subject).to have_selector('.fr-badge--success', text: "corrigé")
+        expect(subject).to have_selector('.fr-badge--new', text: "Dossier modifié")
       end
     end
   end
@@ -82,7 +105,7 @@ describe 'instructeurs/dossiers/show', type: :view do
       expect(subject).to have_button('Repasser en construction')
       expect(subject).to have_selector('.en-construction-menu .fr-btn', count: 5)
 
-      expect(subject).to have_button('Instruire le dossier')
+      expect(subject).to have_button('Clôturer le dossier')
       expect(subject).to have_selector('.instruction-button .fr-btn', count: 13)
     end
   end
@@ -95,9 +118,9 @@ describe 'instructeurs/dossiers/show', type: :view do
         expect(subject).to have_button('Repasser en instruction')
       end
       within("form[action=\"#{archive_instructeur_dossier_path(dossier.procedure, dossier)}\"]") do
-        expect(subject).to have_button('Archiver le dossier')
+        expect(subject).to have_button('Replacer dans“traités“')
       end
-      expect(subject).to have_selector('[title^="Supprimer le dossier"]')
+      expect(subject).to have_selector('[title^="Mettre à la corbeille"]')
       expect(subject).to have_selector('.header-actions ul:first-child .fr-btn', count: 3)
     end
   end
@@ -122,6 +145,8 @@ describe 'instructeurs/dossiers/show', type: :view do
     let(:procedure) { create(:procedure, :published, duree_conservation_dossiers_dans_ds: 6, procedure_expires_when_termine_enabled: true) }
     let!(:dossier) { create(:dossier, state: :accepte, procedure: procedure, processed_at: 175.days.ago) }
 
+    before { dossier.update_expired_at }
+
     it 'displays the correct actions' do
       expect(subject).to have_text('Conserver un mois de plus')
       within("form[action=\"#{repasser_en_instruction_instructeur_dossier_path(dossier.procedure, dossier)}\"]") do
@@ -138,7 +163,7 @@ describe 'instructeurs/dossiers/show', type: :view do
       within("form[action=\"#{unarchive_instructeur_dossier_path(dossier.procedure, dossier)}\"]") do
         expect(subject).to have_button('Désarchiver le dossier')
       end
-      expect(subject).to have_selector('[title^="Supprimer le dossier"]')
+      expect(subject).to have_selector('[title^="Mettre à la corbeille"]')
       expect(subject).to have_selector('.header-actions ul:first-child .fr-btn', count: 2)
     end
   end
@@ -154,7 +179,7 @@ describe 'instructeurs/dossiers/show', type: :view do
     end
 
     it 'fills the individual with the informations from France Connect' do
-      expect(view.content_for(:notice_info)).to have_text("Le dossier a été déposé par le compte de #{france_connect_information.given_name} #{france_connect_information.family_name}, authentifié par FranceConnect le #{france_connect_information.updated_at.strftime('%d/%m/%Y')}")
+      expect(view.content_for(:notice_info)).to have_text("Le dossier a été déposé par le compte de #{france_connect_information.given_name} #{france_connect_information.family_name}, authentifié par FranceConnect le #{I18n.l(france_connect_information.updated_at.to_date)}")
     end
   end
 
@@ -215,6 +240,46 @@ describe 'instructeurs/dossiers/show', type: :view do
 
     it 'displays a link to header_section' do
       expect(subject).to have_selector('a.fr-sidemenu__link', text: 'l1')
+    end
+  end
+
+  describe "Dossier labels" do
+    let(:procedure) { create(:procedure, :with_labels) }
+    let(:dossier) { create(:dossier, :en_construction, procedure:) }
+
+    context "Procedure without labels" do
+      let(:procedure_without_labels) { create(:procedure) }
+      let(:dossier) { create(:dossier, :en_construction, procedure: procedure_without_labels) }
+      it 'does not display button to add label or dropdown' do
+        expect(subject).not_to have_text("Ajouter un label")
+        expect(subject).not_to have_text("À examiner")
+      end
+    end
+
+    context "Dossier without labels" do
+      it 'displays button with text to add label' do
+        expect(subject).to have_text("Ajouter un label")
+        expect(subject).to have_selector("button.dropdown-button")
+        expect(subject).to have_text("À examiner", count: 1)
+        within('.dropdown') do
+          expect(subject).to have_text("À examiner", count: 1)
+        end
+      end
+    end
+
+    context "Dossier with labels" do
+      before do
+        DossierLabel.create(dossier_id: dossier.id, label_id: dossier.procedure.labels.first.id)
+      end
+
+      it 'displays labels and button without text to add label' do
+        expect(subject).not_to have_text("Ajouter un label")
+        expect(subject).to have_selector("button.dropdown-button")
+        expect(subject).to have_text("À examiner", count: 2)
+        within('.dropdown') do
+          expect(subject).to have_text("À examiner", count: 1)
+        end
+      end
     end
   end
 end

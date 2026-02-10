@@ -41,11 +41,10 @@ module ApplicationHelper
 
     case level
     when 'notice'
-      class_names << 'alert-success'
+      class_names << 'alert-success fr-icon-success-line fr-icon--sm fr-text--sm fr-mb-0'
     when 'alert', 'error'
-      class_names << 'alert-danger'
+      class_names << 'alert-danger fr-icon-error-line fr-icon--sm fr-text--sm fr-mb-0'
     end
-
     if sticky
       class_names << 'sticky'
     end
@@ -114,11 +113,30 @@ module ApplicationHelper
     datetime.present? ? I18n.l(datetime, format:) : ''
   end
 
+  def try_parse_format_date(date)
+    date.then { Date.parse(_1) rescue nil }&.then { I18n.l(_1) }
+  end
+
   def try_format_mois_effectif(etablissement)
     if etablissement.entreprise_effectif_mois.present? && etablissement.entreprise_effectif_annee.present?
       [etablissement.entreprise_effectif_mois, etablissement.entreprise_effectif_annee].join('/')
     else
       ''
+    end
+  end
+
+  def human_date(date)
+    today = Date.current
+
+    case date
+    when today
+      I18n.t('dates.today')
+    when today - 1
+      I18n.t('dates.yesterday')
+    when (today - 6)..(today - 2)
+      I18n.t('dates.days_ago', count: (today - date).to_i)
+    else
+      I18n.l(date, format: :long)
     end
   end
 
@@ -154,4 +172,31 @@ module ApplicationHelper
   end
 
   def asterisk = render(EditableChamp::AsteriskMandatoryComponent.new)
+
+  def add_pdf_draft_warning(pdf, dossier)
+    return unless dossier.revision.draft?
+
+    pdf.pad_top(20) do
+      pdf.fill_color "AA3300"
+      pdf.font 'marianne', style: :bold, size: 12 do
+        pdf.text "DÉMARCHE EN TEST"
+      end
+
+      pdf.font 'marianne', size: 10 do
+        pdf.text "Ce dossier est déposé sur une démarche en test par l’administration."
+        pdf.text "Il peut être supprimé à tout moment et sans préavis, même après avoir été accepté."
+      end
+      pdf.fill_color "000000"
+    end
+  end
+
+  # pf: sanitization HTML spécifique pour attestation v2
+  def attestation_v2_sanitize(html)
+    config = Rails.application.config.attestation_v2
+    ActionController::Base.helpers.sanitize(
+      html,
+      tags: config[:allowed_tags],
+      attributes: config[:allowed_attributes]
+    )
+  end
 end

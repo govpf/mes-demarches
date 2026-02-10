@@ -37,10 +37,7 @@ class ActiveStorage::DownloadableFile
   private
 
   def self.client
-    credentials = Rails.application.config.active_storage
-      .service_configurations['openstack']['credentials']
-
-    Fog::OpenStack::Storage.new(credentials)
+    ActiveStorage::Blob.service.send(:client)
   end
 
   def self.bill_and_path(bill)

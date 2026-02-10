@@ -17,11 +17,11 @@
       .fr-mb-6w
         = render Dsfr::AlertComponent.new(state: :info, title: "Nouvel éditeur d’attestation", heading_level: 'h3') do |c|
           - c.with_body do
-            %p Cette page présente un nouvel éditeur d'attestations, plus flexible et conforme à la charte de l'État.
+            %p Cette page présente un nouvel éditeur d'attestations, plus flexible et conforme à la charte du Pays.
             %p
               %strong Pour modifier l’attestation existante (actuellement délivrée aux usagers),
               = link_to("cliquez ici", edit_admin_procedure_attestation_template_path(@procedure)) + "."
-            %p Pour générer une attestation à la charte de l‘État, créez-la ci-dessous puis publiez-la: elle remplacera alors l’attestation actuelle.
+            %p Pour générer une attestation à la charte de l’État, créez-la ci-dessous puis publiez-la: elle remplacera alors l’attestation actuelle.
 
 
     .fr-grid-row.fr-grid-row--gutters
@@ -50,7 +50,7 @@
             .fr-toggle.fr-toggle--label-left
               = f.check_box :official_layout, class: "fr-toggle__input", id: dom_id(@attestation_template, :official_layout), data: { "attestation-target": "layoutToggle"}
               %label.fr-toggle__label{ for: dom_id(@attestation_template, :official_layout), data: { fr_checked_label: "Oui", fr_unchecked_label: "Non" } }
-                Je souhaite générer une attestation à la charte de l’état (logo avec Marianne)
+                Je souhaite générer une attestation à la charte du Pays
 
           .fr-fieldset__element{ class: class_names("hidden" => !@attestation_template.official_layout?), data: { "attestation-target": 'logoMarianneLabelFieldset'} }
             = render Dsfr::InputComponent.new(form: f, attribute: :label_logo, input_type: :text_area, required: @attestation_template.official_layout?, opts: { rows: 3, data: { controller: :textarea, textarea_max_rows_value: 5 } }) do |c|
@@ -128,7 +128,7 @@
             = link_to("créez-vous un dossier", new_dossier_path(procedure_id: @procedure, brouillon: true), **external_link_attributes)
             et acceptez-le : l’aperçu l’utilisera.
 
-  - if @procedure.feature_enabled?(:attestation_v2) && @attestation_template.draft?
+  - if @attestation_template.draft?
     - content_for(:sticky_header) do
       = render partial: "sticky_header"
 

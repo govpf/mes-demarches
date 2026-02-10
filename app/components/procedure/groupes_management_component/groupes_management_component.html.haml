@@ -1,50 +1,74 @@
 - content_for(:title, 'Groupes')
-%h1 Gestion des groupes
+%h1.fr-h2 Gestion des groupes
+
+= render Procedure::ImportComponent.new(procedure: @procedure)
+
+= link_to ajout_admin_procedure_groupe_instructeurs_path(@procedure), class: 'fr-btn fr-btn--primary fr-icon-add-line fr-btn--icon-left fr-mb-3w' do
+  Ajouter un groupe
 
 = render Procedure::GroupesSearchComponent.new(procedure: @procedure,
   query: @query,
   to_configure_count: @procedure.groupe_instructeurs.filter(&:routing_to_configure?).count,
   to_configure_filter: @to_configure_filter)
 
+.flex.justify-between.align-baseline
+  .title.font-weight-bold= table_header
+  = button_to export_groupe_instructeurs_admin_procedure_groupe_instructeurs_path(@procedure, format: :csv), method: :get, class: 'fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line' do
+    Exporter la liste (.csv)
+
 .fr-table.fr-table--no-caption.fr-table--layout-fixed.fr-mt-2w
-  %table
-    %caption= table_header
-    %thead
-      %tr
-        %th{ scope: "col" }
-          .flex
-            .flex.auto= table_header
-    %tbody
-      - @groupe_instructeurs.each do |gi|
-        %tr
-          %td
-            .flex
-              .flex.auto
-                = link_to admin_procedure_groupe_instructeur_path(@procedure, gi), class: 'fr-link' do
-                  %span= gi.label
-                - if gi.closed
-                  %p.fr-badge.fr-badge--info.fr-badge--sm.fr-ml-1w inactif
-                - elsif gi.invalid_rule?
-                  %p.fr-badge.fr-badge--warning.fr-badge--sm.fr-ml-1w règle invalide
-                - elsif gi.non_unique_rule?
-                  %p.fr-badge.fr-badge--warning.fr-badge--sm.fr-ml-1w règle déjà attribuée à #{gi.groups_with_same_rule}
+  .fr-table__wrapper
+    .fr-table__container
+      .fr-table__content
+        %table
+          %caption= table_header
+          %thead
+            %tr
+              %th.fr-col-9{ scope: 'col' }
+                Groupes
+              %th.fr-col-1{ scope: 'col' }
+                Dossiers
+              %th.fr-col-2.fr-cell--right{ scope: 'col' }
+                Instructeurs
+          %tbody
+            - @groupe_instructeurs.each do |gi|
+              %tr
+                %td.fr-cell--multiline{ scope: 'col' }
+                  = link_to admin_procedure_groupe_instructeur_path(@procedure, gi), class: 'fr-link' do
+                    %span= gi.label
+                  %p= gi.routing_rule&.to_s(@procedure.active_revision.types_de_champ)
+                  - if gi.closed
+                    %p.fr-badge.fr-badge--info.fr-badge--sm.fr-mt-1w inactif
+                  - elsif gi.routing_rule.nil?
+                    %p.fr-badge.fr-badge--warning.fr-badge--sm.fr-mt-1w aucune règle
+                  - elsif gi.invalid_rule?
+                    %p.fr-badge.fr-badge--warning.fr-badge--sm.fr-mt-1w règle invalide
+                  - elsif gi.non_unique_rule?
+                    %p.fr-badge.fr-badge--warning.fr-badge--sm.fr-mt-1w règle déjà attribuée à #{gi.groups_with_same_rule}
 
-              %span.fr-mr-1w
-                #{gi.dossiers.visible_by_administration.size}
-              %span.fr-icon.fr-icon-folder-2-line.fr-mr-2w{ style: 'width: 25px; text-align: center;' }
-              %span.fr-mr-1w
-                #{gi.instructeurs.count}
-              %span.fr-icon.fr-icon-user-line{ style: 'width: 25px; text-align: center;' }
-
-            %p= gi.routing_rule&.to_s(@procedure.active_revision.types_de_champ)
+                %td{ scope: 'col' }
+                  %span.fr-mr-1w
+                    #{gi.dossiers.visible_by_administration.size}
+                  %span.fr-icon.fr-icon-folder-2-line.fr-mr-2w{ style: 'width: 25px; text-align: center;' }
+                %td.fr-cell--right{ scope: 'col' }
+                  %span.fr-mr-1w
+                    #{gi.instructeurs.count}
+                  %span.fr-icon.fr-icon-user-line{ style: 'width: 25px; text-align: center;' }
 
   .fr-mt-1w
     = paginate @groupe_instructeurs
 
-= form_tag admin_procedure_update_defaut_groupe_instructeur_path,
+= form_for @procedure,
+  method: :patch,
+  url: admin_procedure_update_defaut_groupe_instructeur_path,
   class: 'fr-my-3w',
-  data: { controller: 'autosave' } do
+  data: { controller: 'autosubmit', turbo: 'true' } do
   = label_tag :defaut_groupe_instructeur_id, 'Et si aucune règle ne correspond, router vers :', class: 'fr-label'
   = select_tag :defaut_groupe_instructeur_id,
     options_for_select(@procedure.groupe_instructeurs.pluck(:label, :id), selected: @procedure.defaut_groupe_instructeur.id),
     class: 'fr-select'
+
+- if flash[:routing_mode] == 'custom'
+  = render partial: 'custom_routing_modal'
+- elsif flash[:routing_mode] == 'simple'
+  = render partial: 'simple_routing_modal', locals: { procedure: @procedure }

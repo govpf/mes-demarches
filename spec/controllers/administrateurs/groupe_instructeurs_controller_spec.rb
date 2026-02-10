@@ -293,10 +293,8 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
   end
 
   describe '#update_state' do
-    let(:closed_value) { '0' }
     let!(:procedure_non_routee) { create(:procedure, :published, :for_individual, administrateurs: [admin]) }
-    let!(:gi_1_1) { procedure_non_routee.defaut_groupe_instructeur }
-    let!(:gi_1_2) { procedure_non_routee.groupe_instructeurs.create(label: 'deuxième groupe') }
+    let!(:group) { procedure_non_routee.groupe_instructeurs.create(label: 'groupe_instructeur') }
 
     before do
       patch :update_state,
@@ -308,25 +306,23 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
       group.reload
     end
 
-    context 'when we try do disable the default groupe instructeur' do
-      let(:closed_value) { '1' }
-      let(:group) { gi_1_1 }
+    context 'when we try to enable a groupe instructeur' do
+      let(:closed_value) { '0' }
 
       it do
-        expect(subject).to redirect_to admin_procedure_groupe_instructeur_path(procedure_non_routee, gi_1_1)
-        expect(gi_1_1.closed).to eq(false)
-        expect(flash.alert).to eq('Il est impossible de désactiver le groupe d’instructeurs par défaut.')
+        expect(subject).to redirect_to admin_procedure_groupe_instructeur_path(procedure_non_routee, group)
+        expect(group.closed).to eq(false)
+        expect(flash.notice).to eq('Le groupe « groupe_instructeur » est activé.')
       end
     end
 
-    context 'when we try do disable the second groupe instructeur' do
+    context 'when we try to disable a groupe instructeur' do
       let(:closed_value) { '1' }
-      let(:group) { gi_1_2 }
 
       it do
-        expect(subject).to redirect_to admin_procedure_groupe_instructeur_path(procedure_non_routee, gi_1_2)
-        expect(gi_1_2.closed).to eq(true)
-        expect(flash.notice).to eq('Le groupe deuxième groupe est désactivé.')
+        expect(subject).to redirect_to admin_procedure_groupe_instructeur_path(procedure_non_routee, group)
+        expect(group.closed).to eq(true)
+        expect(flash.notice).to eq('Le groupe « groupe_instructeur » est désactivé.')
       end
     end
   end
@@ -343,7 +339,7 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
     context 'when all emails are valid' do
       let(:emails) { ['test@b.gouv.fr', 'test2@b.gouv.fr'] }
       it do
-        expect(subject).to render_template(:index)
+        expect(subject).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure_non_routee))
         expect(subject.request.flash[:alert]).to be_nil
         expect(subject.request.flash[:notice]).to be_present
       end
@@ -352,7 +348,7 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
     context 'when there is at least one bad email' do
       let(:emails) { ['badmail', 'instructeur2@gmail.com'] }
       it do
-        expect(subject).to render_template(:index)
+        expect(subject).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure_non_routee))
         expect(subject.request.flash[:alert]).to be_present
         expect(subject.request.flash[:notice]).to be_present
       end
@@ -362,7 +358,7 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
       let(:instructeur) { create(:instructeur) }
       before { procedure_non_routee.groupe_instructeurs.first.add_instructeurs(emails: [instructeur.user.email]) }
       let(:emails) { [instructeur.email] }
-      it { expect(subject).to render_template(:index) }
+      it { expect(subject).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure_non_routee)) }
     end
 
     context 'when signed in admin comes from manager' do
@@ -403,7 +399,7 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
       it 'validates changes and responses' do
         expect(gi_1_2.instructeurs.pluck(:email)).to include(*new_instructeur_emails)
         expect(flash.notice).to be_present
-        expect(response).to render_template(:show)
+        expect(response).to redirect_to(admin_procedure_groupe_instructeur_path(procedure, gi_1_2))
         expect(procedure.routing_enabled?).to be_truthy
         expect(GroupeInstructeurMailer).to have_received(:notify_added_instructeurs).with(
           gi_1_2,
@@ -442,7 +438,10 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
     context 'of an instructeur already in the group' do
       let(:new_instructeur_emails) { [instructeur.email] }
       before { do_request }
-      it { expect(response).to render_template(:show) }
+      it do
+        expect(flash.alert).not_to be_present
+        expect(response).to redirect_to(admin_procedure_groupe_instructeur_path(procedure, gi_1_2))
+      end
     end
 
     context 'of badly formed email' do
@@ -450,14 +449,17 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
       before { do_request }
       it do
         expect(flash.alert).to be_present
-        expect(response).to render_template(:show)
+        expect(response).to redirect_to(admin_procedure_groupe_instructeur_path(procedure, gi_1_2))
       end
     end
 
     context 'of an empty string' do
       let(:new_instructeur_emails) { [''] }
       before { do_request }
-      it { expect(response).to render_template(:show) }
+      it do
+        expect(flash.alert).to be_present
+        expect(response).to redirect_to(admin_procedure_groupe_instructeur_path(procedure, gi_1_2))
+      end
     end
 
     context 'when connected as an administrateur from manager' do
@@ -625,6 +627,46 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
           expect(procedure.groupe_instructeurs.pluck(:label)).to match_array(["Auvergne-Rhône-Alpes", "Vendée", "défaut", "deuxième groupe"])
           expect(flash.notice).to be_present
           expect(flash.notice).to eq("La liste des instructeurs a été importée avec succès")
+          expect(GroupeInstructeurMailer).not_to have_received(:notify_added_instructeurs)
+          expect(InstructeurMailer).to have_received(:confirm_and_notify_added_instructeur).exactly(4).times
+        end
+      end
+
+      context 'when csv file is in iso 8859 format' do
+        let(:csv_file) { fixture_file_upload('spec/fixtures/files/groupe_iso_8859.csv', 'text/csv') }
+
+        before do
+          allow(GroupeInstructeurMailer).to receive(:notify_added_instructeurs)
+            .and_return(double(deliver_later: true))
+          allow(InstructeurMailer).to receive(:confirm_and_notify_added_instructeur)
+            .and_return(double(deliver_later: true))
+          subject
+        end
+
+        it 'works' do
+          expect(GroupeInstructeurMailer).not_to have_received(:notify_added_instructeurs)
+          expect(InstructeurMailer).to have_received(:confirm_and_notify_added_instructeur).exactly(4).times
+          expect(procedure.groupe_instructeurs.pluck(:label)).to match_array(["Marne", "Loire", "deuxième groupe", "défaut"])
+          expect(flash.notice).to be_present
+          expect(flash.notice).to eq("La liste des instructeurs a été importée avec succès")
+        end
+      end
+
+      context 'when csv file is in iso 8859 format with invalid characters' do
+        let(:csv_file) { fixture_file_upload('spec/fixtures/files/groupe_iso_8859_invalid_characters.csv', 'text/csv') }
+
+        before do
+          allow(GroupeInstructeurMailer).to receive(:notify_added_instructeurs)
+            .and_return(double(deliver_later: true))
+          allow(InstructeurMailer).to receive(:confirm_and_notify_added_instructeur)
+            .and_return(double(deliver_later: true))
+          subject
+        end
+
+        it 'works and keep special characters' do
+          expect(flash.notice).to be_present
+          expect(flash.notice).to eq("La liste des instructeurs a été importée avec succès")
+          expect(procedure.groupe_instructeurs.pluck(:label)).to match_array(["Auvergne-Rhône-Alpes", "Vendée", "deuxième groupe", "défaut"])
           expect(GroupeInstructeurMailer).not_to have_received(:notify_added_instructeurs)
           expect(InstructeurMailer).to have_received(:confirm_and_notify_added_instructeur).exactly(4).times
         end
@@ -873,7 +915,7 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
       it do
         expect(response).to have_http_status(:ok)
-        expect(response.body).to include('Choix du type de routage')
+        expect(response.body).to include('Choix du type de configuration')
         expect(procedure.reload.routing_enabled).to be_falsey
       end
     end
@@ -907,15 +949,17 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
       end
 
       let!(:drop_down_tdc) { procedure3.draft_revision.types_de_champ.first }
+      let!(:dossier) { create(:dossier, procedure: procedure3, state: :en_construction) }
 
       before { post :create_simple_routing, params: { procedure_id: procedure3.id, create_simple_routing: { stable_id: drop_down_tdc.stable_id } } }
 
       it do
         expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
-        expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
+        expect(flash[:routing_mode]).to eq 'simple'
         expect(procedure3.groupe_instructeurs.pluck(:label)).to match_array(['Paris', 'Lyon', 'Marseille'])
         expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_eq(champ_value(drop_down_tdc.stable_id), constant('Lyon')))
         expect(procedure3.routing_enabled).to be_truthy
+        expect(procedure3.routing_alert).to be_truthy
       end
     end
 
@@ -932,10 +976,11 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
       it do
         expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
-        expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
+        expect(flash[:routing_mode]).to eq 'simple'
         expect(procedure3.groupe_instructeurs.pluck(:label)).to include("01 – Ain")
         expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_eq(champ_value(departements_tdc.stable_id), constant('01')))
         expect(procedure3.routing_enabled).to be_truthy
+        expect(procedure3.routing_alert).to be_falsey
       end
     end
 
@@ -952,9 +997,29 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
       it do
         expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
-        expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
-        expect(procedure3.groupe_instructeurs.pluck(:label)).to include("01 – Guadeloupe")
-        expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_eq(champ_value(regions_tdc.stable_id), constant('01')))
+        expect(flash[:routing_mode]).to eq 'simple'
+        expect(procedure3.groupe_instructeurs.pluck(:label)).to include("Guadeloupe")
+        expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_eq(champ_value(regions_tdc.stable_id), constant('84')))
+        expect(procedure3.routing_enabled).to be_truthy
+      end
+    end
+
+    context 'with a pays type de champ' do
+      let!(:procedure3) do
+        create(:procedure,
+               types_de_champ_public: [{ type: :pays }],
+               administrateurs: [admin])
+      end
+
+      let!(:pays_tdc) { procedure3.draft_revision.types_de_champ.first }
+
+      before { post :create_simple_routing, params: { procedure_id: procedure3.id, create_simple_routing: { stable_id: pays_tdc.stable_id } } }
+
+      it do
+        expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
+        expect(flash[:routing_mode]).to eq 'simple'
+        expect(procedure3.groupe_instructeurs.pluck(:label)).to include("AD – Andorre")
+        expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_eq(champ_value(pays_tdc.stable_id), constant('AD')))
         expect(procedure3.routing_enabled).to be_truthy
       end
     end
@@ -972,7 +1037,7 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
       it do
         expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
-        expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
+        expect(flash[:routing_mode]).to eq 'simple'
         expect(procedure3.groupe_instructeurs.pluck(:label)).to include("01 – Ain")
         expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_in_departement(champ_value(communes_tdc.stable_id), constant('01')))
         expect(procedure3.routing_enabled).to be_truthy
@@ -992,7 +1057,7 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
       it do
         expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
-        expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
+        expect(flash[:routing_mode]).to eq 'simple'
         expect(procedure3.groupe_instructeurs.pluck(:label)).to include("01 – Ain")
         expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_in_departement(champ_value(epci_tdc.stable_id), constant('01')))
         expect(procedure3.routing_enabled).to be_truthy
@@ -1012,7 +1077,7 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
       it do
         expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
-        expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
+        expect(flash[:routing_mode]).to eq 'simple'
         expect(procedure3.groupe_instructeurs.pluck(:label)).to include("01 – Ain")
         expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_in_departement(champ_value(address_tdc.stable_id), constant('01')))
         expect(procedure3.routing_enabled).to be_truthy
@@ -1033,7 +1098,6 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
     it do
       expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
-      expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
       expect(procedure3.groupe_instructeurs.pluck(:label)).to include("Australes")
       expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_in_archipel(champ_value(commune_de_polynesie_tdc.stable_id), constant('Australes')))
       expect(procedure3.routing_enabled).to be_truthy
@@ -1053,7 +1117,6 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
     it do
       expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure3))
-      expect(flash.notice).to eq 'Les groupes instructeurs ont été ajoutés'
       expect(procedure3.groupe_instructeurs.pluck(:label)).to include("Australes")
       expect(procedure3.reload.defaut_groupe_instructeur.routing_rule).to eq(ds_in_archipel(champ_value(code_postal_de_polynesie_tdc.stable_id), constant('Australes')))
       expect(procedure3.routing_enabled).to be_truthy
@@ -1072,11 +1135,11 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
 
     let!(:drop_down_tdc) { procedure4.draft_revision.types_de_champ.first }
 
-    before { patch :wizard, params: { procedure_id: procedure4.id, choice: { state: 'routage_custom' } } }
+    before { patch :wizard, params: { procedure_id: procedure4.id, choice: { state: 'custom_routing' } } }
 
     it do
       expect(response).to redirect_to(admin_procedure_groupe_instructeurs_path(procedure4))
-      expect(procedure4.groupe_instructeurs.pluck(:label)).to match_array(['défaut', 'défaut bis'])
+      expect(procedure4.groupe_instructeurs.pluck(:label)).to match_array(['Groupe 1 (à renommer et configurer)', 'Groupe 2 (à renommer et configurer)'])
       expect(procedure4.reload.routing_enabled).to be_truthy
     end
   end
@@ -1098,6 +1161,34 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
     it do
       expect(response).to redirect_to(admin_procedure_groupe_instructeur_path(procedure, gi_1_1))
       expect(gi_1_1.signature).to be_attached
+    end
+  end
+
+  describe '#bulk_route' do
+    let!(:procedure) do
+      create(:procedure,
+             types_de_champ_public: [
+               { type: :drop_down_list, libelle: 'Votre ville', options: ['Paris', 'Lyon', 'Marseille'] },
+               { type: :text, libelle: 'Un champ texte' }
+             ],
+             administrateurs: [admin])
+    end
+
+    let!(:drop_down_tdc) { procedure.draft_revision.types_de_champ.first }
+    let!(:dossier1) { create(:dossier, :with_populated_champs, procedure: procedure, state: :en_construction) }
+    let!(:dossier2) { create(:dossier, :with_populated_champs, procedure: procedure, state: :en_construction) }
+    let!(:dossier3) { create(:dossier, :with_populated_champs, procedure: procedure, state: :accepte) }
+
+    before do
+      dossier1.champs.first.update(value: 'Paris')
+      dossier2.champs.first.update(value: 'Lyon')
+      dossier3.champs.first.update(value: 'Marseille')
+      post :create_simple_routing, params: { procedure_id: procedure.id, create_simple_routing: { stable_id: drop_down_tdc.stable_id } }
+      post :bulk_route, params: { procedure_id: procedure.id }
+    end
+
+    it 'routes only dossiers en construction or en instruction' do
+      expect(BulkRouteJob).to have_been_enqueued.with(procedure)
     end
   end
 end

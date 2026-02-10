@@ -37,19 +37,6 @@ RSpec.describe ReleaseNotesController, type: :controller do
       end
     end
 
-    describe 'acl' do
-      before { subject }
-      context 'user is normal' do
-        let(:user) { create(:user) }
-
-        it { is_expected.to be_redirection }
-      end
-
-      context 'no user' do
-        it { is_expected.to be_redirection }
-      end
-    end
-
     describe 'touch user announces_seen_at' do
       let(:user) { create(:user, administrateur: build(:administrateur)) }
 
@@ -73,6 +60,23 @@ RSpec.describe ReleaseNotesController, type: :controller do
         it 'does not touch announces_seen_at' do
           expect { subject }.not_to change { user.reload.announces_seen_at }
         end
+      end
+    end
+
+    describe 'links rendering in release notes' do
+      let(:user) { admin }
+      let!(:note_admin) { create(:release_note, categories: ['administrateur'], body: 'Un lien vers <a href="https://example.gouv.fr">example.gouv.fr</a>', released_on: Date.new(2023, 10, 15)) }
+
+      render_views
+      before do
+        get :index
+      end
+
+      it 'renders links with proper rel and target attributes' do
+        expect(response.body).to include('href="https://example.gouv.fr"')
+        expect(response.body).to include('rel="noreferrer noopener"')
+        expect(response.body).to include('target="_blank"')
+        expect(response.body).to include('title=')
       end
     end
   end

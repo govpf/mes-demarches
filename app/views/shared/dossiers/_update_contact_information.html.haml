@@ -1,28 +1,16 @@
-#contact_information
-  - service = dossier&.service || procedure.service
-  - if service.present?
+#contact_information.fr-text--xs
+  - service_or_contact_information = dossier&.service_or_contact_information || procedure.service
+  - if service_or_contact_information.present?
     %h3.fr-footer__top-cat= I18n.t('users.procedure_footer.managed_by.header')
-    .fr-footer__top-link.fr-pb-3w
-      %span{ lang: :fr }= service.pretty_nom
-      %div{ lang: :fr }
-        = render SimpleFormatComponent.new(service.adresse, class_names_map: {paragraph: 'fr-footer__content-desc'})
-  %h3.fr-footer__top-cat= I18n.t('users.procedure_footer.contact.header')
-  %ul.fr-footer__top-list
-    - if dossier.present? && dossier.messagerie_available?
-      %li
-        = link_to I18n.t('users.procedure_footer.contact.in_app_mail.link'), messagerie_dossier_path(dossier), class: 'fr-footer__link'
-    - elsif service.present?
-      %li
-        %span.fr-footer__top-link
-          = I18n.t('users.procedure_footer.contact.email.link')
-        = link_to service.email, "mailto:#{service.email}", class: "fr-footer__link"
-
-      - if service.telephone.present?
-        %li
-          %span.fr-footer__top-link
-            = I18n.t('users.procedure_footer.contact.phone.label')
-          = link_to I18n.t('users.procedure_footer.contact.phone.link', service_telephone: service.telephone), service.telephone_url, class: 'fr-footer__link'
-
-      - if service.horaires.present?
-        %li
-          = "#{I18n.t('users.procedure_footer.contact.schedule.prefix')}#{formatted_horaires(service.horaires)}"
+    %div{ lang: :fr }
+      = service_or_contact_information.pretty_nom
+      = render SimpleFormatComponent.new(service_or_contact_information.adresse, class_names_map: {paragraph: 'fr-text--xs'})
+  %h3.fr-footer__top-cat
+    - if dossier.present? && dossier.depose_at.present?
+      = I18n.t('help_dropdown.help_filled_dossier')
+    - elsif dossier.present?
+      = I18n.t('help_dropdown.help_brouillon_title')
+    - else
+      = I18n.t('help_dropdown.procedure_title')
+  - if service_or_contact_information.present?
+    = render Procedure::ServiceListContactComponent.new(service_or_contact_information: service_or_contact_information, dossier: dossier, footer: true)

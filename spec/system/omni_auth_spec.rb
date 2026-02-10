@@ -50,7 +50,12 @@ describe 'Omni Auth Connexion' do
               page.find("a[href='#{omniauth_path('google')}']").click
             end
 
-            scenario 'he is redirected to user dossiers page' do
+            scenario 'he is redirected to user dossiers page', js: true do
+              expect(page).to have_content("Choisissez votre adresse électronique de contact pour finaliser votre connexion")
+
+              find('label', text: "Oui, utiliser #{email} comme adresse électronique de contact").click
+              click_on 'Valider'
+
               expect(page).to have_content('Dossiers')
             end
           end
@@ -66,10 +71,15 @@ describe 'Omni Auth Connexion' do
               expect(page).to have_content('Fusion des comptes')
             end
 
-            scenario 'it merges its account' do
-              page.find('#it-is-mine').click
-              fill_in 'password', with: SECURE_PASSWORD
-              click_on I18n.t('omniauth.merge.button_merge')
+            scenario 'it merges its account', js: true do
+              find('label[for="it-is-mine"]').click
+
+              expect(page).to have_css('.fusion', visible: true, wait: 2)
+
+              within '.fusion' do
+                fill_in 'password', with: SECURE_PASSWORD
+                click_on 'Fusionner les comptes'
+              end
 
               expect(page).to have_content('Dossiers')
             end
@@ -77,7 +87,7 @@ describe 'Omni Auth Connexion' do
             scenario 'it uses another email that belongs to nobody' do
               page.find('#it-is-not-mine').click
               fill_in 'email', with: 'new_email@a.com'
-              click_on I18n.t('omniauth.merge.button_use_this_email')
+              click_on 'Utiliser cette adresse électronique'
 
               expect(page).to have_content('Dossiers')
             end
@@ -86,18 +96,16 @@ describe 'Omni Auth Connexion' do
               let!(:another_user) { create(:user, email: 'an_existing_email@a.com', password: SECURE_PASSWORD) }
 
               scenario 'it uses another email that belongs to another account' do
-                page.find('#it-is-not-mine').click
-                fill_in 'email', with: 'an_existing_email@a.com'
-                click_on I18n.t('omniauth.merge.button_use_this_email')
+                find('label[for="it-is-not-mine"]').click
 
-                expect(page).to have_css('#password-for-another-account', visible: true, wait: 2)
+                expect(page).to have_css('.new-account', visible: true)
 
-                within '#new-account-password-confirmation' do
-                  fill_in 'password', with: SECURE_PASSWORD
-                  click_on I18n.t('omniauth.merge.button_merge')
+                within '.new-account' do
+                  fill_in 'email', with: 'an_existing_email@a.com'
+                  click_on 'Utiliser cette adresse électronique'
                 end
 
-                expect(page).to have_content('Dossiers')
+                expect(page).to have_content('Nous venons de vous envoyer le mail de confirmation')
               end
             end
           end

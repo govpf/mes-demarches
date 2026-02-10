@@ -5,6 +5,25 @@ module Manager
     #
     # Administrate overrides
     #
+    def index
+      search = params[:search]
+      if search.present? && DossierSearchService.id_compatible?(search)
+        @deleted_dossier = DeletedDossier.find_by(dossier_id: search)
+      end
+
+      super
+    end
+
+    def show
+      dossier = Dossier.find(params[:id])
+
+      if dossier.editing_fork_origin_id.present?
+        fork_url = manager_dossier_url(dossier.editing_fork_origin)
+        flash[:alert] = "Ce dossier est un fork de #{view_context.link_to("Dossier ##{dossier.editing_fork_origin.id}", fork_url)}"
+      end
+
+      super
+    end
 
     # Override this if you have certain roles that require a subset
     # this will be used to set the records shown on the `index` action.
@@ -18,6 +37,12 @@ module Manager
       end
     end
 
+    def filter_resources(resources, search_term:)
+      return super if search_term.blank?
+
+      Dossier.where(id: search_term.strip.to_i)
+    end
+
     def transfer_edit
       @dossier = Dossier.find params[:id]
     end
@@ -25,7 +50,7 @@ module Manager
     def transfer
       transfer = DossierTransfer.create(email: params[:email], dossiers: [Dossier.find(params[:id])], from_support: true)
       if transfer.persisted?
-        flash[:success] = "Une invitation de transfert a été envoyée à #{params[:email]}"
+        flash[:notice] = "Une invitation de transfert a été envoyée à #{params[:email]}"
       else
         flash[:alert] = transfer.errors.full_messages.join("<br>")
       end

@@ -2,10 +2,9 @@
 
 source 'https://rubygems.org'
 
-gem 'rails', '~> 7.0.8' # allows update to security fixes at any time
+gem 'rails', '~> 7.1.5' # allows update to security fixes at any time
 
 gem 'aasm'
-gem 'acsv'
 gem 'active_model_serializers'
 gem 'activestorage-openstack'
 gem 'active_storage_validations'
@@ -25,7 +24,7 @@ gem 'charlock_holmes'
 gem 'chartkick'
 gem 'chunky_png'
 gem 'clamav-client', require: 'clamav/client'
-gem 'concurrent-ruby'
+gem "concurrent-ruby", "< 1.3.5" # force version to avoid https://github.com/rails/rails/pull/54264, should be removed after rails 7.2.x
 gem 'daemons'
 gem 'deep_cloneable' # Enable deep clone of active record models
 gem 'delayed_cron_job', require: false # Cron jobs
@@ -35,7 +34,7 @@ gem 'devise'
 gem 'devise-i18n'
 gem 'devise-two-factor'
 gem 'discard'
-gem 'dotenv-rails', require: 'dotenv/rails-now' # dotenv should always be loaded before rails
+gem 'dotenv-rails', require: 'dotenv/load' # dotenv should always be loaded before rails
 gem 'dry-monads'
 gem 'faraday-jwt'
 gem 'flipper'
@@ -48,9 +47,8 @@ gem 'geocoder'
 gem 'geo_coord', require: "geo/coord"
 gem 'gitlab-sidekiq-fetcher', require: 'sidekiq-reliable-fetch', git: 'https://github.com/demarches-simplifiees/reliable-fetch.git'
 gem 'gon'
-gem 'graphql', '2.0.24'
-gem 'graphql-batch', '0.5.1'
-gem 'graphql-rails_logger'
+gem 'graphql'
+gem 'graphql-batch'
 gem 'groupdate'
 gem 'haml-rails'
 gem 'hashie'
@@ -61,6 +59,7 @@ gem 'i18n-tasks', require: false
 gem 'iban-tools'
 gem 'image_processing'
 gem 'invisible_captcha'
+gem 'jsonpath'
 gem 'json_schemer'
 gem 'jwt'
 gem 'kaminari'
@@ -74,13 +73,17 @@ gem 'mini_magick'
 gem 'net-imap', require: false # See https://github.com/mikel/mail/pull/1439
 gem 'net-pop', require: false # same
 gem 'net-smtp', require: false # same
+gem 'oauth2'
+gem 'omniauth'
+gem "omniauth-rails_csrf_protection"
+gem "omniauth-rdv-service-public", git: "https://github.com/betagouv/rdv-service-public.git", branch: "production", glob: "lib/omniauth-rdv-service-public/omniauth-rdv-service-public.gemspec"
 gem 'openid_connect'
 gem 'parallel'
 gem 'parsby'
 gem 'pg'
 gem 'phonelib'
 # 'Cannot extract font' in acrobat https://github.com/prawnpdf/ttfunk/pull/104 ==> Stick to previous version
-gem 'prawn', '~> 2.4.0' # PDF Generation
+gem 'prawn', '2.4.0' # PDF Generation
 gem 'prawn-qrcode' # to generate qrcode in pdfs
 gem 'prawn-rails' # PDF Generation
 gem 'prawn-table'
@@ -103,13 +106,15 @@ gem 'sentry-rails'
 gem 'sentry-ruby'
 gem 'sentry-sidekiq'
 gem 'sib-api-v3-sdk'
-gem 'sidekiq'
-gem 'sidekiq-cron'
+gem 'sidekiq', '< 7.3' # 7.3 needs to migrate to sidekiq-cron 2.0
+gem 'sidekiq-cron', '< 2.0' # wait for a release without "keys command"
 gem 'skylight'
+gem 'smarter_csv'
 gem 'spreadsheet_architect'
 gem 'string-similarity'
 gem 'strong_migrations' # lint database migrations
 gem 'sys-proctable'
+gem 'ttfunk', '~> 1.7.0'
 gem 'turbo-rails'
 gem 'typhoeus'
 gem 'ulid-ruby', require: 'ulid'
@@ -153,20 +158,22 @@ group :development do
   gem 'rack-mini-profiler'
   gem 'rails-erd', require: false # generates `doc/database_models.pdf`
   gem 'rubocop', require: false
+  gem 'rubocop-capybara', require: false
+  gem 'rubocop-factory_bot', require: false
   gem 'rubocop-performance', require: false
   gem 'rubocop-rails', require: false
   gem 'rubocop-rspec', require: false
-  gem 'scss_lint', require: false
+  gem 'spring' # Spring speeds up development by keeping your application running in the background
+  gem 'spring-commands-rspec'
   gem 'stackprof'
   gem 'web-console'
 end
 
 group :development, :test do
+  gem 'drb' # strange dep required by rspec, should try to be removed after rails 7.2.x
   gem 'graphql-schema_comparator'
   gem 'irb'
   gem 'mina', require: false # Deploy
   gem 'rspec-rails'
   gem 'simple_xlsx_reader'
-  gem 'spring' # Spring speeds up development by keeping your application running in the background
-  gem 'spring-commands-rspec'
 end

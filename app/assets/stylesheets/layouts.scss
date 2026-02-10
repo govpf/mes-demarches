@@ -1,14 +1,20 @@
-@import "colors";
-@import "constants";
-@import "placeholders";
+@import 'colors';
+@import 'constants';
+@import 'placeholders';
 
 .two-columns {
-
   @media (min-width: $two-columns-breakpoint) {
-    background: linear-gradient(to right, transparent 0%, transparent 50%, var(--background-alt-blue-france) 50%, var(--background-alt-blue-france) 100%);
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      transparent 50%,
+      var(--background-alt-blue-france) 50%,
+      var(--background-alt-blue-france) 100%
+    );
   }
 
   .columns-container {
+    // TODO: https://github.com/betagouv/demarches-simplifiees.fr/issues/7882, once implemented, we won't need container anymore
     @extend %container;
     max-width: 100%;
     display: flex;
@@ -28,9 +34,9 @@
   .column {
     width: 100%;
     margin: 0 auto;
-    padding: ($default-padding * 2) $default-padding ($default-padding * 2) $default-padding;
+    padding: ($default-padding * 2) $default-padding ($default-padding * 2)
+      $default-padding;
     position: relative;
-
 
     @media (min-width: $two-columns-breakpoint) {
       padding: ($default-padding * 2) 2% 0 2%;
@@ -52,7 +58,13 @@
   @extend .two-columns;
 
   @media (min-width: $two-columns-breakpoint) {
-    background: linear-gradient(to right, transparent 0%, transparent 66%, var(--background-alt-blue-france) 33%, var(--background-alt-blue-france) 100%);
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      transparent 66%,
+      var(--background-alt-blue-france) 33%,
+      var(--background-alt-blue-france) 100%
+    );
   }
 }
 
@@ -74,7 +86,6 @@
   }
 }
 
-
 .one-column-centered {
   margin: auto;
   max-width: $page-width / 2;
@@ -86,22 +97,29 @@
 
 .sticky--top {
   position: sticky;
-  // scss-lint:disable VendorPrefix
   position: -webkit-sticky; // This is needed on Safari (tested on 12.1)
-  // scss-lint:enable VendorPrefix
   top: 1rem;
 }
 
 .sticky--bottom {
   position: sticky;
-  // scss-lint:disable VendorPrefix
   position: -webkit-sticky; // This is needed on Safari (tested on 12.1)
-  // scss-lint:enable VendorPrefix
   bottom: 0;
 
   z-index: 10; // above DSFR btn which are at 1
 }
 
 html.scroll-margins-for-sticky-footer {
-  scroll-padding: 0 0 100px 0;
+  scroll-padding-top: 3.5rem;
+  @media (max-width: $two-columns-breakpoint) {
+    scroll-padding-bottom: 9.5rem;
+    // 9.5rem = padding-top + text height + button height + line-height + padding-bottom + empty space
+    // 9.5rem = 0.5 + 1.5✕2 + 2.5 + 1 + 0.5 + 2
+  }
+
+  @media (min-width: $two-columns-breakpoint) {
+    scroll-padding-bottom: 6.5rem;
+    // 6.5rem = padding-top + height + padding-bottom + empty space
+    // 6.5rem = 1 + 2.5 + 1 + 2
+  }
 }

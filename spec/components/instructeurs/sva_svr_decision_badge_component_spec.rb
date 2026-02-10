@@ -10,7 +10,7 @@ RSpec.describe Instructeurs::SVASVRDecisionBadgeComponent, type: :component do
 
   context 'with dossier object' do
     subject do
-      render_inline(described_class.new(projection_or_dossier: dossier, procedure:, with_label:))
+      render_inline(described_class.new(dossier:, procedure:, with_label:))
     end
 
     let(:title) { subject.at_css("span")["title"] }
@@ -18,7 +18,7 @@ RSpec.describe Instructeurs::SVASVRDecisionBadgeComponent, type: :component do
     context 'dossier en instruction' do
       let(:dossier) { create(:dossier, :en_instruction, procedure:, sva_svr_decision_on: Date.new(2023, 9, 5)) }
       it { expect(subject).to have_text("dans 4 jours") }
-      it { expect(title).to have_text("sera automatiquement traité le 05/09/2023") }
+      it { expect(title).to have_text("sera automatiquement traité le 05 septembre 2023") }
 
       context 'with label' do
         let(:with_label) { true }
@@ -52,24 +52,6 @@ RSpec.describe Instructeurs::SVASVRDecisionBadgeComponent, type: :component do
       end
 
       it { expect(subject).to have_text("4 j. après correction") }
-    end
-  end
-
-  context 'with projection object' do
-    subject do
-      render_inline(described_class.new(projection_or_dossier: projection, procedure:, with_label:))
-    end
-
-    context 'dossier en instruction' do
-      let(:projection) { DossierProjectionService::DossierProjection.new(dossier_id: 12, state: :en_instruction, sva_svr_decision_on: Date.new(2023, 9, 5)) }
-
-      it { expect(subject).to have_text("dans 4 jours") }
-    end
-
-    context 'dossier without sva decision date' do
-      let(:projection) { DossierProjectionService::DossierProjection.new(dossier_id: 12, state: :en_instruction) }
-
-      it { expect(subject).to have_text("Instruction manuelle") }
     end
   end
 end

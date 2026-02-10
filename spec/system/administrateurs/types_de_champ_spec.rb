@@ -12,6 +12,29 @@ describe 'As an administrateur I can edit types de champ', js: true do
     visit champs_admin_procedure_path(procedure)
   end
 
+  context "procedure is for individual" do
+    let(:procedure) { create(:procedure, for_individual: true) }
+
+    scenario "warn about fields already present in identity steps" do
+      expect(page).to have_content("Les informations suivantes concernant le demandeur sont déjà renseignées dans la première étape Identité du formulaire :")
+      expect(page).to have_content("Il est donc inutile de les redemander dans d’autres champs du formulaire.")
+      expect(page).not_to have_content("Le Numéro SIRET concernant le demandeur est déjà renseigné dans la première étape Identification du formulaire.")
+    end
+  end
+
+  context "procedure is not for individual" do
+    scenario "warn about fields already present in identity steps" do
+      expect(page).to have_content("Le Numéro SIRET concernant le demandeur est déjà renseigné dans la première étape Identification du formulaire.")
+      expect(page).to have_content("Il est donc inutile de les redemander dans d’autres champs du formulaire.")
+      expect(page).not_to have_content("Les informations suivantes concernant le demandeur sont déjà renseignées dans la première étape Identité du formulaire :")
+
+      within '.fr-callout' do
+        click_button "Liste des informations remontées"
+      end
+      expect(page).to have_content("Informations complémentaires au champ Numéro TAHITI")
+    end
+  end
+
   scenario "adding a new champ" do
     add_champ
 
@@ -461,6 +484,60 @@ describe 'As an administrateur I can edit types de champ', js: true do
       find('.fr-btn.fr-btn--secondary.fr-btn--icon-left.fr-icon-add-line', match: :first).click
       fill_in 'Libellé du champ', with: 'Nouveau champ'
       expect(page).not_to have_selector('.sticky-header.sticky-header-warning')
+    end
+  end
+
+  context "SIRET field modal" do
+    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :siret, libelle: "SIRET de test" }]) }
+
+    scenario "loads modal content only when clicked" do
+      visit champs_admin_procedure_path(procedure)
+
+      # pf: "Numéro TAHITI" est la terminologie Polynésie (remplace "Numéro Siret")
+      expect(page).not_to have_content("Informations complémentaires au champ Numéro TAHITI")
+      within '.type-de-champ' do
+        click_button "Liste des informations remontées"
+      end
+
+      within "#api-champ-columns-modal" do
+        expect(page).to have_content("Informations complémentaires au champ Numéro TAHITI")
+        expect(page).to have_content("Entreprise nom")
+        expect(page).not_to have_content("SIRET de test – Commune") # no champ libelle
+
+        click_button "Fermer"
+      end
+
+      expect(page).not_to have_selector("#api-champ-columns-modal[open]")
+      within '.type-de-champ' do
+        click_button "Liste des informations remontées"
+      end
+      expect(page).to have_content("Informations complémentaires au champ Numéro TAHITI")
+    end
+  end
+
+  context 'referentiel_de_polynesie enabled' do
+    before do
+      Flipper.enable(:referentiel_de_polynesie, procedure)
+      allow(TypeDeChamp).to receive(:referentiel_tables).and_return([['Stades', 1], ['Salles', 2]])
+    end
+
+    scenario "adding a referentiel_de_polynesie champ with drop_down_other option" do
+      add_champ
+      hide_autonotice_message
+
+      select('Référentiel des administrations', from: 'Type de champ')
+      fill_in 'Libellé du champ', with: 'Libellé de champ référentiel', fill_options: { clear: :backspace }
+      select('Stades', from: 'Table de recherche')
+      check 'Proposer une option pour « autre » utilisable dans les conditions'
+
+      wait_until { procedure.active_revision.types_de_champ_public.first.table_id == '1' }
+      wait_until { procedure.active_revision.types_de_champ_public.first.drop_down_other == "1" }
+      expect(page).to have_content('Formulaire enregistré')
+
+      page.refresh
+
+      expect(page).to have_select('Table de recherche', selected: 'Stades')
+      expect(page).to have_checked_field('Proposer une option pour « autre » utilisable dans les conditions')
     end
   end
 end

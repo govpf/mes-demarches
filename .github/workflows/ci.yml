@@ -7,13 +7,16 @@ on:
   merge_group:
     branches: ['main', 'devpf']
 
+env:
+  DISABLE_SPRING: '1'
+
 jobs:
   linters:
     name: Linters
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     services:
       postgres:
-        image: postgis/postgis:14-3.3
+        image: postgis/postgis:17-3.5
         env:
           POSTGRES_USER: tps_test
           POSTGRES_DB: tps_test
@@ -33,7 +36,7 @@ jobs:
 
   js_tests:
     name: JavaScript tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -58,13 +61,13 @@ jobs:
 
   unit_tests:
     name: Unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     env:
       RUBY_YJIT_ENABLE: "1"
     services:
       postgres:
-        image: postgis/postgis:14-3.3
+        image: postgis/postgis:17-3.5
         env:
           POSTGRES_USER: tps_test
           POSTGRES_DB: tps_test
@@ -122,13 +125,13 @@ jobs:
 
   system_tests:
     name: System tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     env:
       RUBY_YJIT_ENABLE: "1"
     services:
       postgres:
-        image: postgis/postgis:14-3.3
+        image: postgis/postgis:17-3.5
         env:
           POSTGRES_USER: tps_test
           POSTGRES_DB: tps_test
@@ -151,7 +154,7 @@ jobs:
         uses: ./.github/actions/ci-setup-rails
 
       - name: Setup playwright
-        run: bunx playwright install chromium
+        run: bun playwright install chromium
 
       - name: Pre-compile assets
         uses: ./.github/actions/ci-setup-assets
@@ -191,7 +194,7 @@ jobs:
   save_test_reports:
     name: Save test reports
     needs: [unit_tests, system_tests]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -251,10 +254,25 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=registry,ref=${{env.repo}}:buildcache
           cache-to:   type=registry,ref=${{env.repo}}:buildcache,mode=max
-      - name: Update repo description
-        uses: peter-evans/dockerhub-description@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          repository: "${{ env.repo }}"
+#      - name: Debug environment
+#        run: |
+#          echo "Repository: ${{ env.repo }}"
+#          echo "Username: ${{ secrets.DOCKERHUB_USERNAME }}"
+#          echo "Password length: ${#DOCKERHUB_PASSWORD}"
+#        env:
+#          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+#      - name: Update Docker Hub README
+#        uses: ms-jpq/sync-dockerhub-readme@v1
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+#          repository: ${{ env.repo }}
+#          readme: ./README.md
+
+#      - name: Update repo description
+#        uses: peter-evans/dockerhub-description@v4
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+#          repository: "${{ env.repo }}"
 

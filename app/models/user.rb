@@ -5,7 +5,7 @@ class User < ApplicationRecord
   include EmailSanitizableConcern
   include PasswordComplexityConcern
 
-  enum loged_in_with_france_connect: {
+  enum :loged_in_with_france_connect, {
     particulier: 'particulier',
     entreprise: 'entreprise',
     sipf: 'sipf',
@@ -32,6 +32,7 @@ class User < ApplicationRecord
   has_many :merge_logs, dependent: :destroy
   has_many :requested_merge_from, class_name: 'User', dependent: :nullify, inverse_of: :requested_merge_into, foreign_key: :requested_merge_into_id
   has_many :france_connect_informations, dependent: :destroy
+  has_many :pro_connect_informations, dependent: :destroy
 
   has_one :instructeur, dependent: :destroy
   has_one :administrateur, dependent: :destroy
@@ -83,6 +84,7 @@ class User < ApplicationRecord
 
   # Callback provided by Devise
   def after_confirmation
+    update!(email_verified_at: Time.zone.now)
     link_invites!
   end
 
@@ -91,7 +93,11 @@ class User < ApplicationRecord
   end
 
   def invite?(dossier)
-    invites.exists?(dossier:)
+    if dossier.editing_fork?
+      invites.exists?(dossier: dossier.editing_fork_origin_id)
+    else
+      invites.exists?(dossier:)
+    end
   end
 
   def owns_or_invite?(dossier)
@@ -134,8 +140,8 @@ class User < ApplicationRecord
     AdministrateurMailer.activate_before_expiration(self, reset_password_token).deliver_later
   end
 
-  def self.create_or_promote_to_instructeur(email, password, administrateurs: [], agent_connect: false)
-    if agent_connect
+  def self.create_or_promote_to_instructeur(email, password, administrateurs: [], pro_connect: false)
+    if pro_connect
       user = User
         .create_with(password: password, confirmed_at: Time.zone.now, email_verified_at: Time.zone.now)
         .find_or_create_by(email: email)
@@ -200,10 +206,6 @@ class User < ApplicationRecord
     end
 
     user
-  end
-
-  def flipper_id
-    "User:#{id}"
   end
 
   def active?
@@ -322,6 +324,10 @@ class User < ApplicationRecord
   end
 
   def unverified_email? = !email_verified_at?
+
+  def last_pro_connect_information
+    pro_connect_informations.order(updated_at: :desc).first
+  end
 
   private
 

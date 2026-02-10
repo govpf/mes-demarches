@@ -7,6 +7,7 @@ fr:
     attributes:
       procedure:
         hints:
+          api_entreprise_token: 'Exemple : eyJhbGciOiJIUzI1NiJ9.eyJ1...'
           description: Décrivez en quelques lignes le contexte, la finalité, etc.
           description_target_audience: Décrivez en quelques lignes les destinataires finaux de la démarche, les conditions d’éligibilité s’il y en a, les pré-requis, etc.
           description_pj: Décrivez la liste des pièces jointes à fournir s’il y en a
@@ -39,12 +40,18 @@ fr:
         procedure_path: Lien de la démarche à diffuser aux usagers
         procedure_path_placeholder: nom-de-la-demarche
         cadre_juridique: Cadre juridique - lien web vers le texte
-        lien_dpo: Lien ou email pour contacter le Délégué à la Protection des Données (DPO)
+        lien_dpo: Lien ou adresse électronique pour contacter le Délégué à la Protection des Données (DPO)
         published_at: 'Date de publication'
         aasm_state: 'Statut'
         admin_count: 'Nb administrateurs'
-        aasm_state:
+        api_state:
           brouillon: Brouillon
+          publiee: Publiée
+          close: Close
+          hidden: Supprimée
+          depubliee: Dépubliée
+        aasm_state:
+          brouillon: En test
           publiee: Publiée
           close: Close
           hidden: Supprimée
@@ -54,12 +61,13 @@ fr:
           personne_morale: 'Personne morale'
         declarative_with_state/en_instruction: En instruction
         declarative_with_state/accepte: Accepté
+        api_entreprise_token: Jeton API Entreprise
         api_particulier_token: Jeton API Particulier
-        initiated_mail: L’email de notification de passage de dossier en instruction
-        received_mail: L’email de notification de dépôt de dossier
-        closed_mail: L’email de notification d’acceptation de dossier
-        refused_mail: L’email de notification de refus de dossier
-        without_continuation_mail: L’email de notification de classement sans suite de dossier
+        initiated_mail: L’adresse électronique de notification de passage de dossier en instruction
+        received_mail: L’adresse électronique de notification de dépôt de dossier
+        closed_mail: L’adresse électronique de notification d’acceptation de dossier
+        refused_mail: L’adresse électronique de notification de refus de dossier
+        without_continuation_mail: L’adresse électronique de notification de classement sans suite de dossier
         attestation_template: Le modèle d’attestation
         draft_revision: Le formulaire
         auto_archive_on: Date limite de dépôt des dossiers
@@ -70,6 +78,8 @@ fr:
         aasm_state: 'Statut'
         admin_count: 'Nb administrateurs'
         template: 'Est un modèle'
+      procedure/procedure_paths:
+        path: 'Lien public'
     errors:
       models:
         procedure:
@@ -81,14 +91,19 @@ fr:
               invalid_condition: "a une logique conditionnelle invalide"
               empty_repetition: 'doit comporter au moins un champ répétable'
               empty_drop_down: 'doit comporter au moins un choix sélectionnable'
+              empty_csv: 'doit comporter au moins un fichier csv'
               inconsistent_header_section: "%{custom_message}"
+              missing_libelle:  "Le libellé du champ en position %{position} doit être rempli"
               expression_reguliere_invalid: "est invalide, veuillez la corriger"
+              referentiel_not_ready: "n'est pas configuré"
             draft_types_de_champ_private:
               format: 'L’annotation privée %{message}'
               invalid_condition: "a une logique conditionnelle invalide"
               empty_repetition: 'doit comporter au moins un champ répétable'
               empty_drop_down: 'doit comporter au moins un choix sélectionnable'
+              empty_csv: 'doit comporter au moins un fichier csv'
               inconsistent_header_section: "%{custom_message}"
+              missing_libelle:  "Le libellé du champ en position %{position} doit être rempli"
               expression_reguliere_invalid: "est invalide, veuillez la corriger"
             attestation_template:
               format: "%{attribute} %{message}"
@@ -105,7 +120,7 @@ fr:
             re_instructed_mail:
               format: "%{attribute} %{message}"
             lien_dpo:
-              invalid_uri_or_email: "Veuillez saisir un mail ou un lien"
+              invalid_uri_or_email: "Veuillez saisir une adresse électronique ou un lien"
             auto_archive_on:
               future: doit être dans le futur
             sva_svr:
@@ -115,3 +130,4 @@ fr:
     label:
       procedure:
         routing_champs: Champ(s) de routage
+        dossiers_count: Nombre de dossiers

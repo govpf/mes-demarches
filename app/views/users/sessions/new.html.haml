@@ -7,7 +7,9 @@
   #session-new.auth-form.sign-in-form
     = form_for resource, url: user_session_path, html: { class: "fr-py-5w" } do |f|
 
-      %h1.fr-h4= t('views.users.sessions.new.sign_in', application_name: APPLICATION_NAME)
+      %h1.fr-h2= t('views.users.sessions.new.sign_in', application_name: Current.application_name)
+
+      -# pf: France Connect est déjà affiché dans le partiel _social_login (avec OmniAuth sipf/tatou)
 
       %fieldset.fr-mb-0.fr-fieldset{ aria: { labelledby: 'new-account-legend' } }
         %legend.fr-fieldset__legend#new-account-legend
@@ -16,10 +18,10 @@
       .fr-fieldset__element
         %p.fr-text--sm= t('utils.asterisk_html')
 
-        .fr-fieldset__element= render Dsfr::InputComponent.new(form: f, attribute: :email, input_type: :email_field, opts: { autocomplete: 'email', autofocus: false })
+        .fr-fieldset__element= render Dsfr::InputComponent.new(form: f, attribute: :email, input_type: :email_field, opts: { autocomplete: 'email', autofocus: true })
 
         .fr-fieldset__element
-          = render Dsfr::InputComponent.new(form: f, attribute: :password, input_type: :password_field, opts: { autocomplete: 'current-password' })
+          = render Dsfr::InputComponent.new(form: f, attribute: :password, input_type: :password_field, opts: { autocomplete: 'current-password', 'data-email-input-target': 'next' })
 
           %p= link_to t('views.users.sessions.new.reset_password'), new_user_password_path, class: "fr-link"
 
@@ -33,7 +35,7 @@
       .fr-fieldset__element
         .fr-btns-group= f.submit t('views.users.sessions.new.connection'), class: "fr-btn"
 
-  - if AgentConnectService.enabled?
+  - if ProConnectService.enabled?
     %p.fr-hr-or= t('views.shared.france_connect_login.separator')
     %h2.important-header.mb-1= t('views.users.sessions.new.state_civil_servant')
-    .fr-btns-group= link_to t('views.users.sessions.new.connect_with_agent_connect'), agent_connect_path, class: "fr-btn fr-btn--secondary"
+    .fr-btns-group= link_to t('views.users.sessions.new.connect_with_pro_connect'), pro_connect_path, class: "fr-btn fr-btn--secondary"

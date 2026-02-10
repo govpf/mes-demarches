@@ -6,9 +6,10 @@
   %h2.fr-h3
     Insérer une balise
 
-  = render Dsfr::AlertComponent.new(state: :info, title: "Balises sur le conditionnel", heading_level: 'h3') do |c|
-    - c.with_body do
-      Les balises pour les champs conditionnés ne sont pour le moment pas supportées.
+  -# pf # 230 - Support des balises conditionnelles dans les modèles d'attestation
+  -# = render Dsfr::AlertComponent.new(state: :info, title: "Balises sur le conditionnel", heading_level: 'h3') do |c|
+  -#   - c.with_body do
+  -#     Les balises pour les champs conditionnés ne sont pour le moment pas supportées.
 
   %p.notice.fr-mt-3w
     Copiez-collez les balises ci-dessous pour afficher automatiquement l’information souhaitée.
@@ -29,7 +30,7 @@
 = render Attachment::EditComponent.new(attached_file: @attestation_template.logo, direct_upload: false)
 
 
-%h3.fr-h5.fr-mt-5w Tampon de l'attestation
+%h3.fr-h5.fr-mt-5w Tampon de l’attestation
 %p.fr-text--sm.fr-text-mention--grey.fr-mb-0
   Dimensions conseillées : au minimum 500px de largeur ou de hauteur.
 = render Attachment::EditComponent.new(attached_file: @attestation_template.signature, direct_upload: false)

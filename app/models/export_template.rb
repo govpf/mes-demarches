@@ -9,11 +9,16 @@ class ExportTemplate < ApplicationRecord
   has_one :procedure, through: :groupe_instructeur
   has_many :exports, dependent: :nullify
 
-  enum kind: { zip: "zip" }, _prefix: :template
+  enum :kind, { zip: 'zip', csv: 'csv', xlsx: 'xlsx', ods: 'ods' }, prefix: :template
 
   attribute :dossier_folder, :export_item
   attribute :export_pdf, :export_item
   attribute :pjs, :export_item, array: true
+  attribute :attestation, :export_item
+
+  attribute :exported_columns, :exported_column, array: true
+
+  after_initialize :set_default_export_items
 
   before_validation :ensure_pjs_are_legit
 
@@ -28,11 +33,16 @@ class ExportTemplate < ApplicationRecord
   end
 
   def self.default(name: nil, kind: 'zip', groupe_instructeur:)
-    dossier_folder = ExportItem.default(prefix: 'dossier')
-    export_pdf = ExportItem.default(prefix: 'export')
+    # TODO: remove default values for tabular export
     pjs = groupe_instructeur.procedure.exportables_pieces_jointes.map { |tdc| ExportItem.default_pj(tdc) }
 
-    new(name:, kind:, groupe_instructeur:, dossier_folder:, export_pdf:, pjs:)
+    export_template = new(name:, kind:, groupe_instructeur:, pjs:)
+    export_template.set_default_export_items
+    export_template
+  end
+
+  def tabular?
+    kind != 'zip'
   end
 
   def tags
@@ -49,6 +59,8 @@ class ExportTemplate < ApplicationRecord
   def attachment_path(dossier, attachment, index: 0, row_index: nil, champ: nil)
     file_path = if attachment.name == 'pdf_export_for_instructeur'
       export_pdf.path(dossier, attachment:)
+    elsif attachment.record_type == 'Attestation' && attestation&.enabled?
+      attestation.path(dossier, attachment:)
     elsif attachment.record_type == 'Champ' && pj(champ.type_de_champ).enabled?
       pj(champ.type_de_champ).path(dossier, attachment:, index:, row_index:)
     else
@@ -56,6 +68,26 @@ class ExportTemplate < ApplicationRecord
     end
 
     File.join(dossier_folder.path(dossier), file_path) if file_path.present?
+  end
+
+  def dossier_exported_columns = exported_columns.filter { _1.column.dossier_column? }
+
+  def columns_for_stable_id(stable_id)
+    exported_columns
+      .filter { _1.column.champ_column? }
+      .filter { _1.column.stable_id == stable_id }
+  end
+
+  def in_export?(exported_column)
+    @template_exported_columns ||= exported_columns.map(&:column)
+    @template_exported_columns.include?(exported_column.column)
+  end
+
+  def set_default_export_items
+    self.dossier_folder ||= ExportItem.default(prefix: 'dossier')
+    self.export_pdf ||= ExportItem.default(prefix: 'export')
+    self.attestation ||= ExportItem.default(prefix: 'attestation')
+    self.pjs ||= []
   end
 
   private

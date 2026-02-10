@@ -19,11 +19,12 @@ class DossierDashboard < Administrate::BaseDashboard
     updated_at: Field::DateTime,
     hidden_by_user_at: Field::DateTime,
     hidden_by_administration_at: Field::DateTime,
+    hidden_by_expired_at: Field::DateTime,
     depose_at: Field::DateTime,
     en_construction_at: Field::DateTime,
     en_instruction_at: Field::DateTime,
     processed_at: Field::DateTime,
-    champs_public: ChampCollectionField,
+    project_champs_public: ChampCollectionField,
     groupe_instructeur: Field::BelongsTo
   }.freeze
 
@@ -47,11 +48,12 @@ class DossierDashboard < Administrate::BaseDashboard
     :state,
     :procedure,
     :groupe_instructeur,
-    :champs_public,
+    :project_champs_public,
     :created_at,
     :updated_at,
     :hidden_by_user_at,
     :hidden_by_administration_at,
+    :hidden_by_expired_at,
     :depose_at,
     :en_construction_at,
     :en_instruction_at,

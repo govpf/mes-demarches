@@ -10,10 +10,10 @@ class EditableChamp::DepartementsComponent < EditableChamp::EditableChampBaseCom
   end
 
   def options
-    APIGeoService.departements.map { ["#{_1[:code]} – #{_1[:name]}", _1[:code]] }
+    @champ.options_for_select
   end
 
   def select_options
-    { selected: @champ.selected }.merge(@champ.mandatory? ? { prompt: '' } : { include_blank: '' })
+    { selected: @champ.selected }.merge(@champ.mandatory? ? { prompt: t('views.components.select_list') } : { include_blank: t('views.components.select_list') })
   end
 end

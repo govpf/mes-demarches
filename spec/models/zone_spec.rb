@@ -3,11 +3,10 @@
 describe Zone do
   let(:now) { Time.zone.parse("2022-08-11") }
   before do
-    Timecop.freeze(now)
+    travel_to(now)
   end
 
   after do
-    Timecop.return
   end
 
   describe '#label' do
@@ -117,7 +116,7 @@ describe Zone do
 
     it 'returns only available zones at specific date' do
       expect(Zone.available_at(start_last_government + 1.day).map(&:label)).to eq ["Ministère de la Culture"]
-      expect(Zone.available_at(start_previous_government + 1.day).map(&:label)).to eq ["Ministère de la Culture", "Ministère des Outre-mer"]
+      expect(Zone.available_at(start_previous_government + 1.day).map(&:label)).to match_array(["Ministère de la Culture", "Ministère des Outre-mer"])
     end
   end
 

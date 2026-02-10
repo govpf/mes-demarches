@@ -1,32 +1,34 @@
 #header-bottom.fr-container
-  %nav.fr-tabs
-    %ul.fr-tabs__list{ role: 'tablist' }
-      - notifications_summary = current_instructeur.notifications_for_dossier(dossier)
-
+  %nav.fr-tabs{ role: 'navigation', 'aria-label': t('views.instructeurs.dossiers.dossier_menu', id: dossier.id) }
+    %ul.fr-tabs__list
       = dynamic_tab_item(t('views.instructeurs.dossiers.tab_steps.request'),
-        instructeur_dossier_path(dossier.procedure, dossier),
-        notification: notifications_summary[:demande])
+        instructeur_dossier_path(dossier.procedure, params[:statut], dossier),
+        notification: notifications_sticker[:demande])
 
-      - if dossier.champs.map(&:piece_justificative_file).flatten.any?
+      - if gallery_attachments.present?
         = dynamic_tab_item(t('views.instructeurs.dossiers.tab_steps.attachments'),
-          pieces_jointes_instructeur_dossier_path(dossier.procedure, dossier))
+          pieces_jointes_instructeur_dossier_path(dossier.procedure, dossier, statut: params[:statut]))
 
       = dynamic_tab_item(t('views.instructeurs.dossiers.tab_steps.private_annotations'),
-        annotations_privees_instructeur_dossier_path(dossier.procedure, dossier),
-        notification: notifications_summary[:annotations_privees])
+        annotations_privees_instructeur_dossier_path(dossier.procedure, dossier, statut: params[:statut]),
+        notification: notifications_sticker[:annotations_privees])
 
       = dynamic_tab_item(t('views.instructeurs.dossiers.tab_steps.external_opinion'),
-        [avis_instructeur_dossier_path(dossier.procedure, dossier),
-        avis_new_instructeur_dossier_path(dossier.procedure, dossier)],
-        notification: notifications_summary[:avis])
+        [avis_instructeur_dossier_path(dossier.procedure, dossier, statut: params[:statut]),
+        avis_new_instructeur_dossier_path(dossier.procedure, dossier, statut: params[:statut])],
+        notification: notifications_sticker[:avis_externe])
 
       = dynamic_tab_item(t('views.instructeurs.dossiers.tab_steps.messaging'),
-        messagerie_instructeur_dossier_path(dossier.procedure, dossier),
-        notification: notifications_summary[:messagerie])
+        messagerie_instructeur_dossier_path(dossier.procedure, dossier, statut: params[:statut]),
+        notification: notifications_sticker[:messagerie])
+
+      - if dossier.procedure.rdv_enabled?
+        = dynamic_tab_item(t('views.instructeurs.dossiers.tab_steps.rendez_vous'),
+          rendez_vous_instructeur_dossier_path(dossier.procedure, dossier, statut: params[:statut]))
 
       = dynamic_tab_item(t('views.instructeurs.dossiers.tab_steps.involved_persons'),
-        personnes_impliquees_instructeur_dossier_path(dossier.procedure, dossier))
+        personnes_impliquees_instructeur_dossier_path(dossier.procedure, dossier, statut: params[:statut]))
 
       - if dossier.procedure.routing_enabled?
         = dynamic_tab_item(t('views.instructeurs.dossiers.tab_steps.reaffectation'),
-          reaffectation_instructeur_dossier_path(dossier.procedure, dossier))
+          reaffectation_instructeur_dossier_path(dossier.procedure, dossier, statut: params[:statut]))

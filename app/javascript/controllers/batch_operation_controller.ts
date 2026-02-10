@@ -3,24 +3,35 @@ import { disable, enable, show, hide } from '@utils';
 import invariant from 'tiny-invariant';
 
 export class BatchOperationController extends ApplicationController {
-  static targets = ['menu', 'input', 'dropdown'];
+  static targets = ['menu', 'input', 'dropdown', 'checkboxCount', 'modalForm'];
 
   declare readonly menuTargets: HTMLButtonElement[];
   declare readonly inputTargets: HTMLInputElement[];
   declare readonly dropdownTargets: HTMLButtonElement[];
+  declare readonly checkboxCountTarget: HTMLElement;
+  declare readonly modalFormTarget: HTMLFormElement;
+  declare readonly hasModalFormTarget: boolean;
 
   onCheckOne() {
     this.toggleSubmitButtonWhenNeeded();
+    this.updateCheckboxCount();
     deleteSelection();
   }
 
   onCheckAll(event: Event) {
     const target = event.target as HTMLInputElement;
 
-    this.inputTargets.forEach((e) => (e.checked = target.checked));
-    this.toggleSubmitButtonWhenNeeded();
+    this.inputTargets.forEach((e) => {
+      e.checked = target.checked;
+      e.dispatchEvent(new Event('change')); // dispatch change for dsfr checkbox behavior
+    });
 
-    const pagination = document.querySelector('tfoot .fr-pagination');
+    this.toggleSubmitButtonWhenNeeded();
+    this.updateCheckboxCount();
+
+    const pagination = document.querySelector(
+      '.fr-table__footer .fr-pagination'
+    );
     if (pagination) {
       displayNotice(this.inputTargets);
     }
@@ -56,6 +67,8 @@ export class BatchOperationController extends ApplicationController {
     if (button) {
       button.focus();
     }
+
+    this.updateCheckboxCount();
   }
 
   onSubmitInstruction(event: { srcElement: HTMLInputElement }) {
@@ -94,6 +107,7 @@ export class BatchOperationController extends ApplicationController {
     emptyCheckboxes();
     deleteSelection();
     this.toggleSubmitButtonWhenNeeded();
+    this.updateCheckboxCount();
   }
 
   toggleSubmitButtonWhenNeeded() {
@@ -141,6 +155,83 @@ export class BatchOperationController extends ApplicationController {
       buttons.forEach((button) => switchButton(button, false));
 
       this.dropdownTargets.forEach((e) => disable(e));
+    }
+  }
+
+  updateCheckboxCount() {
+    if (!this.checkboxCountTarget) return;
+
+    // Use hidden input value if present
+    const hiddenInput = document.querySelector<HTMLInputElement>(
+      '#input_multiple_ids_batch_operation'
+    );
+
+    let count = 0;
+
+    if (hiddenInput && hiddenInput.value.trim() !== '') {
+      const ids = hiddenInput.value.split(',').filter((id) => id.trim() !== '');
+      count = ids.length;
+    } else {
+      // fallback to visible checked checkboxes
+      count = this.inputTargets.filter((input) => input.checked).length;
+    }
+
+    const label = `${count} dossier${count > 1 ? 's' : ''} sélectionné${count > 1 ? 's' : ''}`;
+    this.checkboxCountTarget.textContent = label;
+
+    const classList = this.checkboxCountTarget.classList;
+    if (count > 0) {
+      classList.add('text-high-blue', 'font-weight-bold');
+    } else {
+      classList.remove('text-high-blue', 'font-weight-bold');
+    }
+  }
+
+  injectSelectedIdsIntoModal(event: Event) {
+    event.preventDefault();
+
+    if (!this.hasModalFormTarget) return;
+    const modalForm = this.modalFormTarget;
+
+    // Supprimer les inputs précédemment injectés
+    modalForm
+      .querySelectorAll('input[name="batch_operation[dossier_ids][]"]')
+      .forEach((el) => el.remove());
+
+    const hiddenInput = document.querySelector<HTMLInputElement>(
+      '#input_multiple_ids_batch_operation'
+    );
+    let ids: string[] = [];
+
+    if (hiddenInput && hiddenInput.value.trim() !== '') {
+      // Cas 1 : sélection étendue (select all + select more)
+      ids = hiddenInput.value
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+    } else {
+      // Cas 2 : sélection visible via les checkboxes
+      const checkedInputs = document.querySelectorAll<HTMLInputElement>(
+        'input[name="batch_operation[dossier_ids][]"]:checked:not(:disabled)'
+      );
+      ids = Array.from(checkedInputs).map((input) => input.value);
+    }
+
+    // Injecter les ids en champs cachés dans le formulaire
+    ids.forEach((id) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'batch_operation[dossier_ids][]';
+      input.value = id;
+      modalForm.appendChild(input);
+    });
+
+    // Optionnel : cocher not confidentiel par défaut
+    const confidentialRadio = document.querySelector<HTMLInputElement>(
+      '#confidentiel_false'
+    );
+    if (confidentialRadio) {
+      confidentialRadio.checked = true;
     }
   }
 }

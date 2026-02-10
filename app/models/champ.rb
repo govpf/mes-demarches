@@ -2,14 +2,15 @@
 
 class Champ < ApplicationRecord
   include ChampConditionalConcern
-  include ChampsValidateConcern
+  include ChampValidateConcern
+  include ChampRevisionConcern
+  include ChampExternalDataConcern
 
-  self.ignored_columns += [:type_de_champ_id]
+  self.ignored_columns += [:type_de_champ_id, :parent_id]
 
   attr_readonly :stable_id
 
   belongs_to :dossier, inverse_of: false, touch: true, optional: false
-  belongs_to :parent, class_name: 'Champ', optional: true
   has_many_attached :piece_justificative_file
   has_many :champ_revisions, dependent: :destroy, inverse_of: :champ
 
@@ -17,9 +18,9 @@ class Champ < ApplicationRecord
   # here because otherwise we can't easily use includes in our queries.
   has_many :geo_areas, -> { order(:created_at) }, dependent: :destroy, inverse_of: :champ
   belongs_to :etablissement, optional: true, dependent: :destroy
-  has_many :champs, foreign_key: :parent_id, inverse_of: :parent
 
   delegate :procedure, to: :dossier
+  normalizes :value, with: NORMALIZES_NON_PRINTABLE_PROC
 
   def type_de_champ
     @type_de_champ ||= dossier.revision
@@ -32,54 +33,58 @@ class Champ < ApplicationRecord
     :description,
     :drop_down_options,
     :drop_down_other?,
-    :drop_down_options_with_other,
+    :value_is_in_options?,
+    :options_for_select,
+    :options_for_select_with_other,
     :drop_down_secondary_libelle,
     :drop_down_secondary_description,
+    :drop_down_simple?,
+    :drop_down_advanced?,
     :collapsible_explanation_enabled?,
     :collapsible_explanation_text,
     :header_section_level_value,
     :current_section_level,
     :exclude_from_export?,
     :exclude_from_view?,
-    :repetition?,
-    :block?,
-    :dossier_link?,
-    :departement?,
-    :region?,
-    :textarea?,
-    :piece_justificative?,
-    :titre_identite?,
-    :header_section?,
-    :checkbox?,
-    :simple_drop_down_list?,
-    :linked_drop_down_list?,
     :non_fillable?,
     :fillable?,
-    :cnaf?,
-    :dgfip?,
-    :pole_emploi?,
-    :mesri?,
-    :rna?,
-    :siret?,
-    :carte?,
     :te_fenua?,
     :lexpol?,
-    :datetime?,
     :mandatory?,
     :prefillable?,
     :refresh_after_update?,
+    :formatted_advanced?,
+    :positive_number,
+    :positive_number?,
+    :min_number,
+    :max_number,
+    :range_number,
+    :date_in_past,
+    :date_in_past?,
+    :range_date,
+    :range_date?,
+    :start_date,
+    :end_date,
     :character_limit?,
     :character_limit,
-    :yes_no?,
+    :letters_accepted,
+    :numbers_accepted,
+    :special_characters_accepted,
+    :min_character_length,
+    :max_character_length,
     :expression_reguliere,
     :expression_reguliere_exemple_text,
     :expression_reguliere_error_message,
+    :RIB?,
     to: :type_de_champ
 
-  # pf champ
   include DateEncodingConcern
 
-  delegate :accredited_user_list, :visa?, to: :type_de_champ
+  # pf champ
+  delegate :accredited_user_list, :visa?, :table_id, to: :type_de_champ
+
+  delegate(*TypeDeChamp.type_champs.values.map { "#{_1}?".to_sym }, to: :type_de_champ)
+  delegate :piece_justificative_or_titre_identite?, :any_drop_down_list?, to: :type_de_champ
 
   delegate :to_typed_id, :to_typed_id_for_query, to: :type_de_champ, prefix: true
 
@@ -87,23 +92,27 @@ class Champ < ApplicationRecord
   # delegate :used_by_routing_rules?, to: :type_de_champ
 
   scope :updated_since?, -> (date) { where('champs.updated_at > ?', date) }
+  scope :prefilled, -> { where(prefilled: true) }
   scope :public_only, -> { where(private: false) }
   scope :private_only, -> { where(private: true) }
-  scope :root, -> { where(parent_id: nil) }
-  scope :prefilled, -> { where(prefilled: true) }
-
-  before_create :set_dossier_id, if: :needs_dossier_id?
-  before_validation :set_dossier_id, if: :needs_dossier_id?
-  before_save :cleanup_if_empty
-  before_save :normalize
-  after_update_commit :fetch_external_data_later
 
   def public?
     !private?
   end
 
   def child?
-    row_id.present?
+    row_id.present? && !is_type?(TypeDeChamp.type_champs.fetch(:repetition))
+  end
+
+  def row?
+    row_id.present? && is_type?(TypeDeChamp.type_champs.fetch(:repetition))
+  end
+
+  NULL_ROW_ID = 'N'
+
+  def row_id
+    row_id_or_null = super
+    row_id_or_null == Champ::NULL_ROW_ID ? nil : row_id_or_null
   end
 
   # used for the `required` html attribute
@@ -114,11 +123,16 @@ class Champ < ApplicationRecord
   end
 
   def mandatory_blank?
-    mandatory? && blank?
+    type_de_champ.mandatory_blank?(self)
   end
 
   def blank?
-    value.blank?
+    # FIXME: temporary fix to avoid breaking validation
+    in_dossier_revision? ? type_de_champ.champ_blank?(self) : value.blank?
+  end
+
+  def used_by_routing_rules?
+    procedure.used_by_routing_rules?(type_de_champ)
   end
 
   def search_terms
@@ -126,23 +140,15 @@ class Champ < ApplicationRecord
   end
 
   def to_s
-    TypeDeChamp.champ_value(type_champ, self)
+    type_de_champ.champ_value(self)
   end
 
-  def for_api
-    TypeDeChamp.champ_value_for_api(type_champ, self, 1)
+  def last_write_type_champ
+    TypeDeChamp::CHAMP_TYPE_TO_TYPE_CHAMP.fetch(type)
   end
 
-  def for_api_v2
-    TypeDeChamp.champ_value_for_api(type_champ, self, 2)
-  end
-
-  def for_export(path = :value)
-    TypeDeChamp.champ_value_for_export(type_champ, self, path)
-  end
-
-  def for_tag(path = :value)
-    TypeDeChamp.champ_value_for_tag(type_champ, self, path)
+  def is_type?(type_champ)
+    last_write_type_champ == type_champ
   end
 
   def main_value_name
@@ -211,36 +217,20 @@ class Champ < ApplicationRecord
     "#{html_id}-describedby_id"
   end
 
-  def log_fetch_external_data_exception(exception)
-    update_column(:fetch_external_data_exceptions, [exception.inspect])
+  def error_id
+    "#{html_id}-error_id"
   end
 
-  def fetch_external_data?
+  def prefillable_champs
+    []
+  end
+
+  def status_message?
     false
-  end
-
-  def poll_external_data?
-    false
-  end
-
-  def fetch_external_data_error?
-    fetch_external_data_exceptions.present? && self.external_id.present?
-  end
-
-  def fetch_external_data_pending?
-    fetch_external_data? && poll_external_data? && external_id.present? && data.nil? && !fetch_external_data_error?
-  end
-
-  def fetch_external_data
-    raise NotImplemented.new(:fetch_external_data)
-  end
-
-  def update_with_external_data!(data:)
-    update!(data: data)
   end
 
   def clone(fork = false)
-    champ_attributes = [:parent_id, :private, :row_id, :type, :stable_id, :stream]
+    champ_attributes = [:private, :row_id, :type, :stable_id, :stream]
     value_attributes = fork || !private? ? [:value, :value_json, :data, :external_id] : []
     relationships = fork || !private? ? [:etablissement, :geo_areas] : []
 
@@ -248,6 +238,8 @@ class Champ < ApplicationRecord
       if original.is_a?(Champ)
         kopy.write_attribute(:stable_id, original.stable_id)
         kopy.write_attribute(:stream, 'main')
+        # TODO: overwrite row_id "N" with nil
+        kopy.write_attribute(:row_id, kopy.row_id)
       end
       ClonePiecesJustificativesService.clone_attachments(original, kopy) if fork || !private?
     end
@@ -257,52 +249,71 @@ class Champ < ApplicationRecord
     input_id
   end
 
-  def forked_with_changes?
-    public? && dossier.champ_forked_with_changes?(self)
+  def user_buffer_changes?
+    public? && dossier.user_buffer_changes_on_champ?(self)
   end
 
   def public_id
-    if row_id.blank?
-      stable_id.to_s
-    else
-      "#{stable_id}-#{row_id}"
-    end
+    TypeDeChamp.public_id(stable_id, row_id)
   end
 
   def html_id
     type_de_champ.html_id(row_id)
   end
 
-  def needs_dossier_id?
-    !dossier_id && parent_id
+  MAIN_STREAM = 'main'
+  USER_BUFFER_STREAM = 'user:buffer'
+  HISTORY_STREAM = 'history:'
+
+  def main_stream?
+    stream == MAIN_STREAM
   end
 
-  def set_dossier_id
-    self.dossier_id = parent.dossier_id
+  def user_buffer_stream?
+    stream == USER_BUFFER_STREAM
   end
 
-  def cleanup_if_empty
-    if fetch_external_data? && persisted? && external_id_changed?
-      self.data = nil
+  def history_stream?
+    stream.start_with?(HISTORY_STREAM)
+  end
+
+  def clone_value_from(champ)
+    self.value = champ.value
+    self.external_id = champ.external_id
+    self.value_json = champ.value_json
+    self.data = champ.data
+
+    self.geo_areas = champ.geo_areas.map(&:dup)
+
+    ClonePiecesJustificativesService.clone_attachments(champ, self)
+
+    if champ.etablissement.present?
+      self.etablissement = champ.etablissement.dup
+      ClonePiecesJustificativesService.clone_attachments(champ.etablissement, self.etablissement)
     end
+
+    save!
   end
 
-  def fetch_external_data_later
-    if fetch_external_data? && external_id.present? && data.nil?
-      update_column(:fetch_external_data_exceptions, [])
-      ChampFetchExternalDataJob.perform_later(self, external_id)
+  def update_timestamps
+    return if public? && dossier.en_construction?
+
+    updated_at = Time.zone.now
+    attributes = { updated_at: }
+    update_columns(attributes) if persisted?
+
+    if piece_justificative_or_titre_identite?
+      attributes[:last_champ_piece_jointe_updated_at] = updated_at
     end
-  end
 
-  def normalize
-    return if value.nil?
-    return if value.present? && !value.include?("\u0000")
+    if private?
+      attributes[:last_champ_private_updated_at] = updated_at
+    else
+      attributes[:last_champ_updated_at] = updated_at
+      attributes[:brouillon_close_to_expiration_notice_sent_at] = nil
+    end
 
-    write_attribute(:value, value.delete("\u0000"))
-  end
-
-  def used_by_routing_rules?
-    stable_id.in?(procedure.stable_ids_used_by_routing_rules)
+    dossier.update_columns(attributes)
   end
 
   class NotImplemented < ::StandardError

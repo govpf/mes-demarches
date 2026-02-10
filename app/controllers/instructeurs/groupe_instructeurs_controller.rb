@@ -4,58 +4,72 @@ module Instructeurs
   class GroupeInstructeursController < InstructeurController
     include EmailSanitizableConcern
     include GroupeInstructeursSignatureConcern
-
+    include InstructeurProcedureConcern
     before_action :ensure_allowed!
 
     ITEMS_PER_PAGE = 25
 
     def index
       @procedure = procedure
+      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
+      redirect_to instructeur_groupe_path(@procedure, @procedure.defaut_groupe_instructeur) if !@procedure.routing_enabled?
       @groupes_instructeurs = paginated_groupe_instructeurs
     end
 
     def show
       @procedure = procedure
       @groupe_instructeur = groupe_instructeur
+      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
       @instructeurs = paginated_instructeurs
+      @maybe_typos = flash[:maybe_typos]
     end
 
     def add_instructeur
-      email = instructeur_email.present? ? [instructeur_email] : []
-      email = check_if_typo(email)&.first
-      errors = Array.wrap(generate_emails_suggestions_message(@maybe_typos))
+      emails_with_typos = JSON.parse(params[:emails_with_typos]) if params[:emails_with_typos]
+      emails = params['emails'].presence || []
+      emails.push(emails_with_typos).flatten! if emails_with_typos
+      emails, maybe_typos = check_if_typo(emails)
+      errors = Array.wrap(generate_emails_suggestions_message(maybe_typos))
 
-      if !errors.empty?
-        flash.now[:alert] = errors.join(". ") if !errors.empty?
+      instructeurs, invalid_emails = groupe_instructeur.add_instructeurs(emails:)
 
-        @procedure = procedure
-        @groupe_instructeur = groupe_instructeur
-        @instructeurs = paginated_instructeurs
-        return render :show
+      if invalid_emails.present?
+        errors += [
+          t('.wrong_address',
+            count: invalid_emails.size,
+            emails: invalid_emails.join(', '))
+        ]
       end
 
-      instructeur = Instructeur.by_email(email) ||
-        create_instructeur(email)
-
-      if instructeur.blank?
-        flash[:alert] = "L’adresse email « #{email} » n’est pas valide."
-      elsif groupe_instructeur.instructeurs.include?(instructeur)
-        flash[:alert] = "L’instructeur « #{email} » est déjà dans le groupe."
-      else
-        groupe_instructeur.add(instructeur)
-        flash[:notice] = "L’instructeur « #{email} » a été affecté au groupe."
-
-        if instructeur.user.email_verified_at
-          GroupeInstructeurMailer
-            .notify_added_instructeurs(groupe_instructeur, [instructeur], current_user.email)
-            .deliver_later
-        elsif instructeur.should_receive_email_activation?
-          InstructeurMailer.confirm_and_notify_added_instructeur(instructeur, groupe_instructeur, current_user.email).deliver_later
+      if instructeurs.present?
+        flash[:notice] = if procedure.routing_enabled?
+          t('.assignment', count: instructeurs.size,
+            emails: instructeurs.map(&:email).join(', '),
+            groupe: groupe_instructeur.label)
+        else
+          "Les instructeurs ont bien été affectés à la démarche"
         end
-        # else instructeur already exists and email is not verified, so do not spam them
+
+        known_instructeurs, not_verified_instructeurs = instructeurs.partition { |instructeur| instructeur.user.email_verified_at }
+
+        not_verified_instructeurs.filter(&:should_receive_email_activation?).each do
+          InstructeurMailer.confirm_and_notify_added_instructeur(_1, groupe_instructeur, current_instructeur.email).deliver_later
+        end
+
+        if known_instructeurs.present?
+          GroupeInstructeurMailer
+            .notify_added_instructeurs(groupe_instructeur, known_instructeurs, current_instructeur.email)
+            .deliver_later
+        end
       end
 
-      redirect_to instructeur_groupe_path(procedure, groupe_instructeur)
+      @procedure = procedure
+      @groupe_instructeur = groupe_instructeur
+      @instructeurs = paginated_instructeurs
+
+      flash[:alert] = errors.join(". ") if !errors.empty?
+
+      redirect_to instructeur_groupe_path(@procedure, @groupe_instructeur), flash: { maybe_typos: }
     end
 
     def remove_instructeur
@@ -113,10 +127,6 @@ module Instructeurs
         .page(params[:page])
         .per(ITEMS_PER_PAGE)
         .order(:email)
-    end
-
-    def instructeur_email
-      params.dig('instructeur', 'email')&.strip&.downcase
     end
 
     def instructeur_id

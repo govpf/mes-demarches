@@ -15,6 +15,8 @@ class FranceConnectInformation < ApplicationRecord
         password: Devise.friendly_token[0, 20],
         confirmed_at: Time.zone.now
       )
+
+      update_attribute('user_id', user.id)
     rescue ActiveRecord::RecordNotUnique
       # ignore this exception because we check before if user is nil.
       # exception can be raised in race conditions, when FranceConnect calls callback 2 times.
@@ -23,7 +25,6 @@ class FranceConnectInformation < ApplicationRecord
     end
 
     clean_tokens_and_requested_email
-    update_attribute('user_id', user.id)
     save!
   end
 
@@ -33,10 +34,11 @@ class FranceConnectInformation < ApplicationRecord
     save!
   end
 
-  def send_custom_confirmation_instructions
+  # pf: support OpenID providers (Tatou, Microsoft) en plus de France Connect
+  def send_custom_confirmation_instructions(provider_type: :france_connect)
     token = SecureRandom.hex(10)
     user.update!(confirmation_token: token, confirmation_sent_at: Time.zone.now)
-    UserMailer.custom_confirmation_instructions(user, token).deliver_later
+    UserMailer.custom_confirmation_instructions(user, token, provider_type).deliver_later
   end
 
   def create_merge_token!

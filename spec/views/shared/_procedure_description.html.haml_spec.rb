@@ -56,7 +56,7 @@ describe 'shared/_procedure_description', type: :view do
 
     it 'shows a usual traitement text' do
       subject
-      expect(rendered).to have_text("Quels sont les délais d'instruction pour cette démarche ?")
+      expect(rendered).to have_text("Quels sont les délais d’instruction pour cette démarche ?")
       expect(rendered).to have_text("Dans le meilleur des cas, le délai d’instruction est : 1 jour.")
     end
   end
@@ -119,6 +119,8 @@ describe 'shared/_procedure_description', type: :view do
     it 'cache_key depends of revision' do
       render partial: 'shared/procedure_description', locals: { procedure: }
       expect(rendered).not_to have_text('new pj')
+
+      travel(1.minute)
 
       procedure.draft_revision.add_type_de_champ(type_champ: :piece_justificative, libelle: 'new pj')
       procedure.publish_revision!

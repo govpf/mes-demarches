@@ -1,5 +1,5 @@
-@import "colors";
-@import "constants";
+@import 'colors';
+@import 'constants';
 
 .dossier-container {
   .sub-header {
@@ -15,7 +15,6 @@
     .header-actions {
       margin-bottom: $default-spacer;
       display: flex;
-
     }
   }
 
@@ -34,10 +33,6 @@
     .table {
       margin-bottom: $default-padding * 2;
     }
-  }
-
-  .messagerie-explanation {
-    margin-bottom: $default-padding * 2;
   }
 
   .latest-message-section {

@@ -1,4 +1,4 @@
-@import "constants";
+@import 'constants';
 
 .flex {
   display: flex;
@@ -23,6 +23,10 @@
     justify-content: space-between;
   }
 
+  &.justify-around {
+    justify-content: space-around;
+  }
+
   &.justify-center {
     justify-content: center;
   }
@@ -43,6 +47,16 @@
     flex-direction: column;
   }
 
+  &.column-reverse {
+    flex-direction: column-reverse;
+  }
+
+  @media (min-width: $two-columns-breakpoint) {
+    &.row-lg {
+      flex-direction: row;
+    }
+  }
+
   &.row-reverse {
     flex-direction: row-reverse;
   }
@@ -54,6 +68,10 @@
 
 .flex-grow {
   flex-grow: 1;
+}
+
+.flex-no-grow {
+  flex-grow: 0;
 }
 
 .flex-no-shrink {
@@ -70,4 +88,26 @@
 
 .flex-1 {
   flex: 1;
+}
+
+.two-column-list {
+  display: flex;
+  flex-wrap: wrap;
+
+  li {
+    flex: 0 0 50%;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 62em) {
+    li {
+      flex: 0 0 100%;
+    }
+  }
+}
+
+.no-flex-xs {
+  @media (max-width: 48em) {
+    display: initial;
+  }
 }

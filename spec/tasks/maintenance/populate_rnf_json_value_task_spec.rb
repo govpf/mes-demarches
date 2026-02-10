@@ -53,7 +53,7 @@ module Maintenance
 
         it 'updates value_json' do
           expect { subject }.to change { element.reload.value_json }
-            .from(nil)
+            .from(anything)
             .to({
               "street_number" => "16",
               "street_name" => "Rue du Général de Boissieu",
@@ -62,9 +62,14 @@ module Maintenance
               "city_name" => "Paris 15e Arrondissement",
               "city_code" => "75115",
               "departement_code" => "75",
+              "department_code" => "75",
               "departement_name" => "Paris",
+              "department_name" => "Paris",
               "region_code" => "11",
-              "region_name" => "Île-de-France"
+              "region_name" => "Île-de-France",
+              "title" => "Fondation SFR",
+              "country_name" => "France",
+              "country_code" => "FR"
             })
         end
       end
@@ -77,7 +82,7 @@ module Maintenance
 
         it 'updates value_json' do
           expect { subject }.to change { element.reload.value_json }
-            .from(nil)
+            .from(anything)
             .to({
               "street_number" => "16",
               "street_name" => "Rue du Général de Boissieu",
@@ -86,9 +91,14 @@ module Maintenance
               "city_name" => "Paris 15e Arrondissement",
               "city_code" => "75115",
               "departement_code" => "75",
+              "department_code" => "75",
               "departement_name" => "Paris",
+              "department_name" => "Paris",
               "region_code" => "11",
-              "region_name" => "Île-de-France"
+              "region_name" => "Île-de-France",
+              "title" => "Fondation SFR",
+              "country_name" => "France",
+              "country_code" => "FR"
             })
         end
       end

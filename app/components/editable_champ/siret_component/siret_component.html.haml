@@ -1,15 +1,5 @@
-= @form.text_field(:value, input_opts(id: @champ.input_id, aria: { describedby: @champ.describedby_id }, data: { controller: 'turbo-input format', format: 'siret', turbo_input_load_on_connect_value: @champ.prefilled? && @champ.value.present? && @champ.etablissement.blank?, turbo_input_url_value: update_path }, required: @champ.required?, class: "width-33-desktop"))
+= @form.text_field(:value, input_opts(id: @champ.input_id, aria: { describedby: "#{@champ.describedby_id} #{@champ.error_id}" }, data: { controller: 'turbo-input format', format: 'siret', turbo_input_load_on_connect_value: @champ.prefilled? && @champ.value.present? && @champ.etablissement.blank?, turbo_input_url_value: update_path }, required: @champ.required?, class: "width-33-desktop"))
 .siret-info{ id: dom_id(@champ, :siret_info) }
   - siret = @champ.value&.sub('-', "") || ""
-  - if @champ.etablissement.present? && @champ.etablissement.siret.length == 9 && @champ.etablissement.siret == siret
+  - if @champ.etablissement.present? && @champ.etablissement.siret == siret
     = render EditableChamp::EtablissementTitreComponent.new(etablissement: @champ.etablissement)
-  - elsif (siret.length == 6) || (siret.length == 9)
-    %script{ type: "text/javascript", id: rand(1000) }
-      :plain
-        window.addEventListener('load', (event) => {
-          var event = new Event('input', {
-            bubbles: true,
-            cancelable: true,
-          });
-          document.getElementById('#{@champ.input_id}').dispatchEvent(event);
-        });

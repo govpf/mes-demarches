@@ -11,12 +11,30 @@ FactoryBot.define do
     individual { association(:individual, :empty, dossier: instance, strategy: :build) if procedure.for_individual? }
 
     transient do
+      populate_champs { false }
+      populate_annotations { false }
       for_individual? { false }
       # For now a dossier must use a `create`d procedure, even if the dossier is only built (and not created).
       # This is because saving the dossier fails when the procedure has not been saved beforehand
       # (due to some internal ActiveRecord error).
       # TODO: find a way to find the issue and just `build` the procedure.
       procedure { create(:procedure, :published, :with_type_de_champ, :with_type_de_champ_private, for_individual: for_individual?) }
+    end
+
+    after(:create) do |dossier, evaluator|
+      if evaluator.populate_champs
+        dossier.revision.types_de_champ_public.each do |type_de_champ|
+          dossier_factory_create_champ_or_repetition(type_de_champ, dossier)
+        end
+      end
+
+      if evaluator.populate_annotations
+        dossier.revision.types_de_champ_private.each do |type_de_champ|
+          dossier_factory_create_champ_or_repetition(type_de_champ, dossier)
+        end
+      end
+
+      dossier.build_default_values
     end
 
     trait :with_entreprise do
@@ -160,6 +178,7 @@ FactoryBot.define do
 
         processed_at = DossierWithReferenceDate.assign(dossier)
         dossier.traitements.passer_en_construction(processed_at:)
+        dossier.submitted_revision_id = dossier.revision_id
 
         dossier.save!
       end
@@ -172,6 +191,7 @@ FactoryBot.define do
 
         processed_at = DossierWithReferenceDate.assign(dossier)
         dossier.traitements.passer_en_instruction(processed_at:)
+        dossier.submitted_revision_id = dossier.revision_id
 
         dossier.save!
       end
@@ -188,6 +208,7 @@ FactoryBot.define do
 
         processed_at = DossierWithReferenceDate.assign(dossier)
         dossier.traitements.accepter(motivation: evaluator.motivation, processed_at:)
+        dossier.submitted_revision_id = dossier.revision_id
 
         dossier.save!
       end
@@ -204,6 +225,7 @@ FactoryBot.define do
 
         processed_at = DossierWithReferenceDate.assign(dossier)
         dossier.traitements.refuser(motivation: evaluator.motivation, processed_at:)
+        dossier.submitted_revision_id = dossier.revision_id
 
         dossier.save!
       end
@@ -220,6 +242,7 @@ FactoryBot.define do
 
         processed_at = DossierWithReferenceDate.assign(dossier)
         dossier.traitements.classer_sans_suite(motivation: evaluator.motivation, processed_at:)
+        dossier.submitted_revision_id = dossier.revision_id
 
         dossier.save!
       end
@@ -229,11 +252,11 @@ FactoryBot.define do
       after(:create) do |dossier, _evaluator|
         motivation = case dossier.state
         when Dossier.states.fetch(:refuse)
-          'L’entreprise concernée n’est pas agréée.'
+          'L’entreprise concernée n’est pas agréée. Plus d’informations sur https://prefecture-93.fr/faq'
         when Dossier.states.fetch(:sans_suite)
-          'Le département n’est pas éligible. Veuillez remplir un nouveau dossier auprès de la DDT du 93.'
+          'Le département n’est pas éligible. Veuillez remplir un nouveau dossier auprès de la DDT du 93. Voir https://ddt-93.fr'
         else
-          'Vous avez validé les conditions.'
+          'Vous avez validé les conditions. Retrouvez votre dossier sur https://demarches-simplifiees.fr'
         end
         dossier.traitements.last.update!(motivation: motivation)
       end
@@ -259,39 +282,42 @@ FactoryBot.define do
     end
 
     trait :with_populated_champs do
-      after(:create) do |dossier, _evaluator|
-        dossier.champs_to_destroy.where(private: false).destroy_all
-        dossier.types_de_champ.each do |type_de_champ|
-          value = if type_de_champ.simple_drop_down_list?
-            type_de_champ.drop_down_options.first
-          elsif type_de_champ.multiple_drop_down_list?
-            type_de_champ.drop_down_options.first(2).to_json
-          end
-          attrs = { stable_id: type_de_champ.stable_id, dossier:, value: }.compact
-          create(:"champ_do_not_use_#{type_de_champ.type_champ}", **attrs)
-        end
-        dossier.reload
-      end
+      populate_champs { true }
     end
 
     trait :with_populated_annotations do
-      after(:create) do |dossier, _evaluator|
-        dossier.champs_to_destroy.where(private: true).destroy_all
-        dossier.types_de_champ_private.each do |type_de_champ|
-          value = if type_de_champ.simple_drop_down_list?
-            type_de_champ.drop_down_options.first
-          elsif type_de_champ.multiple_drop_down_list?
-            type_de_champ.drop_down_options.first(2).to_json
-          end
-          attrs = { stable_id: type_de_champ.stable_id, dossier:, private: true, value: }.compact
-          create(:"champ_do_not_use_#{type_de_champ.type_champ}", **attrs)
-        end
-        dossier.reload
-      end
+      populate_annotations { true }
     end
 
     trait :prefilled do
       prefilled { true }
     end
   end
+end
+
+def dossier_factory_create_champ_or_repetition(type_de_champ, dossier)
+  if type_de_champ.repetition?
+    types_de_champ = dossier.revision.children_of(type_de_champ)
+    2.times do
+      row_id = ULID.generate
+      dossier.champs << type_de_champ.build_champ(row_id:)
+      types_de_champ.each do |type_de_champ|
+        dossier_factory_create_champ(type_de_champ, dossier, row_id:)
+      end
+    end
+  else
+    dossier_factory_create_champ(type_de_champ, dossier)
+  end
+end
+
+def dossier_factory_create_champ(type_de_champ, dossier, row_id: nil)
+  return unless type_de_champ.fillable?
+
+  value = if type_de_champ.drop_down_list?
+    type_de_champ.drop_down_options.first
+  elsif type_de_champ.multiple_drop_down_list?
+    type_de_champ.drop_down_options.first(2).to_json
+  end
+  attrs = { stable_id: type_de_champ.stable_id, private: type_de_champ.private?, row_id:, value: }.compact
+  dossier.champs << build(:"champ_do_not_use_#{type_de_champ.type_champ}", **attrs)
 end

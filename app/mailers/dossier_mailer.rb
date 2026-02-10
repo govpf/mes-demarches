@@ -19,6 +19,7 @@ class DossierMailer < ApplicationMailer
 
   def notify_new_draft
     @dossier = params[:dossier]
+    # pf: le check d'état est déjà fait dans DraftNotificationJob, pas besoin de raise ici
     configure_defaults_for_user(@dossier.user)
 
     I18n.with_locale(@dossier.user_locale) do
@@ -216,7 +217,7 @@ class DossierMailer < ApplicationMailer
     @user = User.find_by(email: @transfer.email)
 
     configure_defaults_for_email(@transfer.email)
-
+    bypass_unverified_mail_protection!
     I18n.with_locale(@transfer.user_locale) do
       @subject = default_i18n_subject()
 

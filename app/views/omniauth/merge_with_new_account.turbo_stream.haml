@@ -1,4 +1,10 @@
-= turbo_stream.update 'new-account-password-confirmation', partial: 'password_confirmation', locals: { email: @email, merge_token: @merge_token, provider: @provider }
+-# pf: utilisation du partiel partagé pour harmoniser avec france connect
+= turbo_stream.update 'new-account-password-confirmation' do
+  = render 'shared/password_confirmation_form',
+    fci: FranceConnectInformation.new(email_france_connect: @email, merge_token: @merge_token),
+    wrong_password: false,
+    form_url: omniauth_merge_with_existing_account_path,
+    provider: @provider
 = turbo_stream.hide_all '.fusion'
 = turbo_stream.hide_all '.new-account'
 = turbo_stream.show 'new-account-password-confirmation'

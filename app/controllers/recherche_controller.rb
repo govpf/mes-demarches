@@ -3,10 +3,14 @@
 class RechercheController < ApplicationController
   before_action :authenticate_logged_user!
   ITEMS_PER_PAGE = 25
+
+  # the columns are generally procedure specific
+  # but in the search context, we are looking for dossiers from multiple procedures
+  # so we are faking the columns with a random procedure_id
   PROJECTIONS = [
-    { "table" => 'procedure', "column" => 'libelle' },
-    { "table" => 'user', "column" => 'email' },
-    { "table" => 'procedure', "column" => 'procedure_id' }
+    Column.new(procedure_id: 666, table: 'procedure', column: 'libelle'),
+    Column.new(procedure_id: 666, table: 'user', column: 'email'),
+    Column.new(procedure_id: 666, table: 'procedure', column: 'procedure_id')
   ]
 
   def nav_bar_profile
@@ -49,7 +53,7 @@ class RechercheController < ApplicationController
     @dossiers_count = matching_dossiers_ids.count
     @followed_dossiers_id = current_instructeur&.followed_dossiers&.where(id: @paginated_ids)&.ids || []
     @dossier_avis_ids_h = current_expert&.avis&.where(dossier_id: @paginated_ids)&.pluck(:dossier_id, :id).to_h || {}
-    @notifications_dossier_ids = current_instructeur&.notifications_for_dossiers(@paginated_ids) || []
+    @notifications = instructeur_signed_in? ? DossierNotification.notifications_for_instructeur_dossiers(current_instructeur, @paginated_ids) : {}
 
     # if an instructor search for a dossier which is in his procedures but not available to his intructor group
     # we want to display an alert in view
@@ -67,6 +71,23 @@ class RechercheController < ApplicationController
     else
       return
     end
+
+  rescue ActiveRecord::QueryCanceled => e
+    Sentry.capture_exception(e)
+
+    logger = Lograge.logger || Rails.logger
+
+    payload = {
+      message: 'search timeout',
+      user_id: current_user.id,
+      request_id: Current.request_id,
+      controller: self.class.name,
+      terms: @search_terms
+    }
+
+    logger.info(payload.to_json)
+
+    redirect_to recherche_index_path, alert: "La recherche n'a pas pu aboutir."
   end
 
   private

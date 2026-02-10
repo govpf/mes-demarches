@@ -1,10 +1,10 @@
-@import "colors";
-@import "constants";
-@import "placeholders";
-@import "mixins";
+@import 'colors';
+@import 'constants';
+@import 'placeholders';
+@import 'mixins';
 
 #auth,
-#agentconnect {
+#proconnect {
   // On small screens, hide the procedure description text on auth pages.
   // It avoids pushing the sign-in/sign-up form out of the viewport.
   //
@@ -61,7 +61,6 @@
     }
   }
 
-
   .remember-me {
     display: inline-block;
     margin-bottom: 0;
@@ -84,15 +83,15 @@
 }
 
 .sign-in-form .form {
-  input[type="email"] {
+  input[type='email'] {
     margin-bottom: $default-spacer;
   }
 
-  input[type="password"] {
+  input[type='password'] {
     margin-bottom: $default-spacer;
   }
 
-  input[type="checkbox"] {
+  input[type='checkbox'] {
     margin-bottom: 0;
   }
 }
@@ -117,4 +116,3 @@
     font-size: 18px;
   }
 }
-

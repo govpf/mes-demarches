@@ -1,7 +1,6 @@
-/* eslint-disable react-hooks/rules-of-hooks */
-import { ActionEvent } from '@hotwired/stimulus';
-import { httpRequest, getConfig } from '@utils';
 import { matchInputElement } from '@coldwired/utils';
+import type { ActionEvent } from '@hotwired/stimulus';
+import { getConfig, httpRequest } from '@utils';
 
 import { AutoUpload } from '../shared/activestorage/auto-upload';
 import { ApplicationController } from './application_controller';
@@ -52,9 +51,12 @@ export class TypeDeChampEditorController extends ApplicationController {
   private onChange(event: Event) {
     matchInputElement(event.target, {
       file: (target) => {
-        if (target.files?.length) {
+        if (target.files?.length && target.name != 'referentiel_file') {
           const autoupload = new AutoUpload(target, target.files[0]);
           autoupload.start();
+        }
+        if (target.files?.length && target.name == 'referentiel_file') {
+          this.requestSubmitForm(target.form);
         }
       },
       changeable: (target) => this.save(target.form)
@@ -102,7 +104,7 @@ export class TypeDeChampEditorController extends ApplicationController {
       httpRequest(form.action, {
         method: form.getAttribute('method') ?? '',
         body: new FormData(form),
-        controller: controller
+        signal: controller.signal
       })
         .turbo()
         .catch(() => null)
