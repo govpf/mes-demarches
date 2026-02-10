@@ -249,6 +249,17 @@ describe Champs::PieceJustificativeController, type: :controller do
       end
     end
 
+    context 'when the champ is public and the dossier is en_construction' do
+      let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
+      let!(:dossier) { create(:dossier, :en_construction, user: user, procedure: procedure) }
+      let!(:champ) { dossier.project_champs_public.first }
+
+      it 'renders the footer with submit button' do
+        subject
+        expect(response.body).to include('Déposer les modifications')
+      end
+    end
+
     context 'when the file is invalid' do
       let(:file) { fixture_file_upload('spec/fixtures/files/invalid_file_format.json', 'bad/bad') }
 
