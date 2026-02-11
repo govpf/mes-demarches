@@ -599,4 +599,37 @@ describe TypeDeChamp do
 
     it { is_expected.to eq([["« Référentiel des administrations »"], ["« Oui/Non »", "« Case à cocher seule »", "« Choix simple »", "« Choix multiple »"], ["« Nombre entier »", "« Nombre décimal »"], ["« Adresse en France »", "« Communes »", "« EPCI »", "« Départements »", "« Régions »", "« Pays »", "« Commune de Polynésie »", "« Code Postal de Polynésie »"]]) }
   end
+
+  describe '#table_id' do
+    let(:type_de_champ) { create(:type_de_champ_referentiel_de_polynesie) }
+
+    context 'avec uniquement options legacy (avant harmonisation)' do
+      before { type_de_champ.update_column(:options, { 'table_id' => '24' }) }
+
+      it 'retourne la valeur legacy' do
+        expect(type_de_champ.table_id).to eq('24')
+      end
+    end
+
+    context 'avec uniquement un referentiel Baserow (nouveau flux)' do
+      let(:referentiel) { create(:baserow_referentiel, test_data: '25') }
+      before { type_de_champ.update!(referentiel: referentiel) }
+
+      it 'retourne la valeur du referentiel' do
+        expect(type_de_champ.table_id).to eq('25')
+      end
+    end
+
+    context 'avec options legacy ET un referentiel Baserow (migration)' do
+      let(:referentiel) { create(:baserow_referentiel, test_data: '25') }
+      before do
+        type_de_champ.update_column(:options, { 'table_id' => '24' })
+        type_de_champ.update!(referentiel: referentiel)
+      end
+
+      it 'le referentiel prime sur les options legacy' do
+        expect(type_de_champ.table_id).to eq('25')
+      end
+    end
+  end
 end
