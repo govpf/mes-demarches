@@ -1,5 +1,5 @@
 - content_for(:title, @subject)
-- merge_link = omniauth_merge_using_email_link_url(email_merge_token: @email_merge_token)
+- merge_link = omniauth_merge_using_email_link_url(provider: @provider, email_merge_token: @email_merge_token)
 
 %p
   Bonjour,

@@ -166,6 +166,61 @@ module Administrateurs
       @morphed = [champ_component_from(@coordinate)]
     end
 
+    def duplicate
+      default_type_de_champ = draft.find_and_ensure_exclusive_use(params[:stable_id])
+      @coordinate = draft.coordinate_for(default_type_de_champ)
+
+      new_champ_params = {
+        type_champ: default_type_de_champ.type_champ,
+        libelle: default_type_de_champ.libelle.to_s,
+        description: default_type_de_champ.description,
+        mandatory: default_type_de_champ.mandatory,
+        options: default_type_de_champ.options,
+        condition: default_type_de_champ.condition,
+        private: default_type_de_champ.private,
+        after_stable_id: @coordinate.stable_id,
+        parent_stable_id: @coordinate.parent&.stable_id
+      }
+
+      type_de_champ = draft.add_type_de_champ(new_champ_params)
+
+      if type_de_champ.valid?
+        @coordinate = draft.coordinate_for(type_de_champ)
+        ProcedureRevisionPreloader.load_one(@coordinate.revision)
+        @created = champ_component_from(@coordinate, focused: true)
+        @morphed = champ_components_starting_at(@coordinate, 1)
+      else
+        flash.alert = type_de_champ.errors.full_messages
+      end
+
+      if default_type_de_champ.repetition?
+        ActiveRecord::Base.transaction do
+          children = draft.children_of(default_type_de_champ)
+          last_child_stable_id = type_de_champ.stable_id
+
+          children.each do |child|
+            new_child_params = draft.add_type_de_champ(
+              {
+                type_champ: child.type_champ,
+                libelle: child.libelle.to_s,
+                description: child.description,
+                mandatory: child.mandatory,
+                options: child.options,
+                condition: child.condition,
+                parent_stable_id: type_de_champ.stable_id,
+                after_stable_id: last_child_stable_id
+              }
+            )
+            unless new_child_params.valid?
+              flash.alert = new_child_params.errors.full_messages
+              raise ActiveRecord::Rollback
+            end
+            last_child_stable_id = new_child_params.stable_id
+          end
+        end
+      end
+    end
+
     private
 
     def changing_of_type?(type_de_champ)

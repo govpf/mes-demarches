@@ -93,21 +93,8 @@ describe Champs::PieceJustificativeController, type: :controller do
           it_behaves_like "he can download qrcoded pdf"
 
           context 'when created_date is wrong' do
-            let(:params) { { champ_id: annotation.id.to_s, h: 'x' } }
+            let(:params) { { dossier_id: dossier.id, stable_id: annotation.stable_id, h: 'x', i: '0' } }
             it_behaves_like "he can't download pdf"
-          end
-        end
-
-        context 'using legacy link' do
-          subject do
-            params.delete(:i)
-            get :show, params: params
-          end
-
-          it 'is redirected to download url' do
-            subject
-            expect(response.status).to eq(302)
-            expect(response.location).to include("#{params[:champ_id]}/piece_justificative/download/#{params[:h]}")
           end
         end
       end
@@ -125,7 +112,7 @@ describe Champs::PieceJustificativeController, type: :controller do
           it_behaves_like "he can download qrcoded pdf"
 
           context 'when created_date is wrong,' do
-            let(:params) { { champ_id: annotation.id.to_s, h: 'x' } }
+            let(:params) { { dossier_id: dossier.id, stable_id: annotation.stable_id, h: 'x', i: '0' } }
             it_behaves_like "he can't download pdf"
           end
         end
@@ -145,7 +132,7 @@ describe Champs::PieceJustificativeController, type: :controller do
         end
 
         context 'when created_date is wrong,' do
-          let(:params) { { champ_id: annotation.id.to_s, h: 'x' } }
+          let(:params) { { dossier_id: dossier.id, stable_id: annotation.stable_id, h: 'x', i: '0' } }
           before { Flipper.enable(:qrcoded_pdf, procedure) }
           it_behaves_like "he can't download pdf"
         end

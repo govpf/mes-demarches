@@ -15,7 +15,24 @@ class MailTemplatePresenterService
   end
 
   def safe_body
-    sanitize(@email_template.body_for_dossier(@dossier), scrubber: Sanitizers::MailScrubber.new)
+    # pf: préserve les liens HTML existants (téléchargements dans motivations) + auto-link URLs brutes
+    body_text = @email_template.body_for_dossier(@dossier)
+
+    # Étape 1 : Sanitize en préservant les <a> et <img> (MailScrubber)
+    sanitized_text = sanitize(body_text, scrubber: Sanitizers::MailScrubber.new)
+
+    # Étape 2 : Auto-link les URLs brutes (pas encore en <a>)
+    auto_linked_text = Anchored::Linker.auto_link(sanitized_text, target: '_blank', rel: 'noopener') do |link_href|
+      truncate(link_href, length: 60)
+    end
+
+    # Étape 3 : Gestion des espaces insécables pour éviter de casser le layout
+    auto_linked_text.gsub!(/ (\S{15})/, ' \1') if auto_linked_text.present?
+
+    # pf: marquer html_safe car le contenu est déjà sanitisé par MailScrubber (étape 1)
+    # et l'auto-link ne rajoute que des <a> contrôlés. Sans ça, HAML re-escape tout.
+    # (upstream: sanitize() retourne html_safe directement, ici le gsub!/auto_link casse ça)
+    auto_linked_text&.html_safe # rubocop:disable Rails/OutputSafety
   end
 
   def safe_subject
