@@ -617,9 +617,11 @@ class TypeDeChamp < ApplicationRecord
     self.accredited_users = value.blank? ? [] : value.split(/\s*[\r\n]+\s*/).map(&:downcase)
   end
 
-  # pf: table_id depuis options (legacy) ou referentiel lié (post-migration)
+  # pf: table_id depuis le referentiel lié (nouveau flux) ou options (legacy, avant harmonisation)
+  # Le referentiel prime : quand l'admin change la table via le formulaire referentiel,
+  # seul referentiel.test_data est mis à jour, pas options['table_id'].
   def table_id
-    options['table_id'].presence&.to_s || referentiel&.try(:table_id)&.to_s || ''
+    referentiel&.try(:table_id)&.to_s.presence || options['table_id'].presence&.to_s || ''
   end
 
   def accredited_user_list?
