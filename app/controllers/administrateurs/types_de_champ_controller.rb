@@ -240,7 +240,6 @@ module Administrateurs
             new_children[index].update!(condition: new_condition)
           end
         end
-
         set_coordinate_response(type_de_champ)
       end
     end
@@ -254,6 +253,11 @@ module Administrateurs
       elsif condition.respond_to?(:left) && condition.respond_to?(:right)
         new_left = replace_stable_ids_in_condition(condition.left, mapping)
         new_right = replace_stable_ids_in_condition(condition.right, mapping)
+        # mettre des logs pour voir new_right
+        # faire une seule boucle
+        # on reprend une condition mise à jour avec les champs créés,
+        # pourquoi ça marche de crééer les stables_ids un à un ? ( A, B , C , D, E ) soit A = ça, B = .... Pourquoi ça marche ? 
+        # deux boucles si pour C j'ai besoin de D ou E
         condition.class.new(new_left, new_right)
       elsif condition.respond_to?(:operands)
         new_operands = condition.operands.map { |op| replace_stable_ids_in_condition(op, mapping) }
