@@ -228,17 +228,23 @@ module Administrateurs
             flash.alert = child_type_de_champ.errors.full_messages
             raise ActiveRecord::Rollback
           end
+
           mapping[child.stable_id] = child_type_de_champ.stable_id
 
-          last_child_stable_id = child_type_de_champ.stable_id
-        end
-        new_children = draft.children_of(type_de_champ)
+          if child.condition.present?
+            Rails.logger.debug { "🔍 AVANT transformation - Child: #{child.libelle}, Condition sources: #{child.condition.sources.inspect}" }
+            Rails.logger.debug { "🔍 Mapping actuel: #{mapping.inspect}" }
 
-        children.each_with_index do |c, index|
-          if c.condition.present?
-            new_condition = replace_stable_ids_in_condition(c.condition, mapping)
-            new_children[index].update!(condition: new_condition)
+            new_condition = replace_stable_ids_in_condition(child.condition, mapping)
+
+            Rails.logger.debug { "🔍 APRÈS transformation - New condition sources: #{new_condition.sources.inspect}" }
+
+            child_type_de_champ.condition = new_condition
+            child_type_de_champ.save!
+
+            Rails.logger.debug { " Condition 🔍 Condition sauvegardée: #{child_type_de_champ.reload.condition.sources.inspect}" }
           end
+          last_child_stable_id = child_type_de_champ.stable_id
         end
         set_coordinate_response(type_de_champ)
       end
@@ -252,13 +258,9 @@ module Administrateurs
         Logic::ChampValue.new(new_stable_id)
       elsif condition.respond_to?(:left) && condition.respond_to?(:right)
         new_left = replace_stable_ids_in_condition(condition.left, mapping)
-        new_right = replace_stable_ids_in_condition(condition.right, mapping)
-        # mettre des logs pour voir new_right
-        # faire une seule boucle
         # on reprend une condition mise à jour avec les champs créés,
-        # pourquoi ça marche de crééer les stables_ids un à un ? ( A, B , C , D, E ) soit A = ça, B = .... Pourquoi ça marche ? 
-        # deux boucles si pour C j'ai besoin de D ou E
-        condition.class.new(new_left, new_right)
+        # pourquoi ça marche de crééer les stables_ids un à un ? ( A, B , C , D, E ) soit A = ça, B = .... Pourquoi ça marche ?
+        condition.class.new(new_left, condition.right)
       elsif condition.respond_to?(:operands)
         new_operands = condition.operands.map { |op| replace_stable_ids_in_condition(op, mapping) }
         condition.class.new(new_operands)
