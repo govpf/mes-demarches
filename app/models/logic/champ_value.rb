@@ -52,6 +52,10 @@ class Logic::ChampValue < Logic::Term
     [@stable_id]
   end
 
+  def dup_with_stable_ids(mapping)
+    self.class.new(mapping[stable_id] || stable_id)
+  end
+
   def compute(champs)
     targeted_champ = champ(champs)
 
