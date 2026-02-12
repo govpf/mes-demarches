@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 describe Dossier, type: :model do
+  include ActionView::Helpers::OutputSafetyHelper
   include ActionView::Helpers::SanitizeHelper
+  include ActionView::Helpers::TextHelper
+  include ChampHelper
 
   let(:user) { create(:user) }
 
@@ -795,17 +798,17 @@ describe Dossier, type: :model do
     let(:instructeur) { create(:instructeur) }
 
     before do
-      allow(NotificationMailer).to receive(:send_en_instruction_notification).and_return(double(deliver_later: nil))
+      allow(InstructionNotificationJob).to receive(:schedule_for_dossier)
     end
 
-    it "sends an email when the dossier becomes en_instruction" do
+    it "schedules an email when the dossier becomes en_instruction" do
       dossier.passer_en_instruction!(instructeur: instructeur)
-      expect(NotificationMailer).to have_received(:send_en_instruction_notification).with(dossier)
+      expect(InstructionNotificationJob).to have_received(:schedule_for_dossier).with(dossier)
     end
 
-    it "does not an email when the dossier becomes accepte" do
+    it "does not schedule an email when the dossier becomes accepte" do
       dossier.accepte!
-      expect(NotificationMailer).to_not have_received(:send_en_instruction_notification)
+      expect(InstructionNotificationJob).to_not have_received(:schedule_for_dossier)
     end
   end
 

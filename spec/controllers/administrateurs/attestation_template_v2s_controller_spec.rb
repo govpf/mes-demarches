@@ -58,7 +58,8 @@ describe Administrateurs::AttestationTemplateV2sController, type: :controller do
       context 'with logo label' do
         it do
           is_expected.to include("Ministère des devs")
-          is_expected.to match(/centered_marianne-\w+\.svg/)
+          # pf: logo Polynésie au lieu de Marianne
+          is_expected.to match(/polynesie-\w+\.svg/)
         end
       end
 
@@ -349,6 +350,91 @@ describe Administrateurs::AttestationTemplateV2sController, type: :controller do
       expect(flash.notice).to include("réinitialisées")
       expect(procedure.attestation_templates.count).to eq(1)
       expect(procedure.attestation_templates.first).to eq(attestation_template)
+    end
+  end
+
+  describe 'Retour arrière v2 vers v1' do
+    context 'avec attestation v1 existante' do
+      let(:v1_template) { create(:attestation_template, version: 1, procedure:) }
+      let(:v2_template) { create(:attestation_template, :v2, :draft, procedure:) }
+      let(:procedure) { create(:procedure, :published, administrateur: admin) }
+
+      before do
+        v1_template
+        v2_template
+      end
+
+      it 'permet le retour en arrière vers v1' do
+        get :edit, params: { procedure_id: procedure.id }
+
+        # Test que le rendu fonctionne (le contenu sera testé dans les tests système)
+        expect(response).to have_http_status(:success)
+        expect(assigns(:attestation_template)).to eq(v2_template)
+      end
+
+      it 'préserve l\'attestation v1 lors de la création de v2' do
+        expect(procedure.attestation_template_v1).to eq(v1_template)
+        expect(procedure.attestation_templates.v2.draft.first).to eq(v2_template)
+
+        # Vérifier que v1 reste intacte
+        expect(v1_template.reload).to be_present
+        expect(v1_template.version).to eq(1)
+      end
+    end
+
+    context 'migration puis retour arrière' do
+      let(:procedure) { create(:procedure, :published, administrateur: admin) }
+      let(:v1_template) do
+        create(:attestation_template,
+          version: 1,
+          procedure:,
+          title: 'Titre v1',
+          body: 'Corps v1 avec <b>formatage</b>',
+          activated: true)
+      end
+
+      before do
+        # Simuler une migration v1 -> v2 via le controller v1
+        v1_template
+        # Utiliser directement les méthodes du controller v1
+        controller_v1 = Administrateurs::AttestationTemplatesController.new
+        controller_v1.instance_variable_set(:@procedure, procedure)
+        v2_template = controller_v1.send(:build_v2_from_v1, v1_template)
+        @v2_template = v2_template.tap(&:save!)
+      end
+
+      it 'conserve les données v1 après migration' do
+        # V1 doit toujours exister
+        expect(procedure.attestation_template_v1).to eq(v1_template)
+        expect(v1_template.reload.title).to eq('Titre v1')
+        expect(v1_template.activated).to be true
+
+        # V2 doit exister en parallèle
+        expect(procedure.attestation_templates.v2.first).to eq(@v2_template)
+        expect(@v2_template.activated).to be true
+      end
+
+      it 'affiche l\'interface de retour arrière en v2' do
+        get :edit, params: { procedure_id: procedure.id }
+
+        # Test que le rendu fonctionne après migration
+        expect(response).to have_http_status(:success)
+        expect(assigns(:attestation_template)).to eq(@v2_template)
+      end
+    end
+
+    context 'sans attestation v1' do
+      let(:procedure) { create(:procedure, :published, administrateur: admin) }
+      let(:v2_template) { create(:attestation_template, :v2, :draft, procedure:) }
+
+      before { v2_template }
+
+      it 'n\'affiche pas l\'option de retour arrière' do
+        get :edit, params: { procedure_id: procedure.id }
+
+        # Pas d'encart de retour car pas d'attestation v1
+        expect(response.body).not_to include('Pour modifier l\'attestation existante')
+      end
     end
   end
 end

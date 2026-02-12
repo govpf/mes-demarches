@@ -39,7 +39,7 @@ FileUtils.chdir APP_ROOT do
   system! 'bin/rails after_party:run'
 
   puts "\n== Running on deploy maintenance tasks =="
-  system! 'bin/rails deploy:maintenance_tasks'
+  system! 'RAILS_QUEUE_ADAPTER=inline bin/rails deploy:maintenance_tasks'
 
   puts "\n== Removing old logs =="
   system! 'bin/rails log:clear'

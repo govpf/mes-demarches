@@ -123,8 +123,6 @@ module Types
           Types::Champs::RNFChampType
         when ::Champs::EngagementJuridiqueChamp
           Types::Champs::EngagementJuridiqueChampType
-        when ::Champs::TableRowSelectorChamp
-          Types::Champs::TableRowSelectorChampType
         when ::Champs::ReferentielDePolynesieChamp
           Types::Champs::ReferentielDePolynesieChampType
         else

@@ -1790,9 +1790,12 @@ describe Administrateurs::ProceduresController, type: :controller do
       }
     end
 
-    context 'when admin is connected to pro_connect' do
+    context 'when admin is connected via Microsoft' do
       before do
-        cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: admin.user.id }.to_json }
+        # pf: En PF, on utilise loged_in_with_france_connect au lieu du cookie
+        # upstream:
+        # cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: admin.user.id }.to_json }
+        admin.user.update!(loged_in_with_france_connect: 'microsoft')
         subject
       end
 
@@ -1800,7 +1803,7 @@ describe Administrateurs::ProceduresController, type: :controller do
         let(:pro_connect_restricted) { true }
 
         it { expect(procedure.reload.pro_connect_restricted).to be true }
-        it { expect(flash.notice).to eq("La démarche est restreinte à ProConnect") }
+        it { expect(flash.notice).to eq("La démarche est restreinte aux comptes @administration.gov.pf") }
         it { expect(response).to redirect_to(pro_connect_restricted_admin_procedure_path(procedure)) }
       end
 
@@ -1810,7 +1813,7 @@ describe Administrateurs::ProceduresController, type: :controller do
         let(:pro_connect_restricted) { false }
 
         it { expect(procedure.reload.pro_connect_restricted).to be false }
-        it { expect(flash.notice).to eq("La démarche n'est plus restreinte à ProConnect") }
+        it { expect(flash.notice).to eq("La démarche n'est plus restreinte aux comptes @administration.gov.pf") }
         it { expect(response).to redirect_to(pro_connect_restricted_admin_procedure_path(procedure)) }
       end
     end
@@ -1867,12 +1870,15 @@ describe Administrateurs::ProceduresController, type: :controller do
         subject
 
         expect(response).to redirect_to(pro_connect_path)
-        expect(flash[:alert]).to eq("Vous devez vous connecter par ProConnect pour accéder à cette démarche")
+        expect(flash[:alert]).to eq("Vous devez vous connecter avec votre compte @administration.gov.pf pour accéder à cette démarche")
       end
 
-      context "and the cookie is set" do
+      context "and the user is connected via Microsoft" do
         before do
-          cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: admin.user.id }.to_json }
+          # pf: En PF, on utilise loged_in_with_france_connect au lieu du cookie
+          # upstream:
+          # cookies.encrypted[ProConnectSessionConcern::SESSION_INFO_COOKIE_NAME] = { value: { user_id: admin.user.id }.to_json }
+          admin.user.update!(loged_in_with_france_connect: 'microsoft')
         end
 
         it "does not redirect to pro_connect_path" do

@@ -87,7 +87,7 @@ describe 'Inviting an expert:', js: true do
       expect(page).to have_content('Une demande d’avis a été envoyée')
       expect(page).to have_content('Demander un avis externe')
       expect(page).to have_content('Une demande d’avis a été envoyée à expert1@gouv.fr, expert2@gouv.fr, test@test.fr')
-      expect(page).to have_content('email-invalide : Le champ « Email » est invalide. Saisissez une adresse électronique valide.')
+      expect(page).to have_content('email-invalide : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com')
     end
 
     context 'when experts list is restricted by admin' do

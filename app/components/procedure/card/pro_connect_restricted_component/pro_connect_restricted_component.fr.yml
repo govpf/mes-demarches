@@ -1,6 +1,9 @@
 ---
 fr:
-  title: Connexion ProConnect
-  subtitle: Obliger les administrateurs et instructeurs à se connecter via ProConnect pour accéder à la démarche
+  # pf: Adapté pour Microsoft @administration.gov.pf au lieu de ProConnect
+  # upstream: title: Connexion ProConnect
+  title: Authentification professionnelle
+  # upstream: subtitle: Obliger les administrateurs et instructeurs à se connecter via ProConnect pour accéder à la démarche
+  subtitle: Accès restreint aux agents @administration.gov.pf
   enabled: Activée
   disabled: Désactivée
