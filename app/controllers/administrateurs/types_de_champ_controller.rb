@@ -182,46 +182,91 @@ module Administrateurs
         parent_stable_id: @coordinate.parent&.stable_id
       }
 
-      type_de_champ = draft.add_type_de_champ(new_champ_params)
-
-      if type_de_champ.valid?
-        @coordinate = draft.coordinate_for(type_de_champ)
-        ProcedureRevisionPreloader.load_one(@coordinate.revision)
-        @created = champ_component_from(@coordinate, focused: true)
-        @morphed = champ_components_starting_at(@coordinate, 1)
-      else
-        flash.alert = type_de_champ.errors.full_messages
-      end
-
       if default_type_de_champ.repetition?
-        ActiveRecord::Base.transaction do
-          children = draft.children_of(default_type_de_champ)
-          last_child_stable_id = type_de_champ.stable_id
+        duplicate_repetition_bloc(default_type_de_champ, new_champ_params)
+      else
+        type_de_champ = draft.add_type_de_champ(new_champ_params)
 
-          children.each do |child|
-            new_child_params = draft.add_type_de_champ(
-              {
-                type_champ: child.type_champ,
-                libelle: child.libelle.to_s,
-                description: child.description,
-                mandatory: child.mandatory,
-                options: child.options,
-                condition: child.condition,
-                parent_stable_id: type_de_champ.stable_id,
-                after_stable_id: last_child_stable_id
-              }
-            )
-            unless new_child_params.valid?
-              flash.alert = new_child_params.errors.full_messages
-              raise ActiveRecord::Rollback
-            end
-            last_child_stable_id = new_child_params.stable_id
-          end
+        if type_de_champ.valid?
+          set_coordinate_response(type_de_champ)
+        else
+          flash.alert = type_de_champ.errors.full_messages
         end
       end
     end
 
     private
+
+    def duplicate_repetition_bloc(default_type_de_champ, new_champ_params)
+      ActiveRecord::Base.transaction do
+        type_de_champ = draft.add_type_de_champ(new_champ_params)
+
+        unless type_de_champ.valid?
+          flash.alert = type_de_champ.errors.full_messages
+          raise ActiveRecord::Rollback
+        end
+
+        children = draft.children_of(default_type_de_champ)
+        last_child_stable_id = type_de_champ.stable_id
+
+        mapping = {}
+
+        children.each do |child|
+          new_child_params = {
+            type_champ: child.type_champ,
+            libelle: child.libelle.to_s,
+            description: child.description,
+            mandatory: child.mandatory,
+            options: child.options,
+            condition: child.condition,
+            private: child.private,
+            after_stable_id: last_child_stable_id,
+            parent_stable_id: type_de_champ.stable_id
+          }
+
+          child_type_de_champ = draft.add_type_de_champ(new_child_params)
+
+          unless child_type_de_champ.valid?
+            flash.alert = child_type_de_champ.errors.full_messages
+            raise ActiveRecord::Rollback
+          end
+
+          mapping[child.stable_id] = child_type_de_champ.stable_id
+
+          if child.condition.present?
+            new_condition = replace_stable_ids_in_condition(child.condition, mapping)
+            child_type_de_champ.condition = new_condition
+            child_type_de_champ.save!
+          end
+          last_child_stable_id = child_type_de_champ.stable_id
+        end
+        set_coordinate_response(type_de_champ)
+      end
+    end
+
+    def replace_stable_ids_in_condition(condition, mapping)
+      return nil if condition.nil?
+
+      if condition.is_a?(Logic::ChampValue)
+        new_stable_id = mapping[condition.stable_id] || condition.stable_id
+        Logic::ChampValue.new(new_stable_id)
+      elsif condition.respond_to?(:left) && condition.respond_to?(:right)
+        new_left = replace_stable_ids_in_condition(condition.left, mapping)
+        condition.class.new(new_left, condition.right)
+      elsif condition.respond_to?(:operands)
+        new_operands = condition.operands.map { |op| replace_stable_ids_in_condition(op, mapping) }
+        condition.class.new(new_operands)
+      else
+        condition
+      end
+    end
+
+    def set_coordinate_response(type_de_champ)
+      @coordinate = draft.coordinate_for(type_de_champ)
+      ProcedureRevisionPreloader.load_one(@coordinate.revision)
+      @created = champ_component_from(@coordinate, focused: true)
+      @morphed = champ_components_starting_at(@coordinate, 1)
+    end
 
     def changing_of_type?(type_de_champ)
       type_de_champ_update_params['type_champ'].present? && (type_de_champ_update_params['type_champ'] != type_de_champ.type_champ)
