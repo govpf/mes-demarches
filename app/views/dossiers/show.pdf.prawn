@@ -351,7 +351,7 @@ prawn_document(page_size: "A4") do |pdf|
 
   pdf.move_down(40)
 
-  format_in_2_columns(pdf, 'Dossier Nº', @dossier.id.to_s)
+  format_in_2_columns(pdf, 'Dossier n°', @dossier.id.to_s)
   format_in_2_columns(pdf, 'Démarche', @dossier.procedure.libelle)
   format_in_2_columns(pdf, 'Organisme', @dossier.procedure.organisation_name)
 
