@@ -1,5 +1,5 @@
 - if dossiers.present?
-  %h2.fr-h6.fr-mb-2w
+  %h2.fr-h6.fr-my-2w
     = page_entries_info dossiers
 
   - dossiers.each do |dossier|
@@ -28,6 +28,7 @@
               = pending_correction_badge(:for_user)
 
           %p.fr-icon--sm.fr-icon-user-line
+            %span.visually-hidden= t('views.shared.dossiers.demande.requester_identity')
             = demandeur_dossier(dossier)
 
           - if dossier.hidden_by_expired?

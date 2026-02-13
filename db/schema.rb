@@ -671,8 +671,11 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.string "kind", null: false
     t.string "name", null: false
     t.jsonb "pjs", default: [], null: false, array: true
-    t.boolean "shared", default: false, null: false
     t.datetime "updated_at", null: false
+    t.boolean "shared", default: false, null: false
+    t.boolean "commentaires_attachments", default: false, null: false
+    t.boolean "avis_attachments", default: false, null: false
+    t.boolean "justificatif_motivation", default: false, null: false
     t.index ["groupe_instructeur_id"], name: "index_export_templates_on_groupe_instructeur_id"
   end
 
@@ -868,7 +871,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.datetime "created_at", null: false
     t.bigint "instructeur_id", null: false
     t.bigint "last_revision_seen_id"
-    t.integer "position", default: 99
+    t.integer "position", null: false
     t.bigint "procedure_id", null: false
     t.datetime "updated_at", null: false
     t.index ["instructeur_id", "procedure_id"], name: "index_instructeurs_procedures_on_instructeur_and_procedure", unique: true

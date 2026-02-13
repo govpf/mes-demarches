@@ -343,6 +343,7 @@ Rails.application.routes.draw do
   resources :invites, only: [:show, :destroy] do
     collection do
       post 'dossier/:dossier_id', to: 'invites#create', as: :dossier
+      get 'dossier/:dossier_id/invites', to: 'invites#index', as: :dossier_index
     end
   end
 

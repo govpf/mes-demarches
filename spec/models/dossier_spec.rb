@@ -384,6 +384,27 @@ describe Dossier, type: :model do
         end
       end
     end
+
+    describe '#last_booked_rdv' do
+      let(:dossier) { create(:dossier) }
+      let(:instructeur) { create(:instructeur) }
+
+      context 'when there are no booked RDVs' do
+        it 'returns nil' do
+          expect(dossier.last_booked_rdv).to be_nil
+        end
+      end
+
+      context 'when there are RDVs' do
+        let!(:booked1) { create(:rdv, :booked, dossier: dossier, instructeur: instructeur, starts_at: 1.day.from_now) }
+        let!(:booked2) { create(:rdv, :booked, dossier: dossier, instructeur: instructeur, starts_at: 2.days.from_now) }
+        let!(:not_booked) { create(:rdv, dossier: dossier, instructeur: instructeur, starts_at: 3.days.from_now) }
+
+        it 'returns the RDV with the latest starts_at' do
+          expect(dossier.last_booked_rdv).to eq(booked2)
+        end
+      end
+    end
   end
 
   context 'when dossier is followed' do
@@ -471,6 +492,26 @@ describe Dossier, type: :model do
 
       it { expect(dossier.avis_for_expert(expert_1)).to match([avis_1]) }
       it { expect(dossier.avis_for_expert(expert_2)).to match([avis_2]) }
+    end
+
+    context 'when there are private avis asked from one expert to another expert' do
+      let!(:avis_1) { create(:avis, dossier: dossier, claimant: expert_1, experts_procedure: experts_procedure_2, confidentiel: true) }
+      let!(:avis_2) { create(:avis, dossier: dossier, claimant: expert_2, experts_procedure: experts_procedure, confidentiel: true) }
+
+      it 'experts can see both asked and received avis' do
+        expect(dossier.avis_for_expert(expert_1)).to match([avis_1, avis_2])
+        expect(dossier.avis_for_expert(expert_2)).to match([avis_1, avis_2])
+      end
+    end
+
+    context 'when there are public avis asked from one expert to another expert' do
+      let!(:avis_1) { create(:avis, dossier: dossier, claimant: expert_1, experts_procedure: experts_procedure_2, confidentiel: false) }
+      let!(:avis_2) { create(:avis, dossier: dossier, claimant: expert_2, experts_procedure: experts_procedure, confidentiel: false) }
+
+      it 'experts can see both asked and received avis' do
+        expect(dossier.avis_for_expert(expert_1)).to match([avis_1, avis_2])
+        expect(dossier.avis_for_expert(expert_2)).to match([avis_1, avis_2])
+      end
     end
 
     context 'when they are a lot of advice' do

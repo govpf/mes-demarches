@@ -479,6 +479,10 @@ class Dossier < ApplicationRecord
     user_email_for(:display)
   end
 
+  def last_booked_rdv
+    rdvs.booked.by_starts_at.last
+  end
+
   def expiration_started?
     [
       brouillon_close_to_expiration_notice_sent_at,
@@ -744,7 +748,8 @@ class Dossier < ApplicationRecord
   def avis_for_expert(expert)
     Avis
       .where(dossier_id: id, confidentiel: false)
-      .or(Avis.where(id: expert.avis, dossier_id: id))
+      .or(Avis.where(id: expert.avis, dossier_id: id)) # avis's asked to expert
+      .or(Avis.where(claimant: expert, dossier_id: id)) # avis's claimed by expert
       .order(created_at: :asc)
   end
 
