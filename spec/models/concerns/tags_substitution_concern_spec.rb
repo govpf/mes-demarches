@@ -314,10 +314,8 @@ describe TagsSubstitutionConcern, type: :model do
           value: 'Papeete',
           external_id: '12345'
         )
-        # pf: structure réelle des données Baserow avec row imbriqué et instructeur_fields
         champ.update_external_data!(data: {
-          'row' => { 'code_postal' => '98714', 'archipel' => 'Iles du Vent' },
-          'instructeur_fields' => ['code_postal', 'archipel']
+          'code_postal' => '98714', 'archipel' => 'Iles du Vent'
         })
       end
 
