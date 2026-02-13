@@ -23,11 +23,11 @@ RSpec.describe Referentiels::BaserowService, type: :service do
           .and_return(api_response)
       end
 
-      it 'returns a Success with the data' do
+      it 'returns a Success with just the row data (without envelope)' do
         result = service.call(external_id)
 
         expect(result).to be_success
-        expect(result.value!).to eq(api_response)
+        expect(result.value!).to eq(api_response[:row])
       end
     end
 
@@ -143,7 +143,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
         referentiel.reload
 
         expect(referentiel.last_response['status']).to eq(200)
-        expect(referentiel.last_response['body']).to eq({ 'row' => sample_row })
+        expect(referentiel.last_response['body']).to eq(sample_row)
       end
     end
 

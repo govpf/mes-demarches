@@ -13,7 +13,7 @@ class Referentiels::BaserowService
     result = ReferentielDePolynesie::API.fetch_row(external_id)
 
     if result.present? && result.is_a?(Hash) && result[:row].present?
-      Success(result)
+      Success(result[:row])
     else
       Failure(retryable: false, reason: StandardError.new('Row not found'), code: 404)
     end
@@ -60,7 +60,7 @@ class Referentiels::BaserowService
       first_row = data['results']&.first
       return nil unless first_row
 
-      { 'row' => first_row }
+      first_row
     end
   rescue StandardError => e
     Rails.logger.error("BaserowService fetch_sample_row error: #{e.class} - #{e.message}")
