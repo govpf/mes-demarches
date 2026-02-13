@@ -49,7 +49,7 @@ class Referentiels::BaserowReferentiel < Referentiel
   end
 
   def headers_with_path
-    headers.map { |h| [h, "$.row.#{h}"] }
+    headers.map { |h| [h, "$.#{h}"] }
   end
 
   def last_response_status
