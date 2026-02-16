@@ -1,6 +1,6 @@
 ---
 fr:
-  instruct: Instruire le dossier
+  instruct: Clôturer le dossier
   placeholders:
     accepter: "Expliquez au demandeur pourquoi ce dossier est accepté (facultatif)"
     refuser: "Expliquez au demandeur pourquoi ce dossier est refusé (obligatoire)"

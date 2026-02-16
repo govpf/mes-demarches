@@ -18,13 +18,21 @@ export class FormatController extends ApplicationController {
           replaceValue(target, value);
         });
         break;
-      case 'siret':
+      case 'siret': {
+        // Format immediately on connect if field has a value
+        const input = this.element as HTMLInputElement;
+        if (input.value) {
+          const value = this.formatSIRET(input.value);
+          replaceValue(input, value);
+        }
+
         this.on('input', (event) => {
           const target = event.target as HTMLInputElement;
           const value = this.formatSIRET(target.value);
           replaceValue(target, value);
         });
         break;
+      }
       case 'iban':
         this.on('input', (event) => {
           const target = event.target as HTMLInputElement;

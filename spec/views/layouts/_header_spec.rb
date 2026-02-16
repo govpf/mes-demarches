@@ -66,7 +66,8 @@ describe 'layouts/_header', type: :view do
 
     it { is_expected.to have_css(".fr-header__operator") }
     it { is_expected.to have_selector(:button, user.email, class: "account-btn") }
-    it { is_expected.to have_selector(:button, class: "lasuite-gaufre-btn") }
+    # pf: La Suite numérique n'est pas encore accessible aux agents PF - bouton temporairement désactivé
+    it { is_expected.not_to have_selector(:button, class: "lasuite-gaufre-btn") }
 
     it 'displays the Help dropdown menu' do
       expect(subject).to have_selector("#help-menu")
@@ -87,7 +88,8 @@ describe 'layouts/_header', type: :view do
     # pf: le logo République Française est désactivé, on teste le logo operator à la place
     it { is_expected.to have_css(".fr-header__operator") }
     it { is_expected.to have_selector(:button, user.email, class: "account-btn") }
-    it { is_expected.to have_selector(:button, class: "lasuite-gaufre-btn") }
+    # pf: La Suite numérique n'est pas encore accessible aux agents PF - bouton temporairement désactivé
+    it { is_expected.not_to have_selector(:button, class: "lasuite-gaufre-btn") }
 
     it 'does not display the Help dropdown menu' do
       expect(subject).not_to have_selector("#help-menu")

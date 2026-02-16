@@ -10,7 +10,7 @@ class Champs::ReferentielDePolynesieChamp < Champs::TextChamp
   end
 
   def update_with_external_data!(data:)
-    update!(data: data) if data&.is_a?(Hash)
+    update!(data: data, fetch_external_data_exceptions: []) if data&.is_a?(Hash)
   end
 
   def selected
@@ -23,6 +23,11 @@ class Champs::ReferentielDePolynesieChamp < Champs::TextChamp
     else
       []
     end
+  end
+
+  # pf: support colonnes pour tags/exports (aligné sur DropDownList)
+  def referentiel_item_value(path)
+    data&.dig("row", path.to_s)
   end
 
   # pf: pour les ancres d'erreur (#11420), le React ComboBox utilise html_id sans suffixe -input

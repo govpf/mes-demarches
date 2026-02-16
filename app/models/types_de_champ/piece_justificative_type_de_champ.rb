@@ -13,17 +13,14 @@ class TypesDeChamp::PieceJustificativeTypeDeChamp < TypesDeChamp::TypeDeChampBas
   def champ_value_for_tag(champ, path = nil)
     return nil unless champ.piece_justificative_file.attached?
 
-    champ.piece_justificative_file.each_with_index.filter_map do |attachment, i|
-      if attachment.virus_scanner.safe? || attachment.virus_scanner.pending?
-        url = download_url(champ, i)
-        display = attachment.filename
-        if attachment.image?
-          tag.img '', src: url, width: '100', id: attachment.id, display: display
-        else
-          tag.a(display, href: url, target: '_blank', rel: 'noopener', title: "Télécharger la pièce jointe")
-        end
-      end
-    end.flat_map { |e| [e, ",", tag.br] }[0..-3].reduce(&:+)
+    safe_attachments = champ.piece_justificative_file.filter do |attachment|
+      attachment.virus_scanner.safe? || attachment.virus_scanner.pending?
+    end
+
+    return nil if safe_attachments.empty?
+
+    # pf: passer le champ pour générer les URLs permanentes
+    ChampPresentations::MultiplePieceJustificativePresentation.new(safe_attachments, champ: champ)
   end
 
   def download_url(champ, index)

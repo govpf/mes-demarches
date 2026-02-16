@@ -11,6 +11,10 @@ class Logic::NAryOperator < Logic::Term
     @operands.flat_map(&:sources)
   end
 
+  def dup_with_stable_ids(mapping)
+    self.class.new(@operands.map { |op| op.dup_with_stable_ids(mapping) })
+  end
+
   def to_h
     {
       "term" => self.class.name,

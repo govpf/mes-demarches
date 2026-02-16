@@ -1,31 +1,25 @@
-- if etablissements.present?
-  // PF: Multiple establishments found
-  %p.fr-info-text Plusieurs établissements correspondent à ce numéro TAHITI. Veuillez sélectionner celui qui vous concerne :
-  = render EditableChamp::EtablissementsListComponent.new(etablissements: etablissements, input_id: @champ.input_id, siret_prefix: siret)
+- case siret
+- when :invalid_length
+  %p.fr-error-text= t('errors.messages.invalid_siret_length')
+- when :invalid_checksum
+  %p.fr-error-text= t('errors.messages.invalid_siret_checksum')
+- when :not_found
+  %p.fr-error-text
+    = t('errors.messages.siret_unknown')
+    = link_to("Plus d'informations", t("links.common.faq.erreur_siret_url"))
+- when :network_error
+  %p.fr-error-text= t('errors.messages.siret_network_error')
+- when :api_entreprise_down
+  %p.fr-error-text= t('errors.messages.api_entreprise_down')
+- when :empty
+  // NOOP
 - else
-  - case siret
-  - when :invalid_length
-    %p.fr-error-text= t('errors.messages.invalid_siret_length')
-
-  - when :invalid_checksum
-    %p.fr-error-text= t('errors.messages.invalid_siret_checksum')
-
-  - when :not_found
-    %p.fr-error-text
-      = t('errors.messages.siret_unknown')
-      = link_to("Plus d’informations", t("links.common.faq.erreur_siret_url"))
-
-  - when :network_error
-    %p.fr-error-text= t('errors.messages.siret_network_error')
-
-  - when :api_entreprise_down
-    %p.fr-error-text= t('errors.messages.api_entreprise_down')
-
-  - when :empty
-    // NOOP
-  - else
-    - if siret.present? # NOTE: probably always true because siret is a symbol or the string value
-      - if siret == etablissement&.siret && raison_sociale_or_name(etablissement).present?
-        = render EditableChamp::EtablissementTitreComponent.new(etablissement: etablissement)
-      - else
-        %p.fr-info-text Ce numéro TAHITI existe, nous en récupérons les informations.
+  // PF: Handle establishments and other cases
+  - if etablissements.present?
+    // PF: Establishments found (one or multiple), let component handle display and auto-selection
+    = render EditableChamp::EtablissementsListComponent.new(etablissements: etablissements, input_id: @champ.input_id, siret_prefix: siret)
+  - elsif etablissement.present?
+    // PF: Single establishment was automatically created and saved, show the title
+    = render EditableChamp::EtablissementTitreComponent.new(etablissement: etablissement)
+  - elsif siret.present?
+    %p.fr-info-text Ce numéro TAHITI existe, nous en récupérons les informations.

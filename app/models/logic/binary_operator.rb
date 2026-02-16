@@ -11,6 +11,10 @@ class Logic::BinaryOperator < Logic::Term
     [@left, @right].flat_map(&:sources)
   end
 
+  def dup_with_stable_ids(mapping)
+    self.class.new(@left.dup_with_stable_ids(mapping), @right.dup_with_stable_ids(mapping))
+  end
+
   def to_h
     {
       "term" => self.class.name,

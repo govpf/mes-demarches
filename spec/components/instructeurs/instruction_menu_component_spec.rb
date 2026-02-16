@@ -43,7 +43,7 @@ RSpec.describe Instructeurs::InstructionMenuComponent, type: :component do
     let(:dossier) { create(:dossier, :en_instruction) }
 
     it 'renders a dropdown' do
-      expect(subject).to have_dropdown_title('Instruire le dossier')
+      expect(subject).to have_dropdown_title('Clôturer le dossier')
       expect(subject).to have_dropdown_items(count: 3)
       expect(subject).to have_dropdown_item('Accepter')
       expect(subject).to have_dropdown_item('Classer sans suite')
