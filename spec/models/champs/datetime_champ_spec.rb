@@ -6,67 +6,94 @@ describe Champs::DatetimeChamp do
   let(:dossier) { create(:dossier, procedure:) }
   let(:datetime_champ) { dossier.champs.first }
 
-  describe '#convert_to_iso8601_date' do
+  describe '#normalizes' do
     it 'preserves nil' do
       champ = champ_with_value(nil)
-      champ.run_callbacks(:validation)
       expect(champ.value).to be_nil
     end
 
     it 'converts to nil if empty string' do
       champ = champ_with_value("")
-      champ.run_callbacks(:validation)
       expect(champ.value).to be_nil
     end
 
     it 'converts to nil if not ISO8601' do
       champ = champ_with_value("12-21-2023 03:20")
-      champ.run_callbacks(:validation)
       expect(champ.value).to be_nil
     end
 
     it 'converts to nil if not datetime' do
       champ = champ_with_value("value")
-      champ.run_callbacks(:validation)
       expect(champ.value).to be_nil
     end
 
-    it 'preserves if ISO8601' do
+    it 'preserves with current timezone if ISO8601 without timezone' do
       champ = champ_with_value("2023-12-21T03:20")
-      champ.run_callbacks(:validation)
       expect(champ.value).to eq(Time.zone.parse("2023-12-21T03:20:00").iso8601)
+    end
+
+    it 'preserves timezone if ISO8601' do
+      champ = champ_with_value("2023-12-21T03:20:07+01:00")
+      expect(champ.value).to eq(Time.zone.parse("2023-12-21T03:20:07+01:00").iso8601)
     end
 
     it 'converts to ISO8601 if form format' do
       champ = champ_with_value("{3=>21, 2=>12, 1=>2023, 4=>3, 5=>20}")
-      champ.run_callbacks(:validation)
       expect(champ.value).to eq(Time.zone.parse("2023-12-21T03:20:00").iso8601)
     end
 
     it 'converts to ISO8601 if old browser form format' do
       champ = champ_with_value("21/12/2023 03:20")
-      champ.run_callbacks(:validation)
       expect(champ.value).to eq(Time.zone.parse("2023-12-21T03:20:00").iso8601)
     end
   end
 
+  describe '#valid?' do
+    it 'should not change the value' do
+      sql = "UPDATE champs SET value = 'invalid' WHERE id = #{datetime_champ.id}"
+      ActiveRecord::Base.connection.execute(sql)
+      datetime_champ.reload
+      expect(datetime_champ.value).to eq("invalid")
+
+      expect(datetime_champ.valid?).to be_falsey
+      error = datetime_champ.errors.first
+      expect(error.attribute).to eq(:value)
+    end
+  end
+
   context 'when the value is not in the past' do
-    let(:champ) { dossier.champs.first.tap { _1.update(value:) } }
-    subject { champ.validate(:champs_public_value) }
+    subject { datetime_champ.validate(:champs_public_value) }
 
     context 'all dates are accepted' do
-      let(:value) { DateTime.now }
+      before { datetime_champ.update(value: DateTime.now.iso8601) }
 
       it { is_expected.to be_truthy }
     end
 
     context 'dates not in past are not accepted' do
-      before { champ.type_de_champ.update(options: { date_in_past: '1' }) }
-      let(:value) { DateTime.now }
+      let(:now) { DateTime.parse('2023-10-01') }
 
-      it 'is not valid and contains errors' do
-        is_expected.to be_falsey
-        expect(champ.errors[:value]).to eq(["doit être une date dans le passé"])
+      before do
+        travel_to(now)
+        datetime_champ.type_de_champ.update(options: { date_in_past: '1' })
+        datetime_champ.update(value:)
+      end
+
+      context 'when the value is in the future or today' do
+        let(:value) { now.iso8601 }
+
+        it 'is not valid and contains errors' do
+          is_expected.to be_falsey
+          expect(datetime_champ.errors[:value]).to eq(["doit être une date dans le passé"])
+        end
+      end
+
+      context 'when the value one day before' do
+        let(:value) { (now - 1.day).iso8601 }
+
+        it 'is valid' do
+          is_expected.to be_truthy
+        end
       end
     end
   end

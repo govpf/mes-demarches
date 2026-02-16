@@ -44,6 +44,10 @@ describe "procedure filters" do
   end
 
   scenario "should add be able to add created_at column", js: true do
+    # Hack to force filters combo to be above the menu so Enregistrer button
+    # is clickable. (by default height is 2000+ for playwright driver)
+    Capybara.page.current_window.resize_to(1440, 900)
+
     add_column("Date de création")
     within ".dossiers-table" do
       expect(page).to have_button("Date de création")

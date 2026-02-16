@@ -3,7 +3,7 @@
 require 'rails_helper'
 
 describe Champs::ReferentielChamp, type: :model do
-  let(:referentiel) { create(:api_referentiel, :exact_match, :configured) }
+  let(:referentiel) { create(:api_referentiel, :exact_match) }
   let(:types_de_champ_public) { [{ type: :referentiel, referentiel: }] }
   let(:procedure) { create(:procedure, types_de_champ_public:) }
   let(:dossier) { create(:dossier, procedure:) }
@@ -333,7 +333,7 @@ describe Champs::ReferentielChamp, type: :model do
           let(:data) { { ok: datetime.to_f } }
           it 'convert to ISO8601 datetime' do
             expect { subject }
-              .to change { dossier.reload.project_champs.find(&:datetime?).value }.from(nil).to(datetime.change(sec: 0))
+              .to change { dossier.reload.project_champs.find(&:datetime?).value }.from(nil).to(datetime.iso8601)
           end
         end
 
@@ -342,7 +342,7 @@ describe Champs::ReferentielChamp, type: :model do
           let(:data) { { ok: datetime.to_f.to_s } }
           it 'convert to ISO8601 datetime' do
             expect { subject }
-              .to change { dossier.reload.project_champs.find(&:datetime?).value }.from(nil).to(datetime.change(sec: 0))
+              .to change { dossier.reload.project_champs.find(&:datetime?).value }.from(nil).to(datetime.iso8601)
           end
         end
 

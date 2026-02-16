@@ -13,8 +13,10 @@ module Users
 
     ACTIONS_ALLOWED_TO_ANY_USER = [:index, :new, :deleted_dossiers] + INSTANCE_ACTIONS_ALLOWED_TO_ANY_USER
     ACTIONS_ALLOWED_TO_OWNER_OR_INVITE = [:show, :destroy, :demande, :messagerie, :brouillon, :modifier, :update, :create_commentaire, :papertrail, :restore, :champ] + INSTANCE_ACIONS_ALLOWED_TO_OWNER_OR_INVITE
+    TRASH_ACTIONS = [:show_in_trash, :show_deleted]
 
-    before_action :ensure_ownership!, except: ACTIONS_ALLOWED_TO_ANY_USER + ACTIONS_ALLOWED_TO_OWNER_OR_INVITE
+    before_action :ensure_ownership!, except: ACTIONS_ALLOWED_TO_ANY_USER + ACTIONS_ALLOWED_TO_OWNER_OR_INVITE + TRASH_ACTIONS
+    before_action :redirect_if_hidden_or_deleted_dossier, only: [:show]
     before_action :ensure_ownership_or_invitation!, only: ACTIONS_ALLOWED_TO_OWNER_OR_INVITE
     before_action :ensure_dossier_can_be_updated, only: [:update_identite, :update_siret, :brouillon, :submit_brouillon, :submit_en_construction, :modifier, :update, :champ]
     before_action :ensure_dossier_can_be_filled, only: [:brouillon, :modifier, :submit_brouillon, :submit_en_construction, :update]
@@ -135,6 +137,16 @@ module Users
       else
         render 'qrcode'
       end
+    end
+
+    def show_in_trash
+      @hidden_dossier = hidden_dossier_for(params[:id])
+      raise ActiveRecord::RecordNotFound if @hidden_dossier.nil?
+    end
+
+    def show_deleted
+      @deleted_dossier = deleted_dossier_for(params[:id])
+      raise ActiveRecord::RecordNotFound if @deleted_dossier.nil?
     end
 
     def papertrail
@@ -279,12 +291,12 @@ module Users
       end
 
       @etablissements = begin
-        APIEntrepriseService.list_etablissements(@siret_prefix, @dossier.procedure.id)
+              APIEntrepriseService.list_etablissements(@siret_prefix, @dossier.procedure.id)
                         rescue => error
                           Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: @siret_prefix })
                           flash.alert = t('errors.messages.siret_network_error')
                           return redirect_to siret_dossier_path(@dossier)
-      end
+            end
 
       if @etablissements.blank?
         flash.alert = t('errors.messages.siret_unknown')
@@ -384,8 +396,6 @@ module Users
         end
 
         dossier_en_construction.submit_en_construction!
-
-        DossierNotification.create_notification(dossier_en_construction, :dossier_modifie)
 
         redirect_to dossier_path(dossier_en_construction)
       else
@@ -616,7 +626,7 @@ module Users
       end
 
       current_user.update!(siret: siret)
-      @dossier.update!(autorisation_donnees: true)
+      @dossier.update!(autorisation_donnees: true, last_champ_updated_at: Time.zone.now)
       redirect_to etablissement_dossier_path
     end
 
@@ -785,6 +795,26 @@ module Users
 
     def commentaire_params
       params.require(:commentaire).permit(:body, piece_jointe: [])
+    end
+
+    def redirect_if_hidden_or_deleted_dossier
+      dossier_id = params[:id]
+
+      if hidden_dossier_for(dossier_id)
+        return redirect_to corbeille_dossier_path(dossier_id)
+      elsif deleted_dossier_for(dossier_id)
+        return redirect_to supprime_dossier_path(dossier_id)
+      end
+    end
+
+    def hidden_dossier_for(dossier_id)
+      current_user.dossiers
+        .hidden_by_user
+        .find_by(id: dossier_id)
+    end
+
+    def deleted_dossier_for(dossier_id)
+      DeletedDossier.find_by(dossier_id:, user_id: current_user.id)
     end
   end
 end

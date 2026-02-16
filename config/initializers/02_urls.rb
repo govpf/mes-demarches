@@ -49,6 +49,7 @@ WEBHOOK_ALTERNATIVE_DOC_URL = [FR_DOC_URL, "api-graphql", "cas-dusages-exemple-d
 ARCHIVAGE_DOC_URL = [FR_DOC_URL, "pour-aller-plus-loin", "archivage-longue-duree-des-demarches"].join("/")
 DOC_INTEGRATION_MONAVIS_URL = [FR_DOC_URL, "tutoriels", "integration-du-bouton-mon-avis"].join("/")
 DOC_PROCEDURE_EXPIRES_URL = [FR_DOC_URL, "expiration-et-suppression-des-dossiers"].join("/")
+DOC_EXPORT_TEMPLATE_URL = [FR_DOC_URL, "tutoriels/tutoriel-instructeur#c.-personnaliser-les-exports"].join("/")
 
 STATUS_PAGE_URL = ENV.fetch("STATUS_PAGE_URL", "https://updown.io/cugq")
 DEMANDE_INSCRIPTION_ADMIN_PAGE_URL = ENV.fetch("DEMANDE_INSCRIPTION_ADMIN_PAGE_URL", "https://www.demarches-simplifiees.fr/commencer/demande-d-inscription-a-demarches-simplifiees")

@@ -1239,10 +1239,6 @@ describe Procedure do
   end
 
   describe '.missing_zones?' do
-    before do
-      Rails.application.config.ds_zonage_enabled = true
-    end
-
     let(:procedure) { create(:procedure, zones: []) }
 
     subject { procedure.missing_zones? }
@@ -1259,10 +1255,6 @@ describe Procedure do
   end
 
   describe '.missing_steps' do
-    before do
-      Flipper.enable :zonage
-    end
-
     subject { procedure.missing_steps.include?(step) }
 
     context 'without zone' do

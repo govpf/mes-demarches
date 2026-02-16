@@ -189,12 +189,12 @@ describe 'user access to the list of their dossiers', js: true do
         expect(page).to have_content(dossier_en_construction.procedure.libelle)
         within(:css, "#dossier_#{dossier_en_construction.id}", match: :first) do
           click_on 'Autres actions'
-          accept_alert('Confirmer la suppression ?') do
+          accept_alert('Voulez-vous vraiment mettre à la corbeille ce dossier') do
             click_on 'Mettre à la corbeille'
           end
         end
 
-        expect(page).to have_content('Votre dossier a bien été supprimé')
+        expect(page).to have_content('Votre dossier a bien été mis à la corbeille')
         expect(page).not_to have_content(dossier_en_construction.procedure.libelle)
       end
     end
@@ -346,7 +346,7 @@ describe 'user access to the list of their dossiers', js: true do
       it "can filter by procedure" do
         expect(page).to have_text('7 en cours')
         expect(page).to have_text('3 traités')
-        expect(page).to have_select('procedure_id', selected: 'Sélectionner une démarche')
+        expect(page).to have_select('procedure_id', selected: 'Sélectionnez une démarche')
         select dossier_brouillon.procedure.libelle, from: 'procedure_id'
         click_on 'Afficher'
         expect(page).to have_text('1 en cours')
