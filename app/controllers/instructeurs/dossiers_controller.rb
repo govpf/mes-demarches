@@ -246,7 +246,6 @@ module Instructeurs
           dossier.classer_sans_suite!(h)
           flash.notice = "Dossier considéré comme sans suite."
         when "accepter"
-          warm_pj_previews(dossier)
           target_state = :accepte
           dossier.accepter!(h)
           flash.notice = "Dossier traité avec succès."
@@ -438,29 +437,6 @@ module Instructeurs
     end
 
     private
-
-    # pf: Pré-génère les variants/previews des PJ pour éviter qu'ils soient générés
-    # à l'intérieur de la transaction AASM de accepter!.
-    #
-    # Contexte : ActiveStorage en Rails 7.1 diffère l'upload S3 dans after_commit.
-    # Quand un variant est généré dans une transaction, le Tempfile source est
-    # supprimé par image_processing avant que after_commit ne puisse l'uploader.
-    # En pré-générant hors transaction, after_commit s'exécute immédiatement.
-    def warm_pj_previews(dossier)
-      dossier.filled_champs.each do |champ|
-        next unless champ.respond_to?(:piece_justificative_file)
-
-        champ.piece_justificative_file.each do |attachment|
-          if attachment.image?
-            attachment.variant(resize_to_limit: [400, 400]).processed
-          elsif attachment.previewable?
-            attachment.preview(resize_to_limit: [400, 400]).processed
-          end
-        rescue StandardError => e
-          Rails.logger.warn "warm_pj_previews: #{attachment.filename} - #{e.class}: #{e.message}"
-        end
-      end
-    end
 
     def avis_create_params
       params.require(:avis).permit(
