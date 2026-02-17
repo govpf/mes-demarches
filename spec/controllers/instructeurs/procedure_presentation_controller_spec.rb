@@ -85,7 +85,7 @@ describe Instructeurs::ProcedurePresentationController, type: :controller do
   end
 
   describe '#refresh_column_filter' do
-    subject { patch :refresh_column_filter, params: { id: procedure_presentation.id, filters: [{ id: column.id }] }, format: :turbo_stream }
+    subject { patch :refresh_column_filter, params: { id: procedure_presentation.id, filters:, statut: 'tous' }, format: :turbo_stream }
 
     render_views
 
@@ -100,12 +100,43 @@ describe Instructeurs::ProcedurePresentationController, type: :controller do
 
     before { sign_in(instructeur.user) }
 
-    it 'refreshes the column filter' do
-      subject
+    context 'with no existing filters' do
+      let(:filters) { [{ id: column.id }] }
 
-      expect(response).to be_successful
-      procedure.groupe_instructeurs.each do |gi|
-        expect(response.body).to include(gi.label)
+      it 'refreshes the column filter' do
+        subject
+
+        expect(response).to be_successful
+        procedure.groupe_instructeurs.each do |gi|
+          expect(response.body).to include(gi.label)
+        end
+      end
+    end
+
+    context 'with existing enum filter and new date filter' do
+      let(:state_column) { procedure.dossier_state_column }
+      let(:depose_at_column) { procedure.find_column(label: 'Date de dépôt') }
+      let(:filters) do
+        [
+          { filter: 'en_construction' },
+          { id: state_column.id, filter: 'accepte' },
+          { id: depose_at_column.id }
+        ]
+      end
+
+      before do
+        # Create an existing filter so the bug scenario is reproduced
+        procedure_presentation.update(tous_filters: [FilteredColumn.new(column: state_column, filter: 'accepte')])
+      end
+
+      it 'returns the correct filter component for the new date column' do
+        subject
+
+        expect(response).to be_successful
+        # Should render a date input, not a select with enum values
+        expect(response.body).to include('type="date"')
+        expect(response.body).not_to include('en_construction')
+        expect(response.body).not_to include('accepte')
       end
     end
   end

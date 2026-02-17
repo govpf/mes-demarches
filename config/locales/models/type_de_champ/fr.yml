@@ -63,7 +63,6 @@ fr:
           epci: "EPCI"
           cojo: "Accréditation Paris 2024"
           lexpol: "Lexpol"
-          table_row_selector: 'Référentiel des administrations'
           referentiel_de_polynesie: 'Référentiel des administrations'
           formatted: Champ formaté
           referentiel: 'Référentiel à configurer (avancé)'

@@ -59,13 +59,13 @@ describe 'Instructing a dossier:', js: true do
     click_on 'Passer en instruction'
 
     expect(page).to have_text('Dossier passé en instruction.')
-    expect(page).to have_text('Instruire le dossier')
+    expect(page).to have_text('Clôturer le dossier')
     expect(page).to have_selector('.fr-badge', text: 'en instruction')
 
     dossier.reload
     expect(dossier.state).to eq(Dossier.states.fetch(:en_instruction))
 
-    click_on 'Instruire le dossier'
+    click_on 'Clôturer le dossier'
 
     within('.instruction-button') do
       # FIXME click_on 'Accepter' is not working for some reason

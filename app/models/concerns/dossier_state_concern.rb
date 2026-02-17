@@ -3,6 +3,23 @@
 module DossierStateConcern
   extend ActiveSupport::Concern
 
+  # pf: Surcharge accepter! pour pré-générer les variants/previews des PJ
+  # AVANT que la transaction AASM ne démarre.
+  #
+  # Contexte : ActiveStorage en Rails 7.1 diffère l'upload S3 dans after_commit.
+  # Quand un variant est généré dans la transaction AASM, le Tempfile source est
+  # supprimé par image_processing avant que after_commit ne puisse l'uploader.
+  # En pré-générant hors transaction, l'upload S3 s'exécute immédiatement.
+  def accepter!(**args)
+    warm_pj_previews
+    super
+  end
+
+  def accepter_automatiquement!(**args)
+    warm_pj_previews
+    super
+  end
+
   def submit_en_construction!
     self.traitements.submit_en_construction
     self.submitted_revision_id = revision_id
@@ -71,12 +88,8 @@ module DossierStateConcern
     disable_notification = h.fetch(:disable_notification, false)
 
     if !disable_notification
-      # pf: feature flag pour activer les notifications différées uniquement sur certaines procédures
-      if procedure.feature_enabled?(:delayed_notifications)
-        InstructionNotificationJob.schedule_for_dossier(self)
-      else
-        NotificationMailer.send_en_instruction_notification(self).deliver_later
-      end
+      # pf: notifications différées pour réduire le spam (délai fixe 15 minutes)
+      InstructionNotificationJob.schedule_for_dossier(self)
       NotificationMailer.send_notification_for_tiers(self).deliver_later if self.for_tiers?
     end
 
@@ -106,12 +119,8 @@ module DossierStateConcern
   end
 
   def after_commit_passer_automatiquement_en_instruction
-    # pf: feature flag pour activer les notifications différées uniquement sur certaines procédures
-    if procedure.feature_enabled?(:delayed_notifications)
-      InstructionNotificationJob.schedule_for_dossier(self)
-    else
-      NotificationMailer.send_en_instruction_notification(self).deliver_later
-    end
+    # pf: notifications différées pour réduire le spam (délai fixe 15 minutes)
+    InstructionNotificationJob.schedule_for_dossier(self)
     NotificationMailer.send_notification_for_tiers(self).deliver_later if self.for_tiers?
     DossierNotification.destroy_notifications_by_dossier_and_type(self, :dossier_depose)
   end
@@ -412,5 +421,22 @@ module DossierStateConcern
 
     return if champ_to_remove_ids.empty?
     champs.where(id: champ_to_remove_ids).destroy_all
+  end
+
+  # pf: Pré-génère les variants/previews des PJ hors transaction AASM
+  def warm_pj_previews
+    filled_champs.each do |champ|
+      next unless champ.respond_to?(:piece_justificative_file)
+
+      champ.piece_justificative_file.each do |attachment|
+        if attachment.image?
+          attachment.variant(resize_to_limit: [400, 400]).processed
+        elsif attachment.previewable?
+          attachment.preview(resize_to_limit: [400, 400]).processed
+        end
+      rescue StandardError => e
+        Rails.logger.warn "warm_pj_previews: #{attachment.filename} - #{e.class}: #{e.message}"
+      end
+    end
   end
 end

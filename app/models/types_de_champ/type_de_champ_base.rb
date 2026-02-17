@@ -3,7 +3,7 @@
 class TypesDeChamp::TypeDeChampBase
   include ActiveModel::Validations
 
-  delegate :description, :libelle, :mandatory, :mandatory?, :stable_id, :fillable?, :public?, :type_champ, :options_for_select, :drop_down_options, :drop_down_other?, :drop_down_advanced?, :referentiel, :RIB?, to: :@type_de_champ
+  delegate :description, :libelle, :mandatory, :mandatory?, :stable_id, :fillable?, :public?, :type_champ, :options_for_select, :drop_down_options, :drop_down_other?, :drop_down_advanced?, :referentiel, :RIB?, :table_id, to: :@type_de_champ # pf: :table_id for referentiel_de_polynesie
 
   FILL_DURATION_SHORT  = 10.seconds
   FILL_DURATION_MEDIUM = 1.minute
@@ -20,7 +20,9 @@ class TypesDeChamp::TypeDeChampBase
       path.merge(
         libelle: TagsSubstitutionConcern::TagsParser.normalize(path[:libelle]),
         id: path[:path] == :value ? "tdc#{stable_id}" : "tdc#{stable_id}/#{path[:path]}",
-        lambda: -> (dossier) { dossier.champ_value_for_tag(type_de_champ, path[:path]) }
+        lambda: -> (dossier) { dossier.champ_value_for_tag(type_de_champ, path[:path]) },
+        # pf allowing visibility check on champ/annotations
+        visible: -> (dossier) { dossier.project_champ(type_de_champ)&.visible? || false }
       )
     end
   end

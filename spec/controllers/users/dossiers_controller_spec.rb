@@ -586,9 +586,9 @@ describe Users::DossiersController, type: :controller do
       let!(:dossier) { create(:dossier, :brouillon, procedure:, user:) }
 
       it 'passe automatiquement en instruction' do
-        delivery = double.tap { expect(_1).to receive(:deliver_later).with(no_args).twice }
+        delivery = double.tap { expect(_1).to receive(:deliver_later).with(no_args) }
         expect(NotificationMailer).to receive(:send_en_construction_notification).and_return(delivery)
-        expect(NotificationMailer).to receive(:send_en_instruction_notification).and_return(delivery)
+        allow(InstructionNotificationJob).to receive(:schedule_for_dossier)
 
         subject
         dossier.reload
@@ -597,6 +597,7 @@ describe Users::DossiersController, type: :controller do
         expect(dossier.pending_correction?).to be_falsey
         expect(dossier.en_instruction_at).to within(5.seconds).of(Time.current)
         expect(dossier.traitements.last.browser_name).to eq('Unknown Browser')
+        expect(InstructionNotificationJob).to have_received(:schedule_for_dossier).with(dossier)
       end
     end
 

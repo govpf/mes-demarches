@@ -13,13 +13,26 @@ module Administrateurs
       @body = attributes.fetch(:body)
       @signature = attributes.fetch(:signature)
 
+      # pf: générer QR code pour la prévisualisation
+      @qrcode_url = admin_procedure_attestation_template_v2_path(@procedure, format: :pdf)
+      @qrcode_svg = @attestation_template.send(:generate_qrcode_svg, @qrcode_url)
+
       respond_to do |format|
         format.html do
           render layout: 'attestation'
         end
 
         format.pdf do
+          # pf: désactiver le cache navigateur pour la prévisualisation
+          response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+          response.headers['Pragma'] = 'no-cache'
+          response.headers['Expires'] = '0'
+
           html = render_to_string('/administrateurs/attestation_template_v2s/show', layout: 'attestation', formats: [:html])
+
+          # pf: debug temporaire - sauvegarder HTML pour inspection
+          # File.write("/tmp/attestation_debug_#{@procedure.id}.html", html)
+          # Rails.logger.info "HTML sauvegardé dans /tmp/attestation_debug_#{@procedure.id}.html"
 
           pdf = WeasyprintService.generate_pdf(html, procedure_id: @procedure.id, path: request.path, user_id: current_user.id)
 

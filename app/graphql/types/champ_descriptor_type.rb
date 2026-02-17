@@ -38,8 +38,6 @@ module Types
           Types::Champs::Descriptor::VisaChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:lexpol)
           Types::Champs::Descriptor::LexpolChampDescriptorType
-        when TypeDeChamp.type_champs.fetch(:table_row_selector)
-          Types::Champs::Descriptor::TableRowSelectorChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:referentiel_de_polynesie)
           Types::Champs::Descriptor::ReferentielDePolynesieChampDescriptorType
 

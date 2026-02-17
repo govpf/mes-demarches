@@ -52,6 +52,10 @@ class Logic::ChampValue < Logic::Term
     [@stable_id]
   end
 
+  def dup_with_stable_ids(mapping)
+    self.class.new(mapping[stable_id] || stable_id)
+  end
+
   def compute(champs)
     targeted_champ = champ(champs)
 
@@ -82,10 +86,8 @@ class Logic::ChampValue < Logic::Term
         code_departement: targeted_champ.code_departement,
         code_region: targeted_champ.code_region
       }
-    when "Champs::TableRowSelectorChamp"
-      targeted_champ.value
     when "Champs::ReferentielDePolynesieChamp"
-      targeted_champ.value
+      targeted_champ.external_id == Champs::DropDownListChamp::OTHER ? Champs::DropDownListChamp::OTHER : targeted_champ.value
     when "Champs::CommuneDePolynesieChamp", "Champs::CodePostalDePolynesieChamp"
       {
         archipel: targeted_champ.archipel
@@ -161,7 +163,7 @@ class Logic::ChampValue < Logic::Term
     elsif operator_name.in?([Logic::InArchipelOperator.name, Logic::NotInArchipelOperator.name]) || tdc.type_champ.in?([MANAGED_TYPE_DE_CHAMP.fetch(:commune_de_polynesie), MANAGED_TYPE_DE_CHAMP.fetch(:code_postal_de_polynesie)])
       APIGeo::API.archipels_de_polynesie.map { [_1, _1] }
     elsif tdc.type_champ == MANAGED_TYPE_DE_CHAMP.fetch(:referentiel_de_polynesie)
-      [['Autre', 'Autre']]
+      [['Autre', Champs::DropDownListChamp::OTHER]]
     else
       tdc.options_for_select_with_other
     end
