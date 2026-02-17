@@ -3,8 +3,10 @@
 Rails.application.config.active_storage.service_urls_expire_in = 1.hour
 
 Rails.application.config.active_storage.variant_processor = :mini_magick
-Rails.application.config.active_storage.analyzers.delete ActiveStorage::Analyzer::ImageAnalyzer
-Rails.application.config.active_storage.analyzers.delete ActiveStorage::Analyzer::VideoAnalyzer
+
+# Disable automatic blob analysis - we don't use the extracted metadata
+# (dimensions, duration, etc.) and it generates unnecessary AnalyzeJob executions
+Rails.application.config.active_storage.analyzers = []
 
 ActiveSupport.on_load(:active_storage_blob) do
   include BlobImageProcessorConcern
