@@ -190,6 +190,19 @@ module ApplicationHelper
     end
   end
 
+  # pf: contexte utilisateur dans le titre de la page navigateur
+  def title_context_label
+    profile = controller.try(:nav_bar_profile) || controller.try(:fallback_nav_bar_profile) || :guest
+    case profile
+    when :administrateur then 'Administrateur'
+    when :instructeur then 'Instructeur'
+    when :user then 'Usager'
+    when :expert then 'Expert'
+    when :gestionnaire then 'Gestionnaire'
+    when :superadmin then 'Super Admin'
+    end
+  end
+
   # pf: sanitization HTML spécifique pour attestation v2
   def attestation_v2_sanitize(html)
     config = Rails.application.config.attestation_v2

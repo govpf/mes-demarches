@@ -1,3 +1,5 @@
+- content_for(:title, "#{@groupe_gestionnaire.name.truncate_words(10)}")
+
 = render 'main_navigation'
 
 = render partial: 'gestionnaires/breadcrumbs',

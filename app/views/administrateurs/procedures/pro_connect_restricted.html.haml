@@ -1,3 +1,5 @@
+- content_for(:title, "Authentification professionnelle · #{@procedure.libelle.truncate_words(10)}")
+
 -# pf: Page adaptée pour Microsoft @administration.gov.pf au lieu de ProConnect
 = render partial: 'administrateurs/breadcrumbs',
   locals: { steps: [['Démarches', admin_procedures_back_path(@procedure)],

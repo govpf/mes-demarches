@@ -1,3 +1,5 @@
+- content_for(:title, "Groupes d'instructeurs · #{@procedure.libelle.truncate_words(10)}")
+
 - if @procedure.routing_alert
   - content_for(:sticky_header) do
     = render partial: 'administrateurs/groupe_instructeurs/routing_alert_sticky_header', locals: { procedure: @procedure }

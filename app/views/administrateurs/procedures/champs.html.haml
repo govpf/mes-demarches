@@ -1,3 +1,4 @@
+- content_for(:title, "Champs du formulaire · #{@procedure.libelle.truncate_words(10)}")
 
 - if @procedure.draft_changed?
   - content_for(:sticky_header) do

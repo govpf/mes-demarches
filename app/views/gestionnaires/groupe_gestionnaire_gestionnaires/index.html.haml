@@ -1,3 +1,5 @@
+- content_for(:title, "Gestionnaires · #{@groupe_gestionnaire.name.truncate_words(10)}")
+
 = render 'gestionnaires/groupe_gestionnaires/main_navigation'
 = render partial: 'gestionnaires/breadcrumbs',
   locals: { steps: [['Groupes gestionnaires', gestionnaire_groupe_gestionnaires_path],
