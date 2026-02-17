@@ -1,4 +1,4 @@
-- content_for(:title, "Contacter les usagers pour #{@procedure.libelle}")
+- content_for(:title, "Contacter les usagers · #{@procedure.id} - #{@procedure.libelle.truncate_words(10)}")
 
 .sub-header
   .fr-container.flex.column

@@ -1,5 +1,5 @@
 - content_for(:root_class, 'scroll-margins-for-sticky-footer')
-- content_for(:title, "Présentation · #{@procedure.libelle.truncate_words(10)}")
+- content_for(:title, "Présentation · #{@procedure.id} - #{@procedure.libelle.truncate_words(10)}")
 
 = render partial: 'administrateurs/breadcrumbs',
   locals: { steps: [['Démarches', admin_procedures_back_path(@procedure)],

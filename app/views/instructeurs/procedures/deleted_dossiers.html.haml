@@ -1,4 +1,4 @@
-- content_for(:title, "#{@procedure.libelle}")
+- content_for(:title, "Dossiers supprimés · #{@procedure.id} - #{@procedure.libelle.truncate_words(10)}")
 
 .sub-header
   .fr-container.flex.column

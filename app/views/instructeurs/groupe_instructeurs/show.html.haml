@@ -1,7 +1,7 @@
 .sub-header
   .fr-container.flex.column
     - if @procedure.routing_enabled?
-      - content_for(:title, "Instructeurs du groupe #{@groupe_instructeur.label}")
+      - content_for(:title, "Instructeurs · #{@procedure.id} - #{@groupe_instructeur.label}")
 
       = render partial: 'instructeurs/breadcrumbs',
         locals: { steps: [[@procedure.libelle.truncate_words(10), instructeur_procedure_path(@procedure)],
@@ -9,7 +9,7 @@
                           [@groupe_instructeur.label]] }
 
     - else
-      - content_for(:title, "Instructeurs de la démarche #{@procedure.libelle}")
+      - content_for(:title, "Instructeurs · #{@procedure.id} - #{@procedure.libelle.truncate_words(10)}")
 
       = render partial: 'instructeurs/breadcrumbs',
         locals: { steps: [[@procedure.libelle, instructeur_procedure_path(@procedure)],
