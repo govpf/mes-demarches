@@ -107,6 +107,38 @@ describe Administrateurs::ReferentielsController, type: :controller do
     end
   end
 
+  describe '#create with BaserowReferentiel (dual-write)' do
+    let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, stable_id: }] }
+    let(:type_de_champ) { procedure.draft_revision.types_de_champ.find_by(stable_id:) }
+
+    subject do
+      post :create, params: {
+        commit: 'Étape suivante',
+        procedure_id: procedure.id,
+        stable_id:,
+        referentiel: { type: 'Referentiels::BaserowReferentiel', test_data: '42' }
+      }, format: :turbo_stream
+    end
+
+    context 'quand options legacy table_id est absent' do
+      it 'synchronise options[table_id] avec le referentiel' do
+        subject
+        type_de_champ.reload
+        expect(type_de_champ.referentiel).to be_a(Referentiels::BaserowReferentiel)
+        expect(type_de_champ.referentiel.table_id).to eq('42')
+        expect(type_de_champ.options['table_id']).to eq('42')
+      end
+    end
+
+    context 'quand options legacy table_id existait déjà' do
+      before { type_de_champ.update_column(:options, { 'table_id' => '24' }) }
+
+      it 'met à jour options[table_id] avec la nouvelle valeur' do
+        expect { subject }.to change { type_de_champ.reload.options['table_id'] }.from('24').to('42')
+      end
+    end
+  end
+
   describe "#edit" do
     let(:type_de_champ) { procedure.draft_revision.types_de_champ.first }
     let(:referentiel) { create(:api_referentiel, :exact_match, types_de_champ: [type_de_champ]) }

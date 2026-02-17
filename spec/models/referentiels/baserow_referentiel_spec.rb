@@ -161,8 +161,8 @@ describe Referentiels::BaserowReferentiel do
 
     it 'returns headers with JSONPath format' do
       expect(referentiel.headers_with_path).to eq([
-        ['Nom', '$.Nom'],
-        ['Code', '$.Code']
+        ['Nom', '$.row.Nom'],
+        ['Code', '$.row.Code']
       ])
     end
   end

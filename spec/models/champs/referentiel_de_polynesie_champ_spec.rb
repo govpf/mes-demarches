@@ -25,11 +25,11 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
         champ.update!(external_id:)
       end
 
-      it 'returns a Success monad with row data directly' do
+      it 'returns a Success monad' do
         result = champ.fetch_external_data
 
         expect(result).to be_success
-        expect(result.value!).to eq(api_response[:row].with_indifferent_access)
+        expect(result.value!['row']).to eq(api_response[:row].with_indifferent_access)
       end
     end
 
@@ -115,7 +115,9 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
 
   describe '#referentiel_item_value' do
     before do
-      champ.update!(data: { 'Nom' => 'Papeete', 'Code' => '98714' })
+      champ.update!(data: {
+        'row' => { 'Nom' => 'Papeete', 'Code' => '98714' }
+      })
     end
 
     it 'extracts value from row by path' do
@@ -159,7 +161,7 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
           libelle: 'Référentiel',
           table_id: '24',
           referentiel_mapping: {
-            '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s }
+            '$.row.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s }
           }
         },
         { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id }
@@ -207,7 +209,7 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
 
       ChampFetchExternalDataJob.perform_now(referentiel_champ, '24:123')
 
-      expect(referentiel_champ.reload.data).to include('Nom' => 'Papeete', 'Code' => '98714')
+      expect(referentiel_champ.reload.data).to include('row' => hash_including('Nom' => 'Papeete', 'Code' => '98714'))
     end
 
     context 'avec erreur API' do
@@ -237,8 +239,8 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
             libelle: 'Référentiel',
             table_id: '24',
             referentiel_mapping: {
-              '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s },
-              '$.Nom' => { 'prefill' => '1', 'prefill_stable_id' => second_prefillable_stable_id.to_s }
+              '$.row.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s },
+              '$.row.Nom' => { 'prefill' => '1', 'prefill_stable_id' => second_prefillable_stable_id.to_s }
             }
           },
           { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id },
