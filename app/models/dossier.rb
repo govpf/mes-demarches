@@ -760,6 +760,15 @@ class Dossier < ApplicationRecord
     end
   end
 
+  # pf: prénom seul pour le titre d'onglet (RGPD : évite la fuite du nom complet dans les outils analytics)
+  def owner_first_name
+    if etablissement.present?
+      etablissement.entreprise_raison_sociale&.truncate_words(3)
+    elsif individual.present?
+      individual.prenom
+    end
+  end
+
   def orphan?
     prefilled? && user.nil?
   end
