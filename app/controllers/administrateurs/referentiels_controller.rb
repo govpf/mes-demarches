@@ -57,8 +57,12 @@ module Administrateurs
 
     def handle_referentiel_save(referentiel)
       cache_bust_last_response_and_mapping = referentiel.url_changed?
+      saved = referentiel.configured? && referentiel.save
 
-      if referentiel.configured? && referentiel.save && params[:commit].present?
+      # pf: dual-write pour rollback safe — synchronise l'ancien options['table_id']
+      sync_legacy_table_id(referentiel) if saved
+
+      if saved && params[:commit].present?
         if cache_bust_last_response_and_mapping
           @type_de_champ.update!(referentiel_mapping: {})
           referentiel.update!(last_response: nil)
@@ -112,6 +116,13 @@ module Administrateurs
         end
         params
       end
+    end
+
+    # pf: synchronise options['table_id'] pour que l'ancien code fonctionne en cas de rollback
+    def sync_legacy_table_id(referentiel)
+      return unless referentiel.is_a?(Referentiels::BaserowReferentiel)
+
+      @type_de_champ.update_column(:options, @type_de_champ.options.merge('table_id' => referentiel.table_id.to_s))
     end
   end
 end

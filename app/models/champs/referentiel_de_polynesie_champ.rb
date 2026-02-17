@@ -34,7 +34,7 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
 
   # pf: support colonnes pour tags/exports (aligné sur DropDownList)
   def referentiel_item_value(path)
-    data&.dig(path.to_s)
+    data&.dig("row", path.to_s)
   end
 
   # pf: pour les ancres d'erreur (#11420), le React ComboBox utilise html_id sans suffixe -input
@@ -48,7 +48,7 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     result = ReferentielDePolynesie::API.fetch_row(external_id)
 
     if result.present? && result.is_a?(Hash) && result[:row].present?
-      Dry::Monads::Success(result[:row].with_indifferent_access)
+      Dry::Monads::Success(result.with_indifferent_access)
     else
       Dry::Monads::Failure(retryable: false, reason: StandardError.new('Row not found'), code: 404)
     end
