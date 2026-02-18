@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_05_102351) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -69,7 +69,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.datetime "updated_at"
     t.bigint "user_id", null: false
     t.index ["groupe_gestionnaire_id"], name: "index_administrateurs_on_groupe_gestionnaire_id"
-    t.index ["user_id"], name: "index_administrateurs_on_user_id"
+    t.index ["user_id"], name: "index_administrateurs_on_user_id", unique: true
   end
 
   create_table "administrateurs_instructeurs", id: false, force: :cascade do |t|
@@ -286,7 +286,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.text "updated_by"
     t.string "value"
     t.jsonb "value_json"
-    t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_stream_and_public_id", unique: true, nulls_not_distinct: true
+    t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_stream_and_public_id", unique: true
     t.index ["dossier_id"], name: "index_champs_on_dossier_id"
     t.index ["etablissement_id"], name: "index_champs_on_etablissement_id"
     t.index ["row_id"], name: "index_champs_on_row_id"
@@ -662,20 +662,20 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
 
   create_table "export_templates", force: :cascade do |t|
     t.jsonb "attestation"
-    t.boolean "avis_attachments", default: false, null: false
-    t.boolean "commentaires_attachments", default: false, null: false
     t.jsonb "content", default: {}
     t.datetime "created_at", null: false
     t.jsonb "dossier_folder", null: false
     t.jsonb "export_pdf", null: false
     t.jsonb "exported_columns", default: [], null: false, array: true
     t.bigint "groupe_instructeur_id", null: false
-    t.boolean "justificatif_motivation", default: false, null: false
     t.string "kind", null: false
     t.string "name", null: false
     t.jsonb "pjs", default: [], null: false, array: true
-    t.boolean "shared", default: false, null: false
     t.datetime "updated_at", null: false
+    t.boolean "shared", default: false, null: false
+    t.boolean "commentaires_attachments", default: false, null: false
+    t.boolean "avis_attachments", default: false, null: false
+    t.boolean "justificatif_motivation", default: false, null: false
     t.index ["groupe_instructeur_id"], name: "index_export_templates_on_groupe_instructeur_id"
   end
 
@@ -1463,6 +1463,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
   add_foreign_key "export_templates", "groupe_instructeurs"
   add_foreign_key "exports", "export_templates"
   add_foreign_key "exports", "instructeurs"
+  add_foreign_key "follows", "dossiers"
+  add_foreign_key "follows", "instructeurs"
   add_foreign_key "france_connect_informations", "users"
   add_foreign_key "geo_areas", "champs"
   add_foreign_key "groupe_instructeurs", "procedures"

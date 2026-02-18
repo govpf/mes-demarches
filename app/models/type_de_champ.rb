@@ -5,7 +5,6 @@ class TypeDeChamp < ApplicationRecord
   FEATURE_FLAGS = {
     visa: :visa,
     tefenua: :tefenua,
-    referentiel: :referentiel_type_de_champ,
     engagement_juridique: :engagement_juridique_type_de_champ,
     cojo: :cojo_type_de_champ,
     lexpol: :lexpol,
