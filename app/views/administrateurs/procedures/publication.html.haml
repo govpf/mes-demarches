@@ -1,4 +1,4 @@
-- content_for(:title, "Publier · #{@procedure.id} - #{@procedure.libelle.truncate_words(10)}")
+- content_for(:title, procedure_tab_title(@procedure, "Publier"))
 
 = render partial: 'administrateurs/breadcrumbs',
   locals: { steps: [['Démarches', admin_procedures_back_path(@procedure)],

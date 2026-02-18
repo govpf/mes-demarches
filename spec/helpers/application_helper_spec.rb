@@ -137,6 +137,117 @@ describe ApplicationHelper do
     end
   end
 
+  # pf: tests des helpers de titres d'onglet contextuels
+  describe '#title_context_label' do
+    let(:controller_double) { double }
+
+    before do
+      allow(helper).to receive(:controller).and_return(controller_double)
+    end
+
+    context 'when nav_bar_profile returns :administrateur' do
+      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:administrateur) }
+
+      it { expect(helper.title_context_label).to eq('Administrateur') }
+    end
+
+    context 'when nav_bar_profile returns :instructeur' do
+      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:instructeur) }
+
+      it { expect(helper.title_context_label).to eq('Instructeur') }
+    end
+
+    context 'when nav_bar_profile returns :user' do
+      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:user) }
+
+      it { expect(helper.title_context_label).to eq('Usager') }
+    end
+
+    context 'when nav_bar_profile returns :expert' do
+      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:expert) }
+
+      it { expect(helper.title_context_label).to eq('Expert') }
+    end
+
+    context 'when nav_bar_profile returns :gestionnaire' do
+      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:gestionnaire) }
+
+      it { expect(helper.title_context_label).to eq('Gestionnaire') }
+    end
+
+    context 'when nav_bar_profile returns :superadmin' do
+      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:superadmin) }
+
+      it { expect(helper.title_context_label).to eq('Super Admin') }
+    end
+
+    context 'when nav_bar_profile is nil and fallback_nav_bar_profile returns :administrateur' do
+      before do
+        allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(nil)
+        allow(controller_double).to receive(:try).with(:fallback_nav_bar_profile).and_return(:administrateur)
+      end
+
+      it { expect(helper.title_context_label).to eq('Administrateur') }
+    end
+
+    context 'when both nav_bar_profile and fallback_nav_bar_profile are nil (guest)' do
+      before do
+        allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(nil)
+        allow(controller_double).to receive(:try).with(:fallback_nav_bar_profile).and_return(nil)
+      end
+
+      it { expect(helper.title_context_label).to be_nil }
+    end
+  end
+
+  describe '#procedure_tab_title' do
+    let(:procedure) { create(:procedure, libelle: 'Demande de subvention pour les associations sportives et culturelles de Polynésie française') }
+
+    it 'returns truncated libelle with procedure id' do
+      expect(helper.procedure_tab_title(procedure)).to eq("#{procedure.id} - #{procedure.libelle.truncate_words(10)}")
+    end
+
+    it 'prepends page name when provided' do
+      expect(helper.procedure_tab_title(procedure, 'Champs')).to eq("Champs · #{procedure.id} - #{procedure.libelle.truncate_words(10)}")
+    end
+
+    context 'with a short libelle' do
+      let(:procedure) { create(:procedure, libelle: 'Subvention') }
+
+      it 'does not truncate' do
+        expect(helper.procedure_tab_title(procedure)).to eq("#{procedure.id} - Subvention")
+      end
+    end
+  end
+
+  describe '#dossier_tab_title' do
+    context 'when dossier has an individual' do
+      let(:procedure) { create(:procedure, :for_individual) }
+      let(:dossier) { create(:dossier, :with_individual, procedure: procedure) }
+
+      it 'includes the prénom in parentheses' do
+        expect(helper.dossier_tab_title(dossier, 'Demande')).to eq("Demande · #{dossier.id} (#{dossier.individual.prenom})")
+      end
+    end
+
+    context 'when dossier has an entreprise' do
+      let(:dossier) { create(:dossier, :with_entreprise) }
+
+      it 'includes the truncated raison sociale in parentheses' do
+        raison = dossier.etablissement.entreprise_raison_sociale.truncate_words(3)
+        expect(helper.dossier_tab_title(dossier, 'Demande')).to eq("Demande · #{dossier.id} (#{raison})")
+      end
+    end
+
+    context 'when dossier has no individual nor entreprise' do
+      let(:dossier) { create(:dossier, individual: nil) }
+
+      it 'shows only the dossier id without parentheses' do
+        expect(helper.dossier_tab_title(dossier, 'Demande')).to eq("Demande · #{dossier.id}")
+      end
+    end
+  end
+
   describe '#acronymize' do
     it 'returns the acronym of a given string' do
       expect(helper.acronymize('Application Name')).to eq('AN')

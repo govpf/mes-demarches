@@ -1026,6 +1026,35 @@ describe Dossier, type: :model do
     end
   end
 
+  # pf: prénom seul pour les titres d'onglet (RGPD)
+  describe '#owner_first_name' do
+    let(:procedure) { create(:procedure) }
+    subject { dossier.owner_first_name }
+
+    context 'when there is no entreprise or individual' do
+      let(:dossier) { create(:dossier, individual: nil, procedure: procedure) }
+
+      it { is_expected.to be_nil }
+    end
+
+    context 'when there is entreprise' do
+      let(:dossier) { create(:dossier, :with_entreprise, procedure: procedure) }
+
+      it 'returns the truncated raison sociale' do
+        is_expected.to eq(dossier.etablissement.entreprise_raison_sociale.truncate_words(3))
+      end
+    end
+
+    context 'when there is an individual' do
+      let(:procedure) { create(:procedure, :for_individual) }
+      let(:dossier) { create(:dossier, :with_individual, procedure: procedure) }
+
+      it 'returns only the prénom' do
+        is_expected.to eq(dossier.individual.prenom)
+      end
+    end
+  end
+
   describe "#hide_and_keep_track!" do
     let(:dossier) { create(:dossier, :en_construction) }
     let(:user) { dossier.user }

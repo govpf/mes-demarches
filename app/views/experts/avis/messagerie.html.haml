@@ -1,4 +1,4 @@
-- content_for(:title, "Messagerie · #{@dossier.id} (#{@dossier.owner_first_name})")
+- content_for(:title, dossier_tab_title(@dossier, "Messagerie"))
 
 = render partial: 'header', locals: { avis: @avis, dossier: @dossier }
 

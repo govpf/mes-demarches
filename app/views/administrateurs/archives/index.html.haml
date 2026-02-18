@@ -1,4 +1,4 @@
-- content_for(:title, "Export et Archives · #{@procedure.id} - #{@procedure.libelle.truncate_words(10)}")
+- content_for(:title, procedure_tab_title(@procedure, "Export et Archives"))
 
 = render partial: 'administrateurs/breadcrumbs',
   locals: { steps: [['Démarches', admin_procedures_path],

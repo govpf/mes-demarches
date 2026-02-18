@@ -1,4 +1,4 @@
-- content_for(:title, "Authentification professionnelle · #{@procedure.id} - #{@procedure.libelle.truncate_words(10)}")
+- content_for(:title, procedure_tab_title(@procedure, "Authentification professionnelle"))
 
 -# pf: Page adaptée pour Microsoft @administration.gov.pf au lieu de ProConnect
 = render partial: 'administrateurs/breadcrumbs',

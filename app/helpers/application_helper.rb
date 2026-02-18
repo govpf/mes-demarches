@@ -190,7 +190,10 @@ module ApplicationHelper
     end
   end
 
-  # pf: contexte utilisateur dans le titre de la page navigateur
+  # pf: helpers pour les titres d'onglet navigateur contextuels
+  # Format cible : "Page · 123 - Libellé... · Administrateur · Mes-Démarches"
+
+  # Contexte utilisateur affiché dans le titre de la page
   def title_context_label
     profile = controller.try(:nav_bar_profile) || controller.try(:fallback_nav_bar_profile) || :guest
     case profile
@@ -200,7 +203,26 @@ module ApplicationHelper
     when :expert then 'Expert'
     when :gestionnaire then 'Gestionnaire'
     when :superadmin then 'Super Admin'
+    else nil # profil guest / non authentifié : pas de contexte
     end
+  end
+
+  # Titre d'onglet pour les pages liées à une procédure
+  # Ex: procedure_tab_title(@procedure, "Champs") → "Champs · 123 - Demande de..."
+  # Ex: procedure_tab_title(@procedure) → "123 - Demande de..."
+  def procedure_tab_title(procedure, page_name = nil)
+    label = "#{procedure.id} - #{procedure.libelle.truncate_words(10)}"
+    page_name ? "#{page_name} · #{label}" : label
+  end
+
+  # Titre d'onglet pour les pages liées à un dossier
+  # RGPD : affiche le prénom seul (pas le nom complet) pour éviter la fuite dans les analytics
+  # Ex: dossier_tab_title(@dossier, "Demande") → "Demande · 605256 (Pierre)"
+  # Ex: dossier sans identité → "Demande · 605256"
+  def dossier_tab_title(dossier, page_name)
+    owner = dossier.owner_first_name
+    label = owner.present? ? "#{dossier.id} (#{owner})" : dossier.id.to_s
+    "#{page_name} · #{label}"
   end
 
   # pf: sanitization HTML spécifique pour attestation v2
