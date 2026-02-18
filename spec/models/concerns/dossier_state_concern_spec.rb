@@ -184,4 +184,69 @@ RSpec.describe DossierStateConcern do
       end
     end
   end
+
+  describe 'warm_pj_previews' do
+    let(:procedure) { create(:procedure, :published, :for_individual, types_de_champ_public: [{ type: :piece_justificative, stable_id: 100 }], declarative_with_state: nil, auto_archive_on: nil) }
+    let(:dossier) { create(:dossier, :en_instruction, :with_individual, procedure:) }
+    let(:champ_pj) { dossier.project_champs_public.find { _1.stable_id == 100 } }
+
+    before do
+      champ_pj.piece_justificative_file.attach(
+        io: StringIO.new(File.read(Rails.root.join('spec/fixtures/files/logo_test_procedure.png'), mode: 'rb')),
+        filename: 'logo_test_procedure.png',
+        content_type: 'image/png'
+      )
+    end
+
+    it 'generates variants for image attachments' do
+      attachment = champ_pj.piece_justificative_file.attachments.first
+      expect(attachment.variant(resize_to_limit: [400, 400]).key).to be_nil
+
+      expect { dossier.send(:warm_pj_previews) }.to change { ActiveStorage::VariantRecord.count }.by(1)
+
+      expect(attachment.variant(resize_to_limit: [400, 400]).key).not_to be_nil
+    end
+
+    it 'does not raise when variant processing fails' do
+      attachment = champ_pj.piece_justificative_file.attachments.first
+      allow(attachment).to receive(:variant).and_raise(StandardError.new('S3 upload failed'))
+
+      expect { dossier.send(:warm_pj_previews) }.not_to raise_error
+    end
+
+    context 'when a VariantRecord is orphaned (no S3 file)' do
+      it 'cleans up the orphan variant record' do
+        attachment = champ_pj.piece_justificative_file.attachments.first
+        blob = attachment.blob
+
+        # Create an orphan VariantRecord with an image blob that has no backing file in storage.
+        # We insert records directly to simulate the Rails bug (VariantRecord committed before S3 upload).
+        orphan_blob = ActiveStorage::Blob.create_before_direct_upload!(
+          filename: 'variant.png',
+          byte_size: 100,
+          checksum: 'abc123',
+          content_type: 'image/png'
+        )
+        orphan_variant = ActiveStorage::VariantRecord.create!(blob: blob, variation_digest: 'orphan_digest')
+        # Directly create the attachment record without triggering file validation
+        ActiveStorage::Attachment.create!(
+          name: 'image',
+          record_type: 'ActiveStorage::VariantRecord',
+          record_id: orphan_variant.id,
+          blob_id: orphan_blob.id
+        )
+        orphan_variant.reload
+
+        # Make variant processing raise to trigger cleanup
+        allow(attachment).to receive(:variant).and_raise(StandardError.new('processing failed'))
+
+        # The orphan blob key does not exist in storage
+        expect(orphan_blob.service.exist?(orphan_blob.key)).to be false
+
+        expect {
+          dossier.send(:warm_pj_previews)
+        }.to change { ActiveStorage::VariantRecord.where(id: orphan_variant.id).count }.from(1).to(0)
+      end
+    end
+  end
 end

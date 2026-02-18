@@ -429,13 +429,32 @@ module DossierStateConcern
       next unless champ.respond_to?(:piece_justificative_file)
 
       champ.piece_justificative_file.each do |attachment|
+        Rails.logger.info "warm_pj_previews: traitement #{attachment.filename} (previewable=#{attachment.previewable?}, image=#{attachment.image?}, blob=#{attachment.blob.id})"
         if attachment.image?
           attachment.variant(resize_to_limit: [400, 400]).processed
         elsif attachment.previewable?
           attachment.preview(resize_to_limit: [400, 400]).processed
         end
+        Rails.logger.info "warm_pj_previews: #{attachment.filename} OK"
       rescue StandardError => e
-        Rails.logger.warn "warm_pj_previews: #{attachment.filename} - #{e.class}: #{e.message}"
+        Rails.logger.error "warm_pj_previews: ECHEC #{attachment.filename} - #{e.class}: #{e.message}"
+        Rails.logger.error e.backtrace.first(5).join("\n")
+        # pf: nettoyer les variant records orphelins (variant créé en base mais fichier S3 absent)
+        # Bug Rails connu : rails/rails#47047 - l'upload S3 se fait dans after_commit,
+        # un VariantRecord peut être committé sans fichier S3 correspondant.
+        begin
+          preview_blob = attachment.blob.preview_image.attached? ? attachment.blob.preview_image.blob : attachment.blob
+          ActiveStorage::VariantRecord.where(blob_id: preview_blob.id).each do |vr|
+            next unless vr.image.attached?
+            unless vr.image.blob.service.exist?(vr.image.blob.key)
+              Rails.logger.warn "warm_pj_previews: suppression variant orphelin #{vr.id} (blob #{vr.image.blob.id}, key=#{vr.image.blob.key})"
+              vr.image.blob.purge
+              vr.destroy!
+            end
+          end
+        rescue StandardError => cleanup_error
+          Rails.logger.error "warm_pj_previews: erreur nettoyage variants - #{cleanup_error.class}: #{cleanup_error.message}"
+        end
       end
     end
   end
