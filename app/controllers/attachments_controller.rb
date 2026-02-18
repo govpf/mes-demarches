@@ -29,7 +29,7 @@ class AttachmentsController < ApplicationController
       end
       champ.piece_justificative_file.reload
       # pf #163: message flash supprimé pour éviter le scroll
-      # flash.notice = t("activerecord.models.attachment.successfully_deleted_with_anchor", attachment: @attachment.blob.filename, champ: @champ.input_id)
+      # flash.notice = t("activerecord.models.attachment.successfully_deleted_with_anchor", attachment: @attachment.blob.filename, champ: @champ.focusable_input_id)
     else
       @attachment.purge_later
       @attachment_options = attachment_options

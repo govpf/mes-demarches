@@ -58,7 +58,7 @@ describe "Dossier en_construction", js: true do
       click_on "Supprimer le fichier toto.png"
       # pf #163: message flash supprimé pour éviter le scroll
 
-      input_selector = "##{champ.input_id}"
+      input_selector = "##{champ.focusable_input_id}"
       expect(page).to have_selector(input_selector)
       expect(page).to have_text('modification à déposer')
       find(input_selector).attach_file(Rails.root.join('spec/fixtures/files/white.png'))

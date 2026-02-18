@@ -1,6 +1,6 @@
 .flex.align-center
   = @form.check_box :value,
-    input_opts(id: @champ.input_id,
+    input_opts(id: @champ.focusable_input_id,
       disabled: !@champ.user_accredited?(helpers.current_user),
       checked: @champ.value.present?,
       aria: { describedby: @champ.describedby_id },
