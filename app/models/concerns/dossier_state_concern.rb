@@ -445,7 +445,7 @@ module DossierStateConcern
         # un VariantRecord peut être committé sans fichier S3 correspondant.
         begin
           preview_blob = attachment.blob.preview_image.attached? ? attachment.blob.preview_image.blob : attachment.blob
-          ActiveStorage::VariantRecord.where(blob_id: preview_blob.id).each do |vr|
+          ActiveStorage::VariantRecord.where(blob_id: preview_blob.id).find_each do |vr|
             next unless vr.image.attached?
             unless vr.image.blob.service.exist?(vr.image.blob.key)
               Rails.logger.warn "warm_pj_previews: suppression variant orphelin #{vr.id} (blob #{vr.image.blob.id}, key=#{vr.image.blob.key})"

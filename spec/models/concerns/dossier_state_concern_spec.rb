@@ -203,7 +203,7 @@ RSpec.describe DossierStateConcern do
 
     before do
       champ_pj.piece_justificative_file.attach(
-        io: StringIO.new(File.read(Rails.root.join('spec/fixtures/files/logo_test_procedure.png'), mode: 'rb')),
+        io: StringIO.new(Rails.root.join('spec/fixtures/files/logo_test_procedure.png').read(mode: 'rb')),
         filename: 'logo_test_procedure.png',
         content_type: 'image/png'
       )
