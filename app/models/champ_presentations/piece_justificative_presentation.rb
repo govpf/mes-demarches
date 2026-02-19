@@ -22,7 +22,7 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
       attachment.url
     end
 
-    # pf: data URI pour preview (variant 400x400 → base64, supporte images/PDF/Word/etc.)
+    # pf: data URI pour preview (variant 400x400 → base64, images uniquement)
     @image_src = is_previewable ? preview_to_data_uri(attachment) : nil
   end
 
@@ -69,8 +69,10 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
   end
 
   def self.from_attachment(attachment, champ: nil, index: 0)
-    # pf: utiliser previewable pour supporter PDF, Word, Excel, etc. en plus des images
-    is_previewable = attachment.previewable? || attachment.image?
+    # pf: seules les images sont affichées inline dans les attestations.
+    # Les PDF/Word/etc. ne génèrent plus de preview pour éviter le bug Rails
+    # où le Tempfile est GC avant l'upload S3 (après_commit différé dans la transaction accepter).
+    is_previewable = attachment.image?
     new(attachment, is_previewable: is_previewable, champ: champ, index: index)
   end
 
@@ -83,33 +85,21 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
     )
   end
 
-  # pf: convertit une image/preview en data URI base64 (400x400 pour attestations/emails)
+  # pf: convertit une image en data URI base64 (variant 400x400 pour attestations/emails)
+  # Seules les images sont supportées. Les PDF/Word ne génèrent plus de preview inline
+  # pour éviter le bug Rails Tempfile GC (rails/rails#47047).
   def preview_to_data_uri(attachment)
-    # pf: Pour images : utiliser variant. Pour autres (PDF, Word, etc.) : utiliser preview
-    if attachment.image?
-      # Image : créer variant 400x400 (même taille que preview gallery)
-      variant = attachment.variant(resize_to_limit: [400, 400])
-      image_data = variant.processed.download
-      content_type = attachment.blob.content_type
-    else
-      # PDF, Word, etc. : générer preview 400x400
-      preview = attachment.preview(resize_to_limit: [400, 400])
-      image_data = preview.processed.download
-      content_type = 'image/png' # pf: les previews sont toujours en PNG
-    end
+    variant = attachment.variant(resize_to_limit: [400, 400])
+    image_data = variant.processed.download
+    content_type = attachment.blob.content_type
 
-    # Convertir en base64
     base64_data = Base64.strict_encode64(image_data)
-
-    # Générer data URI
     "data:#{content_type};base64,#{base64_data}"
-  rescue IOError
-    # pf: stream fermé (variant pas encore traité ou fichier déjà lu) → retourner nil pour fallback sur lien
-    Rails.logger.warn "PJ #{attachment.filename}: preview indisponible (stream fermé), fallback sur lien de téléchargement"
-    nil
   rescue StandardError => e
-    # pf: autre erreur (fichier manquant, format invalide, etc.) → retourner nil pour fallback sur lien
+    # pf: erreur (fichier manquant Errno::ENOENT, stream fermé, format invalide, etc.)
+    # → retourner nil pour fallback sur lien de téléchargement (pas de 500)
     Rails.logger.warn "PJ #{attachment.filename}: preview impossible (#{e.class.name}: #{e.message}), fallback sur lien de téléchargement"
+    Rails.logger.warn e.backtrace&.first(5)&.join("\n")
     nil
   end
 end
