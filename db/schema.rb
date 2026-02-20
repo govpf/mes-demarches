@@ -449,11 +449,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_102351) do
     t.datetime "display_at"
     t.bigint "dossier_id", null: false
     t.bigint "groupe_instructeur_id"
-    t.bigint "instructeur_id"
+    t.bigint "instructeur_id", null: false
     t.string "notification_type", null: false
     t.datetime "updated_at", null: false
-    t.index ["dossier_id", "notification_type", "groupe_instructeur_id"], name: "unique_dossier_groupe_instructeur_notification", unique: true, where: "((groupe_instructeur_id IS NOT NULL) AND (instructeur_id IS NULL))"
-    t.index ["dossier_id", "notification_type", "instructeur_id"], name: "unique_dossier_instructeur_notification", unique: true, where: "((instructeur_id IS NOT NULL) AND (groupe_instructeur_id IS NULL))"
+    t.index ["dossier_id", "notification_type", "instructeur_id"], name: "unique_dossier_instructeur_notification", unique: true
     t.index ["dossier_id"], name: "index_dossier_notifications_on_dossier_id"
     t.index ["groupe_instructeur_id"], name: "index_dossier_notifications_on_groupe_instructeur_id"
     t.index ["instructeur_id"], name: "index_dossier_notifications_on_instructeur_id"
@@ -643,7 +642,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_102351) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_experts_on_user_id"
+    t.index ["user_id"], name: "index_experts_on_user_id", unique: true
   end
 
   create_table "experts_procedures", force: :cascade do |t|
@@ -799,7 +798,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_102351) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_gestionnaires_on_user_id"
+    t.index ["user_id"], name: "index_gestionnaires_on_user_id", unique: true
   end
 
   create_table "gestionnaires_groupe_gestionnaires", id: false, force: :cascade do |t|

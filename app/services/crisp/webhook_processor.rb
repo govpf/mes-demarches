@@ -2,32 +2,46 @@
 
 module Crisp
   class WebhookProcessor
+    include Dry::Monads[:result]
+
+    # IMPORTANT: Outgoing traffic is restricted in production: never call the Crisp API from a webhook request, use a job!
     def initialize(params)
       @params = params
-      @email = extract_email
+      @email = extract_email_from_params
+      @session_id = params.dig(:data, :session_id)
     end
 
     def process
-      return unless processable_event?
-      return if user.blank?
-
-      CrispUpdatePeopleDataJob.perform_later(user)
+      case params[:event]
+      when "message:send"
+        process_message_send
+      when "session:set_inbox"
+        process_inbox_change
+      end
     end
 
     private
 
-    attr_reader :params, :email
+    attr_reader :params, :session_id, :email
 
-    def processable_event?
-      params[:event] == "message:send"
+    def process_message_send
+      return unless params.dig(:data, :from) == "user"
+
+      CrispUpdatePeopleDataJob.perform_later(session_id, email)
     end
 
-    def extract_email
-      params.dig(:data, :user, :user_id)
+    def process_inbox_change
+      # inbox_id = params.dig(:data, :inbox_id)
+      # Note: as of 3 sept 2025, crisp has a known bug: new inbox_id is empty,
+      # we have to call API to get the id
+
+      CrispMattermostTechNotificationJob.perform_later(session_id)
     end
 
-    def user
-      @user ||= User.find_by(email:)
+    def extract_email_from_params
+      # conversations from chat does not use an email as user id
+      maybe_email = params.dig(:data, :user, :user_id)
+      maybe_email&.include?("@") ? maybe_email : nil
     end
   end
 end
