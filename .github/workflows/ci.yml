@@ -125,8 +125,7 @@ jobs:
 
   system_tests:
     name: System tests
-
-    runs-on: warp-ubuntu-2204-x64-2x
+    runs-on: ubuntu-22.04 # pf: upstream utilise warp-ubuntu-2204-x64-2x (larger runner payant)
     timeout-minutes: 20
     env:
       RUBY_YJIT_ENABLE: "1"
