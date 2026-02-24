@@ -449,11 +449,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_102351) do
     t.datetime "display_at"
     t.bigint "dossier_id", null: false
     t.bigint "groupe_instructeur_id"
-    t.bigint "instructeur_id"
+    t.bigint "instructeur_id", null: false
     t.string "notification_type", null: false
     t.datetime "updated_at", null: false
-    t.index ["dossier_id", "notification_type", "groupe_instructeur_id"], name: "unique_dossier_groupe_instructeur_notification", unique: true, where: "((groupe_instructeur_id IS NOT NULL) AND (instructeur_id IS NULL))"
-    t.index ["dossier_id", "notification_type", "instructeur_id"], name: "unique_dossier_instructeur_notification", unique: true, where: "((instructeur_id IS NOT NULL) AND (groupe_instructeur_id IS NULL))"
+    t.index ["dossier_id", "notification_type", "instructeur_id"], name: "unique_dossier_instructeur_notification", unique: true
     t.index ["dossier_id"], name: "index_dossier_notifications_on_dossier_id"
     t.index ["groupe_instructeur_id"], name: "index_dossier_notifications_on_groupe_instructeur_id"
     t.index ["instructeur_id"], name: "index_dossier_notifications_on_instructeur_id"
@@ -643,7 +642,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_102351) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_experts_on_user_id"
+    t.index ["user_id"], name: "index_experts_on_user_id", unique: true
   end
 
   create_table "experts_procedures", force: :cascade do |t|
@@ -662,20 +661,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_102351) do
 
   create_table "export_templates", force: :cascade do |t|
     t.jsonb "attestation"
+    t.boolean "avis_attachments", default: false, null: false
+    t.boolean "commentaires_attachments", default: false, null: false
     t.jsonb "content", default: {}
     t.datetime "created_at", null: false
     t.jsonb "dossier_folder", null: false
     t.jsonb "export_pdf", null: false
     t.jsonb "exported_columns", default: [], null: false, array: true
     t.bigint "groupe_instructeur_id", null: false
+    t.boolean "justificatif_motivation", default: false, null: false
     t.string "kind", null: false
     t.string "name", null: false
     t.jsonb "pjs", default: [], null: false, array: true
-    t.datetime "updated_at", null: false
     t.boolean "shared", default: false, null: false
-    t.boolean "commentaires_attachments", default: false, null: false
-    t.boolean "avis_attachments", default: false, null: false
-    t.boolean "justificatif_motivation", default: false, null: false
+    t.datetime "updated_at", null: false
     t.index ["groupe_instructeur_id"], name: "index_export_templates_on_groupe_instructeur_id"
   end
 
@@ -799,7 +798,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_102351) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_gestionnaires_on_user_id"
+    t.index ["user_id"], name: "index_gestionnaires_on_user_id", unique: true
   end
 
   create_table "gestionnaires_groupe_gestionnaires", id: false, force: :cascade do |t|
