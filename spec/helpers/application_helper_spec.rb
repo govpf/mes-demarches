@@ -137,8 +137,8 @@ describe ApplicationHelper do
     end
   end
 
-  # pf: tests des helpers de titres d'onglet contextuels
-  describe '#title_context_label' do
+  # pf: tests des helpers de titres d'onglet compacts
+  describe '#title_role_abbreviation' do
     let(:controller_double) { double }
 
     before do
@@ -148,37 +148,25 @@ describe ApplicationHelper do
     context 'when nav_bar_profile returns :administrateur' do
       before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:administrateur) }
 
-      it { expect(helper.title_context_label).to eq('Administrateur') }
+      it { expect(helper.title_role_abbreviation).to eq('A') }
     end
 
     context 'when nav_bar_profile returns :instructeur' do
       before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:instructeur) }
 
-      it { expect(helper.title_context_label).to eq('Instructeur') }
-    end
-
-    context 'when nav_bar_profile returns :user' do
-      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:user) }
-
-      it { expect(helper.title_context_label).to eq('Usager') }
+      it { expect(helper.title_role_abbreviation).to eq('I') }
     end
 
     context 'when nav_bar_profile returns :expert' do
       before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:expert) }
 
-      it { expect(helper.title_context_label).to eq('Expert') }
+      it { expect(helper.title_role_abbreviation).to eq('E') }
     end
 
     context 'when nav_bar_profile returns :gestionnaire' do
       before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:gestionnaire) }
 
-      it { expect(helper.title_context_label).to eq('Gestionnaire') }
-    end
-
-    context 'when nav_bar_profile returns :superadmin' do
-      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:superadmin) }
-
-      it { expect(helper.title_context_label).to eq('Super Admin') }
+      it { expect(helper.title_role_abbreviation).to eq('G') }
     end
 
     context 'when nav_bar_profile is nil and fallback_nav_bar_profile returns :administrateur' do
@@ -187,7 +175,7 @@ describe ApplicationHelper do
         allow(controller_double).to receive(:try).with(:fallback_nav_bar_profile).and_return(:administrateur)
       end
 
-      it { expect(helper.title_context_label).to eq('Administrateur') }
+      it { expect(helper.title_role_abbreviation).to eq('A') }
     end
 
     context 'when both nav_bar_profile and fallback_nav_bar_profile are nil (guest)' do
@@ -196,26 +184,66 @@ describe ApplicationHelper do
         allow(controller_double).to receive(:try).with(:fallback_nav_bar_profile).and_return(nil)
       end
 
-      it { expect(helper.title_context_label).to be_nil }
+      it { expect(helper.title_role_abbreviation).to be_nil }
+    end
+
+    context 'when nav_bar_profile returns :user' do
+      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:user) }
+
+      it { expect(helper.title_role_abbreviation).to be_nil }
+    end
+
+    context 'when nav_bar_profile returns :superadmin' do
+      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:superadmin) }
+
+      it { expect(helper.title_role_abbreviation).to be_nil }
     end
   end
 
   describe '#procedure_tab_title' do
     let(:procedure) { create(:procedure, libelle: 'Demande de subvention pour les associations sportives et culturelles de Polynésie française') }
+    let(:controller_double) { double }
 
-    it 'returns truncated libelle with procedure id' do
-      expect(helper.procedure_tab_title(procedure)).to eq("#{procedure.id} - #{procedure.libelle.truncate_words(10)}")
+    before do
+      allow(helper).to receive(:controller).and_return(controller_double)
     end
 
-    it 'prepends page name when provided' do
-      expect(helper.procedure_tab_title(procedure, 'Champs')).to eq("Champs · #{procedure.id} - #{procedure.libelle.truncate_words(10)}")
+    context 'when role is instructeur' do
+      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:instructeur) }
+
+      it 'returns procedure id with role abbreviation' do
+        expect(helper.procedure_tab_title(procedure)).to eq("#{procedure.id}(I)")
+      end
+
+      it 'prepends page name when provided' do
+        expect(helper.procedure_tab_title(procedure, 'À suivre')).to eq("À suivre · #{procedure.id}(I)")
+      end
     end
 
-    context 'with a short libelle' do
-      let(:procedure) { create(:procedure, libelle: 'Subvention') }
+    context 'when role is administrateur' do
+      before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:administrateur) }
 
-      it 'does not truncate' do
-        expect(helper.procedure_tab_title(procedure)).to eq("#{procedure.id} - Subvention")
+      it 'returns procedure id with role abbreviation' do
+        expect(helper.procedure_tab_title(procedure)).to eq("#{procedure.id}(A)")
+      end
+
+      it 'prepends page name when provided' do
+        expect(helper.procedure_tab_title(procedure, 'Champs')).to eq("Champs · #{procedure.id}(A)")
+      end
+    end
+
+    context 'when no role (guest/user)' do
+      before do
+        allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(nil)
+        allow(controller_double).to receive(:try).with(:fallback_nav_bar_profile).and_return(nil)
+      end
+
+      it 'returns procedure id without role' do
+        expect(helper.procedure_tab_title(procedure)).to eq(procedure.id.to_s)
+      end
+
+      it 'prepends page name when provided' do
+        expect(helper.procedure_tab_title(procedure, 'Détails')).to eq("Détails · #{procedure.id}")
       end
     end
   end

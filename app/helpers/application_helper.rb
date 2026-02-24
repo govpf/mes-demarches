@@ -190,28 +190,27 @@ module ApplicationHelper
     end
   end
 
-  # pf: helpers pour les titres d'onglet navigateur contextuels
-  # Format cible : "Page · 123 - Libellé... · Administrateur · Mes-Démarches"
+  # pf: helpers pour les titres d'onglet navigateur compacts
+  # Format cible : "Page · 123(I) · mes-Démarches"
 
-  # Contexte utilisateur affiché dans le titre de la page
-  def title_context_label
-    profile = controller.try(:nav_bar_profile) || controller.try(:fallback_nav_bar_profile) || :guest
+  # Abréviation du rôle utilisateur pour les titres d'onglet
+  def title_role_abbreviation
+    profile = controller.try(:nav_bar_profile) || controller.try(:fallback_nav_bar_profile)
     case profile
-    when :administrateur then 'Administrateur'
-    when :instructeur then 'Instructeur'
-    when :user then 'Usager'
-    when :expert then 'Expert'
-    when :gestionnaire then 'Gestionnaire'
-    when :superadmin then 'Super Admin'
-    else nil # profil guest / non authentifié : pas de contexte
+    when :administrateur then 'A'
+    when :instructeur then 'I'
+    when :expert then 'E'
+    when :gestionnaire then 'G'
+    else nil
     end
   end
 
   # Titre d'onglet pour les pages liées à une procédure
-  # Ex: procedure_tab_title(@procedure, "Champs") → "Champs · 123 - Demande de..."
-  # Ex: procedure_tab_title(@procedure) → "123 - Demande de..."
+  # Ex: procedure_tab_title(@procedure, "Champs") → "Champs · 123(A)"
+  # Ex: procedure_tab_title(@procedure) → "123(I)"
   def procedure_tab_title(procedure, page_name = nil)
-    label = "#{procedure.id} - #{procedure.libelle.truncate_words(10)}"
+    role = title_role_abbreviation
+    label = role ? "#{procedure.id}(#{role})" : procedure.id.to_s
     page_name ? "#{page_name} · #{label}" : label
   end
 
