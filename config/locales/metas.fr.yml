@@ -18,16 +18,23 @@ fr:
         identite:
           title: "Nouveau dossier (%{procedure_label}) - Étape 1 : Identité"
         show:
-          title: "Suivi de votre dossier · Dossier %{number} (%{procedure_label})"
+          title: "Suivi · %{number} (%{procedure_label})"
         demande:
-          title: "Votre dossier · Dossier %{number} (%{procedure_label})"
+          title: "Votre dossier · %{number} (%{procedure_label})"
         messagerie:
-          title: "Messagerie administration · Dossier %{number} (%{procedure_label})"
+          title: "Messagerie · %{number} (%{procedure_label})"
         brouillon:
-          title: "Dossier %{number} en brouillon (%{procedure_label}) - Étape 2 : Formulaire"
+          title: "Brouillon · %{number} (%{procedure_label})"
         merci:
           title: "Dossier envoyé (%{procedure_label})"
         rendez_vous:
-          title: "Rendez-vous · Dossier %{number} (%{procedure_label})"
+          title: "Rendez-vous · %{number} (%{procedure_label})"
+        modifier:
+          title: "Modifier · %{number} (%{procedure_label})"
+        siret:
+          title: "Nouveau dossier (%{procedure_label})"
+        qrcode:
+          title: "Attestation nº %{number} (%{procedure_label})"
+          title_fallback: "Attestation"
       activate:
         title: Activer mon compte sur %{application_name}

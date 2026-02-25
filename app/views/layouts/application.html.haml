@@ -19,8 +19,10 @@
     -# - if administrateur_signed_in? || instructeur_signed_in?
     -#   %script#lasuite-gaufre-script{ async: '', defer: 'defer', src: 'https://integration.lasuite.numerique.gouv.fr/api/v1/gaufre.js' }
 
+    -# pf: titre d'onglet compact avec rôle abrégé intégré dans le page_title
     %title
-      = content_for?(:title) ? "#{sanitize(yield(:title)).gsub("&nbsp;", " ")} · #{Current.application_name}" : Current.application_name
+      - page_title = content_for?(:title) ? sanitize(yield(:title)).gsub("&nbsp;", " ") : nil
+      = [page_title, Current.application_name].compact.join(' · ')
 
     = render partial: "layouts/favicons"
 

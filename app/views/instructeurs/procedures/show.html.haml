@@ -1,4 +1,4 @@
-- content_for(:title, "#{@procedure.libelle}")
+- content_for(:title, procedure_tab_title(@procedure, i18n_tab_from_status(@statut)))
 
 #procedure-show
   .sub-header

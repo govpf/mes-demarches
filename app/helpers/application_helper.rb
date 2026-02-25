@@ -190,6 +190,42 @@ module ApplicationHelper
     end
   end
 
+  # pf: helpers pour les titres d'onglet navigateur compacts
+  # Format cible : "Page · 123(I) · mes-Démarches"
+
+  # Abréviation du rôle utilisateur pour les titres d'onglet
+  def title_role_abbreviation
+    profile = controller.try(:nav_bar_profile) || controller.try(:fallback_nav_bar_profile)
+    case profile
+    when :administrateur then 'A'
+    when :instructeur then 'I'
+    when :expert then 'E'
+    when :gestionnaire then 'G'
+    when :user then 'U'
+    when :superadmin then 'S'
+    else nil # profil non authentifié (guest)
+    end
+  end
+
+  # Titre d'onglet pour les pages liées à une procédure
+  # Ex: procedure_tab_title(@procedure, "Champs") → "Champs · 123(A)"
+  # Ex: procedure_tab_title(@procedure) → "123(I)"
+  def procedure_tab_title(procedure, page_name = nil)
+    role = title_role_abbreviation
+    label = role ? "#{procedure.id}(#{role})" : procedure.id.to_s
+    page_name ? "#{page_name} · #{label}" : label
+  end
+
+  # Titre d'onglet pour les pages liées à un dossier
+  # RGPD : affiche le prénom seul (pas le nom complet) pour éviter la fuite dans les analytics
+  # Ex: dossier_tab_title(@dossier, "Demande") → "Demande · 605256 (Pierre)"
+  # Ex: dossier sans identité → "Demande · 605256"
+  def dossier_tab_title(dossier, page_name)
+    owner = dossier.owner_short_label
+    label = owner.present? ? "#{dossier.id} (#{owner})" : dossier.id.to_s
+    "#{page_name} · #{label}"
+  end
+
   # pf: sanitization HTML spécifique pour attestation v2
   def attestation_v2_sanitize(html)
     config = Rails.application.config.attestation_v2

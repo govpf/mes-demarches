@@ -1,4 +1,5 @@
 - content_for(:root_class, 'scroll-margins-for-sticky-footer')
+- content_for(:title, procedure_tab_title(@procedure, "Éditer email"))
 - if params[:id] == 'closed_mail'
   = render partial: 'admin/closed_mail_template_attestation_inconsistency_alert'
 

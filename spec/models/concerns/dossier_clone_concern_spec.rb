@@ -424,6 +424,45 @@ RSpec.describe DossierCloneConcern do
         forked_dossier.reload
       end
 
+      # pf: diagnostic intentionnel — ce bloc after(:each) ne s'exécute QUE quand un test échoue
+      # (guard `next unless example.exception`). Il affiche les timestamps et le diff des champs
+      # pour investiguer un flaky CI sur merge_fork qui ne se reproduit pas en local.
+      # Conserver tant que le flaky n'est pas résolu : les logs CI sont le seul moyen de diagnostic.
+      after do |example|
+        next unless example.exception
+
+        fork_created = forked_dossier.reload.created_at
+        diff = dossier.reload.make_diff(forked_dossier)
+        fork_champs = forked_dossier.project_champs_public_all.reject(&:repetition?)
+
+        diag = "\n=== FLAKY DIAGNOSTIC (#{example.description.truncate(60)}) ===\n"
+        diag += "  fork.created_at       = #{fork_created.iso8601(6)}\n"
+        diag += "  Time.current          = #{Time.current.iso8601(6)}\n"
+        diag += "  Rails TZ              = #{Time.zone.name}\n"
+        diag += "  --- Fork champs (#{fork_champs.size}) ---\n"
+        fork_champs.sort_by { [_1.stable_id, _1.row_id.to_s] }.each do |c|
+          delta = (c.updated_at - fork_created).round(6)
+          in_updated = diff[:updated].any? { _1.public_id == c.public_id }
+          in_added = diff[:added].any? { _1.public_id == c.public_id }
+          flag = in_updated ? " [UPDATED]" : (in_added ? " [ADDED]" : "")
+          diag += "    stable_id=#{c.stable_id} row=#{c.row_id&.first(8)} " \
+                  "val=#{c.value.inspect.truncate(30)} " \
+                  "updated_at=#{c.updated_at.iso8601(6)} " \
+                  "delta=#{delta}s#{flag}\n"
+        end
+        diag += "  --- Dossier champs après merge (#{dossier.filled_champs.size}) ---\n"
+        dossier.filled_champs.sort_by { [_1.stable_id, _1.row_id.to_s] }.each do |c|
+          diag += "    stable_id=#{c.stable_id} row=#{c.row_id&.first(8)} " \
+                  "val=#{c.value.inspect.truncate(30)} to_s=#{c.to_s.inspect}\n"
+        end
+        diag += "  --- Diff summary ---\n"
+        diag += "    added:   #{diff[:added].map { "#{_1.stable_id}(#{_1.row_id&.first(8)})" }}\n"
+        diag += "    updated: #{diff[:updated].map { "#{_1.stable_id}(#{_1.row_id&.first(8)})" }}\n"
+        diag += "    removed: #{diff[:removed].map { "#{_1.stable_id}(#{_1.row_id&.first(8)})" }}\n"
+        diag += "=== END DIAGNOSTIC ==="
+        puts diag
+      end
+
       it { expect { subject }.to change { dossier.filled_champs.size }.by(3) }
       # pf: tri alphabétique pour éviter test flaky (ordre d'insertion variable selon seed)
       it do

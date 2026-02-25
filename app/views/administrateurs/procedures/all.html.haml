@@ -1,3 +1,5 @@
+- content_for(:title, "Toutes les démarches")
+
 - content_for :results do
   .main-filter-header.fr-my-3w
     = form_with(url: all_admin_procedures_path, method: :get, data: { turbo_frame: 'procedures' }, html: { role: 'search', class: 'search' }) do |f|

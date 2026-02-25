@@ -1,4 +1,5 @@
 - content_for(:root_class, 'scroll-margins-for-sticky-footer')
+- content_for(:title, procedure_tab_title(@procedure, "Attestation"))
 
 = render partial: 'administrateurs/breadcrumbs',
   locals: { steps: [['Démarches', admin_procedures_path],
