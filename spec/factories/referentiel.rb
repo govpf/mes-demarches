@@ -67,7 +67,7 @@ FactoryBot.define do
     end
 
     factory :baserow_referentiel, class: 'Referentiels::BaserowReferentiel' do
-      test_data { '24' }
+      url { 'baserow://24' }
     end
   end
 end

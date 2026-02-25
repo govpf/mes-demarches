@@ -2,62 +2,67 @@
 
 describe Referentiels::BaserowReferentiel do
   describe 'validations' do
-    it 'validates presence of table_id' do
-      referentiel = build(:baserow_referentiel, test_data: nil)
+    it 'validates presence of url' do
+      referentiel = build(:baserow_referentiel, url: nil)
       expect(referentiel).not_to be_valid
-      expect(referentiel.errors[:table_id]).to include("doit être rempli")
+      expect(referentiel.errors[:url]).to include("doit être rempli")
     end
 
-    it 'validates table_id is a positive integer' do
-      referentiel = build(:baserow_referentiel, test_data: '0')
+    it 'validates url format with invalid value' do
+      referentiel = build(:baserow_referentiel, url: 'invalid')
       expect(referentiel).not_to be_valid
-      expect(referentiel.errors[:table_id]).to include("doit être supérieur à 0")
+      expect(referentiel.errors[:url]).to include("doit être au format baserow://TABLE_ID")
     end
 
-    it 'validates table_id is numeric' do
-      referentiel = build(:baserow_referentiel, test_data: 'abc')
-      expect(referentiel).not_to be_valid
-      expect(referentiel.errors[:table_id]).to include("n'est pas un nombre")
+    it 'validates url format with zero table_id' do
+      referentiel = build(:baserow_referentiel, url: 'baserow://0')
+      expect(referentiel).to be_valid # format is valid, configured? will return false
     end
 
-    it 'is valid with a positive integer table_id' do
-      referentiel = build(:baserow_referentiel, test_data: '24')
+    it 'is valid with a proper baserow:// URL' do
+      referentiel = build(:baserow_referentiel, url: 'baserow://24')
       expect(referentiel).to be_valid
     end
   end
 
-  describe '#table_id alias' do
-    let(:referentiel) { build(:baserow_referentiel, test_data: '42') }
+  describe '#table_id getter/setter' do
+    let(:referentiel) { build(:baserow_referentiel, url: 'baserow://42') }
 
-    it 'aliases table_id to test_data' do
+    it 'derives table_id from url' do
       expect(referentiel.table_id).to eq('42')
     end
 
     it 'allows setting via table_id=' do
       referentiel.table_id = '99'
-      expect(referentiel.test_data).to eq('99')
+      expect(referentiel.url).to eq('baserow://99')
+      expect(referentiel.table_id).to eq('99')
+    end
+
+    it 'sets url to nil when table_id is blank' do
+      referentiel.table_id = ''
+      expect(referentiel.url).to be_nil
     end
   end
 
   describe '#configured?' do
     it 'returns true when table_id is a positive integer' do
-      referentiel = build(:baserow_referentiel, test_data: '24')
+      referentiel = build(:baserow_referentiel, url: 'baserow://24')
       expect(referentiel.configured?).to be true
     end
 
-    it 'returns false when table_id is blank' do
-      referentiel = build(:baserow_referentiel, test_data: nil)
+    it 'returns false when url is blank' do
+      referentiel = build(:baserow_referentiel, url: nil)
       expect(referentiel.configured?).to be false
     end
 
     it 'returns false when table_id is 0' do
-      referentiel = build(:baserow_referentiel, test_data: '0')
+      referentiel = build(:baserow_referentiel, url: 'baserow://0')
       expect(referentiel.configured?).to be false
     end
   end
 
   describe '#ready?' do
-    let(:referentiel) { build(:baserow_referentiel, test_data: '24') }
+    let(:referentiel) { build(:baserow_referentiel, url: 'baserow://24') }
 
     context 'when configured and baserow_config is present' do
       before do
@@ -84,7 +89,7 @@ describe Referentiels::BaserowReferentiel do
     end
 
     context 'when not configured' do
-      let(:referentiel) { build(:baserow_referentiel, test_data: nil) }
+      let(:referentiel) { build(:baserow_referentiel, url: nil) }
 
       it 'returns false' do
         expect(referentiel.ready?).to be false
@@ -92,31 +97,23 @@ describe Referentiels::BaserowReferentiel do
     end
   end
 
-  describe '#url' do
-    let(:referentiel) { build(:baserow_referentiel, test_data: '24') }
-
-    it 'returns a baserow:// URL with table_id and {id} placeholder' do
-      expect(referentiel.url).to eq('baserow://24/{id}')
-    end
-  end
-
   describe '#headers' do
-    let(:referentiel) { build(:baserow_referentiel, test_data: '24') }
+    let(:referentiel) { build(:baserow_referentiel, url: 'baserow://24') }
 
     context 'when baserow_config is present' do
       let(:config) do
         {
-          'Champs usager' => 'Nom,Archipel',
-          'Champs instructeur' => 'Code,Archipel'
+          'Champs usager' => '1,2',
+          'Champs instructeur' => '3,2'
         }
       end
 
       let(:model) do
-        [
-          { 'id' => 1, 'name' => 'Nom' },
-          { 'id' => 2, 'name' => 'Archipel' },
-          { 'id' => 3, 'name' => 'Code' }
-        ]
+        {
+          1 => { name: 'Nom', type: 'text' },
+          2 => { name: 'Archipel', type: 'text' },
+          3 => { name: 'Code', type: 'number' }
+        }
       end
 
       before do
@@ -126,12 +123,6 @@ describe Referentiels::BaserowReferentiel do
         allow(ReferentielDePolynesie::BaserowAPI).to receive(:fields)
           .with(config)
           .and_return(model)
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:field_names)
-          .with(model, 'Nom,Archipel')
-          .and_return(['Nom', 'Archipel'])
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:field_names)
-          .with(model, 'Code,Archipel')
-          .and_return(['Code', 'Archipel'])
       end
 
       it 'returns unique headers from usager and instructeur fields' do
@@ -153,22 +144,22 @@ describe Referentiels::BaserowReferentiel do
   end
 
   describe '#headers_with_path' do
-    let(:referentiel) { build(:baserow_referentiel, test_data: '24') }
+    let(:referentiel) { build(:baserow_referentiel, url: 'baserow://24') }
 
     before do
       allow(referentiel).to receive(:headers).and_return(['Nom', 'Code'])
     end
 
-    it 'returns headers with JSONPath format' do
+    it 'returns headers with flat JSONPath format' do
       expect(referentiel.headers_with_path).to eq([
-        ['Nom', '$.row.Nom'],
-        ['Code', '$.row.Code']
+        ['Nom', '$.Nom'],
+        ['Code', '$.Code']
       ])
     end
   end
 
   describe '#last_response_status' do
-    let(:referentiel) { build(:baserow_referentiel, test_data: '24') }
+    let(:referentiel) { build(:baserow_referentiel, url: 'baserow://24') }
 
     context 'when last_response has status' do
       before { referentiel.last_response = { 'status' => 200 } }
@@ -210,7 +201,7 @@ describe Referentiels::BaserowReferentiel do
   end
 
   describe 'name generation' do
-    let(:referentiel) { build(:baserow_referentiel, test_data: '24', name: nil) }
+    let(:referentiel) { build(:baserow_referentiel, url: 'baserow://24', name: nil) }
 
     it 'generates a UUID name on save if name is blank' do
       referentiel.save!

@@ -1,11 +1,18 @@
 # frozen_string_literal: true
 
 class Referentiels::BaserowReferentiel < Referentiel
-  alias_attribute :table_id, :test_data
-
-  validates :table_id, presence: true, numericality: { only_integer: true, greater_than: 0 }
+  # pf: le table_id Baserow est stocké dans url au format "baserow://TABLE_ID"
+  validates :url, presence: true, format: { with: /\Abaserow:\/\/\d+\z/, message: "doit être au format baserow://TABLE_ID" }
 
   before_save :name_as_uuid
+
+  def table_id
+    url&.delete_prefix('baserow://')
+  end
+
+  def table_id=(value)
+    self.url = value.present? ? "baserow://#{value}" : nil
+  end
 
   def self.csv_available?
     false
@@ -21,10 +28,6 @@ class Referentiels::BaserowReferentiel < Referentiel
 
   def configured?
     table_id.present? && table_id.to_i > 0
-  end
-
-  def url
-    "baserow://#{table_id}/{id}"
   end
 
   # pf: Baserow gère son auth via BaserowAPI.config, pas via le modèle Referentiel
@@ -48,8 +51,9 @@ class Referentiels::BaserowReferentiel < Referentiel
     (usager_fields + instructeur_fields).uniq
   end
 
+  # pf: JSONPath plat (plus de $.row. prefix) pour harmoniser avec le format upstream
   def headers_with_path
-    headers.map { |h| [h, "$.row.#{h}"] }
+    headers.map { |h| [h, "$.#{h}"] }
   end
 
   def last_response_status

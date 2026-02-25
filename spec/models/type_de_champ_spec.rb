@@ -612,7 +612,7 @@ describe TypeDeChamp do
     end
 
     context 'avec uniquement un referentiel Baserow (nouveau flux)' do
-      let(:referentiel) { create(:baserow_referentiel, test_data: '25') }
+      let(:referentiel) { create(:baserow_referentiel, url: 'baserow://25') }
       before { type_de_champ.update!(referentiel: referentiel) }
 
       it 'retourne la valeur du referentiel' do
@@ -621,7 +621,7 @@ describe TypeDeChamp do
     end
 
     context 'avec options legacy ET un referentiel Baserow (migration)' do
-      let(:referentiel) { create(:baserow_referentiel, test_data: '25') }
+      let(:referentiel) { create(:baserow_referentiel, url: 'baserow://25') }
       before do
         type_de_champ.update_column(:options, { 'table_id' => '24' })
         type_de_champ.update!(referentiel: referentiel)
