@@ -12,10 +12,7 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
 
     context 'when API returns valid data' do
       let(:api_response) do
-        {
-          row: { 'Nom' => 'Papeete', 'Archipel' => 'Îles du Vent', 'Code' => '98714' },
-          usager_fields: ['Nom', 'Archipel']
-        }
+        { 'Nom' => 'Papeete', 'Archipel' => 'Îles du Vent', 'Code' => '98714' }
       end
 
       before do
@@ -25,11 +22,11 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
         champ.update!(external_id:)
       end
 
-      it 'returns a Success monad' do
+      it 'returns a Success monad with flat data' do
         result = champ.fetch_external_data
 
         expect(result).to be_success
-        expect(result.value!['row']).to eq(api_response[:row].with_indifferent_access)
+        expect(result.value!).to eq(api_response.with_indifferent_access)
       end
     end
 
@@ -114,19 +111,32 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
   end
 
   describe '#referentiel_item_value' do
-    before do
-      champ.update!(data: {
-        'row' => { 'Nom' => 'Papeete', 'Code' => '98714' }
-      })
+    context 'with new flat format' do
+      before do
+        champ.update!(data: { 'Nom' => 'Papeete', 'Code' => '98714' })
+      end
+
+      it 'extracts value by path' do
+        expect(champ.referentiel_item_value('Nom')).to eq('Papeete')
+        expect(champ.referentiel_item_value('Code')).to eq('98714')
+      end
+
+      it 'returns nil for non-existent paths' do
+        expect(champ.referentiel_item_value('Inexistant')).to be_nil
+      end
     end
 
-    it 'extracts value from row by path' do
-      expect(champ.referentiel_item_value('Nom')).to eq('Papeete')
-      expect(champ.referentiel_item_value('Code')).to eq('98714')
-    end
+    context 'with legacy row format' do
+      before do
+        champ.update!(data: {
+          'row' => { 'Nom' => 'Papeete', 'Code' => '98714' }
+        })
+      end
 
-    it 'returns nil for non-existent paths' do
-      expect(champ.referentiel_item_value('Inexistant')).to be_nil
+      it 'extracts value from row by path' do
+        expect(champ.referentiel_item_value('Nom')).to eq('Papeete')
+        expect(champ.referentiel_item_value('Code')).to eq('98714')
+      end
     end
 
     context 'when data is nil' do
@@ -161,7 +171,7 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
           libelle: 'Référentiel',
           table_id: '24',
           referentiel_mapping: {
-            '$.row.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s }
+            '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s }
           }
         },
         { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id }
@@ -171,10 +181,7 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
     let(:referentiel_champ) { dossier.project_champs_public.find(&:referentiel_de_polynesie?) }
     let(:text_champ) { dossier.project_champs_public.find { |c| c.stable_id == prefillable_stable_id } }
     let(:baserow_row_data) do
-      {
-        row: { 'Nom' => 'Papeete', 'Code' => '98714', 'Ile' => 'Tahiti' },
-        usager_fields: ['Nom', 'Ile']
-      }
+      { 'Nom' => 'Papeete', 'Code' => '98714', 'Ile' => 'Tahiti' }
     end
 
     before do
@@ -204,12 +211,38 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
       expect(referentiel_champ.data).to be_present
     end
 
-    it 'stocke les données brutes de l\'API dans data' do
+    it 'stocke les données brutes de l\'API en format plat dans data' do
       referentiel_champ.update!(external_id: '24:123', value: 'Papeete - Tahiti')
 
       ChampFetchExternalDataJob.perform_now(referentiel_champ, '24:123')
 
-      expect(referentiel_champ.reload.data).to include('row' => hash_including('Nom' => 'Papeete', 'Code' => '98714'))
+      expect(referentiel_champ.reload.data).to include('Nom' => 'Papeete', 'Code' => '98714')
+    end
+
+    context 'avec un mapping displayable' do
+      let(:types_de_champ_public) do
+        [
+          {
+            type: :referentiel_de_polynesie,
+            libelle: 'Référentiel',
+            table_id: '24',
+            referentiel_mapping: {
+              '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s },
+              '$.Nom' => { 'type' => 'string', 'libelle' => 'Nom', 'display_instructeur' => '1' }
+            }
+          },
+          { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id }
+        ]
+      end
+
+      it 'calcule value_json via cast_displayable_values' do
+        referentiel_champ.update!(external_id: '24:123', value: 'Papeete - Tahiti')
+
+        ChampFetchExternalDataJob.perform_now(referentiel_champ, '24:123')
+
+        expect(referentiel_champ.reload.value_json).to be_present
+        expect(referentiel_champ.value_json['$.Nom']).to eq('Papeete')
+      end
     end
 
     context 'avec erreur API' do
@@ -239,8 +272,8 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
             libelle: 'Référentiel',
             table_id: '24',
             referentiel_mapping: {
-              '$.row.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s },
-              '$.row.Nom' => { 'prefill' => '1', 'prefill_stable_id' => second_prefillable_stable_id.to_s }
+              '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s },
+              '$.Nom' => { 'prefill' => '1', 'prefill_stable_id' => second_prefillable_stable_id.to_s }
             }
           },
           { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id },

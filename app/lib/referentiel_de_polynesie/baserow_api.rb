@@ -28,31 +28,25 @@ class ReferentielDePolynesie::BaserowAPI
       end
     end
 
-    def fetch_row(domain_id, row)
-      return {} if row.to_i <= 0
+    # pf: retourne un hash plat { 'Nom' => 'Papeete', 'Code' => '98714' } (sans enveloppe row/usager_fields)
+    def fetch_row(domain_id, row_id)
+      return {} if row_id.to_i <= 0
 
       config = config(domain_id)
-      response = Typhoeus.get(row_url(config['Table'], row), headers: database_headers(config['Token']))
+      response = Typhoeus.get(row_url(config['Table'], row_id), headers: database_headers(config['Token']))
       if response.success?
         model = fields(config)
-        usager_fields = field_names(model, config['Champs usager'])
-        instructeur_fields = field_names(model, config['Champs instructeur'])
         response_data = JSON.parse(response.body)
 
-        # Conserver l'id externe pour l'API GraphQL
-        external_id = response_data['id']
-
         # Transformer les champs field_* en noms lisibles
-        row = response_data.filter { |name, _| name.start_with?('field_') }.transform_keys do |key|
-          model[key[6..-1].to_i]
+        response_data.filter { |name, _| name.start_with?('field_') }.transform_keys do |key|
+          model[key[6..-1].to_i][:name]
         end
-
-        { usager_fields:, instructeur_fields:, row:, external_id: }
       end
     end
 
     def field_names(model, field_ids)
-      field_ids&.split(/,/)&.map(&:strip)&.map { model[_1.to_i] } || []
+      field_ids&.split(/,/)&.map(&:strip)&.map { model[_1.to_i]&.[](:name) } || []
     end
 
     def config(row_id)
@@ -60,10 +54,25 @@ class ReferentielDePolynesie::BaserowAPI
       response.success? ? JSON.parse(response.body) : nil
     end
 
+    # pf: retourne { id => { name:, type: } } au lieu de { id => name }
     def fields(config)
       response = Typhoeus.get(list_database_table_fields(config['Table']), headers: database_headers(config['Token']))
       if response.success?
-        JSON.parse(response.body).map { [_1['id'], _1['name']] }.to_h
+        JSON.parse(response.body).map { [_1['id'], { name: _1['name'], type: _1['type'] }] }.to_h
+      end
+    end
+
+    # pf: convertit un type Baserow en type de mapping upstream
+    def baserow_type_to_mapping_type(field_metadata)
+      baserow_type = field_metadata['type'] || field_metadata[:type]
+      case baserow_type
+      when 'number'
+        decimal_places = field_metadata['number_decimal_places'] || field_metadata[:number_decimal_places] || 0
+        decimal_places.to_i > 0 ? 'decimal_number' : 'integer_number'
+      when 'date' then 'date'
+      when 'boolean' then 'boolean'
+      when 'multiple_select' then 'array'
+      else 'string' # text, long_text, email, url, phone_number, single_select, formula, lookup, link_row...
       end
     end
 

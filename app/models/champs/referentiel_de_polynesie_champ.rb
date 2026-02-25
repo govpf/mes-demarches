@@ -8,9 +8,14 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     self.fetch_external_data_exceptions = []
   end
 
+  # pf: override pour calculer value_json tout en préservant le label dans value
   def update_external_data!(data:)
     transaction do
-      update!(data:, fetch_external_data_exceptions: [])
+      update!(
+        data:,
+        value_json: cast_displayable_values(data.with_indifferent_access),
+        fetch_external_data_exceptions: []
+      )
       propagate_prefill(data)
     end
   end
@@ -32,9 +37,18 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     end
   end
 
-  # pf: support colonnes pour tags/exports (aligné sur DropDownList)
+  # pf: dual-mode — normalise les données entre ancien format (avec row) et nouveau format (plat)
+  def normalized_data
+    if data&.key?('row')
+      data['row'] # ancien format
+    else
+      data # nouveau format plat
+    end
+  end
+
+  # pf: support colonnes pour tags/exports (dual-mode)
   def referentiel_item_value(path)
-    data&.dig("row", path.to_s)
+    normalized_data&.dig(path.to_s)
   end
 
   # pf: pour les ancres d'erreur (#11420), le React ComboBox utilise html_id sans suffixe -input
@@ -47,7 +61,7 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
   def fetch_external_data_legacy
     result = ReferentielDePolynesie::API.fetch_row(external_id)
 
-    if result.present? && result.is_a?(Hash) && result[:row].present?
+    if result.present? && result.is_a?(Hash) && result.keys.any?
       Dry::Monads::Success(result.with_indifferent_access)
     else
       Dry::Monads::Failure(retryable: false, reason: StandardError.new('Row not found'), code: 404)

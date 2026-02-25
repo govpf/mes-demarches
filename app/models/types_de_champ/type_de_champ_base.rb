@@ -3,7 +3,7 @@
 class TypesDeChamp::TypeDeChampBase
   include ActiveModel::Validations
 
-  delegate :description, :libelle, :mandatory, :mandatory?, :stable_id, :fillable?, :public?, :type_champ, :options_for_select, :drop_down_options, :drop_down_other?, :drop_down_advanced?, :referentiel, :RIB?, :table_id, to: :@type_de_champ # pf: :table_id for referentiel_de_polynesie
+  delegate :description, :libelle, :mandatory, :mandatory?, :stable_id, :fillable?, :public?, :type_champ, :options_for_select, :drop_down_options, :drop_down_other?, :drop_down_advanced?, :referentiel, :RIB?, :table_id, :referentiel_mapping_displayable_for_instructeur, to: :@type_de_champ # pf: :table_id, :referentiel_mapping_displayable_for_instructeur for referentiel_de_polynesie
 
   FILL_DURATION_SHORT  = 10.seconds
   FILL_DURATION_MEDIUM = 1.minute

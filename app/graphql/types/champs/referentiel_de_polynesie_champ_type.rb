@@ -16,13 +16,24 @@ module Types::Champs
     def columns
       return [] if object.data.blank?
 
+      # pf: mode upstream — utiliser referentiel_mapping + value_json
+      mapping = object.type_de_champ.referentiel_mapping_displayable_for_instructeur
+      if mapping.present? && object.value_json.present?
+        return mapping.map do |jsonpath, opts|
+          {
+            name: opts[:libelle] || jsonpath,
+            value: format_value_for_api(object.value_json[jsonpath]),
+            type: (opts[:type] || 'string').to_s
+          }
+        end
+      end
+
+      # pf: fallback legacy — ancien format avec row/instructeur_fields ou format plat
       data = object.data.is_a?(String) ? JSON.parse(object.data) : object.data
-      return [] unless data.is_a?(Hash) && data.key?('row')
+      return [] unless data.is_a?(Hash)
 
-      # Utiliser instructeur_fields pour déterminer quelles colonnes afficher
-      fields = data['instructeur_fields'].presence || data['row'].keys
-      row = data['row']
-
+      row = data.key?('row') ? data['row'] : data
+      fields = data['instructeur_fields'].presence || row.keys
       fields.map do |field_name|
         value = row.key?(field_name) ? (row[field_name] || "") : "Champ #{field_name} inconnu"
         {
@@ -36,12 +47,7 @@ module Types::Champs
     end
 
     def external_id
-      return nil if object.data.blank?
-
-      data = object.data.is_a?(String) ? JSON.parse(object.data) : object.data
-      data['external_id']
-    rescue JSON::ParserError
-      nil
+      object.external_id
     end
 
     private
