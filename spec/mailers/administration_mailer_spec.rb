@@ -14,7 +14,7 @@ RSpec.describe AdministrationMailer, type: :mailer do
       it do
         expect(subject.body).to include(users_activate_path(token: token))
         expect(subject.body).not_to include(edit_user_password_url(admin_user, reset_password_token: token))
-        expect(subject['BYPASS_UNVERIFIED_MAIL_PROTECTION']).to be_present
+        expect(subject[BalancerDeliveryMethod::BYPASS_UNVERIFIED_MAIL_PROTECTION]).to be_present
       end
     end
 
@@ -25,6 +25,18 @@ RSpec.describe AdministrationMailer, type: :mailer do
     end
   end
 
+  describe '#procedure_published' do
+    let(:procedure) { create(:procedure, :published) }
+
+    subject { described_class.procedure_published(procedure) }
+
+    it do
+      expect(subject.subject).not_to be_empty
+      expect(subject.to).to eq([EQUIPE_EMAIL])
+      expect(subject[BalancerDeliveryMethod::BYPASS_UNVERIFIED_MAIL_PROTECTION]).to be_present
+    end
+  end
+
   describe '#refuse_admin' do
     let(:mail) { "l33t-4dm1n@h4x0r.com" }
 
@@ -32,7 +44,7 @@ RSpec.describe AdministrationMailer, type: :mailer do
 
     it do
       expect(subject.subject).not_to be_empty
-      expect(subject['BYPASS_UNVERIFIED_MAIL_PROTECTION']).to be_present
+      expect(subject[BalancerDeliveryMethod::BYPASS_UNVERIFIED_MAIL_PROTECTION]).to be_present
     end
   end
 end
