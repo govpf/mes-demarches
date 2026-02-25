@@ -17,7 +17,7 @@ class MigrateReferentielDePolynesieToBaserowReferentiel < ActiveRecord::Migratio
     referentiel_by_table_id = {}
 
     table_ids.each do |table_id|
-      referentiel = Referentiels::BaserowReferentiel.find_or_create_by!(test_data: table_id.to_s) do |r|
+      referentiel = Referentiels::BaserowReferentiel.find_or_create_by!(url: "baserow://#{table_id}") do |r|
         r.name = SecureRandom.uuid
       end
       referentiel_by_table_id[table_id.to_s] = referentiel.id

@@ -89,7 +89,7 @@ module Administrateurs
 
     def referentiel_params
       params.require(:referentiel)
-        .permit(:type, :mode, :url, :hint, :test_data, :authentication_method, authentication_data: [:header, :value])
+        .permit(:type, :mode, :url, :hint, :test_data, :table_id, :authentication_method, authentication_data: [:header, :value])
     rescue ActionController::ParameterMissing
       {}
     end
@@ -109,7 +109,7 @@ module Administrateurs
         params = referentiel_params.to_h
         if @type_de_champ.referentiel_de_polynesie?
           params = params.merge(type: Referentiels::BaserowReferentiel)
-          params = params.merge(test_data: @type_de_champ.table_id) if @type_de_champ.table_id.present?
+          params = params.merge(table_id: @type_de_champ.table_id) if @type_de_champ.table_id.present?
         else
           params = params.merge(type: Referentiels::APIReferentiel) if !Referentiels::APIReferentiel.csv_available?
           params = params.merge(mode: Referentiels::APIReferentiel.modes.fetch(:exact_match)) if !Referentiels::APIReferentiel.autocomplete_available?

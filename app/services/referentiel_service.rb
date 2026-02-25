@@ -28,6 +28,8 @@ class ReferentielService
   end
 
   def test_url
+    return @referentiel.url if @referentiel.is_a?(Referentiels::BaserowReferentiel)
+
     url(@referentiel.test_data)
   end
 
