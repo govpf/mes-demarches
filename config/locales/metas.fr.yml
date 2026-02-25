@@ -24,7 +24,7 @@ fr:
         messagerie:
           title: "Messagerie · %{number} (%{procedure_label})"
         brouillon:
-          title: "%{number} en brouillon (%{procedure_label}) - Étape 2 : Formulaire"
+          title: "Brouillon · %{number} (%{procedure_label})"
         merci:
           title: "Dossier envoyé (%{procedure_label})"
         rendez_vous:

@@ -221,7 +221,7 @@ module ApplicationHelper
   # Ex: dossier_tab_title(@dossier, "Demande") → "Demande · 605256 (Pierre)"
   # Ex: dossier sans identité → "Demande · 605256"
   def dossier_tab_title(dossier, page_name)
-    owner = dossier.owner_first_name
+    owner = dossier.owner_short_label
     label = owner.present? ? "#{dossier.id} (#{owner})" : dossier.id.to_s
     "#{page_name} · #{label}"
   end

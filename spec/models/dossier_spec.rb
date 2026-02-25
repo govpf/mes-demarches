@@ -1026,10 +1026,10 @@ describe Dossier, type: :model do
     end
   end
 
-  # pf: prénom seul pour les titres d'onglet (RGPD)
-  describe '#owner_first_name' do
+  # pf: libellé court du propriétaire pour les titres d'onglet (RGPD)
+  describe '#owner_short_label' do
     let(:procedure) { create(:procedure) }
-    subject { dossier.owner_first_name }
+    subject { dossier.owner_short_label }
 
     context 'when there is no entreprise or individual' do
       let(:dossier) { create(:dossier, individual: nil, procedure: procedure) }

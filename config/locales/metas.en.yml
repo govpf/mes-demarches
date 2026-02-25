@@ -24,7 +24,7 @@ en:
         messagerie:
           title: "Administration messaging · File %{number} (%{procedure_label})"
         brouillon:
-          title: "File %{number} in draft (%{procedure_label}) - Step 2: Form"
+          title: "Draft · %{number} (%{procedure_label})"
         merci:
           title: "File submitted (%{procedure_label})"
         rendez_vous:
