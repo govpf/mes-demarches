@@ -30,8 +30,8 @@
                   - last_request_keys.sort.each do |jsonpath, example_value|
                     %tr{ data: { controller: "referentiel-mapping" } }
                       %td.fr-cell--fixed
-                        %span.hidden{ id: label_check_prefill(jsonpath) }= "Utiliser #{jsonpath} pour préremplir le formulaire"
-                        = jsonpath
+                        %span.hidden{ id: label_check_prefill(jsonpath) }= "Utiliser #{display_jsonpath(jsonpath)} pour préremplir le formulaire"
+                        = display_jsonpath(jsonpath)
                         = hidden_field_tag attribute_name(jsonpath, "example_value"), example_value
                       %td.fr-cell--multiline= example_value
                       %td= cast_tag(jsonpath, example_value)
