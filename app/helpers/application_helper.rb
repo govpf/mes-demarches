@@ -201,7 +201,9 @@ module ApplicationHelper
     when :instructeur then 'I'
     when :expert then 'E'
     when :gestionnaire then 'G'
-    else nil
+    when :user then 'U'
+    when :superadmin then 'S'
+    else nil # profil non authentifié (guest)
     end
   end
 

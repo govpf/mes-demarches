@@ -190,13 +190,13 @@ describe ApplicationHelper do
     context 'when nav_bar_profile returns :user' do
       before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:user) }
 
-      it { expect(helper.title_role_abbreviation).to be_nil }
+      it { expect(helper.title_role_abbreviation).to eq('U') }
     end
 
     context 'when nav_bar_profile returns :superadmin' do
       before { allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(:superadmin) }
 
-      it { expect(helper.title_role_abbreviation).to be_nil }
+      it { expect(helper.title_role_abbreviation).to eq('S') }
     end
   end
 
@@ -232,7 +232,7 @@ describe ApplicationHelper do
       end
     end
 
-    context 'when no role (guest/user)' do
+    context 'when no role (guest / non authentifié)' do
       before do
         allow(controller_double).to receive(:try).with(:nav_bar_profile).and_return(nil)
         allow(controller_double).to receive(:try).with(:fallback_nav_bar_profile).and_return(nil)
