@@ -3,7 +3,7 @@
 RSpec.describe Referentiels::BaserowService, type: :service do
   include Dry::Monads[:result]
 
-  let(:referentiel) { create(:baserow_referentiel, test_data: '24') }
+  let(:referentiel) { create(:baserow_referentiel) }
   let(:service) { described_class.new(referentiel:) }
 
   describe '#call' do
@@ -11,10 +11,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
 
     context 'when API returns valid data' do
       let(:api_response) do
-        {
-          row: { 'Nom' => 'Papeete', 'Archipel' => 'Îles du Vent' },
-          usager_fields: ['Nom', 'Archipel']
-        }
+        { 'Nom' => 'Papeete', 'Archipel' => 'Îles du Vent' }
       end
 
       before do
@@ -23,7 +20,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
           .and_return(api_response)
       end
 
-      it 'returns a Success with the data' do
+      it 'returns a Success with the flat data' do
         result = service.call(external_id)
 
         expect(result).to be_success
@@ -54,24 +51,6 @@ RSpec.describe Referentiels::BaserowService, type: :service do
         allow(ReferentielDePolynesie::API).to receive(:fetch_row)
           .with(external_id)
           .and_return({})
-      end
-
-      it 'returns a Failure with code 404' do
-        result = service.call(external_id)
-
-        expect(result).to be_failure
-        expect(result.failure).to include(
-          retryable: false,
-          code: 404
-        )
-      end
-    end
-
-    context 'when API returns data without row key' do
-      before do
-        allow(ReferentielDePolynesie::API).to receive(:fetch_row)
-          .with(external_id)
-          .and_return({ error: 'Not found' })
       end
 
       it 'returns a Failure with code 404' do
@@ -138,12 +117,12 @@ RSpec.describe Referentiels::BaserowService, type: :service do
         expect(service.validate_referentiel).to be true
       end
 
-      it 'updates last_response with status 200 and sample row' do
+      it 'updates last_response with status 200 and flat sample row' do
         service.validate_referentiel
         referentiel.reload
 
         expect(referentiel.last_response['status']).to eq(200)
-        expect(referentiel.last_response['body']).to eq({ 'row' => sample_row })
+        expect(referentiel.last_response['body']).to eq(sample_row)
       end
     end
 

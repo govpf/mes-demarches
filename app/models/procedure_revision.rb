@@ -625,7 +625,7 @@ class ProcedureRevision < ApplicationRecord
     from_referentiel = from_type_de_champ.referentiel
     to_referentiel = to_type_de_champ.referentiel
 
-    [:url, :mode, :hint, :test_data].each do |field|
+    [:url, :mode, :hint].each do |field|
       if from_referentiel&.send(field) != to_referentiel&.send(field)
         changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
           "referentiel_#{field}".to_sym,
