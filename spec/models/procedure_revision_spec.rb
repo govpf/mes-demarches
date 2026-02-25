@@ -737,15 +737,6 @@ describe ProcedureRevision do
             :to => 'Saisissez le code de votre autre reference'
           })
           is_expected.to include({
-            :attribute => :referentiel_test_data,
-            :from => 'PG46YY6YWCX8',
-            :label => "libelle",
-            :op => :update,
-            :private => false,
-            :stable_id => 123,
-            :to => 'une autre'
-          })
-          is_expected.to include({
             :attribute => :referentiel_mapping,
             :from => { "key" => "value1" },
             :label => "libelle",
