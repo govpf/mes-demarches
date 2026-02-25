@@ -1,7 +1,7 @@
 .sub-header
   .fr-container.flex.column
     - if @procedure.routing_enabled?
-      - content_for(:title, "Instructeurs · #{@procedure.id} - #{@groupe_instructeur.label.truncate_words(10)}")
+      - content_for(:title, procedure_tab_title(@procedure, "Instructeurs · #{@groupe_instructeur.label.truncate_words(10)}"))
 
       = render partial: 'instructeurs/breadcrumbs',
         locals: { steps: [[@procedure.libelle.truncate_words(10), instructeur_procedure_path(@procedure)],

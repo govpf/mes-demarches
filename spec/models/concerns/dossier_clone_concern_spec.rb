@@ -424,7 +424,10 @@ RSpec.describe DossierCloneConcern do
         forked_dossier.reload
       end
 
-      # pf: diagnostic timestamps pour investiguer le flaky CI (supprimer une fois résolu)
+      # pf: diagnostic intentionnel — ce bloc after(:each) ne s'exécute QUE quand un test échoue
+      # (guard `next unless example.exception`). Il affiche les timestamps et le diff des champs
+      # pour investiguer un flaky CI sur merge_fork qui ne se reproduit pas en local.
+      # Conserver tant que le flaky n'est pas résolu : les logs CI sont le seul moyen de diagnostic.
       after do |example|
         next unless example.exception
 

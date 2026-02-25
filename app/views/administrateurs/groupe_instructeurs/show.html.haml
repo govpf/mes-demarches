@@ -1,4 +1,4 @@
-- content_for(:title, "Groupe · #{@procedure.id} - #{@groupe_instructeur.label.truncate_words(10)}")
+- content_for(:title, procedure_tab_title(@procedure, "Groupe · #{@groupe_instructeur.label.truncate_words(10)}"))
 
 = render partial: 'administrateurs/breadcrumbs',
   locals: { steps: [['Démarches', admin_procedures_path],
