@@ -63,7 +63,7 @@ class Referentiels::BaserowService
       # pf: récupérer une ligne spécifique pour avoir des données représentatives (ex: champs Select remplis)
       url = "#{base_url}/api/database/rows/table/#{table_id}/#{referentiel.test_data}/?user_field_names=true"
       response = Typhoeus.get(url, headers:)
-      return JSON.parse(response.body) if response.success?
+      return ReferentielDePolynesie::BaserowAPI.simplify_row(JSON.parse(response.body)) if response.success?
     end
 
     # Fallback : première ligne
@@ -72,7 +72,7 @@ class Referentiels::BaserowService
 
     if response.success?
       data = JSON.parse(response.body)
-      data['results']&.first
+      ReferentielDePolynesie::BaserowAPI.simplify_row(data['results']&.first)
     end
   rescue StandardError => e
     Rails.logger.error("BaserowService fetch_sample_row error: #{e.class} - #{e.message}")

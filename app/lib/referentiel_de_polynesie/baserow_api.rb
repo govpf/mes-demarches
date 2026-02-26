@@ -29,19 +29,20 @@ class ReferentielDePolynesie::BaserowAPI
     end
 
     # pf: retourne un hash plat { 'Nom' => 'Papeete', 'Code' => '98714' } (sans enveloppe row/usager_fields)
+    # Les valeurs complexes Baserow (single_select, link_row) sont simplifiées en valeurs lisibles
+    # Utilise user_field_names=true pour que Baserow retourne directement les noms de colonnes comme clés
     def fetch_row(domain_id, row_id)
       return {} if row_id.to_i <= 0
 
       config = config(domain_id)
-      response = Typhoeus.get(row_url(config['Table'], row_id), headers: database_headers(config['Token']))
+      response = Typhoeus.get(row_url(config['Table'], row_id), headers: database_headers(config['Token']), params: default_params)
       if response.success?
-        model = fields(config)
         response_data = JSON.parse(response.body)
 
-        # Transformer les champs field_* en noms lisibles
-        response_data.filter { |name, _| name.start_with?('field_') }.transform_keys do |key|
-          model[key[6..-1].to_i][:name]
-        end
+        # Filtrer les champs techniques Baserow (id, order) et simplifier les valeurs complexes
+        response_data
+          .except('id', 'order')
+          .transform_values { |v| simplify_value(v) }
       end
     end
 
@@ -87,6 +88,31 @@ class ReferentielDePolynesie::BaserowAPI
     def database_headers(token) = { 'Authorization' => "Token #{token}" }
 
     def default_params = { user_field_names: true }
+
+    # pf: simplifie les valeurs complexes d'un row Baserow retourné avec user_field_names=true
+    # Utilisé par BaserowService#fetch_sample_row pour les données de test
+    def simplify_row(row)
+      return row unless row.is_a?(Hash)
+
+      row.transform_values { |v| simplify_value(v) }
+    end
+
+    # pf: simplifie une valeur Baserow complexe en valeur lisible
+    # - single_select { "id" => 1, "value" => "Cat", "color" => "red" } → "Cat"
+    # - link_row [{ "id" => 1, "value" => "X" }] → "X" (ou "X, Y" si multi)
+    # - multiple_select [{ "id" => 1, "value" => "A" }, ...] → "A, B"
+    # - nil, strings, numbers → inchangés
+    def simplify_value(value)
+      case value
+      when Hash
+        value['value']
+      when Array
+        values = value.filter_map { |item| item.is_a?(Hash) ? item['value'] : item }
+        values.length <= 1 ? values.first : values.join(', ')
+      else
+        value
+      end
+    end
 
     private
 
