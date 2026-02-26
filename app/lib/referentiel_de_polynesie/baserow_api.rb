@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ReferentielDePolynesie::BaserowAPI
+  TIMEOUT = 10 # pf: timeout en secondes pour les appels Baserow
+
   class << self
     def secrets = Rails.application.secrets.baserow
 
@@ -9,7 +11,7 @@ class ReferentielDePolynesie::BaserowAPI
       search_field = config['Champ de recherche']
       params = build_search_filters(search_field, term)
       url = rows_url(config['Table'])
-      response = Typhoeus.get(url, headers: database_headers(config['Token']), params: params)
+      response = Typhoeus.get(url, headers: database_headers(config['Token']), params: params, timeout: TIMEOUT)
 
       if response.success?
         results = parse_search_results(response.body, search_field, domain_id)
@@ -20,7 +22,7 @@ class ReferentielDePolynesie::BaserowAPI
     end
 
     def available_tables
-      response = Typhoeus.get(rows_url(secrets[:config_table]), headers: config_database_headers, params: default_params)
+      response = Typhoeus.get(rows_url(secrets[:config_table]), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
       if response.success?
         JSON.parse(response.body, symbolize_names: true)[:results]&.filter { _1[:Actif] }&.map do
           { name: _1[:Nom], id: _1[:id] }
@@ -35,7 +37,7 @@ class ReferentielDePolynesie::BaserowAPI
       return {} if row_id.to_i <= 0
 
       config = config(domain_id)
-      response = Typhoeus.get(row_url(config['Table'], row_id), headers: database_headers(config['Token']), params: default_params)
+      response = Typhoeus.get(row_url(config['Table'], row_id), headers: database_headers(config['Token']), params: default_params, timeout: TIMEOUT)
       if response.success?
         response_data = JSON.parse(response.body)
 
@@ -51,13 +53,13 @@ class ReferentielDePolynesie::BaserowAPI
     end
 
     def config(row_id)
-      response = Typhoeus.get(row_url(secrets[:config_table], row_id), headers: config_database_headers, params: default_params)
+      response = Typhoeus.get(row_url(secrets[:config_table], row_id), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
       response.success? ? JSON.parse(response.body) : nil
     end
 
     # pf: retourne { id => { name:, type: } } au lieu de { id => name }
     def fields(config)
-      response = Typhoeus.get(list_database_table_fields(config['Table']), headers: database_headers(config['Token']))
+      response = Typhoeus.get(list_database_table_fields(config['Table']), headers: database_headers(config['Token']), timeout: TIMEOUT)
       if response.success?
         JSON.parse(response.body).map { [_1['id'], { name: _1['name'], type: _1['type'] }] }.to_h
       end

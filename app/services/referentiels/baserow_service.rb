@@ -62,13 +62,13 @@ class Referentiels::BaserowService
     if referentiel.test_data.present?
       # pf: récupérer une ligne spécifique pour avoir des données représentatives (ex: champs Select remplis)
       url = "#{base_url}/api/database/rows/table/#{table_id}/#{referentiel.test_data}/?user_field_names=true"
-      response = Typhoeus.get(url, headers:)
+      response = Typhoeus.get(url, headers:, timeout: ReferentielDePolynesie::BaserowAPI::TIMEOUT)
       return ReferentielDePolynesie::BaserowAPI.simplify_row(JSON.parse(response.body)) if response.success?
     end
 
     # Fallback : première ligne
     url = "#{base_url}/api/database/rows/table/#{table_id}/?user_field_names=true&size=1"
-    response = Typhoeus.get(url, headers:)
+    response = Typhoeus.get(url, headers:, timeout: ReferentielDePolynesie::BaserowAPI::TIMEOUT)
 
     if response.success?
       data = JSON.parse(response.body)
