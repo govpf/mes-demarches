@@ -2,14 +2,14 @@
 
 class Champs::AutoCompletionChamp < Champ
   def options?
-    drop_down_list_options?
+    type_de_champ.any_drop_down_list?
   end
 
   def options
-    drop_down_list_options | [value]
+    type_de_champ.drop_down_options | [value]
   end
 
   def disabled_options
-    drop_down_list_disabled_options
+    []
   end
 end
