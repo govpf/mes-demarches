@@ -28,14 +28,16 @@ module Maintenance
         Commentaire.where(expert: expert_to_destroy).update_all(expert_id: expert_to_keep.id)
 
         ExpertsProcedure.where(expert: expert_to_destroy).find_each do |ep|
-          if ExpertsProcedure.exists?(expert: expert_to_keep, procedure_id: ep.procedure_id)
-            ep.destroy!
+          ep_to_keep = ExpertsProcedure.find_by(expert: expert_to_keep, procedure_id: ep.procedure_id)
+          if ep_to_keep
+            Avis.where(experts_procedure: ep).update_all(experts_procedure_id: ep_to_keep.id)
+            ep.reload.destroy!
           else
             ep.update!(expert: expert_to_keep)
           end
         end
 
-        expert_to_destroy.destroy!
+        expert_to_destroy.reload.destroy!
       end
     end
   end
