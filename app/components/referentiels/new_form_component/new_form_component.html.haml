@@ -2,7 +2,14 @@
   %div{ class: bordered_container_class_names }
     = form.hidden_field :referentiel_id, value: params[:referentiel_id]
     %div
-      - if Referentiels::APIReferentiel.csv_available?
+      -# pf: Pour les référentiels Baserow (Polynésie), formulaire simplifié
+      - if @referentiel.type == 'Referentiels::BaserowReferentiel'
+        = form.hidden_field :type
+        .fr-notice.fr-notice--info.fr-mb-2w
+          .fr-notice__body
+            %p.fr-notice__title Ce champ est connecté à un référentiel Baserow (Polynésie française).
+            %p.notice__desc.fr-mt-2w Sélectionnez la table Baserow à utiliser pour configurer le champ.
+      - elsif Referentiels::APIReferentiel.csv_available?
         = render Dsfr::RadioButtonListComponent.new(form:, target: :type,
           buttons: [ { label: 'À partir d’une URL', value: 'Referentiels::APIReferentiel', hint: 'Connectez un champ à une API', data: { controller: 'autosubmit' } } ,
             { label: 'À partir d’un fichier CSV', value: 'Referentiels::CsvReferentiel', hint: 'Connectez un champ à un CSV', disabled: true }]) do ||
@@ -36,7 +43,10 @@
       %hr.fr-hr.fr-my-5w
 
     %div
-      - if Referentiels::APIReferentiel.autocomplete_available?
+      -# pf: Pour Baserow, pas de choix de mode (toujours autocomplete)
+      - if @referentiel.type == 'Referentiels::BaserowReferentiel'
+        = form.hidden_field :mode, value: 'autocomplete'
+      - elsif Referentiels::APIReferentiel.autocomplete_available?
         = render Dsfr::RadioButtonListComponent.new(form:, target: :mode,
           buttons: [ { label: 'Correspondance exacte', value: 'exact_match', hint: 'Vérification de l’existence de la donnée saisie dans la BDD du référentiel (exemple : plaque d’immatriculation, SIREN...)' } ,
             { label: 'Autosuggestion au fur et à mesure de la saisie de l’usager', value: 'autocomplete', hint: 'Affichage de données issues de la BDD du référentiel correspondant en partie ou en totalité à la donnée saisie par l’usager (exemple : BDD de médicaments, modèles de véhicules...)', disabled: true }]) do
@@ -45,7 +55,17 @@
         = form.hidden_field :mode
 
       = render Dsfr::InputComponent.new(form:, attribute: :hint)
-      = render Dsfr::InputComponent.new(form:, attribute: :test_data)
+      -# pf: Pour Baserow, select des tables disponibles au lieu d'un champ texte
+      - if @referentiel.type == 'Referentiels::BaserowReferentiel'
+        .fr-select-group
+          = form.label :table_id, 'Table de recherche', class: 'fr-label'
+          = form.select :table_id, TypeDeChamp.referentiel_tables, { include_blank: '-- Sélectionnez une table --', selected: @referentiel.table_id }, class: 'fr-select'
+        .fr-input-group
+          = form.label :test_data, 'Ligne de test (optionnel)', class: 'fr-label'
+          %span.fr-hint-text ID de la ligne Baserow à utiliser comme échantillon. Si vide, la première ligne sera utilisée.
+          = form.text_field :test_data, class: 'fr-input', placeholder: 'Ex: 42'
+      - else
+        = render Dsfr::InputComponent.new(form:, attribute: :test_data)
       .clearfix
 
     - if @referentiel.type == 'Referentiels::APIReferentiel'

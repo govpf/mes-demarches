@@ -13,9 +13,9 @@ fr:
 
   update_referentiel: &update_referentiel
     referentiel_url: "L'URL de l'API du champ « %{label} » a été modifiée. La nouvelle URL est « %{to} »."
+    referentiel_baserow_table: "La table de recherche du champ « %{label} » a été modifiée."
     referentiel_mode: "Le mode d'intérogation du référentiel du champ « %{label} » a été modifié. Le nouveau mode est « %{to} »."
     referentiel_hint: "L'indication à fournir à l'usager concernant le format de saisie attendu du champ « %{label} » a été modifiée. La nouvelle indication est « %{to} »."
-    referentiel_test_data: "L'exemple de saisie valide du champ « %{label} » a été modifié. Le nouvel exemple est « %{to} »."
     referentiel_mapping: "Le mapping des données entre le champ et l'API du champ « %{label} » a été modifié."
 
   public:

@@ -1,9 +1,9 @@
 %section.fr-accordion.fr-mt-2w
   %h3.fr-accordion__title
-    %button.fr-accordion__btn{ type: :button, "aria-controls" => "display_usager", "aria-expanded" => "false" }
-      = t('.accordion_title', value: @champ.value)
+    %button.fr-accordion__btn{ type: :button, "aria-controls" => "display_usager_#{@champ.stable_id}", "aria-expanded" => "false" }
+      = t('.accordion_title', value: @champ.value&.truncate_words(15))
 
-.fr-collapse#display_usager
+.fr-collapse{ id: "display_usager_#{@champ.stable_id}" }
   %dl.fr-mt-1w
     - data.each do |libelle, casted_value|
       .referentiel-flex-row.flex.align-baselinle

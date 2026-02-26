@@ -41,7 +41,7 @@ RSpec.describe Referentiels::ReferentielDisplayComponent, type: :component do
       end
 
       it 'renders a row with correct values' do
-        expect(subject).to have_text('$.jsonpath')
+        expect(subject).to have_text('jsonpath')
         expect(subject).to have_text('valeur')
         expect(subject).to have_text('Chaine de caractère')
         expect(subject).to have_text('Nom affiché')

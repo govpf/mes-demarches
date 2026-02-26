@@ -57,8 +57,12 @@ module Administrateurs
 
     def handle_referentiel_save(referentiel)
       cache_bust_last_response_and_mapping = referentiel.url_changed?
+      saved = referentiel.configured? && referentiel.save
 
-      if referentiel.configured? && referentiel.save && params[:commit].present?
+      # pf: dual-write pour rollback safe — synchronise l'ancien options['table_id']
+      sync_legacy_table_id(referentiel) if saved
+
+      if saved && params[:commit].present?
         if cache_bust_last_response_and_mapping
           @type_de_champ.update!(referentiel_mapping: {})
           referentiel.update!(last_response: nil)
@@ -85,7 +89,7 @@ module Administrateurs
 
     def referentiel_params
       params.require(:referentiel)
-        .permit(:type, :mode, :url, :hint, :test_data, :authentication_method, authentication_data: [:header, :value])
+        .permit(:type, :mode, :url, :hint, :test_data, :table_id, :authentication_method, authentication_data: [:header, :value])
     rescue ActionController::ParameterMissing
       {}
     end
@@ -103,10 +107,22 @@ module Administrateurs
         Referentiel.find(params[:referentiel_id]).attributes.slice(*%w[url test_data hint mode type authentication_data authentication_method])
       else
         params = referentiel_params.to_h
-        params = params.merge(type: Referentiels::APIReferentiel) if !Referentiels::APIReferentiel.csv_available?
-        params = params.merge(mode: Referentiels::APIReferentiel.modes.fetch(:exact_match)) if !Referentiels::APIReferentiel.autocomplete_available?
+        if @type_de_champ.referentiel_de_polynesie?
+          params = params.merge(type: Referentiels::BaserowReferentiel)
+          params = params.merge(table_id: @type_de_champ.table_id) if @type_de_champ.table_id.present?
+        else
+          params = params.merge(type: Referentiels::APIReferentiel) if !Referentiels::APIReferentiel.csv_available?
+          params = params.merge(mode: Referentiels::APIReferentiel.modes.fetch(:exact_match)) if !Referentiels::APIReferentiel.autocomplete_available?
+        end
         params
       end
+    end
+
+    # pf: synchronise options['table_id'] pour que l'ancien code fonctionne en cas de rollback
+    def sync_legacy_table_id(referentiel)
+      return unless referentiel.is_a?(Referentiels::BaserowReferentiel)
+
+      @type_de_champ.update_column(:options, @type_de_champ.options.merge('table_id' => referentiel.table_id.to_s))
     end
   end
 end

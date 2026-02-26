@@ -10,23 +10,45 @@ describe TypesDeChamp::ReferentielDePolynesieTypeDeChamp do
 
   before do
     champ.update!(value: 'Papeete', external_id: '12345')
-    champ.update_with_external_data!(data: {
-      'row' => { 'code_postal' => '98714', 'archipel' => 'Iles du Vent', 'ile' => 'Tahiti' },
-      'instructeur_fields' => ['code_postal', 'archipel', 'ile']
+    champ.update_external_data!(data: {
+      'code_postal' => '98714', 'archipel' => 'Iles du Vent', 'ile' => 'Tahiti'
     })
     champ.reload
   end
 
   describe '#champ_value_for_tag' do
-    it { expect(type_de_champ.champ_value_for_tag(champ, :value)).to eq('Papeete') }
+    context 'with value_json (upstream mode)' do
+      before do
+        type_de_champ.update!(referentiel_mapping: {
+          '$.code_postal' => { 'type' => 'string', 'libelle' => 'code_postal', 'display_instructeur' => '1' },
+          '$.archipel' => { 'type' => 'string', 'libelle' => 'archipel', 'display_instructeur' => '1' },
+          '$.ile' => { 'type' => 'string', 'libelle' => 'ile', 'display_instructeur' => '1' }
+        })
+        # value_json is computed by update_external_data!
+      end
 
-    it 'returns custom column values' do
-      expect(type_de_champ.champ_value_for_tag(champ, :code_postal)).to eq('98714')
-      expect(type_de_champ.champ_value_for_tag(champ, :archipel)).to eq('Iles du Vent')
-      expect(type_de_champ.champ_value_for_tag(champ, :ile)).to eq('Tahiti')
+      it { expect(type_de_champ.champ_value_for_tag(champ, :value)).to eq('Papeete') }
+
+      it 'returns custom column values from value_json' do
+        expect(type_de_champ.champ_value_for_tag(champ, :code_postal)).to eq('98714')
+        expect(type_de_champ.champ_value_for_tag(champ, :archipel)).to eq('Iles du Vent')
+        expect(type_de_champ.champ_value_for_tag(champ, :ile)).to eq('Tahiti')
+      end
+
+      it { expect(type_de_champ.champ_value_for_tag(champ, :inexistant)).to eq('') }
     end
 
-    it { expect(type_de_champ.champ_value_for_tag(champ, :inexistant)).to eq('') }
+    context 'with legacy data (fallback mode)' do
+      it { expect(type_de_champ.champ_value_for_tag(champ, :value)).to eq('Papeete') }
+
+      it 'returns custom column values from normalized_data' do
+        expect(type_de_champ.champ_value_for_tag(champ, :code_postal)).to eq('98714')
+        expect(type_de_champ.champ_value_for_tag(champ, :archipel)).to eq('Iles du Vent')
+        expect(type_de_champ.champ_value_for_tag(champ, :ile)).to eq('Tahiti')
+      end
+
+      it { expect(type_de_champ.champ_value_for_tag(champ, :inexistant)).to eq('') }
+    end
 
     context 'with nil data' do
       before { champ.update(data: nil) }

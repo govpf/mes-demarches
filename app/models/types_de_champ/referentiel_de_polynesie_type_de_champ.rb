@@ -3,7 +3,16 @@
 class TypesDeChamp::ReferentielDePolynesieTypeDeChamp < TypesDeChamp::TypeDeChampBase
   # pf: support des tags avec colonnes personnalisées (ex: --commune/code_postal--)
   def champ_value_for_tag(champ, path = :value)
-    path == :value ? champ.value : (champ.referentiel_item_value(path.to_s) || '')
+    return champ.value if path == :value
+
+    # pf: mode upstream — lire depuis value_json
+    if champ.value_json.present?
+      jsonpath = "$.#{path}"
+      return (champ.value_json[jsonpath] || '').to_s
+    end
+
+    # pf: fallback legacy
+    champ.referentiel_item_value(path.to_s) || ''
   end
 
   # pf: même logique pour les exports
@@ -13,6 +22,22 @@ class TypesDeChamp::ReferentielDePolynesieTypeDeChamp < TypesDeChamp::TypeDeCham
   def paths
     paths = super
 
+    # pf: mode upstream — dériver depuis referentiel_mapping
+    mapping = referentiel_mapping_displayable_for_instructeur
+    if mapping.present?
+      mapping.each do |jsonpath, opts|
+        column = opts[:libelle] || jsonpath.delete_prefix('$.')
+        paths << {
+          libelle: "#{libelle} (#{column})",
+          description: "#{description} (#{column})",
+          path: column.to_sym,
+          maybe_null: public? && !mandatory?
+        }
+      end
+      return paths
+    end
+
+    # pf: fallback legacy
     instructeur_fields = fetch_instructeur_fields
     instructeur_fields&.each do |column|
       paths << {

@@ -139,7 +139,7 @@ class TypeDeChamp < ApplicationRecord
     decimal_number: [:positive_number, :min_number, :max_number, :range_number],
     integer_number: [:positive_number, :min_number, :max_number, :range_number],
     date: [], # Options gérées par OPTS_BY_TYPE (date_in_past, range_date, start_date, end_date)
-    referentiel_de_polynesie: [:table_id, :drop_down_other],
+    referentiel_de_polynesie: [:table_id, :drop_down_other, :referentiel_mapping],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
     visa: [:accredited_users]
@@ -617,8 +617,11 @@ class TypeDeChamp < ApplicationRecord
     self.accredited_users = value.blank? ? [] : value.split(/\s*[\r\n]+\s*/).map(&:downcase)
   end
 
+  # pf: table_id depuis le referentiel lié (nouveau flux) ou options (legacy, avant harmonisation)
+  # Le referentiel prime : quand l'admin change la table via le formulaire referentiel,
+  # seul referentiel.test_data est mis à jour, pas options['table_id'].
   def table_id
-    options['table_id'] || 0
+    referentiel&.try(:table_id)&.to_s.presence || options['table_id'].presence&.to_s || ''
   end
 
   def accredited_user_list?

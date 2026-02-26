@@ -65,5 +65,9 @@ FactoryBot.define do
         authentication_data { { header: 'Authorization', value: 'Bearer token' } }
       end
     end
+
+    factory :baserow_referentiel, class: 'Referentiels::BaserowReferentiel' do
+      url { 'baserow://24' }
+    end
   end
 end
