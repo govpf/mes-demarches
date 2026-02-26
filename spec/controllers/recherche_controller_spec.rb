@@ -88,7 +88,7 @@ describe RechercheController, type: :controller do
 
         it 'does not return the dossier' do
           subject
-          expect(assigns(:projected_dossiers)).to eq(nil)
+          expect(assigns(:projected_dossiers).count).to eq(0)
           expect(assigns(:dossier_not_in_instructor_group)).to eq(nil)
         end
       end
