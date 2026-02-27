@@ -11,7 +11,8 @@
       %table.table.vertical.dossier-champs
         %tbody
           - data = champ.data
-          - row = data['row']
+          -# pf: dual-mode — ancien format (avec row) et nouveau format (plat)
+          - row = data.key?('row') ? data['row'] : data
           - fields = data["#{profile}_fields"].presence || row.keys
           - fields.each do |name|
             - value = row.key?(name) ? (row[name] || "") : "Champ #{name} inconnu"
