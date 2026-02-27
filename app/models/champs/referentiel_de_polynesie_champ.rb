@@ -2,7 +2,11 @@
 
 class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
   # pf: préserver le label humain dans value (upstream y met external_id)
+  # pf: guard new_record? pour éviter que le fork (deep_clone) ne wipe data/value_json
+  # sur les champs clonés — external_id_changed? est toujours true sur un new_record
   def clear_previous_result
+    return if new_record? && data.present?
+
     self.data = nil
     self.value_json = nil
     self.fetch_external_data_exceptions = []
