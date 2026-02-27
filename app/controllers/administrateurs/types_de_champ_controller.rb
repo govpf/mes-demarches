@@ -8,6 +8,11 @@ module Administrateurs
     before_action :retrieve_procedure
     before_action :reload_procedure_with_includes, only: [:destroy]
 
+    rescue_from ActiveRecord::RecordNotFound do |e|
+      flash.alert = e.message
+      head :not_found
+    end
+
     def create
       type_de_champ = draft.add_type_de_champ(type_de_champ_create_params)
       if type_de_champ.valid?
