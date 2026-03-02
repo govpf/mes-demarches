@@ -32,7 +32,7 @@ describe 'Referentiel API:' do
       expect(page).to have_content("n'est pas au format d'une URL, saisissez une URL valide ex https://api_1.ext/")
       find("#referentiel_url").fill_in(with: 'https://google.com')
       fill_in("Indications à fournir à l’usager concernant le format de saisie attendu", with: "focusout")
-      
+
       expect(page).to have_content("doit être autorisée par notre équipe. Veuillez nous contacter par mail (mes-demarches@modernisation.gov.pf) et nous indiquer l'URL et la documentation de l'API que vous souhaitez intégrer.")
       find("#referentiel_url").fill_in(with: 'https://rnb-api.beta.gouv.fr/api/alpha/buildings/{id}/')
       fill_in("Indications à fournir à l’usager concernant le format de saisie attendu", with: "focusout")
