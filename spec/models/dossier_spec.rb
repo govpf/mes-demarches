@@ -1063,6 +1063,7 @@ describe Dossier, type: :model do
 
     before do
       allow(DossierMailer).to receive(:notify_deletion_to_administration).and_return(double(deliver_later: nil))
+      allow(DossierMailer).to receive(:notify_en_construction_deletion_to_administration).and_return(double(deliver_later: nil))
     end
 
     subject! { dossier.hide_and_keep_track!(user, reason) }
@@ -1114,6 +1115,52 @@ describe Dossier, type: :model do
 
         it 'write the good reason to hidden_by_reason' do
           expect(dossier.hidden_by_reason).to eq("user_removed")
+        end
+      end
+
+      context 'notifications to administration (en_construction)' do
+        context 'with followers' do
+          let(:admin_only_user) { create(:user) }
+          let!(:admin_only) { create(:administrateur, user: admin_only_user) }
+
+          let(:both_roles_user) { create(:user) }
+          let!(:admin_and_instructeur) { create(:administrateur, user: both_roles_user) }
+
+          it 'notifies followers and admins who are also instructeurs, not admins-only' do
+            dossier = create(:dossier, :en_construction, :followed)
+            follower_email = dossier.followers_instructeurs.first.email
+
+            dossier.procedure.administrateurs << admin_only
+            dossier.procedure.administrateurs << admin_and_instructeur
+            dossier.procedure.defaut_groupe_instructeur.instructeurs << admin_and_instructeur.instructeur
+
+            dossier.hide_and_keep_track!(dossier.user, :user_request)
+
+            expect(DossierMailer).to have_received(:notify_en_construction_deletion_to_administration).with(kind_of(Dossier), follower_email)
+            expect(DossierMailer).to have_received(:notify_en_construction_deletion_to_administration).with(kind_of(Dossier), both_roles_user.email)
+            expect(DossierMailer).not_to have_received(:notify_en_construction_deletion_to_administration).with(kind_of(Dossier), admin_only.email)
+          end
+        end
+
+        context 'without followers' do
+          let(:admin_only_user) { create(:user) }
+          let!(:admin_only) { create(:administrateur, user: admin_only_user) }
+
+          let(:both_roles_user) { create(:user) }
+          let!(:admin_and_instructeur) { create(:administrateur, user: both_roles_user) }
+
+          it 'notifies only admins who are also instructeurs' do
+            dossier = create(:dossier, :en_construction)
+
+            dossier.procedure.administrateurs << admin_only
+            dossier.procedure.administrateurs << admin_and_instructeur
+            dossier.procedure.defaut_groupe_instructeur.instructeurs << admin_and_instructeur.instructeur
+
+            dossier.hide_and_keep_track!(dossier.user, :user_request)
+
+            expect(DossierMailer).to have_received(:notify_en_construction_deletion_to_administration).with(kind_of(Dossier), both_roles_user.email)
+            expect(DossierMailer).not_to have_received(:notify_en_construction_deletion_to_administration).with(kind_of(Dossier), admin_only.email)
+          end
         end
       end
     end
@@ -2320,8 +2367,8 @@ describe Dossier, type: :model do
         end
 
         it "should have champs from all revisions" do
-          expect(dossier.types_de_champ.map(&:libelle)).to eq([text_type_de_champ.libelle, datetime_type_de_champ.libelle, "Yes/no", explication_type_de_champ.libelle, commune_type_de_champ.libelle, repetition_type_de_champ.libelle])
-          expect(dossier_second_revision.types_de_champ.map(&:libelle)).to eq([datetime_type_de_champ.libelle, "Updated yes/no", explication_type_de_champ.libelle, 'Commune de naissance', "Repetition", "New text field"])
+          expect(dossier.types_de_champ_public.map(&:libelle)).to eq([text_type_de_champ.libelle, datetime_type_de_champ.libelle, "Yes/no", explication_type_de_champ.libelle, commune_type_de_champ.libelle, repetition_type_de_champ.libelle])
+          expect(dossier_second_revision.types_de_champ_public.map(&:libelle)).to eq([datetime_type_de_champ.libelle, "Updated yes/no", explication_type_de_champ.libelle, 'Commune de naissance', "Repetition", "New text field"])
           expect(dossier_champ_values_for_export.map { |(libelle)| libelle }).to eq([datetime_type_de_champ.libelle, text_type_de_champ.libelle, "Updated yes/no", "Commune de naissance", "Commune de naissance (Code INSEE)", "Commune de naissance (Département)", "New text field"])
           expect(dossier_champ_values_for_export).to eq(dossier_second_revision_champ_values_for_export)
         end

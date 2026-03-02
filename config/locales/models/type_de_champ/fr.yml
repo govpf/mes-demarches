@@ -65,7 +65,7 @@ fr:
           lexpol: "Lexpol"
           referentiel_de_polynesie: 'Référentiel des administrations'
           formatted: Champ formaté
-          referentiel: 'Référentiel à configurer (avancé)'
+          referentiel: 'Référentiel configurable (avancé)'
         default_libelle:
           annuaire_education: Établissement
           communes: Commune

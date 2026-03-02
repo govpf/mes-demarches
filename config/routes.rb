@@ -100,9 +100,7 @@ Rails.application.routes.draw do
 
     resources :team_accounts, only: [:index, :show]
 
-    resources :email_events, only: [:index, :show] do
-      post :generate_dolist_report, on: :collection
-    end
+    resources :email_events, only: [:index, :show]
 
     resources :dubious_procedures, only: [:index]
     resources :published_procedures, only: [:index]
@@ -290,6 +288,7 @@ Rails.application.routes.draw do
   namespace :data_sources do
     # pf referentiel configurable
     get 'referentiel_de_polynesie/:table/search', to: 'referentiel_de_polynesie#search', as: :rdp_search
+    post :referentiel, to: 'referentiel#search', as: :data_source_referentiel
 
     get :adresse, to: 'adresse#search', as: :data_source_adresse
     get :commune, to: 'commune#search', as: :data_source_commune
@@ -572,6 +571,7 @@ Rails.application.routes.draw do
           resources :batch_operations, only: [:create], path: "(:statut)/dossiers", defaults: { statut: 'a-suivre' } do
             collection do
               post 'create_batch_avis' => 'batch_operations#create_batch_avis'
+              post 'create_batch_commentaire' => 'batch_operations#create_batch_commentaire'
             end
           end
         end
@@ -622,7 +622,7 @@ Rails.application.routes.draw do
         patch 'update_email_notifications'
         get 'deleted_dossiers'
         get 'email_usagers'
-        post 'create_multiple_commentaire'
+        post 'create_multiple_commentaire_for_brouillons'
       end
     end
   end
@@ -823,6 +823,8 @@ Rails.application.routes.draw do
       resources :referentiels, only: [:new, :create, :edit, :update], path: ':stable_id', constraints: { stable_id: /\d+/ } do
         member do
           get :configuration_error
+          patch :update_autocomplete_configuration
+          get :autocomplete_configuration
           get :mapping_type_de_champ
           patch :update_mapping_type_de_champ
           patch :update_prefill_and_display_type_de_champ

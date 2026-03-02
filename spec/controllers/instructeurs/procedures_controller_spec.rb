@@ -882,7 +882,7 @@ describe Instructeurs::ProceduresController, type: :controller do
     end
   end
 
-  describe '#create_multiple_commentaire' do
+  describe '#create_multiple_commentaire_for_brouillons' do
     let(:instructeur) { create(:instructeur) }
     let(:body) { "avant\napres" }
     let(:bulk_message) { BulkMessage.first }
@@ -901,7 +901,7 @@ describe Instructeurs::ProceduresController, type: :controller do
 
       it "creates commentaires for all dossiers, dossier.groupe_instructeur does not matter" do
         expect do
-            post :create_multiple_commentaire,
+            post :create_multiple_commentaire_for_brouillons,
               params: {
                 procedure_id: procedure.id,
                 bulk_message: { body: body }
@@ -925,7 +925,7 @@ describe Instructeurs::ProceduresController, type: :controller do
 
       context 'when groupe instructeur id is specified' do
         subject do
-          post :create_multiple_commentaire,
+          post :create_multiple_commentaire_for_brouillons,
                 params: {
                   procedure_id: procedure.id,
                   bulk_message: {
@@ -956,7 +956,7 @@ describe Instructeurs::ProceduresController, type: :controller do
 
       context 'when without_group is specified' do
         subject do
-          post :create_multiple_commentaire,
+          post :create_multiple_commentaire_for_brouillons,
           params: {
             procedure_id: procedure.id,
             bulk_message: {
