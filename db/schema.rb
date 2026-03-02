@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_24_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_05_102351) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -659,20 +659,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_24_120000) do
 
   create_table "export_templates", force: :cascade do |t|
     t.jsonb "attestation"
-    t.boolean "avis_attachments", default: false, null: false
-    t.boolean "commentaires_attachments", default: false, null: false
     t.jsonb "content", default: {}
     t.datetime "created_at", null: false
     t.jsonb "dossier_folder", null: false
     t.jsonb "export_pdf", null: false
     t.jsonb "exported_columns", default: [], null: false, array: true
     t.bigint "groupe_instructeur_id", null: false
-    t.boolean "justificatif_motivation", default: false, null: false
     t.string "kind", null: false
     t.string "name", null: false
     t.jsonb "pjs", default: [], null: false, array: true
-    t.boolean "shared", default: false, null: false
     t.datetime "updated_at", null: false
+    t.boolean "shared", default: false, null: false
+    t.boolean "commentaires_attachments", default: false, null: false
+    t.boolean "avis_attachments", default: false, null: false
+    t.boolean "justificatif_motivation", default: false, null: false
     t.index ["groupe_instructeur_id"], name: "index_export_templates_on_groupe_instructeur_id"
   end
 
@@ -1162,7 +1162,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_24_120000) do
   create_table "referentiels", force: :cascade do |t|
     t.jsonb "authentication_data", default: {}
     t.string "authentication_method"
-    t.jsonb "autocomplete_configuration", default: {}, null: false
     t.datetime "created_at", null: false
     t.string "digest"
     t.string "headers", default: [], array: true
@@ -1174,6 +1173,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_24_120000) do
     t.string "type"
     t.datetime "updated_at", null: false
     t.string "url"
+    t.jsonb "autocomplete_configuration", default: {}, null: false
   end
 
   create_table "refused_mails", id: :serial, force: :cascade do |t|

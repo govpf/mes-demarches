@@ -22,6 +22,15 @@ class Referentiels::BaserowReferentiel < Referentiel
     true
   end
 
+  # pf: BaserowReferentiel est toujours en mode autocomplete
+  def exact_match?
+    false
+  end
+
+  def autocomplete?
+    true
+  end
+
   def ready?
     configured? && baserow_config.present?
   end

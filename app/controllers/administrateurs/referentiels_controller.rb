@@ -135,7 +135,6 @@ module Administrateurs
           params = params.merge(table_id: @type_de_champ.table_id) if @type_de_champ.table_id.present?
         else
           params = params.merge(type: Referentiels::APIReferentiel) if !Referentiels::APIReferentiel.csv_available?
-          params = params.merge(mode: Referentiels::APIReferentiel.modes.fetch(:exact_match)) if !Referentiels::APIReferentiel.autocomplete_available?
         end
         params
       end
