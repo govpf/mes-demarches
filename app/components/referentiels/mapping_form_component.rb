@@ -32,7 +32,7 @@ class Referentiels::MappingFormComponent < Referentiels::MappingFormBase
   def enabled_libelle_tag(jsonpath)
     text_field_tag(
       attribute_name(jsonpath, "libelle"),
-      lookup_existing_value(jsonpath, "libelle") || display_jsonpath(jsonpath),
+      lookup_existing_value(jsonpath, "libelle") || jsonpath,
       libelle_field_options(jsonpath)
     )
   end
