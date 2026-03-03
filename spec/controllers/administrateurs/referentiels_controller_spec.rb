@@ -136,7 +136,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
 
   describe '#create with BaserowReferentiel (dual-write)' do
     let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, stable_id: }] }
-    let(:type_de_champ) { procedure.draft_revision.types_de_champ.find_by(stable_id:) }
+    let(:type_de_champ) { procedure.draft_revision.types_de_champ.find { _1.stable_id == stable_id } }
 
     subject do
       post :create, params: {

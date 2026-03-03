@@ -161,8 +161,8 @@ describe 'As an administrateur I can edit types de champ', js: true do
     fill_in 'Libellé du champ', with: 'Libellé de champ carte', fill_options: { clear: :backspace }
     check 'Cadastres'
 
-    wait_until { procedure.active_revision.types_de_champ_public.first.layer_enabled?(:cadastres) }
-    wait_until { procedure.active_revision.types_de_champ_public.first.libelle == 'Libellé de champ carte' }
+    wait_until { procedure.active_revision.reload.types_de_champ_public.first.layer_enabled?(:cadastres) }
+    wait_until { procedure.active_revision.reload.types_de_champ_public.first.libelle == 'Libellé de champ carte' }
     expect(page).to have_content('Formulaire enregistré')
 
     page.refresh
@@ -182,7 +182,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
     fill_in 'Libellé du champ', with: 'Libellé de champ Te Fenua', fill_options: { clear: :backspace }
     choose 'Marqueur'
 
-    wait_until { procedure.active_revision.types_de_champ_public.first.te_fenua_layer == 'marker' }
+    wait_until { procedure.active_revision.reload.types_de_champ_public.first.te_fenua_layer == 'marker' }
     expect(page).to have_content('Formulaire enregistré')
 
     page.refresh
@@ -220,7 +220,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
       fill_in 'Libellé du champ', with: 'Libellé de champ visa', fill_options: { clear: :backspace }
       fill_in 'Mails des personnes accréditées', with: 'boss@company.com', fill_options: { clear: :backspace }
 
-      wait_until { procedure.draft_types_de_champ_public.first.accredited_user_list == ['boss@company.com'] }
+      wait_until { procedure.active_revision.reload.types_de_champ_public.first.accredited_user_list == ['boss@company.com'] }
       expect(page).to have_content('Formulaire enregistré')
 
       page.refresh
@@ -241,7 +241,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
       select('Lexpol', from: 'Type de champ')
       fill_in 'Libellé du champ', with: 'Libellé de champ lexpol', fill_options: { clear: :backspace }
 
-      wait_until { procedure.draft_types_de_champ_public.first.type_champ == TypeDeChamp.type_champs.fetch(:lexpol) }
+      wait_until { procedure.active_revision.reload.types_de_champ_public.first.type_champ == TypeDeChamp.type_champs.fetch(:lexpol) }
       expect(page).to have_content('Formulaire enregistré')
 
       expect(page).to have_content('Sélectionner un modèle Lexpol')

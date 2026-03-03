@@ -12,6 +12,12 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     self.fetch_external_data_exceptions = []
   end
 
+  # pf: les données Baserow sont stockées en JSON brut, sans chiffrement upstream.
+  # Court-circuite ReferentielChamp#data= qui tente de déchiffrer toutes les données non-blank.
+  def data=(data)
+    write_attribute(:data, data)
+  end
+
   # pf: override pour calculer value_json tout en préservant le label dans value
   def update_external_data!(data:)
     transaction do

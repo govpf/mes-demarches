@@ -30,6 +30,15 @@ class Referentiels::BaserowReferentiel < Referentiel
     table_id.present? && table_id.to_i > 0
   end
 
+  # pf: Baserow est toujours en mode autocomplete (mode forcé dans le formulaire)
+  def autocomplete?
+    true
+  end
+
+  def exact_match?
+    false
+  end
+
   # pf: Baserow gère son auth via BaserowAPI.config, pas via le modèle Referentiel
   def authentication_by_header_token?
     false
