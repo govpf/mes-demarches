@@ -33,10 +33,10 @@ class Procedure < ApplicationRecord
   belongs_to :published_revision, class_name: 'ProcedureRevision', optional: true
   has_many :deleted_dossiers, dependent: :destroy
 
-  has_many :draft_types_de_champ_public, through: :draft_revision, source: :types_de_champ_public
-  has_many :draft_types_de_champ_private, through: :draft_revision, source: :types_de_champ_private
-  has_many :published_types_de_champ_public, through: :published_revision, source: :types_de_champ_public
-  has_many :published_types_de_champ_private, through: :published_revision, source: :types_de_champ_private
+  def draft_types_de_champ_public = draft_revision&.types_de_champ_public || []
+  def draft_types_de_champ_private = draft_revision&.types_de_champ_private || []
+  def published_types_de_champ_public = published_revision&.types_de_champ_public || []
+  def published_types_de_champ_private = published_revision&.types_de_champ_private || []
 
   has_one :published_dossier_submitted_message, dependent: :destroy, through: :published_revision, source: :dossier_submitted_message
   has_one :draft_dossier_submitted_message, dependent: :destroy, through: :draft_revision, source: :dossier_submitted_message
@@ -183,24 +183,9 @@ class Procedure < ApplicationRecord
       .where(hidden_at: ...1.month.ago)
   end
 
-  scope :for_api, -> {
-    includes(
-      :administrateurs,
-      :module_api_carto,
-      published_revision: [
-        :types_de_champ_private,
-        :types_de_champ_public
-      ],
-      draft_revision: [
-        :types_de_champ_private,
-        :types_de_champ_public
-      ]
-    )
-  }
-
-  scope :for_api_v2, -> {
-    includes(:draft_revision, :published_revision, administrateurs: :user)
-  }
+  scope :for_api, -> { with_active_revision.includes(:administrateurs, :module_api_carto) }
+  scope :for_api_v2, -> { with_active_revision.includes(administrateurs: :user) }
+  scope :with_active_revision, -> { includes(draft_revision: [revision_types_de_champ: [:type_de_champ]], published_revision: [revision_types_de_champ: [:type_de_champ]]) }
 
   scope :order_by_position_for, -> (instructeur) {
     joins(:instructeurs_procedures)
@@ -947,6 +932,7 @@ class Procedure < ApplicationRecord
     # fetch the more recent procedure_revision_types_de_champ
     # which includes recents_ids
     recents_prtdc = ProcedureRevisionTypeDeChamp
+      .unscope(:eager_load)
       .where(type_de_champ_id: recent_ids)
       .where.not(revision_id: draft_revision_id)
       .group(:type_de_champ_id)
