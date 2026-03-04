@@ -53,6 +53,10 @@ class Referentiels::APIReferentiel < Referentiel
     (last_response || {}).fetch("body") { {} }
   end
 
+  def needs_autocomplete_configuration_step?
+    autocomplete?
+  end
+
   def last_response_status
     (last_response || {}).fetch("status") { 500 }
   end
