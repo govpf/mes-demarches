@@ -6,6 +6,7 @@
   - else
     %p Dossier n° #{dossier.id}
   %br
-  %p= sanitize(dossier.text_summary)
+  .copy-btn{ role: "button" }
+    %p= sanitize(dossier.text_summary)
 - else
   %p Pas de dossier associé

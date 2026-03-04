@@ -385,7 +385,7 @@ class Dossier < ApplicationRecord
       .where.not(user: users_who_submitted)
   end
 
-  scope :with_revision, -> { includes(revision: [revision_types_de_champ: [:type_de_champ]]) }
+  scope :with_revision, -> { includes(revision: :revision_types_de_champ) }
   scope :for_api_v2, -> {
     with_revision
       .includes(:attestation_template, :etablissement, :individual, :traitement, procedure: [:administrateurs], user: [:france_connect_informations])
@@ -436,7 +436,7 @@ class Dossier < ApplicationRecord
   def with_revision
     ::ActiveRecord::Associations::Preloader.new(
       records: [self],
-      associations: { revision: [revision_types_de_champ: [:type_de_champ]] }
+      associations: { revision: :revision_types_de_champ }
     ).call
     self
   end
@@ -718,7 +718,7 @@ class Dossier < ApplicationRecord
 
     if !brouillon?
       unfollow_stale_instructeurs
-      update_notifications(self, previous_groupe_instructeur, groupe_instructeur) if previous_groupe_instructeur.present?
+      update_notifications(previous_groupe_instructeur, groupe_instructeur) if previous_groupe_instructeur.present?
 
       if author.present?
         log_dossier_operation(author, :changer_groupe_instructeur, self)
@@ -1303,8 +1303,17 @@ class Dossier < ApplicationRecord
     )
   end
 
-  def update_notifications(dossier, previous_groupe_instructeur, new_groupe_instructeur)
-    DossierNotification.destroy_notifications_by_dossier_and_type(dossier, :dossier_depose)
-    DossierNotification.create_notification(dossier, :dossier_depose) if dossier.en_construction? && dossier.follows.empty?
+  def update_notifications(previous_groupe_instructeur, new_groupe_instructeur)
+    previous_groupe_instructeur.instructeurs.each do |instructeur|
+      if instructeur.groupe_instructeurs.exclude?(new_groupe_instructeur)
+        DossierNotification.destroy_notifications_instructeur_of_dossier(instructeur, self)
+      end
+    end
+
+    new_groupe_instructeur.instructeurs.each do |instructeur|
+      if instructeur.groupe_instructeurs.exclude?(previous_groupe_instructeur)
+        DossierNotification.refresh_notifications_instructeur_for_dossier_by_choice(instructeur, self, 'all')
+      end
+    end
   end
 end
