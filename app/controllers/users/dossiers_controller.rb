@@ -36,9 +36,11 @@ module Users
     def index
       ordered_dossiers = Dossier.includes(:pending_corrections, procedure: :procedure_paths).order_by_depose_at
 
-      user_revisions = ProcedureRevision.where(dossiers: current_user.dossiers.visible_by_user)
-      invite_revisions = ProcedureRevision.where(dossiers: current_user.dossiers_invites.visible_by_user)
-      all_dossier_procedures = Procedure.where(revisions: user_revisions.or(invite_revisions))
+      user_revision_ids = current_user.dossiers.visible_by_user.select(:revision_id).to_sql
+      invite_revision_ids = current_user.dossiers_invites.select(:revision_id).to_sql
+      all_revision_id = "(#{user_revision_ids}) UNION (#{invite_revision_ids})"
+
+      all_dossier_procedures = Procedure.where(id: ProcedureRevision.where("id IN (#{all_revision_id})").select(:procedure_id))
 
       @procedures_for_select = all_dossier_procedures
         .distinct(:procedure_id)
@@ -342,11 +344,22 @@ module Users
       submit_dossier_and_compute_errors
 
       if @dossier.errors.blank? && @dossier.can_passer_en_construction?
-        @dossier.passer_en_construction!
-        redirect_to merci_dossier_path(@dossier)
-      else
-        render :brouillon
+        begin
+          @dossier.passer_en_construction!
+          redirect_to merci_dossier_path(@dossier)
+          return
+        rescue ActiveRecord::RecordInvalid
+          Sentry.capture_message(
+            "422: Dossier failed to pass en construction",
+            extra: {
+              errors: @dossier.errors.full_messages
+            }
+          )
+          # Continue to render brouillon below
+        end
       end
+
+      render :brouillon
     end
 
     def extend_conservation
@@ -660,7 +673,7 @@ module Users
       # Strong attributes do not support records (indexed hash); they only support hashes with
       # static keys. We create a static hash based on the available keys.
       public_ids = params.dig(:dossier, :champs_public_attributes)&.keys || []
-      champs_public_attributes = public_ids.map { [_1, champ_attributes] }.to_h
+      champs_public_attributes = public_ids.index_with { champ_attributes }
       params.require(:dossier).permit(champs_public_attributes:)
     end
 
@@ -734,6 +747,12 @@ module Users
       if Dossier.no_touching { champ.save }
         if dossier.brouillon? && champ_changed
           champ.update_timestamps
+
+          if champ.uses_external_data?
+            champ.reset_external_data! if champ.may_reset_external_data?
+            champ.fetch_later! if champ.may_fetch_later?
+          end
+
           if champ.used_by_routing_rules?
             @update_contact_information = true
             RoutingEngine.compute(dossier)
