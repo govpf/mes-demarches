@@ -180,6 +180,7 @@ describe Champs::PieceJustificativeController, type: :controller do
       end
 
       it 'does not create a champ_revision' do
+        subject
         expect(ChampRevision.where(champ_id: champ.id).first).to eq(nil)
       end
 
