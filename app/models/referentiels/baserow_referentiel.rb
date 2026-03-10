@@ -4,6 +4,11 @@ class Referentiels::BaserowReferentiel < Referentiel
   # pf: le table_id Baserow est stocké dans url au format "baserow://TABLE_ID"
   validates :url, presence: true, format: { with: /\Abaserow:\/\/\d+\z/, message: "doit être au format baserow://TABLE_ID" }
 
+  enum :mode, {
+    exact_match: 'exact_match',
+    autocomplete: 'autocomplete'
+  }
+
   before_save :name_as_uuid
 
   def table_id
@@ -27,7 +32,7 @@ class Referentiels::BaserowReferentiel < Referentiel
   end
 
   def configured?
-    table_id.present? && table_id.to_i > 0
+    mode.present? && table_id.present? && table_id.to_i > 0
   end
 
   # pf: Baserow gère son auth via BaserowAPI.config, pas via le modèle Referentiel

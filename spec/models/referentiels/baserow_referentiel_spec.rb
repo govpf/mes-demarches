@@ -45,9 +45,19 @@ describe Referentiels::BaserowReferentiel do
   end
 
   describe '#configured?' do
-    it 'returns true when table_id is a positive integer' do
-      referentiel = build(:baserow_referentiel, url: 'baserow://24')
+    it 'returns true when mode and table_id are present' do
+      referentiel = build(:baserow_referentiel, url: 'baserow://24', mode: 'autocomplete')
       expect(referentiel.configured?).to be true
+    end
+
+    it 'returns true in exact_match mode with a valid table_id' do
+      referentiel = build(:baserow_referentiel, url: 'baserow://24', mode: 'exact_match')
+      expect(referentiel.configured?).to be true
+    end
+
+    it 'returns false when mode is nil' do
+      referentiel = build(:baserow_referentiel, url: 'baserow://24', mode: nil)
+      expect(referentiel.configured?).to be false
     end
 
     it 'returns false when url is blank' do
