@@ -48,6 +48,24 @@ class ReferentielDePolynesie::BaserowAPI
       end
     end
 
+    # pf: retourne un hash plat { 'Nom' => 'Papeete', ... } pour le mode exact_match
+    # Utilise un filtre Baserow `equal` (sans user_field_names pour que les IDs numériques fonctionnent),
+    # puis récupère la ligne complète avec user_field_names=true via fetch_row.
+    def find_by_exact_value(domain_id, term)
+      config = config(domain_id)
+      search_field = config['Champ de recherche']
+      params = build_exact_match_filter(search_field, term)
+      url = rows_url(config['Table'])
+      response = Typhoeus.get(url, headers: database_headers(config['Token']), params:, timeout: TIMEOUT)
+
+      return {} unless response.success?
+      results = JSON.parse(response.body, symbolize_names: true)[:results]
+      row_id = results&.first&.dig(:id)
+      return {} unless row_id
+
+      fetch_row(domain_id, row_id)
+    end
+
     def field_names(model, field_ids)
       field_ids&.split(/,/)&.map(&:strip)&.map { model[_1.to_i]&.[](:name) } || []
     end
@@ -117,6 +135,15 @@ class ReferentielDePolynesie::BaserowAPI
     end
 
     private
+
+    def build_exact_match_filter(search_field, term)
+      {
+        "filters" => JSON.generate({
+          "filter_type" => "AND",
+          "filters" => [{ "field" => search_field.to_i, "type" => "equal", "value" => term }]
+        })
+      }
+    end
 
     def build_search_filters(search_field, term)
       words = extract_search_words(term)

@@ -16,6 +16,11 @@ class ReferentielDePolynesie::API
       engine&.fetch_row(table, id) || {}
     end
 
+    def find_by_exact_value(domain_id, term)
+      return {} if domain_id.to_i <= 0
+      engine&.find_by_exact_value(domain_id, term) || {}
+    end
+
     def engine
       @engine ||= ENV['API_BASEROW_URL'].present? ? ReferentielDePolynesie::BaserowAPI : nil
     end

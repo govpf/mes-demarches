@@ -4,8 +4,12 @@ class EditableChamp::ReferentielDePolynesieComponent < EditableChamp::EditableCh
   include ApplicationHelper
   include Rails.application.routes.url_helpers
 
+  delegate :type_de_champ, to: :@champ
+  delegate :referentiel, to: :type_de_champ
+  delegate :exact_match?, to: :referentiel, allow_nil: true
+
   def dsfr_input_classname
-    'fr-select'
+    exact_match? ? 'fr-input' : 'fr-select'
   end
 
   def react_props

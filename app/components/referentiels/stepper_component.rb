@@ -39,10 +39,10 @@ class Referentiels::StepperComponent < ViewComponent::Base
   def current_step
     return 1 if step_component.in?([Referentiels::NewFormComponent, Referentiels::ConfigurationErrorComponent])
 
-    case [step_component, referentiel.mode]
-    when [Referentiels::MappingFormComponent, 'exact_match']
+    case step_component
+    when Referentiels::MappingFormComponent
       2
-    when [Referentiels::PrefillAndDisplayComponent, 'exact_match']
+    when Referentiels::PrefillAndDisplayComponent
       3
     when [Referentiels::AutocompleteConfigurationComponent, 'autocomplete']
       2

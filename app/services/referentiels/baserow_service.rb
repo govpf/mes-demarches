@@ -11,7 +11,11 @@ class Referentiels::BaserowService
 
   # pf: retourne un hash plat { 'Nom' => 'Papeete', ... } (sans enveloppe row)
   def call(external_id)
-    result = ReferentielDePolynesie::API.fetch_row(external_id)
+    result = if referentiel.exact_match?
+      ReferentielDePolynesie::API.find_by_exact_value(referentiel.table_id, external_id)
+    else
+      ReferentielDePolynesie::API.fetch_row(external_id)
+    end
 
     if result.present? && result.is_a?(Hash) && result.keys.any?
       Success(result)
