@@ -81,13 +81,13 @@ describe 'Referentiel API:' do
     ##
     # choose prefill stable ids
     ###
-    expect(page).to have_content("status")
+    expect(page).to have_content("$.status")
     page.find("select[name='type_de_champ[referentiel_mapping][$.status][prefill_stable_id]']")
       .select('prefill with $.statut')
     # one boolean champ, nothing to select
-    expect(page).to have_content("is_active")
+    expect(page).to have_content("$.is_active")
     # choose another stable than the default one for the repetition
-    expect(page).to have_content("addresses[0].street")
+    expect(page).to have_content("$.addresses[0].street")
     page.find("select[name='type_de_champ[referentiel_mapping][$.addresses{0}.street][prefill_stable_id]']")
       .select('repetition - prefill with $.addresses[0].street')
     ##
@@ -196,14 +196,14 @@ describe 'Referentiel API:' do
         visit demande_dossier_path(created_dossier)
         expect(page).to have_content("Coordonées du point : -0.570505392116188, 44.841034137099996")
         expect(page).to have_content("Type de point : Point")
-        expect(page).not_to have_content("shape.type") # not displayed to usager
+        expect(page).not_to have_content("$.shape.type") # not displayed to usager
 
         # check data is also visible on demande page as an usager
         visit instructeur_dossier_path(procedure, created_dossier)
         expect(page).to have_content("Sections du formulaire")
         expect(page).not_to have_content("Coordonées du point")
         expect(page).to have_content("Type de point")
-        expect(page).to have_content("shape.type")
+        expect(page).to have_content("$.shape.type")
       end
     end
   end

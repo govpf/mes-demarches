@@ -33,9 +33,10 @@ class Referentiels::MappingFormBase < ApplicationComponent
     "type_de_champ[referentiel_mapping][#{self.class.jsonpath_to_simili(jsonpath)}][#{attribute_name}]"
   end
 
-  def display_jsonpath(jsonpath)
-    jsonpath.delete_prefix('$.')
-  end
+  # pf : TODO possibly uncomment later, but for now it make a lot of edge case when version upgrade
+  # def display_jsonpath(jsonpath)
+  #   jsonpath.delete_prefix('$.')
+  # end
 
   def bordered_container_class_names
     "border-background-contrast-grey fr-p-4w"

@@ -30,7 +30,7 @@ RSpec.describe Referentiels::MappingFormComponent, type: :component do
 
         # tbody
         jsonpaths = page.all("tr td:nth-child(1)").map(&:text).map(&:strip)
-        ["point.type", "point.coordinates", "shape.type"].each do |sample|
+        ["$.point.type", "$.point.coordinates", "$.shape.type"].each do |sample|
           expect(jsonpaths).to include("Utiliser #{sample} pour préremplir le formulaire\n#{sample}")
         end
         values = page.all("tr td:nth-child(2)").map(&:text).map(&:strip)
