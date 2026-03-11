@@ -202,12 +202,6 @@ describe Referentiels::BaserowReferentiel do
         expect(described_class.csv_available?).to be false
       end
     end
-
-    describe '.autocomplete_available?' do
-      it 'returns true' do
-        expect(described_class.autocomplete_available?).to be true
-      end
-    end
   end
 
   describe 'name generation' do

@@ -88,7 +88,7 @@ module Administrateurs
       end
 
       if saved && !auto_submitted
-        if referentiel.autocomplete?
+        if referentiel.needs_autocomplete_configuration?
           redirect_to autocomplete_configuration_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, referentiel)
         else
           redirect_to mapping_type_de_champ_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, referentiel)

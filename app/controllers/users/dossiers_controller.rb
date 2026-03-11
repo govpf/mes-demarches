@@ -635,6 +635,7 @@ module Users
         :value,
         :value_other,
         :external_id,
+        :data, # pf: blob chiffré pour l'autocomplete Baserow inline
         :code,
         :primary_value,
         :secondary_value,
