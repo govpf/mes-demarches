@@ -4,3 +4,5 @@
   %react-fragment
     = render ReactComponent.new "ComboBox/RemoteComboBox", **react_props do
       = render ReactComponent.new "ComboBox/ComboBoxValueSlot", field: :label, name: @form.field_name(:value)
+      = render ReactComponent.new "ComboBox/ComboBoxValueSlot", field: :value, name: @form.field_name(:external_id)
+      = render ReactComponent.new "ComboBox/ComboBoxValueSlot", field: :data, name: @form.field_name(:data)

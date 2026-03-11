@@ -26,6 +26,11 @@ class Referentiel < ApplicationRecord
     items.to_set { _1.value(path) if _1.value(value_path).present? }.compact.sort.map { [_1, _1] }
   end
 
+  # pf: par défaut, pas d'étape autocomplete_configuration (uniquement APIReferentiel en mode autocomplete)
+  def needs_autocomplete_configuration?
+    false
+  end
+
   def self.header_to_path(header)
     header.parameterize.underscore
   end
