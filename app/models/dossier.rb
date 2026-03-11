@@ -139,8 +139,8 @@ class Dossier < ApplicationRecord
 
   has_one :procedure, through: :revision
   has_one :attestation_template, through: :procedure
-  has_many :types_de_champ, through: :revision, source: :types_de_champ_public
-  has_many :types_de_champ_private, through: :revision
+
+  delegate :types_de_champ_public, :types_de_champ_private, to: :revision
 
   belongs_to :transfer, class_name: 'DossierTransfer', foreign_key: 'dossier_transfer_id', optional: true, inverse_of: :dossiers
   has_many :transfer_logs, class_name: 'DossierTransferLog', dependent: :destroy
@@ -385,7 +385,11 @@ class Dossier < ApplicationRecord
       .where.not(user: users_who_submitted)
   end
 
-  scope :for_api_v2, -> { includes(:attestation_template, revision: [procedure: [:administrateurs]], etablissement: [], individual: [], traitement: [], procedure: [], user: [:france_connect_informations]) }
+  scope :with_revision, -> { includes(revision: [revision_types_de_champ: [:type_de_champ]]) }
+  scope :for_api_v2, -> {
+    with_revision
+      .includes(:attestation_template, :etablissement, :individual, :traitement, procedure: [:administrateurs], user: [:france_connect_informations])
+  }
 
   scope :with_notifications, -> (instructeur) {
     joins(:dossier_notifications)
@@ -429,6 +433,18 @@ class Dossier < ApplicationRecord
 
   scope :not_having_batch_operation, -> { where(batch_operation_id: nil) }
 
+  def with_revision
+    ::ActiveRecord::Associations::Preloader.new(
+      records: [self],
+      associations: { revision: [revision_types_de_champ: [:type_de_champ]] }
+    ).call
+    self
+  end
+
+  def with_champs(blob: false)
+    DossierPreloader.load_one(self, pj_template: blob)
+  end
+
   delegate :siret, :siren, to: :etablissement, allow_nil: true
   delegate :france_connected_with_one_identity?, to: :user, allow_nil: true
 
@@ -440,10 +456,6 @@ class Dossier < ApplicationRecord
   validates :mandataire_first_name, presence: true, if: :for_tiers?
   validates :mandataire_last_name, presence: true, if: :for_tiers?
   validates :for_tiers, inclusion: { in: [true, false] }, if: -> { revision&.procedure&.for_individual? }
-
-  def types_de_champ_public
-    types_de_champ
-  end
 
   def self.downloadable_sorted_batch
     DossierPreloader.new(includes(
@@ -881,8 +893,13 @@ class Dossier < ApplicationRecord
     end
 
     if en_construction? && !hidden_by_administration?
-      administration_emails = followers_instructeurs.present? ? followers_instructeurs.map(&:email) : procedure.administrateurs.map(&:email)
-      administration_emails.each do |email|
+      followers_emails = followers_instructeurs.map(&:email)
+      admin_emails = procedure.administrateurs.map(&:email)
+      instructeurs_emails = procedure.groupe_instructeurs.flat_map { |g| g.instructeurs.map(&:email) }
+      admin_instructeur_emails = admin_emails.filter { |email| instructeurs_emails.include?(email) }
+      emails = (followers_emails + admin_instructeur_emails).uniq
+
+      emails.each do |email|
         DossierMailer.notify_en_construction_deletion_to_administration(self, email).deliver_later
       end
     end
