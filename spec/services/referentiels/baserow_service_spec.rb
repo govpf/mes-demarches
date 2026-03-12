@@ -7,84 +7,122 @@ RSpec.describe Referentiels::BaserowService, type: :service do
   let(:service) { described_class.new(referentiel:) }
 
   describe '#call' do
-    let(:external_id) { '24:123' }
+    context 'in autocomplete mode' do
+      let(:referentiel) { create(:baserow_referentiel, :autocomplete) }
+      let(:external_id) { '24:123' }
 
-    context 'when API returns valid data' do
-      let(:api_response) do
-        { 'Nom' => 'Papeete', 'Archipel' => 'Îles du Vent' }
+      context 'when API returns valid data' do
+        let(:api_response) { { 'Nom' => 'Papeete', 'Archipel' => 'Îles du Vent' } }
+
+        before do
+          allow(ReferentielDePolynesie::API).to receive(:fetch_row)
+            .with(external_id)
+            .and_return(api_response)
+        end
+
+        it 'returns a Success with the flat data' do
+          result = service.call(external_id)
+
+          expect(result).to be_success
+          expect(result.value!).to eq(api_response)
+        end
       end
 
-      before do
-        allow(ReferentielDePolynesie::API).to receive(:fetch_row)
-          .with(external_id)
-          .and_return(api_response)
+      context 'when API returns nil' do
+        before do
+          allow(ReferentielDePolynesie::API).to receive(:fetch_row)
+            .with(external_id)
+            .and_return(nil)
+        end
+
+        it 'returns a Failure with code 404' do
+          result = service.call(external_id)
+
+          expect(result).to be_failure
+          expect(result.failure).to include(retryable: false, code: 404)
+        end
       end
 
-      it 'returns a Success with the flat data' do
-        result = service.call(external_id)
+      context 'when API returns empty hash' do
+        before do
+          allow(ReferentielDePolynesie::API).to receive(:fetch_row)
+            .with(external_id)
+            .and_return({})
+        end
 
-        expect(result).to be_success
-        expect(result.value!).to eq(api_response)
+        it 'returns a Failure with code 404' do
+          result = service.call(external_id)
+
+          expect(result).to be_failure
+          expect(result.failure).to include(retryable: false, code: 404)
+        end
+      end
+
+      context 'when API raises an exception' do
+        before do
+          allow(ReferentielDePolynesie::API).to receive(:fetch_row)
+            .with(external_id)
+            .and_raise(StandardError, 'Connection timeout')
+        end
+
+        it 'returns a Failure with code 500' do
+          result = service.call(external_id)
+
+          expect(result).to be_failure
+          expect(result.failure).to include(retryable: false, code: 500)
+          expect(result.failure[:reason]).to be_a(StandardError)
+        end
+
+        it 'logs the error' do
+          expect(Rails.logger).to receive(:error).with(/BaserowService error.*Connection timeout/)
+          service.call(external_id)
+        end
       end
     end
 
-    context 'when API returns nil' do
-      before do
-        allow(ReferentielDePolynesie::API).to receive(:fetch_row)
-          .with(external_id)
-          .and_return(nil)
+    context 'in exact_match mode' do
+      let(:referentiel) { create(:baserow_referentiel, :exact_match) }
+      let(:external_id) { 'MON-NUMERO-123' }
+
+      context 'when API returns a matching row' do
+        let(:api_response) { { 'Nom' => 'Papeete', 'Code' => '98714' } }
+
+        before do
+          allow(ReferentielDePolynesie::API).to receive(:find_by_exact_value)
+            .with(referentiel.table_id, external_id)
+            .and_return(api_response)
+        end
+
+        it 'calls find_by_exact_value instead of fetch_row' do
+          expect(ReferentielDePolynesie::API).to receive(:find_by_exact_value)
+            .with(referentiel.table_id, external_id)
+            .and_return(api_response)
+          expect(ReferentielDePolynesie::API).not_to receive(:fetch_row)
+
+          service.call(external_id)
+        end
+
+        it 'returns a Success with the flat data' do
+          result = service.call(external_id)
+
+          expect(result).to be_success
+          expect(result.value!).to eq(api_response)
+        end
       end
 
-      it 'returns a Failure with code 404' do
-        result = service.call(external_id)
+      context 'when no matching row is found' do
+        before do
+          allow(ReferentielDePolynesie::API).to receive(:find_by_exact_value)
+            .with(referentiel.table_id, external_id)
+            .and_return({})
+        end
 
-        expect(result).to be_failure
-        expect(result.failure).to include(
-          retryable: false,
-          code: 404
-        )
-      end
-    end
+        it 'returns a Failure with code 404' do
+          result = service.call(external_id)
 
-    context 'when API returns empty hash' do
-      before do
-        allow(ReferentielDePolynesie::API).to receive(:fetch_row)
-          .with(external_id)
-          .and_return({})
-      end
-
-      it 'returns a Failure with code 404' do
-        result = service.call(external_id)
-
-        expect(result).to be_failure
-        expect(result.failure).to include(
-          retryable: false,
-          code: 404
-        )
-      end
-    end
-
-    context 'when API raises an exception' do
-      before do
-        allow(ReferentielDePolynesie::API).to receive(:fetch_row)
-          .with(external_id)
-          .and_raise(StandardError, 'Connection timeout')
-      end
-
-      it 'returns a Failure with code 500' do
-        result = service.call(external_id)
-
-        expect(result).to be_failure
-        expect(result.failure).to include(
-          retryable: false,
-          code: 500
-        )
-        expect(result.failure[:reason]).to be_a(StandardError)
-      end
-
-      it 'logs the error' do
-        expect(Rails.logger).to receive(:error).with(/BaserowService error.*Connection timeout/)
-        service.call(external_id)
+          expect(result).to be_failure
+          expect(result.failure).to include(retryable: false, code: 404)
+        end
       end
     end
   end

@@ -61,6 +61,10 @@ class Referentiels::APIReferentiel < Referentiel
     configured? && last_response_status == 200
   end
 
+  def needs_autocomplete_configuration?
+    autocomplete?
+  end
+
   def configured?
     case type
     when "Referentiels::APIReferentiel"
