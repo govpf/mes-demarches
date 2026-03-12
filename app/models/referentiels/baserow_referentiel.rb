@@ -4,6 +4,11 @@ class Referentiels::BaserowReferentiel < Referentiel
   # pf: le table_id Baserow est stocké dans url au format "baserow://TABLE_ID"
   validates :url, presence: true, format: { with: /\Abaserow:\/\/\d+\z/, message: "doit être au format baserow://TABLE_ID" }
 
+  enum :mode, {
+    exact_match: 'exact_match',
+    autocomplete: 'autocomplete'
+  }
+
   # pf: nécessaire pour AutocompleteConfigurationComponent qui appelle referentiel.datasource
   # La colonne autocomplete_configuration existe sur tous les référentiels (jsonb)
   store_accessor :autocomplete_configuration, :datasource, :json_template
@@ -30,30 +35,17 @@ class Referentiels::BaserowReferentiel < Referentiel
     false
   end
 
-  def self.autocomplete_available?
-    true
-  end
-
   def ready?
     configured? && baserow_config.present?
   end
 
   def configured?
-    table_id.present? && table_id.to_i > 0
-  end
-
-  # pf: Baserow est toujours en mode autocomplete (mode forcé dans le formulaire)
-  def autocomplete?
-    true
+    mode.present? && table_id.present? && table_id.to_i > 0
   end
 
   # pf: Baserow gère sa propre UI d'autocomplete via le RDP controller (data_sources_rdp_search_path),
   # l'étape autocomplete_configuration upstream (datasource + json_template) est inutile pour Baserow
   def needs_autocomplete_configuration_step?
-    false
-  end
-
-  def exact_match?
     false
   end
 

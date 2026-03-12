@@ -144,7 +144,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
         commit: 'Étape suivante',
         procedure_id: procedure.id,
         stable_id:,
-        referentiel: { type: 'Referentiels::BaserowReferentiel', table_id: '42' }
+        referentiel: { type: 'Referentiels::BaserowReferentiel', table_id: '42', mode: 'autocomplete' }
       }, format: :turbo_stream
     end
 

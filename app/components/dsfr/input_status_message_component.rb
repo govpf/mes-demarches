@@ -23,7 +23,7 @@ module Dsfr
     end
 
     def referentiel_support_statut?
-      type_de_champ.referentiel? && (
+      (type_de_champ.referentiel? || type_de_champ.referentiel_de_polynesie?) && (
         @champ.waiting_for_external_data? ||
         @champ.external_error_present? ||
         @champ.value.present?
@@ -39,7 +39,7 @@ module Dsfr
       case @champ.type_de_champ.type_champ
       when TypeDeChamp.type_champs[:rna]
         { state: :info, text: t(".rna.data_fetched", title: @champ.title, address: @champ.full_address) }
-      when TypeDeChamp.type_champs[:referentiel]
+      when TypeDeChamp.type_champs[:referentiel], TypeDeChamp.type_champs[:referentiel_de_polynesie]
         if @champ.waiting_for_external_data?
           { state: :info, text: t(".referentiel.fetching") }
         elsif @champ.external_error_present?
