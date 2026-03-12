@@ -1,16 +1,50 @@
 # frozen_string_literal: true
 
 class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
+  # pf: notre type est referentiel_de_polynesie, mais le controller et le concern
+  # vérifient champ.referentiel? pour activer le flux inline autocomplete (ajout :data,
+  # champs_to_turbo_update). On retourne true pour être traité comme un referentiel upstream.
+  def referentiel?
+    true
+  end
+
   # pf: préserver le label humain dans value (upstream y met external_id)
   # pf: guard new_record? pour éviter que le fork (deep_clone) ne wipe data/value_json
   # sur les champs clonés — external_id_changed? est toujours true sur un new_record
   def clear_previous_result
     return if new_record? && data.present?
+    return if @inline_data_present # pf: données inline via data=, ne pas effacer
 
     self.data = nil
     self.value_json = nil
     self.fetch_external_data_exceptions = []
   end
+
+  # pf: déchiffre le blob chiffré soumis via le formulaire autocomplete (ComboBoxValueSlot field: :data)
+  # Court-circuite ReferentielChamp#data= qui appelle rewrap_selected_object_in_datasource (non applicable à Baserow)
+  # Suit le pattern upstream ReferentielChamp#data= : appelle propagate_prefill avant le save,
+  # pour que champs_to_turbo_update inclue les champs préchargés avec leurs valeurs à jour.
+  def data=(value)
+    if dossier.present? && autocomplete? && value.is_a?(String) && value.present?
+      begin
+        json_string = MessageEncryptorService.new.decrypt_and_verify(value, purpose: :storage)
+        @inline_data_present = true
+        parsed = JSON.parse(json_string)
+        write_attribute(:data, parsed)
+        # pf: persiste value_json pour que ReferentielDisplayComponent affiche les colonnes displayable
+        write_attribute(:value_json, cast_displayable_values(parsed.with_indifferent_access))
+        propagate_prefill(parsed.with_indifferent_access) if dossier.present? && !new_record?
+      rescue ActiveSupport::MessageEncryptor::InvalidMessage, JSON::ParserError
+        # pf: données brutes (tests, migration) — passer tel quel
+        write_attribute(:data, value)
+      end
+    else
+      write_attribute(:data, value)
+    end
+  end
+
+  # pf: réinitialiser le flag après save pour ne pas bloquer clear_previous_result ultérieurement
+  after_save -> { @inline_data_present = false }, if: -> { @inline_data_present }
 
   # pf: override pour calculer value_json tout en préservant le label dans value
   def update_external_data!(data:)
@@ -22,6 +56,11 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
       )
       propagate_prefill(data)
     end
+  end
+
+  # pf: autocomplete utilise le flux inline (pas de job) ; exact_match utilise le job asynchrone
+  def uses_external_data?
+    exact_match?
   end
 
   # pf: fallback legacy si pas encore de referentiel lié
@@ -41,6 +80,11 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     end
   end
 
+  # pf: helper pour savoir si le champ est en mode autocomplete
+  def autocomplete?
+    type_de_champ.referentiel&.autocomplete?
+  end
+
   # pf: dual-mode — normalise les données entre ancien format (avec row) et nouveau format (plat)
   def normalized_data
     if data&.key?('row')
@@ -57,7 +101,7 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
 
   # pf: pour les ancres d'erreur (#11420), le React ComboBox utilise html_id sans suffixe -input
   def focusable_input_id(attribute = :value)
-    html_id
+    type_de_champ.referentiel&.exact_match? ? super : html_id
   end
 
   private

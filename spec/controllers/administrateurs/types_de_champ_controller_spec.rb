@@ -14,8 +14,8 @@ describe Administrateurs::TypesDeChampController, type: :controller do
   end
 
   def first_coordinate = procedure.draft_revision.revision_types_de_champ_public.first
-  def second_coordinate = procedure.draft_revision.revision_types_de_champ_public.reload.second
-  def third_coordinate = procedure.draft_revision.revision_types_de_champ_public.reload.third
+  def second_coordinate = procedure.draft_revision.reload.revision_types_de_champ_public.second
+  def third_coordinate = procedure.draft_revision.revision_types_de_champ_public.third
 
   def extract_libelle(champ_component) = [champ_component.coordinate.libelle, champ_component.upper_coordinates.map(&:libelle)]
 
@@ -449,14 +449,14 @@ describe Administrateurs::TypesDeChampController, type: :controller do
         context 'duplicate bloc with all children' do
           it 'duplicates the bloc and all its children' do
             expect { subject }.to change {
-              procedure.draft_revision.types_de_champ.where(type_champ: 'repetition').count
+              procedure.draft_revision.reload.types_de_champ.count { _1.type_champ == 'repetition' }
             }.by(1).and change {
-              procedure.draft_revision.types_de_champ.count
+              procedure.draft_revision.reload.types_de_champ.count
             }.by(4)
 
             expect(flash.alert).to be_nil
 
-            duplicated_bloc = procedure.draft_revision.types_de_champ.where(type_champ: 'repetition').last
+            duplicated_bloc = procedure.draft_revision.reload.types_de_champ.filter { _1.type_champ == 'repetition' }.last
             expect(duplicated_bloc.libelle).to eq('Produits')
 
             duplicated_children = procedure.draft_revision.children_of(duplicated_bloc)
@@ -481,7 +481,7 @@ describe Administrateurs::TypesDeChampController, type: :controller do
             original_destination_stable_id = destination_coordinate.stable_id
 
             expect { subject }.to change {
-              procedure.draft_revision.types_de_champ.count
+              procedure.draft_revision.reload.types_de_champ.count
             }.by(4)
 
             duplicated_bloc_coordinate = procedure.draft_revision.revision_types_de_champ_public.last
@@ -509,7 +509,7 @@ describe Administrateurs::TypesDeChampController, type: :controller do
             original_type_stable_id = children_coordinates.first.stable_id
 
             expect { subject }.to change {
-              procedure.draft_revision.types_de_champ.count
+              procedure.draft_revision.reload.types_de_champ.count
             }.by(4)
 
             procedure.draft_revision.reload

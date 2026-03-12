@@ -54,7 +54,7 @@ module Champs
 
     def preview_variables
       # pf: Récupérer le dossier et le type de champ sans passer par set_champ
-      dossier = policy_scope(Dossier).includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
+      dossier = policy_scope(Dossier).includes(:champs, revision: [:revision_types_de_champ]).find(params[:dossier_id])
       type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
 
       return render json: { error: 'Type de champ introuvable' }, status: :not_found unless type_de_champ

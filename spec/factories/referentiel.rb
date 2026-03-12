@@ -68,6 +68,15 @@ FactoryBot.define do
 
     factory :baserow_referentiel, class: 'Referentiels::BaserowReferentiel' do
       url { 'baserow://24' }
+      mode { 'autocomplete' }
+
+      trait :exact_match do
+        mode { 'exact_match' }
+      end
+
+      trait :autocomplete do
+        mode { 'autocomplete' }
+      end
     end
   end
 end

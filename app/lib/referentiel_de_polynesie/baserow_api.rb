@@ -48,6 +48,54 @@ class ReferentielDePolynesie::BaserowAPI
       end
     end
 
+    # pf: version enrichie de search pour le mode autocomplete inline — retourne label, value ET row_data
+    # row_data est un hash plat { 'Nom' => 'Papeete', ... } à chiffrer côté controller
+    # Note: on n'utilise PAS user_field_names=true dans la requête de recherche car Baserow exige alors
+    # des noms de champs (strings) dans les filtres alors que build_search_filters utilise des IDs numériques.
+    # On mappe les IDs vers les noms via le model fields() après réception.
+    def search_with_data(domain_id, term, drop_down_other: false)
+      config = config(domain_id)
+      return [] unless config
+
+      search_field_id = config['Champ de recherche']
+      model = fields(config)
+
+      params = build_search_filters(search_field_id, term)
+      url = rows_url(config['Table'])
+      response = Typhoeus.get(url, headers: database_headers(config['Token']), params:, timeout: TIMEOUT)
+
+      return [] unless response.success?
+
+      results = JSON.parse(response.body, symbolize_names: true)[:results].map do |result|
+        label = result[:"field_#{search_field_id}"].to_s
+        row_data = result.except(:id, :order).each_with_object({}) do |(key, value), hash|
+          field_id = key.to_s.delete_prefix('field_').to_i
+          field_name = model&.dig(field_id, :name) || key.to_s
+          hash[field_name] = simplify_value(value)
+        end
+        { label:, value: "#{domain_id}:#{result[:id]}", row_data: }
+      end
+      append_other_option_if_needed(results, drop_down_other)
+    end
+
+    # pf: retourne un hash plat { 'Nom' => 'Papeete', ... } pour le mode exact_match
+    # Utilise un filtre Baserow `equal` (sans user_field_names pour que les IDs numériques fonctionnent),
+    # puis récupère la ligne complète avec user_field_names=true via fetch_row.
+    def find_by_exact_value(domain_id, term)
+      config = config(domain_id)
+      search_field = config['Champ de recherche']
+      params = build_exact_match_filter(search_field, term)
+      url = rows_url(config['Table'])
+      response = Typhoeus.get(url, headers: database_headers(config['Token']), params:, timeout: TIMEOUT)
+
+      return {} unless response.success?
+      results = JSON.parse(response.body, symbolize_names: true)[:results]
+      row_id = results&.first&.dig(:id)
+      return {} unless row_id
+
+      fetch_row(domain_id, row_id)
+    end
+
     def field_names(model, field_ids)
       field_ids&.split(/,/)&.map(&:strip)&.map { model[_1.to_i]&.[](:name) } || []
     end
@@ -104,12 +152,13 @@ class ReferentielDePolynesie::BaserowAPI
     # - link_row [{ "id" => 1, "value" => "X" }] → "X" (ou "X, Y" si multi)
     # - multiple_select [{ "id" => 1, "value" => "A" }, ...] → "A, B"
     # - nil, strings, numbers → inchangés
+    # Note: accepte les clés string ET symbol (JSON.parse symbolize_names vs sans)
     def simplify_value(value)
       case value
       when Hash
-        value['value']
+        value['value'] || value[:value]
       when Array
-        values = value.filter_map { |item| item.is_a?(Hash) ? item['value'] : item }
+        values = value.filter_map { |item| item.is_a?(Hash) ? (item['value'] || item[:value]) : item }
         values.length <= 1 ? values.first : values.join(', ')
       else
         value
@@ -117,6 +166,15 @@ class ReferentielDePolynesie::BaserowAPI
     end
 
     private
+
+    def build_exact_match_filter(search_field, term)
+      {
+        "filters" => JSON.generate({
+          "filter_type" => "AND",
+          "filters" => [{ "field" => search_field.to_i, "type" => "equal", "value" => term }]
+        })
+      }
+    end
 
     def build_search_filters(search_field, term)
       words = extract_search_words(term)
