@@ -327,16 +327,25 @@ module Instructeurs
       filtered_params = remove_changes_forbidden_by_visa
       public_id, annotation_attributes = filtered_params.to_h.first
       annotation = dossier.private_champ_for_update(public_id, updated_by: current_user.email)
+      if annotation.referentiel? && annotation.autocomplete?
+        annotation_attributes = annotation_attributes.merge(params.require(:dossier).require(:champs_private_attributes).require(public_id).permit(:data).to_h)
+      end
       annotation.assign_attributes(annotation_attributes)
       annotation_changed = annotation.changed_for_autosave?
 
-      if annotation.save(context: :champs_private_value) && annotation_changed
+      if annotation_changed && annotation.save
         annotation.update_timestamps
+
+        if annotation.uses_external_data?
+          annotation.reset_external_data! if annotation.may_reset_external_data?
+          annotation.fetch_later! if annotation.may_fetch_later?
+        end
+
         dossier.index_search_terms_later
-        DossierNotification.create_notification(dossier, :annotation_instructeur, except_instructeur: current_instructeur)
+        DossierNotification.create_notification(dossier, :annotation_instructeur, except_instructeur: current_instructeur) if !dossier.brouillon?
       end
 
-      dossier.validate(context: :champs_private_value)
+      dossier.validate(:champs_private_value) if !annotation.waiting_for_external_data?
 
       ChampRevision.create_or_update_revision_if_needed(dossier, champs_private_attributes_params, current_instructeur.id)
 
@@ -356,11 +365,12 @@ module Instructeurs
       @dossier = dossier_with_champs
       type_de_champ = @dossier.find_type_de_champ_by_stable_id(params[:stable_id], :private)
       annotation = @dossier.project_champ(type_de_champ, row_id: params[:row_id])
+      annotation.validate(:champs_public_value) if annotation.external_data_fetched?
 
       respond_to do |format|
         format.turbo_stream do
           @to_show, @to_hide = []
-          @to_update = [annotation]
+          @to_update = [annotation].concat(annotation.prefillable_champs)
 
           render :update_annotations
         end
@@ -534,7 +544,7 @@ module Instructeurs
       # Strong attributes do not support records (indexed hash); they only support hashes with
       # static keys. We create a static hash based on the available keys.
       public_ids = params.dig(:dossier, :champs_private_attributes)&.keys || []
-      champs_private_attributes = public_ids.map { [_1, champ_attributes] }.to_h
+      champs_private_attributes = public_ids.index_with { champ_attributes }
       params.require(:dossier).permit(champs_private_attributes:)
     end
 

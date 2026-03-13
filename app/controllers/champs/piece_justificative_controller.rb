@@ -66,6 +66,8 @@ class Champs::PieceJustificativeController < Champs::ChampController
 
     @champ.dossier.update(last_champ_updated_at: Time.zone.now.utc) if save_succeed
     if save_succeed
+      @champ.fetch_later! if @champ.uses_external_data?
+
       @champ.update_timestamps
     end
 
