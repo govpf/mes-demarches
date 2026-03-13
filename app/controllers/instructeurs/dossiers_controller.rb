@@ -542,45 +542,17 @@ module Instructeurs
       champs_private_params.fetch(:champs_private_attributes)
     end
 
-    # Trie les champs privés d'un dossier selon l'ordre défini par la révision
-    def ordered_private_champs(dossier_instance)
-      rtdcs = dossier_instance.revision.revision_types_de_champ_private
-
-      # Créer des tables de recherche pour un accès plus rapide
-      rtdc_by_stable_id = {}
-      parent_positions = {}
-
-      rtdcs.each do |rtdc|
-        rtdc_by_stable_id[rtdc.type_de_champ.stable_id] = rtdc
-
-        # Pré-calculer les positions des parents
-        if rtdc.parent_id
-          parent_positions[rtdc.id] = rtdcs.find { |r| r.id == rtdc.parent_id }&.position || 0
-        end
-      end
-
-      # Ordonner les champs selon leur position dans la révision
-      champs = dossier_instance.project_champs_private.to_a
-      champs.sort_by! do |champ|
-        rtdc = rtdc_by_stable_id[champ.stable_id]
-        parent_position = rtdc&.parent_id ? parent_positions[rtdc.id] || 0 : 0
-        [parent_position, champ.row_id || ' ', rtdc&.position || 0]
-      end
-    end
-
-    # pf: Vérifie si le dossier contient des champs de type visa validés
+    # pf: Vérifie si le dossier contient des champs de type visa validés (racines + répétitions)
     def has_validated_visa?(dossier_instance)
-      dossier_instance.project_champs_private
-        .filter { _1.type == 'Champs::VisaChamp' }
-        .reject { ["", nil].include?(_1.value) }
-        .any?
+      dossier_instance.project_champs_private_all
+        .any? { _1.type == 'Champs::VisaChamp' && _1.value.present? }
     end
 
     def remove_changes_forbidden_by_visa
       return champs_private_attributes_params unless has_validated_visa?(dossier)
 
-      # Récupérer les champs ordonnés
-      ordered_champs = ordered_private_champs(dossier)
+      # pf: project_champs_private_all retourne les champs dans l'ordre d'affichage (racines + enfants de répétitions)
+      ordered_champs = dossier.project_champs_private_all
 
       params[:dossier][:champs_private_attributes]&.reject! do |k, _v|
         # Trouver le champ modifié
