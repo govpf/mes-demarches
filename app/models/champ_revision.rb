@@ -24,10 +24,14 @@ class ChampRevision < ApplicationRecord
   end
 
   def rebuild_champ
+    # pf: dup to avoid mutating the in-memory champ (which is also used by the main component rendering).
+    # Pre-set @type_de_champ so to_s works without needing dossier.revision on the dup.
+    dup_champ = champ.dup
+    dup_champ.instance_variable_set(:@type_de_champ, champ.type_de_champ)
     ['data', 'etablissement_id', 'external_id', 'fetch_external_data_exceptions', 'value', 'value_json'].each do |attrbt|
-      champ.send("#{attrbt}=", self.attributes[attrbt])
+      dup_champ.write_attribute(attrbt, self.attributes[attrbt])
     end
-    champ
+    dup_champ
   end
 
   def self.create_or_update_revision_if_needed(dossier, champs_private_attributes_params, instructeur_id)
