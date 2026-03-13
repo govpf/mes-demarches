@@ -16,7 +16,7 @@ class S3Synchronization < ApplicationRecord
     joins('join active_storage_blobs on  s3_synchronizations.active_storage_blob_id = active_storage_blobs.id')
       .select('target, updated_at::date as date, count(updated_at) as count, sum(active_storage_blobs.byte_size) as size')
       .group('target, date')
-      .order('date desc')
+      .order(date: :desc)
   }
 
   scope :checked_stats, -> { uploaded_stats.where('checked') }
