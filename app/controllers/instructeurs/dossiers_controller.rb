@@ -544,7 +544,7 @@ module Instructeurs
 
     # Trie les champs privés d'un dossier selon l'ordre défini par la révision
     def ordered_private_champs(dossier_instance)
-      rtdcs = dossier_instance.revision.revision_types_de_champ_private.includes(:type_de_champ, parent: {})
+      rtdcs = dossier_instance.revision.revision_types_de_champ_private
 
       # Créer des tables de recherche pour un accès plus rapide
       rtdc_by_stable_id = {}
