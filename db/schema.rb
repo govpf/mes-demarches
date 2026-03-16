@@ -173,6 +173,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_102351) do
     t.datetime "created_at", null: false
     t.text "footer"
     t.jsonb "json_body"
+    t.string "kind"
     t.string "label_direction"
     t.string "label_logo"
     t.boolean "official_layout", default: true, null: false

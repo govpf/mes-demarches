@@ -29,8 +29,10 @@ TEXT
       TEXT
     end
 
-    it { expect(page).to have_selector("p", count: 2) }
-    it { text.split("\n").map(&:strip).map { expect(page).to have_text(_1) } }
+    it do
+      expect(page).to have_selector("p", count: 2)
+      text.split("\n").map(&:strip).map { expect(page).to have_text(_1) }
+    end
   end
 
   context 'unordered list items' do
@@ -41,8 +43,10 @@ TEXT
       TEXT
     end
 
-    it { expect(page).to have_selector("ul", count: 1) }
-    it { expect(page).to have_selector("li", count: 2) }
+    it do
+      expect(page).to have_selector("ul", count: 1)
+      expect(page).to have_selector("li", count: 2)
+    end
   end
 
   context 'ordered list items' do
@@ -90,6 +94,7 @@ TEXT
       TEXT
     end
 
+
     it { expect(page).to have_selector("ol", count: 1) }
     it { expect(page).to have_selector("ul", count: 1) }
     it { expect(page).to have_selector("li", count: 6) }
@@ -103,8 +108,10 @@ TEXT
       TEXT
     end
 
-    it { expect(page).to have_selector("strong", count: 1) }
-    it { expect(page).not_to have_selector("em") }
+    it do
+      expect(page).to have_selector("strong", count: 1)
+      expect(page).not_to have_selector("em")
+    end
   end
 
   context 'auto-link' do
@@ -193,9 +200,11 @@ TEXT
 
     context "without autolink" do
       let(:allow_a) { false }
-      it { expect(page).to have_selector("em", count: 1, text: "string emphased") }
-      it { expect(page).to have_text("https://example.fr/path_preserves_underscore") }
-      it { expect(page).to have_text("email: here_is_my@email.com") }
+      it do
+        expect(page).to have_selector("em", count: 1, text: "string emphased")
+        expect(page).to have_text("https://example.fr/path_preserves_underscore")
+        expect(page).to have_text("email: here_is_my@email.com")
+      end
     end
 
     context "with autolink" do

@@ -206,7 +206,7 @@ describe Administrateurs::AttestationTemplateV2sController, type: :controller do
     let(:attestation_template) { nil }
 
     subject do
-      post :create, params: { procedure_id: procedure.id, attestation_template: update_params }, format: :turbo_stream
+      post :create, params: { procedure_id: procedure.id, attestation_template: update_params, attestation_kind: :acceptation }, format: :turbo_stream
       response.body
     end
 
@@ -224,6 +224,7 @@ describe Administrateurs::AttestationTemplateV2sController, type: :controller do
         expect(attestation_template.footer).to eq("en bas")
         expect(attestation_template.activated).to eq(true)
         expect(attestation_template.tiptap_body).to eq(update_params[:tiptap_body])
+        expect(attestation_template.kind).to eq('acceptation')
 
         expect(response.body).to include("Attestation enregistrée")
       end

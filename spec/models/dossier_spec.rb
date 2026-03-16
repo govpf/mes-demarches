@@ -139,9 +139,10 @@ describe Dossier, type: :model do
     let(:procedure) { create(:procedure, :for_individual) }
     subject(:dossier) { create(:dossier, procedure: procedure) }
 
-    it { is_expected.to validate_presence_of(:individual) }
-
-    it { is_expected.to validate_presence_of(:user) }
+    it 'validates presence of required attributes' do
+      is_expected.to validate_presence_of(:individual)
+      is_expected.to validate_presence_of(:user)
+    end
 
     context 'when dossier has deleted_user_email_never_send' do
       subject(:dossier) { create(:dossier, procedure: procedure, deleted_user_email_never_send: "seb@totoro.org") }
@@ -171,9 +172,7 @@ describe Dossier, type: :model do
       is_expected.to include(expiring_dossier)
       is_expected.to include(just_expired_dossier)
       is_expected.to include(long_expired_dossier)
-    end
 
-    it do
       expect(expiring_dossier.close_to_expiration?).to be_truthy
       expect(expiring_dossier_with_notification.close_to_expiration?).to be_truthy
     end
@@ -186,8 +185,9 @@ describe Dossier, type: :model do
         expiring_dossier_with_notification.reload
       end
 
-      it { is_expected.not_to include(expiring_dossier) }
       it do
+        is_expected.not_to include(expiring_dossier)
+
         expect(expiring_dossier.close_to_expiration?).to be_falsey
         expect(expiring_dossier_with_notification.close_to_expiration?).to be_falsey
 
@@ -222,9 +222,7 @@ describe Dossier, type: :model do
       is_expected.to include(expiring_dossier)
       is_expected.to include(just_expired_dossier)
       is_expected.to include(long_expired_dossier)
-    end
 
-    it do
       expect(expiring_dossier.close_to_expiration?).to be_truthy
       expect(expiring_dossier_with_notification.close_to_expiration?).to be_truthy
     end
@@ -237,8 +235,9 @@ describe Dossier, type: :model do
         expiring_dossier_with_notification.reload
       end
 
-      it { is_expected.not_to include(expiring_dossier) }
       it do
+        is_expected.not_to include(expiring_dossier)
+
         expect(expiring_dossier.close_to_expiration?).to be_falsey
         expect(expiring_dossier_with_notification.close_to_expiration?).to be_falsey
 
@@ -282,9 +281,7 @@ describe Dossier, type: :model do
       is_expected.to include(expiring_dossier)
       is_expected.to include(just_expired_dossier)
       is_expected.to include(long_expired_dossier)
-    end
 
-    it do
       expect(expiring_dossier.close_to_expiration?).to be_truthy
       expect(expiring_dossier_with_notification.close_to_expiration?).to be_truthy
     end
@@ -297,8 +294,9 @@ describe Dossier, type: :model do
         expiring_dossier_with_notification.reload
       end
 
-      it { is_expected.not_to include(expiring_dossier) }
       it do
+        is_expected.not_to include(expiring_dossier)
+
         expect(expiring_dossier.close_to_expiration?).to be_falsey
         expect(expiring_dossier_with_notification.close_to_expiration?).to be_falsey
 
@@ -429,8 +427,10 @@ describe Dossier, type: :model do
       let(:non_following_instructeur) { create(:instructeur) }
       subject { dossier.followers_instructeurs }
 
-      it { expect(subject).to eq [instructeur] }
-      it { expect(subject).not_to include(non_following_instructeur) }
+      it do
+        expect(subject).to eq [instructeur]
+        expect(subject).not_to include(non_following_instructeur)
+      end
     end
   end
 
@@ -467,31 +467,39 @@ describe Dossier, type: :model do
     context 'when there is a public advice asked from the dossiers instructeur' do
       let!(:avis) { create(:avis, dossier: dossier, claimant: instructeur, experts_procedure: experts_procedure, confidentiel: false) }
 
-      it { expect(dossier.avis_for_expert(expert_1)).to match([avis]) }
-      it { expect(dossier.avis_for_expert(expert_2)).to match([avis]) }
+      it do
+        expect(dossier.avis_for_expert(expert_1)).to match([avis])
+        expect(dossier.avis_for_expert(expert_2)).to match([avis])
+      end
     end
 
     context 'when there is a private advice asked from the dossiers instructeur' do
       let!(:avis) { create(:avis, dossier: dossier, claimant: instructeur, experts_procedure: experts_procedure, confidentiel: true) }
 
-      it { expect(dossier.avis_for_expert(expert_1)).to match([avis]) }
-      it { expect(dossier.avis_for_expert(expert_2)).not_to match([avis]) }
+      it do
+        expect(dossier.avis_for_expert(expert_1)).to match([avis])
+        expect(dossier.avis_for_expert(expert_2)).not_to match([avis])
+      end
     end
 
     context 'when there is a public advice asked from one instructeur to an expert' do
       let!(:avis_1) { create(:avis, dossier: dossier, claimant: instructeur, experts_procedure: experts_procedure, confidentiel: false) }
       let!(:avis_2) { create(:avis, dossier: dossier, claimant: instructeur, experts_procedure: experts_procedure_2, confidentiel: false) }
 
-      it { expect(dossier.avis_for_expert(expert_1)).to match([avis_1, avis_2]) }
-      it { expect(dossier.avis_for_expert(expert_2)).to match([avis_1, avis_2]) }
+      it do
+        expect(dossier.avis_for_expert(expert_1)).to match([avis_1, avis_2])
+        expect(dossier.avis_for_expert(expert_2)).to match([avis_1, avis_2])
+      end
     end
 
     context 'when there is a private advice asked from one instructeur to an expert' do
       let!(:avis_1) { create(:avis, dossier: dossier, claimant: instructeur, experts_procedure: experts_procedure, confidentiel: true) }
       let!(:avis_2) { create(:avis, dossier: dossier, claimant: instructeur, experts_procedure: experts_procedure_2, confidentiel: true) }
 
-      it { expect(dossier.avis_for_expert(expert_1)).to match([avis_1]) }
-      it { expect(dossier.avis_for_expert(expert_2)).to match([avis_2]) }
+      it do
+        expect(dossier.avis_for_expert(expert_1)).to match([avis_1])
+        expect(dossier.avis_for_expert(expert_2)).to match([avis_2])
+      end
     end
 
     context 'when there are private avis asked from one expert to another expert' do
@@ -910,7 +918,9 @@ describe Dossier, type: :model do
       context "which is disabled" do
         let(:activated) { false }
 
-        it { is_expected.to eq([]) }
+        it '', :slow do
+          is_expected.to eq([])
+        end
       end
 
       context "which is enabled" do
@@ -1463,17 +1473,11 @@ describe Dossier, type: :model do
       expect(operation_serialized['executed_at']).to eq(last_operation.executed_at.iso8601)
     end
 
-    it { expect { passer_en_instruction }.to change { dossier.commentaires.count }.by(1) }
-
-    it "resolve pending correction" do
-      passer_en_instruction
+    it "resolves pending correction and creates commentaire with expected wording" do
+      expect { passer_en_instruction }.to change { dossier.commentaires.count }.by(1)
 
       expect(dossier.pending_correction?).to be_falsey
       expect(correction.reload.resolved_at).to be_present
-    end
-
-    it 'creates a commentaire in the messagerie with expected wording' do
-      passer_en_instruction
 
       email_template = dossier.procedure.email_template_for(dossier.state)
       commentaire = dossier.commentaires.last
@@ -2256,8 +2260,10 @@ describe Dossier, type: :model do
       end
     end
 
-    it { expect(Dossier.en_brouillon_expired_to_delete.count).to eq(2) }
-    it { expect(Dossier.en_construction_expired_to_delete.count).to eq(2) }
+    it do
+      expect(Dossier.en_brouillon_expired_to_delete.count).to eq(2)
+      expect(Dossier.en_construction_expired_to_delete.count).to eq(2)
+    end
   end
 
   describe "discarded procedure dossier should be able to access it's procedure" do
@@ -2266,8 +2272,10 @@ describe Dossier, type: :model do
 
     before { dossier.procedure.discard! }
 
-    it { expect(procedure).not_to be_nil }
-    it { expect(procedure.discarded?).to be_truthy }
+    it do
+      expect(procedure).not_to be_nil
+      expect(procedure.discarded?).to be_truthy
+    end
   end
 
   describe "to_feature_collection" do
@@ -2663,7 +2671,7 @@ describe Dossier, type: :model do
       create(:attestation, dossier: dossier)
     end
 
-    it "can destroy dossier, reset demarche, logg context" do
+    it "can destroy dossier, reset demarche, logg context", :slow do
       json_message = nil
       allow(Rails.logger).to receive(:info) { json_message ||= _1 }
 
@@ -2694,9 +2702,11 @@ describe Dossier, type: :model do
 
     context 'for_individual' do
       let(:dossier) { create(:dossier, procedure: create(:procedure, :for_individual)) }
-      it { expect(dossier.spreadsheet_columns(types_de_champ: [])).to include(["Dépôt pour un tiers", :for_tiers]) }
-      it { expect(dossier.spreadsheet_columns(types_de_champ: [])).to include(['Nom du mandataire', :mandataire_last_name]) }
-      it { expect(dossier.spreadsheet_columns(types_de_champ: [])).to include(['Prénom du mandataire', :mandataire_first_name]) }
+      it do
+        expect(dossier.spreadsheet_columns(types_de_champ: [])).to include(["Dépôt pour un tiers", :for_tiers])
+        expect(dossier.spreadsheet_columns(types_de_champ: [])).to include(['Nom du mandataire', :mandataire_last_name])
+        expect(dossier.spreadsheet_columns(types_de_champ: [])).to include(['Prénom du mandataire', :mandataire_first_name])
+      end
     end
 
     it { expect(dossier.spreadsheet_columns(types_de_champ: [])).to include(["État du dossier", "Brouillon"]) }
@@ -2856,23 +2866,29 @@ describe Dossier, type: :model do
 
     subject { -> { dossier.update_champs_timestamps(changed_champs) } }
 
-    it { is_expected.to change(dossier, :last_champ_updated_at) }
-    it { is_expected.to change(dossier, :updated_at) }
+    it do
+      is_expected.to change(dossier, :last_champ_updated_at)
+      is_expected.to change(dossier, :updated_at)
+    end
 
     context 'when there is piece justificative' do
       let(:changed_champs) { dossier.champs.filter(&:piece_justificative?) }
 
-      it { is_expected.to change(dossier, :last_champ_updated_at) }
-      it { is_expected.to change(dossier, :last_champ_piece_jointe_updated_at) }
-      it { is_expected.to change(dossier, :updated_at) }
+      it do
+        is_expected.to change(dossier, :last_champ_updated_at)
+        is_expected.to change(dossier, :last_champ_piece_jointe_updated_at)
+        is_expected.to change(dossier, :updated_at)
+      end
     end
 
     context 'when there is titre identite' do
       let(:changed_champs) { dossier.champs.filter(&:titre_identite?) }
 
-      it { is_expected.to change(dossier, :last_champ_updated_at) }
-      it { is_expected.to change(dossier, :last_champ_piece_jointe_updated_at) }
-      it { is_expected.to change(dossier, :updated_at) }
+      it do
+        is_expected.to change(dossier, :last_champ_updated_at)
+        is_expected.to change(dossier, :last_champ_piece_jointe_updated_at)
+        is_expected.to change(dossier, :updated_at)
+      end
     end
   end
 

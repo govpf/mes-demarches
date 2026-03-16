@@ -19,15 +19,19 @@ describe Users::DossiersController, type: :controller do
   shared_examples_for 'does not redirect nor flash' do
     before { @controller.send(ensure_authorized) }
 
-    it { expect(@controller).not_to have_received(:redirect_to) }
-    it { expect(flash.alert).to eq(nil) }
+    it do
+      expect(@controller).not_to have_received(:redirect_to)
+      expect(flash.alert).to eq(nil)
+    end
   end
 
   shared_examples_for 'redirects and flashes' do
     before { @controller.send(ensure_authorized) }
 
-    it { expect(@controller).to have_received(:redirect_to).with(root_path) }
-    it { expect(flash.alert).to include("Vous n’avez pas accès à ce dossier") }
+    it do
+      expect(@controller).to have_received(:redirect_to).with(root_path)
+      expect(flash.alert).to include("Vous n’avez pas accès à ce dossier")
+    end
   end
 
   describe '#ensure_ownership!' do
@@ -543,9 +547,11 @@ describe Users::DossiersController, type: :controller do
         subject
       end
 
-      it { expect(response).to render_template(:brouillon) }
-      it { expect(response.body).to have_link(first_champ.libelle, href: "##{first_champ.focusable_input_id}") }
-      it { expect(response.body).to have_content(error_message) }
+      it do
+        expect(response).to render_template(:brouillon)
+        expect(response.body).to have_link(first_champ.libelle, href: "##{first_champ.focusable_input_id}")
+        expect(response.body).to have_content(error_message)
+      end
 
       it 'does not send an email' do
         expect(NotificationMailer).not_to receive(:send_en_construction_notification)
@@ -561,9 +567,11 @@ describe Users::DossiersController, type: :controller do
       let(:types_de_champ_public) { [{ type: :text, mandatory: true, libelle: 'l' }] }
       before { subject }
 
-      it { expect(response).to render_template(:brouillon) }
-      it { expect(response.body).to have_link(first_champ.libelle, href: "##{first_champ.focusable_input_id}") }
-      it { expect(response.body).to have_content("doit être rempli") }
+      it do
+        expect(response).to render_template(:brouillon)
+        expect(response.body).to have_link(first_champ.libelle, href: "##{first_champ.focusable_input_id}")
+        expect(response.body).to have_content("doit être rempli")
+      end
     end
 
     context 'when dossier has no champ' do
@@ -583,8 +591,10 @@ describe Users::DossiersController, type: :controller do
       context 'and the invite tries to submit the dossier' do
         before { subject }
 
-        it { expect(response).to redirect_to(root_path) }
-        it { expect(flash.alert).to include("Vous n’avez pas accès à ce dossier") }
+        it do
+          expect(response).to redirect_to(root_path)
+          expect(flash.alert).to include("Vous n’avez pas accès à ce dossier")
+        end
       end
     end
 
@@ -686,9 +696,11 @@ describe Users::DossiersController, type: :controller do
 
         before { subject }
 
-        it { expect(response).to render_template(:modifier) }
-        it { expect(response.body).to have_content("doit être rempli") }
-        it { expect(response.body).to have_link(empty_champ.libelle, href: "##{empty_champ.focusable_input_id}") }
+        it do
+          expect(response).to render_template(:modifier)
+          expect(response.body).to have_content("doit être rempli")
+          expect(response.body).to have_link(empty_champ.libelle, href: "##{empty_champ.focusable_input_id}")
+        end
       end
 
       context 'when dossier repetition had been removed in newer version' do
@@ -765,8 +777,10 @@ describe Users::DossiersController, type: :controller do
       context 'and the invite tries to submit the dossier' do
         before { subject }
 
-        it { expect(response).to redirect_to(root_path) }
-        it { expect(flash.alert).to include("Vous n’avez pas accès à ce dossier") }
+        it do
+          expect(response).to redirect_to(root_path)
+          expect(flash.alert).to include("Vous n’avez pas accès à ce dossier")
+        end
       end
     end
   end
@@ -848,9 +862,11 @@ describe Users::DossiersController, type: :controller do
 
         before { subject }
 
-        it { expect(response).to render_template(:modifier) }
-        it { expect(response.body).to have_content("doit être rempli") }
-        it { expect(response.body).to have_link(empty_champ.libelle, href: "##{empty_champ.focusable_input_id}") }
+        it do
+          expect(response).to render_template(:modifier)
+          expect(response.body).to have_content("doit être rempli")
+          expect(response.body).to have_link(empty_champ.libelle, href: "##{empty_champ.focusable_input_id}")
+        end
       end
 
       context 'when dossier repetition had been removed in newer version' do
@@ -927,8 +943,10 @@ describe Users::DossiersController, type: :controller do
       context 'and the invite tries to submit the dossier' do
         before { subject }
 
-        it { expect(response).to redirect_to(root_path) }
-        it { expect(flash.alert).to include("Vous n’avez pas accès à ce dossier") }
+        it do
+          expect(response).to redirect_to(root_path)
+          expect(flash.alert).to include("Vous n’avez pas accès à ce dossier")
+        end
       end
     end
   end
@@ -1089,8 +1107,10 @@ describe Users::DossiersController, type: :controller do
 
       before { subject }
 
-      it { expect(first_champ.reload.value).to eq('beautiful value') }
-      it { expect(response).to have_http_status(:ok) }
+      it do
+        expect(first_champ.reload.value).to eq('beautiful value')
+        expect(response).to have_http_status(:ok)
+      end
     end
 
     context 'decimal number champ separator' do
@@ -1398,8 +1418,10 @@ describe Users::DossiersController, type: :controller do
 
       before { subject }
 
-      it { expect(first_champ.reload.value).to eq('beautiful value') }
-      it { expect(response).to have_http_status(:ok) }
+      it do
+        expect(first_champ.reload.value).to eq('beautiful value')
+        expect(response).to have_http_status(:ok)
+      end
     end
 
     context 'when the champ is a phone number' do
@@ -1645,8 +1667,10 @@ describe Users::DossiersController, type: :controller do
       let!(:own_dossier) { create(:dossier, user: user) }
 
       before { get(:index) }
-      it { expect(assigns(:statut)).to eq('en-cours') }
-      it { expect(assigns(:user_dossiers)).to match([own_dossier]) }
+      it do
+        expect(assigns(:statut)).to eq('en-cours')
+        expect(assigns(:user_dossiers)).to match([own_dossier])
+      end
     end
 
     context 'when the user only have some dossiers invites' do
@@ -1654,8 +1678,10 @@ describe Users::DossiersController, type: :controller do
 
       before { get(:index) }
 
-      it { expect(assigns(:statut)).to eq('dossiers-invites') }
-      it { expect(assigns(:dossiers_invites)).to match([invite.dossier]) }
+      it do
+        expect(assigns(:statut)).to eq('dossiers-invites')
+        expect(assigns(:dossiers_invites)).to match([invite.dossier])
+      end
     end
 
     context 'when the user has dossiers invites, own and traites' do
@@ -1701,9 +1727,11 @@ describe Users::DossiersController, type: :controller do
           own_dossier2.update!(archived: true)
           get(:index, params: { statut: 'en-cours' })
         end
-        it { expect(assigns(:statut)).to eq('en-cours') }
-        it { expect(assigns(:dossiers_traites).map(&:id)).to eq([own_dossier2.id]) }
-        it { expect(own_dossier2.archived).to be_truthy }
+        it do
+          expect(assigns(:statut)).to eq('en-cours')
+          expect(assigns(:dossiers_traites).map(&:id)).to eq([own_dossier2.id])
+          expect(own_dossier2.archived).to be_truthy
+        end
       end
     end
 
@@ -1761,8 +1789,10 @@ describe Users::DossiersController, type: :controller do
 
       context 'when the dossier has been submitted' do
         let(:dossier) { create(:dossier, :en_construction, user: user) }
-        it { expect(assigns(:dossier)).to eq(dossier) }
-        it { is_expected.to render_template(:show) }
+        it do
+          expect(assigns(:dossier)).to eq(dossier)
+          is_expected.to render_template(:show)
+        end
       end
     end
 
@@ -1786,8 +1816,10 @@ describe Users::DossiersController, type: :controller do
       end
 
       context 'when the dossier has been submitted' do
-        it { expect(assigns(:acls)).to eq(PiecesJustificativesService.new(user_profile: user, export_template: nil).acl_for_dossier_export(dossier.procedure)) }
-        it { expect(response).to render_template('dossiers/show') }
+        it do
+          expect(assigns(:acls)).to eq(PiecesJustificativesService.new(user_profile: user, export_template: nil).acl_for_dossier_export(dossier.procedure))
+          expect(response).to render_template('dossiers/show')
+        end
       end
     end
   end
@@ -1801,8 +1833,10 @@ describe Users::DossiersController, type: :controller do
 
     subject! { get(:demande, params: { id: dossier.id }) }
 
-    it { expect(assigns(:dossier)).to eq(dossier) }
-    it { is_expected.to render_template(:demande) }
+    it do
+      expect(assigns(:dossier)).to eq(dossier)
+      is_expected.to render_template(:demande)
+    end
   end
 
   describe "#create_commentaire" do
@@ -2071,8 +2105,10 @@ describe Users::DossiersController, type: :controller do
           end
         end
         context 'when user is not logged' do
-          it { is_expected.to have_http_status(302) }
-          it { is_expected.to redirect_to new_user_session_path }
+          it do
+            is_expected.to have_http_status(302)
+            is_expected.to redirect_to new_user_session_path
+          end
         end
       end
 
@@ -2098,8 +2134,10 @@ describe Users::DossiersController, type: :controller do
         context 'and brouillon param is passed' do
           subject { get :new, params: { procedure_id: procedure_id, brouillon: true } }
 
-          it { is_expected.to have_http_status(302) }
-          it { is_expected.to redirect_to siret_dossier_path(id: Dossier.last) }
+          it do
+            is_expected.to have_http_status(302)
+            is_expected.to redirect_to siret_dossier_path(id: Dossier.last)
+          end
         end
       end
     end

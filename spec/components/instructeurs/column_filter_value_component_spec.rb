@@ -37,7 +37,6 @@ describe Instructeurs::ColumnFilterValueComponent, type: :component do
   describe 'the input case' do
     let(:column) { double("Column", column: :value, type: :datetime, mandatory: true) }
 
-    it { puts "page: #{page.text}" }
     it { expect(page).to have_selector('input[name="filter[filter][value][]"][type="date"]', count: 1) }
   end
 
@@ -52,19 +51,22 @@ describe Instructeurs::ColumnFilterValueComponent, type: :component do
 
     context 'when the column is mandatory' do
       let(:mandatory) { true }
-      it { expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 2) }
-      it { expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'oui') }
-      it { expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non') }
+      it do
+        expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 2)
+        expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'oui')
+        expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non')
+      end
     end
 
     context 'when the column is not mandatory' do
       let(:mandatory) { false }
 
-      it { expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 3) }
-      it { expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'oui') }
-      it { expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non') }
-
-      it { expect(page).to have_selector('label[for="filter[filter][value][]_nil"]', text: 'Non renseigné') }
+      it do
+        expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 3)
+        expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'oui')
+        expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non')
+        expect(page).to have_selector('label[for="filter[filter][value][]_nil"]', text: 'Non renseigné')
+      end
     end
   end
 
@@ -74,19 +76,21 @@ describe Instructeurs::ColumnFilterValueComponent, type: :component do
     context 'when the column is mandatory' do
       let(:mandatory) { true }
 
-      it { expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 2) }
-      it { expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'coché') }
-      it { expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non coché') }
-
-      # it { expect(page).to have_selector('input[name="filter[filter][value][]"][type="checkbox"]') }
+      it do
+        expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 2)
+        expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'coché')
+        expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non coché')
+      end
     end
 
     context 'when the column is not mandatory' do
       let(:mandatory) { false }
 
-      it { expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 2) }
-      it { expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'coché') }
-      it { expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non coché') }
+      it do
+        expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 2)
+        expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'coché')
+        expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non coché')
+      end
     end
   end
 
