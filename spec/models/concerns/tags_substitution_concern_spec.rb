@@ -638,8 +638,10 @@ describe TagsSubstitutionConcern, type: :model do
         ]
       end
 
-      it { is_expected.to include(include({ libelle: 'public' })) }
-      it { is_expected.to include(include({ libelle: 'conditional' })) }
+      it do
+        is_expected.to include(include({ libelle: 'public' }))
+        is_expected.to include(include({ libelle: 'conditional' }))
+      end
     end
 
     context 'when replace_tags with visible and invisible champs' do

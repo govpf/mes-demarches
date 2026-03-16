@@ -58,11 +58,13 @@ TEXT
       TEXT
     end
 
-    it { expect(page).to have_selector("ol", count: 1) }
-    it { expect(page).to have_selector("li", count: 3) }
-    # pf numbering doesn't respect 4 and produce 1,2,3
-    # it { expect(page.native.inner_html).to match('value="1"') }
-    # it { expect(page.native.inner_html).to match('value="4"') }
+    it do
+      expect(page).to have_selector("ol", count: 1)
+      # pf numbering doesn't respect 4 and produce 1,2,3
+      # it { expect(page.native.inner_html).to match('value="1"') }
+      # it { expect(page.native.inner_html).to match('value="4"') }
+      expect(page).to have_selector("li", count: 3)
+    end
   end
 
   context 'multi line lists' do
@@ -94,11 +96,12 @@ TEXT
       TEXT
     end
 
-
-    it { expect(page).to have_selector("ol", count: 1) }
-    it { expect(page).to have_selector("ul", count: 1) }
-    it { expect(page).to have_selector("li", count: 6) }
-    it { expect(page).to have_selector("p", count: 6) }
+    it do
+      expect(page).to have_selector("ol", count: 1)
+      expect(page).to have_selector("ul", count: 1)
+      expect(page).to have_selector("li", count: 6)
+      expect(page).to have_selector("p", count: 6)
+    end
   end
 
   context 'strong' do
