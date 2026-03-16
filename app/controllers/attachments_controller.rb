@@ -68,6 +68,7 @@ class AttachmentsController < ApplicationController
     return if admin_changing_its_type_de_champ?
     return if expert_changing_its_avis?
     return if admin_changing_its_groupe_instructeur?
+    return if instructeur_changing_its_groupe_instructeur?
 
     head :not_found
   end
@@ -98,6 +99,11 @@ class AttachmentsController < ApplicationController
 
   def admin_changing_its_groupe_instructeur?
     groupe_instructeur? && current_user.administrateur? && current_administrateur.in?(record.procedure.administrateurs)
+  end
+
+  def instructeur_changing_its_groupe_instructeur?
+    groupe_instructeur? && current_user.instructeur? && current_instructeur.in?(record.instructeurs) &&
+      record.procedure.instructeurs_self_management_enabled?
   end
 
   def expert_changing_its_avis?

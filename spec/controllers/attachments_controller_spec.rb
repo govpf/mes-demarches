@@ -237,6 +237,48 @@ describe AttachmentsController, type: :controller do
           expect(champ.reload.piece_justificative_file.attached?).to be(false)
         end
       end
+
+      context 'can remove a groupe instructeur signature with self management enabled' do
+        let(:procedure) { create(:procedure, instructeurs: [instructeur], instructeurs_self_management_enabled: true) }
+        let(:groupe_instructeur) { procedure.defaut_groupe_instructeur }
+        let(:attachment) { groupe_instructeur.signature.attachments.first }
+        let(:signed_id) { attachment.blob.signed_id }
+        let(:view_as) { 'link' }
+
+        before do
+          groupe_instructeur.signature.attach(
+            io: Rails.root.join('spec/fixtures/files/black.png').open,
+            filename: 'signature.png',
+            content_type: 'image/png'
+          )
+        end
+
+        it do
+          is_expected.to have_http_status(200)
+          expect(groupe_instructeur.reload.signature.attached?).to be(false)
+        end
+      end
+
+      context 'cannot remove a groupe instructeur signature without self management' do
+        let(:procedure) { create(:procedure, instructeurs: [instructeur], instructeurs_self_management_enabled: false) }
+        let(:groupe_instructeur) { procedure.defaut_groupe_instructeur }
+        let(:attachment) { groupe_instructeur.signature.attachments.first }
+        let(:signed_id) { attachment.blob.signed_id }
+        let(:view_as) { 'link' }
+
+        before do
+          groupe_instructeur.signature.attach(
+            io: Rails.root.join('spec/fixtures/files/black.png').open,
+            filename: 'signature.png',
+            content_type: 'image/png'
+          )
+        end
+
+        it do
+          is_expected.to have_http_status(404)
+          expect(groupe_instructeur.reload.signature.attached?).to be(true)
+        end
+      end
     end
 
     context 'when authenticated as another user' do
