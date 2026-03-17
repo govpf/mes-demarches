@@ -8,7 +8,6 @@ describe ReferentielDePolynesie::BaserowAPI do
   let(:search_field_id) { 5 }
   let(:token) { 'test-token-abc' }
   let(:base_url) { 'https://baserow.example.com' }
-  let(:secrets) { { url: base_url, token: 'config-token', config_table: '1' } }
 
   let(:config_response) do
     {
@@ -27,7 +26,15 @@ describe ReferentielDePolynesie::BaserowAPI do
   end
 
   before do
-    allow(described_class).to receive(:secrets).and_return(secrets.with_indifferent_access)
+    ENV['API_BASEROW_URL'] = base_url
+    ENV['API_BASEROW_TOKEN'] = 'config-token'
+    ENV['API_BASEROW_CONFIG_TABLE'] = '1'
+  end
+
+  after do
+    ENV.delete('API_BASEROW_URL')
+    ENV.delete('API_BASEROW_TOKEN')
+    ENV.delete('API_BASEROW_CONFIG_TABLE')
   end
 
   describe '.search_with_data' do

@@ -69,11 +69,11 @@ class Users::SessionsController < Devise::SessionsController
         return redirect_to france_connect_logout_url(callback: root_url), allow_other_host: true if logged_in_with_france_connect?
       when User.loged_in_with_france_connects.fetch(:sipf), User.loged_in_with_france_connects.fetch(:tatou)
         params = { redirect_uri: root_url }
-        redirect_to "#{Rails.application.secrets[connected_with_france_connect.to_sym][:logout_endpoint]}?#{params.to_query}", allow_other_host: true
+        redirect_to "#{PF_OMNIAUTH_PROVIDERS[connected_with_france_connect.to_s][:logout_endpoint]}?#{params.to_query}", allow_other_host: true
         return
       when User.loged_in_with_france_connects.fetch(:microsoft)
         params = { post_logout_redirect_uri: root_url }
-        redirect_to "#{Rails.application.secrets.microsoft[:logout_endpoint]}?#{params.to_query}", allow_other_host: true
+        redirect_to "#{PF_OMNIAUTH_PROVIDERS['microsoft'][:logout_endpoint]}?#{params.to_query}", allow_other_host: true
         return
       end
 

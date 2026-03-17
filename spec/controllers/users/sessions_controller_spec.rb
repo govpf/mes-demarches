@@ -176,7 +176,7 @@ describe Users::SessionsController, type: :controller do
 
       it 'redirect to sipf logout page' do
         params = { redirect_uri: root_url }
-        expect(response).to redirect_to("#{Rails.application.secrets.sipf[:logout_endpoint]}?#{params.to_query}")
+        expect(response).to redirect_to("#{PF_OMNIAUTH_PROVIDERS['sipf'][:logout_endpoint]}?#{params.to_query}")
       end
     end
 
@@ -185,7 +185,7 @@ describe Users::SessionsController, type: :controller do
 
       it 'redirect to tatou logout page' do
         params = { redirect_uri: root_url }
-        expect(response).to redirect_to("#{Rails.application.secrets.tatou[:logout_endpoint]}?#{params.to_query}")
+        expect(response).to redirect_to("#{PF_OMNIAUTH_PROVIDERS['tatou'][:logout_endpoint]}?#{params.to_query}")
       end
     end
 

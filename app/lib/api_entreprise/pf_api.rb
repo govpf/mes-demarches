@@ -42,7 +42,7 @@ class APIEntreprise::PfAPI
 
   def headers
     @header ||= {
-      'X-Gravitee-Api-Key': Rails.application.secrets.api_ispf_entreprise[:gravitee],
+      'X-Gravitee-Api-Key': ENV['API_ISPF_GRAVITEE_KEY'],
       'Content-Type': 'application/json; charset=UTF-8'
     }
   end
