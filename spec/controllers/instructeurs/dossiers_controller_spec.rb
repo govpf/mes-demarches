@@ -1401,6 +1401,160 @@ describe Instructeurs::DossiersController, type: :controller do
     end
   end
 
+  # pf: Tests pour la protection des annotations par visa
+  describe '#remove_changes_forbidden_by_visa' do
+    let(:types_de_champ_public) { [] }
+
+    context 'avec un visa racine validé' do
+      let(:types_de_champ_private) do
+        [
+          { type: :text, libelle: 'champ_avant_visa' },
+          { type: :visa, libelle: 'mon_visa', accredited_users: [instructeur.email] },
+          { type: :text, libelle: 'champ_apres_visa' }
+        ]
+      end
+      let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
+      let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+
+      let(:champ_avant) { dossier.project_champs_private.first }
+      let(:champ_visa) { dossier.project_champs_private.second }
+      let(:champ_apres) { dossier.project_champs_private.third }
+
+      before do
+        champ_visa.update!(value: 'true')
+      end
+
+      it 'bloque le champ avant le visa mais autorise celui après' do
+        patch :update_annotations, params: {
+          procedure_id: procedure.id,
+          dossier_id: dossier.id,
+          dossier: {
+            champs_private_attributes: {
+              champ_avant.public_id => { value: 'bloqué' },
+                        champ_apres.public_id => { value: 'autorisé' }
+            }
+          }
+        }, format: :turbo_stream
+
+        expect(champ_avant.reload.value).not_to eq('bloqué')
+        expect(champ_apres.reload.value).to eq('autorisé')
+      end
+    end
+
+    context 'sans visa validé' do
+      let(:types_de_champ_private) do
+        [
+          { type: :text, libelle: 'champ_libre' },
+          { type: :visa, libelle: 'visa_non_coche', accredited_users: [instructeur.email] }
+        ]
+      end
+      let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
+      let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+
+      let(:champ_libre) { dossier.project_champs_private.first }
+
+      it 'autorise toutes les modifications' do
+        patch :update_annotations, params: {
+          procedure_id: procedure.id,
+          dossier_id: dossier.id,
+          dossier: { champs_private_attributes: { champ_libre.public_id => { value: 'modifié' } } }
+        }, format: :turbo_stream
+
+        expect(champ_libre.reload.value).to eq('modifié')
+      end
+    end
+
+    context 'avec un visa dans une répétition' do
+      let(:types_de_champ_private) do
+        [
+          {
+            type: :repetition, libelle: 'bloc_repetable', children: [
+              { type: :text, libelle: 'champ_dans_bloc' },
+              { type: :visa, libelle: 'visa_bloc', accredited_users: [instructeur.email] }
+            ]
+          }
+        ]
+      end
+      let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
+      let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+
+      let(:repetition) { dossier.project_champs_private.first }
+
+      before do
+        # Créer deux lignes dans la répétition
+        repetition.add_row(updated_by: instructeur.email)
+        repetition.add_row(updated_by: instructeur.email)
+        dossier.reload
+      end
+
+      let(:rows) { repetition.rows }
+      let(:champ_row1) { rows.first.first }
+      let(:visa_row1) { rows.first.second }
+      let(:champ_row2) { rows.second.first }
+      let(:visa_row2) { rows.second.second }
+
+      it 'un visa validé dans row2 ne bloque pas row1 mais bloque row2' do
+        # Forcer la persistance des champs en les sauvegardant
+        champ_row1.save!
+        champ_row2.save!
+        visa_row2.update!(value: 'true')
+
+        row1_public_id = champ_row1.public_id
+        row2_public_id = champ_row2.public_id
+
+        patch :update_annotations, params: {
+          procedure_id: procedure.id,
+          dossier_id: dossier.id,
+          dossier: {
+            champs_private_attributes: {
+              row1_public_id => { value: 'modifié row1' },
+                        row2_public_id => { value: 'modifié row2' }
+            }
+          }
+        }, format: :turbo_stream
+
+        expect(Champ.find(champ_row1.id).value).to eq('modifié row1')
+        expect(Champ.find(champ_row2.id).value).not_to eq('modifié row2')
+      end
+    end
+
+    context 'avec un header section de niveau 1 entre le champ et le visa' do
+      let(:types_de_champ_private) do
+        [
+          { type: :text, libelle: 'champ_section1' },
+          { type: :header_section, libelle: 'Section 2', header_section_level: 1 },
+          { type: :text, libelle: 'champ_section2' },
+          { type: :visa, libelle: 'visa_section2', accredited_users: [instructeur.email] }
+        ]
+      end
+      let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
+      let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+
+      let(:champ_section1) { dossier.project_champs_private.first }
+      let(:champ_section2) { dossier.project_champs_private.third }
+
+      before do
+        dossier.project_champs_private.fourth.update!(value: 'true') # visa validé
+      end
+
+      it 'le header section de niveau 1 protège section1 du visa de section2' do
+        patch :update_annotations, params: {
+          procedure_id: procedure.id,
+          dossier_id: dossier.id,
+          dossier: {
+            champs_private_attributes: {
+              champ_section1.public_id => { value: 'modifié section1' },
+                        champ_section2.public_id => { value: 'modifié section2' }
+            }
+          }
+        }, format: :turbo_stream
+
+        expect(champ_section1.reload.value).to eq('modifié section1')
+        expect(champ_section2.reload.value).not_to eq('modifié section2')
+      end
+    end
+  end
+
   describe "#annotations_privees" do
     context "when annotation_instructeur notifications exist" do
       let!(:other_instructeur) { create(:instructeur) }
