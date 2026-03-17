@@ -44,7 +44,7 @@ features = [
 ]
 
 def database_exists?
-  ActiveRecord::Base.connection
+  ActiveRecord::Base.connection.verify!
   true
 rescue ActiveRecord::ConnectionNotEstablished, ActiveRecord::NoDatabaseError, PG::ConnectionBad
   false
