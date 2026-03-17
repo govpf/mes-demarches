@@ -5,6 +5,7 @@ describe Champs::DecimalNumberChamp do
   let(:max_number) { nil }
   let(:range_number) { nil }
   let(:type_de_champ) { create(:type_de_champ, min_number:, max_number:, range_number:) }
+  let(:value) { nil }
 
   let(:champ) { build(:champ_decimal_number, value:, type_de_champ:) }
   subject { champ.validate(:champs_public_value) }
