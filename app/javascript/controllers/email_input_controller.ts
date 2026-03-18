@@ -30,7 +30,7 @@ export class EmailInputController extends ApplicationController {
 
     if (email.toLowerCase().endsWith('@gmail.pf')) {
       const address = email.substring(0, email.indexOf('@')) + '@gmail.com';
-      this.suggestionTarget.innerHTML = address;
+      this.suggestionTarget.textContent = address;
       show(this.ariaRegionTarget);
       this.ariaRegionTarget.focus();
     } else if (email.toLowerCase().endsWith('.pf')) {
@@ -46,7 +46,7 @@ export class EmailInputController extends ApplicationController {
       if (data?.success) {
         const suggestion = data.suggestions?.[0];
         if (suggestion) {
-          this.suggestionTarget.innerHTML = suggestion;
+          this.suggestionTarget.textContent = suggestion;
           show(this.ariaRegionTarget);
           this.ariaRegionTarget.focus();
         }
@@ -56,8 +56,8 @@ export class EmailInputController extends ApplicationController {
 
   accept() {
     hide(this.ariaRegionTarget);
-    this.inputTarget.value = this.suggestionTarget.innerHTML;
-    this.suggestionTarget.innerHTML = '';
+    this.inputTarget.value = this.suggestionTarget.textContent ?? '';
+    this.suggestionTarget.textContent = '';
     const nextTarget = document.querySelector<HTMLElement>(
       '[data-email-input-target="next"]'
     );
@@ -68,7 +68,7 @@ export class EmailInputController extends ApplicationController {
 
   discard() {
     hide(this.ariaRegionTarget);
-    this.suggestionTarget.innerHTML = '';
+    this.suggestionTarget.textContent = '';
     const nextTarget = document.querySelector<HTMLElement>(
       '[data-email-input-target="next"]'
     );
