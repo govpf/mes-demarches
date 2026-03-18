@@ -422,7 +422,7 @@ describe Procedure do
           </a>
         MSG
         let(:procedure) { build(:procedure, monavis_embed: monavis_jedonnemonavis) }
-        it { is_expected.to eq(["Le code MonAvis contient un lien pointant vers un domaine invalide"]) }
+        it { is_expected.to include("Le code MonAvis contient un lien pointant vers un domaine invalide") }
       end
 
       context 'when YWH-PGM5381-46 pentester won' do

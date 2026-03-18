@@ -4,8 +4,8 @@
 class MonAvisEmbedValidator < ActiveModel::Validator
   # from time to time, they decide to change domain just for fun. if it breaks, check the new subdomain
   KNOWN_SUBDOMAIN = ['jedonnemonavis', 'monavis', 'voxusagers']
-  HREF_CHECKER = /https:\/\/#{KNOWN_SUBDOMAIN.join('|')}.numerique.gouv.fr\/Demarches\/\d+.*key=[[:alnum:]]+.*/
-  IMG_CHECKER = /https:\/\/#{KNOWN_SUBDOMAIN.join('|')}.numerique.gouv.fr\/(monavis-)?static\/bouton-blanc|bleu.png|svg/
+  HREF_CHECKER = /https:\/\/(?:#{KNOWN_SUBDOMAIN.join('|')}).numerique.gouv.fr\/Demarches\/\d+.*key=[[:alnum:]]+.*/
+  IMG_CHECKER = /https:\/\/(?:#{KNOWN_SUBDOMAIN.join('|')}).numerique.gouv.fr\/(monavis-)?static\/bouton-(?:blanc|bleu).(?:png|svg)/
 
   ALLOWED_TAGS = %w[a img].freeze
   ALLOWED_ATTRIBUTES = %w[href src alt title target rel].freeze
