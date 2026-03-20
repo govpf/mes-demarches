@@ -272,6 +272,8 @@ class DossierNotification < ApplicationRecord
   end
 
   def self.instructeur_to_notify_ids(dossier, notification_type, except_instructeur)
+    return [] if dossier.groupe_instructeur.nil?
+
     instructeur_ids = dossier.groupe_instructeur.instructeur_ids
     instructeur_ids -= [except_instructeur.id] if except_instructeur.present?
 

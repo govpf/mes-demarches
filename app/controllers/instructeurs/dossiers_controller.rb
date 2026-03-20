@@ -507,6 +507,7 @@ module Instructeurs
         :value,
         :value_other,
         :external_id,
+        :data, # pf: blob chiffré pour l'autocomplete Baserow inline (referentiel_de_polynesie)
         :code,
         :primary_value,
         :secondary_value,
