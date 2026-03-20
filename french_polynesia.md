@@ -143,6 +143,33 @@ Cette section documente les modifications techniques spécifiques à la Polynés
 - **ContextualPersonaNavigationSpec** (`spec/system/contextual_persona_navigation_spec.rb`) : Tests d'intégration avec feature flag
 - Tests de sécurité, fallback et protection contre les régressions de routes upstream
 
+## Référentiel Baserow (`Referentiels::BaserowReferentiel`)
+
+Le référentiel Baserow est spécifique à la Polynésie française. Il s'intègre à l'API Baserow hébergée sur `api-baserow.mes-demarches.gov.pf`.
+
+### Architecture
+
+- **Stockage** : L'ID de table Baserow est stocké dans la colonne `url` au format `baserow://TABLE_ID`
+- **Configuration externe** : Les champs accessibles (usager / instructeur) sont définis dans la config BaserowAPI (`config/secrets.yml` → `baserow`), pas dans le modèle
+- **Recherche autocomplete** : Gérée par le contrôleur PF spécifique `data_sources/referentiel_de_polynesie_controller` via `data_sources_rdp_search_path`, **pas** par le flow upstream `DataSources::ReferentielController`
+
+### Divergence avec le flow upstream `AutocompleteConfigurationComponent`
+
+Depuis la release upstream 2025-09-19-01, le flow de configuration d'un référentiel inclut une étape `autocomplete_configuration` qui demande à l'admin de choisir quelle "source de données" (array) utiliser dans la réponse API, et de définir un template d'affichage (`datasource` + `json_template`).
+
+**Problème** : Baserow ne renvoie pas un array mais un objet plat (une seule ligne) lors de la validation. `filter_selectable_datasources` ne trouve aucun array → message d'erreur "Votre source de données ne contient pas de tableau".
+
+**Solution** : Méthode `needs_autocomplete_configuration_step?` (retourne `false` pour Baserow), distincte de `autocomplete?` (qui reste `true`).
+
+- `autocomplete?` → **`true`** : utilisé au runtime (permit `:data` dans `dossiers_controller`, prefill via `turbo_champs_concern`)
+- `needs_autocomplete_configuration_step?` → **`false`** : utilisé dans le flow admin uniquement, saute l'étape pour aller directement au mapping
+
+**Fichiers concernés** :
+- `app/models/referentiels/api_referentiel.rb` : `needs_autocomplete_configuration_step?` → délègue à `autocomplete?`
+- `app/models/referentiels/baserow_referentiel.rb` : `needs_autocomplete_configuration_step?` → `false`
+- `app/controllers/administrateurs/referentiels_controller.rb` : utilise `needs_autocomplete_configuration_step?` à la place de `autocomplete?` pour la redirection post-save
+- `app/components/referentiels/mapping_form_component.rb` : utilise `needs_autocomplete_configuration_step?` pour l'URL "Étape précédente"
+
 ## Résumé par catégorie
 
 1. **Données géographiques** : Champs personnalisés pour la Polynésie (ile, commune_associee)
@@ -152,7 +179,8 @@ Cette section documente les modifications techniques spécifiques à la Polynés
 5. **Interface utilisateur** : Sanitisation HTML, validation de formulaires, personnalisations d'affichage
 6. **Configuration** : Configuration des routes pour les données référentielles
 7. **Navigation contextuelle** : Navigation intelligente entre personas avec feature flag utilisateur
-8. **Tests** : Adaptations des tests pour les fonctionnalités spécifiques PF
+8. **Référentiel Baserow** : Intégration API Baserow spécifique PF avec flow d'administration adapté
+9. **Tests** : Adaptations des tests pour les fonctionnalités spécifiques PF
 
 ## Développement : WeasyPrint local
 L'attestation v2 utilise **WeasyPrint** pour générer les PDF. Par défaut, le service n'est pas activé dans [`Procfile.dev`](Procfile.dev ) pour éviter de bloquer le démarrage de [`bin/dev`](bin/dev ) si WeasyPrint n'est pas installé.

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 describe 'shared/dossiers/demande', type: :view do
+  include EtablissementHelper
+
   let(:current_instructeur) { create(:instructeur) }
   let(:individual) { nil }
   let(:etablissement) { nil }
@@ -18,7 +20,7 @@ describe 'shared/dossiers/demande', type: :view do
 
     it 'renders the etablissement infos' do
       expect(subject).to include(etablissement.entreprise_raison_sociale)
-      expect(subject).to include(etablissement.entreprise_siret_siege_social)
+      expect(subject).to include(pretty_siret(etablissement.entreprise_siret_siege_social))
       expect(subject).to include(etablissement.entreprise_forme_juridique)
     end
 

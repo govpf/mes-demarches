@@ -9,6 +9,18 @@ class Referentiels::BaserowReferentiel < Referentiel
     autocomplete: 'autocomplete'
   }
 
+  # pf: nécessaire pour AutocompleteConfigurationComponent qui appelle referentiel.datasource
+  # La colonne autocomplete_configuration existe sur tous les référentiels (jsonb)
+  store_accessor :autocomplete_configuration, :datasource, :json_template
+
+  def tiptap_template=(value)
+    self.json_template = JSON.parse(value)
+  end
+
+  def tiptap_template
+    json_template&.to_json
+  end
+
   before_save :name_as_uuid
 
   def table_id
@@ -29,6 +41,12 @@ class Referentiels::BaserowReferentiel < Referentiel
 
   def configured?
     mode.present? && table_id.present? && table_id.to_i > 0
+  end
+
+  # pf: Baserow gère sa propre UI d'autocomplete via le RDP controller (data_sources_rdp_search_path),
+  # l'étape autocomplete_configuration upstream (datasource + json_template) est inutile pour Baserow
+  def needs_autocomplete_configuration_step?
+    false
   end
 
   # pf: Baserow gère son auth via BaserowAPI.config, pas via le modèle Referentiel

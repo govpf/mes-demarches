@@ -6,6 +6,6 @@
   = t('.body', dossier_id: @dossier.id, libelle_demarche: @dossier.procedure.libelle)
 %p= link_to("Consulter le dossier n°#{@dossier.id}", instructeur_dossier_url(procedure_id: @dossier.procedure.id, dossier_id: @dossier.id))
 
-%p= link_to(t('.unsubscribe_link'), email_notifications_instructeur_procedure_url(@dossier.procedure))
+%p= link_to(t('.unsubscribe_link'), notification_preferences_instructeur_procedure_url(@dossier.procedure))
 
 = render partial: "layouts/mailers/signature"

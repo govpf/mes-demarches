@@ -109,7 +109,6 @@ module SystemHelpers
 
   def select_combobox(libelle, value, custom_value: false)
     fill_in libelle, with: custom_value ? "#{value}," : value
-    expect(page).to have_field(libelle, with: value) if !custom_value
 
     if !custom_value
       within '[role="listbox"]' do

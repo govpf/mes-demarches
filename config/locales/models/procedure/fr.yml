@@ -44,6 +44,7 @@ fr:
         published_at: 'Date de publication'
         aasm_state: 'Statut'
         admin_count: 'Nb administrateurs'
+        no_gender: 'Désactiver l’identité avec civilité'
         api_state:
           brouillon: Brouillon
           publiee: Publiée
@@ -105,6 +106,7 @@ fr:
               inconsistent_header_section: "%{custom_message}"
               missing_libelle:  "Le libellé du champ en position %{position} doit être rempli"
               expression_reguliere_invalid: "est invalide, veuillez la corriger"
+              referentiel_not_ready: "n'est pas configuré"
             attestation_template:
               format: "%{attribute} %{message}"
             initiated_mail:

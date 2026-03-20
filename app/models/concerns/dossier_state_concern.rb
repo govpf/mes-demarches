@@ -60,7 +60,7 @@ module DossierStateConcern
     groupe_instructeur.instructeurs.with_instant_email_dossier_notifications.each do |instructeur|
       DossierMailer.notify_new_dossier_depose_to_instructeur(self, instructeur.email).deliver_later
     end
-    DossierNotification.create_notification(self, :dossier_depose)
+    DossierNotification.create_notification(self, :dossier_depose) if !procedure.declarative? && !procedure.sva_svr_enabled?
 
     clean_champs_after_submit!
   end
@@ -390,7 +390,7 @@ module DossierStateConcern
     row_to_remove_ids = champs.filter { _1.row? && _1.discarded? }.map(&:row_id)
 
     return if row_to_remove_ids.empty?
-    champs.where(row_id: row_to_remove_ids).destroy_all
+    champs.where(row_id: row_to_remove_ids, stream: Champ::MAIN_STREAM).destroy_all
   end
 
   def remove_not_visible_or_empty_champs!
@@ -407,7 +407,7 @@ module DossierStateConcern
     champs_to_remove += rows_public.reject { repetition_to_keep_stable_ids.member?(_1.stable_id) }
 
     return if champs_to_remove.empty?
-    champs.where(id: champs_to_remove).destroy_all
+    champs.where(id: champs_to_remove, stream: Champ::MAIN_STREAM).destroy_all
   end
 
   def remove_not_visible_rows!
@@ -416,14 +416,14 @@ module DossierStateConcern
       .flat_map(&:row_ids)
 
     return if row_to_remove_ids.empty?
-    champs.where(row_id: row_to_remove_ids).destroy_all
+    champs.where(row_id: row_to_remove_ids, stream: Champ::MAIN_STREAM).destroy_all
   end
 
   def remove_titres_identite!
     champ_to_remove_ids = filled_champs.filter(&:titre_identite?).map(&:id)
 
     return if champ_to_remove_ids.empty?
-    champs.where(id: champ_to_remove_ids).destroy_all
+    champs.where(id: champ_to_remove_ids, stream: Champ::MAIN_STREAM).destroy_all
   end
 
   # pf: Pré-génère les variants/previews des PJ hors transaction AASM
