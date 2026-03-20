@@ -229,6 +229,8 @@ class Procedure < ApplicationRecord
   validates :lien_site_web, presence: true, if: :publiee?
   validates :lien_notice, url: { no_local: true, allow_blank: true }
   validates :lien_dpo, url: { no_local: true, allow_blank: true, accept_email: true }
+  validates :web_hook_url, url: { no_local: true, allow_blank: true }
+  validates :web_hook_url, no_private_ip_url: true, allow_blank: true
 
   validates :draft_types_de_champ_public,
     'types_de_champ/condition': true,
