@@ -70,6 +70,8 @@ class ProcedureRevision < ApplicationRecord
   def find_and_ensure_exclusive_use(stable_id)
     coordinate, tdc = coordinate_and_tdc(stable_id)
 
+    raise ActiveRecord::RecordNotFound, "Le champ n'existe plus sur ce formulaire. Il a peut-être été supprimé entre temps. Rechargez la page." if tdc.nil?
+
     if tdc.only_present_on_draft?
       tdc
     else

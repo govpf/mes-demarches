@@ -34,12 +34,11 @@ class DossierNotification < ApplicationRecord
 
   scope :type_news, -> { where(notification_type: [:dossier_modifie, :message, :annotation_instructeur, :avis_externe]) }
 
+  # pf: bulk insert pour éviter N+1 queries (SELECT+SELECT+INSERT par instructeur)
+  # Fixes MES-DEMARCHES-30X
   def self.create_notification(dossier, notification_type, except_instructeur: nil)
     instructeur_ids = instructeur_to_notify_ids(dossier, notification_type, except_instructeur)
-
-    instructeur_ids.each do |instructeur_id|
-      find_or_create_notification(dossier, notification_type, instructeur_id)
-    end
+    bulk_find_or_create_notifications(dossier, notification_type, instructeur_ids)
   end
 
   def self.refresh_notifications_instructeur_for_dossier_by_choice(instructeur, dossier, choice)
@@ -52,7 +51,7 @@ class DossierNotification < ApplicationRecord
     return if notification_types_to_refresh.empty?
 
     notification_types_to_refresh.each do |notification_type|
-      find_or_create_notification(dossier, notification_type, instructeur.id) if REFRESH_CONDITIONS_BY_TYPE[notification_type].call(dossier, instructeur.id)
+      bulk_find_or_create_notifications(dossier, notification_type, [instructeur.id]) if REFRESH_CONDITIONS_BY_TYPE[notification_type].call(dossier, instructeur.id)
     end
   end
 
@@ -249,19 +248,32 @@ class DossierNotification < ApplicationRecord
       .count
   end
 
-  private
+  # pf: remplace find_or_create_notification en boucle (N+1) par 1 SELECT + 1 INSERT bulk
+  def self.bulk_find_or_create_notifications(dossier, notification_type, instructeur_ids, display_at: nil)
+    return if instructeur_ids.empty?
 
-  def self.find_or_create_notification(dossier, notification_type, instructeur_id)
-    display_at = notification_type == :dossier_depose ? (dossier.depose_at + DossierNotification::DELAY_DOSSIER_DEPOSE) : Time.zone.now
+    display_at ||= notification_type.to_sym == :dossier_depose ? (dossier.depose_at + DELAY_DOSSIER_DEPOSE) : Time.zone.now
 
-    DossierNotification.find_or_create_by!(
-      dossier:,
-      notification_type:,
-      instructeur_id:
-    ) do |notification|
-      notification.display_at = display_at
-    end
+    existing_ids = where(dossier:, notification_type:, instructeur_id: instructeur_ids)
+      .pluck(:instructeur_id)
+
+    new_ids = instructeur_ids - existing_ids
+    return if new_ids.empty?
+
+    now = Time.current
+    insert_all(new_ids.map do |instructeur_id|
+      {
+        dossier_id: dossier.id,
+        notification_type: notification_type.to_s,
+        instructeur_id: instructeur_id,
+        display_at: display_at,
+        created_at: now,
+        updated_at: now
+      }
+    end)
   end
+
+  private
 
   def self.instructeur_preferences(instructeur, procedure)
     if (instructeur_procedure = InstructeursProcedure.find_by(instructeur:, procedure:))
