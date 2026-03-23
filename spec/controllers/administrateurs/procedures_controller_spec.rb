@@ -744,7 +744,8 @@ describe Administrateurs::ProceduresController, type: :controller do
         monavis_embed:,
         administrateurs: [admin, administrateur_2],
         instructeurs: [admin.instructeur, instructeur_2],
-        attestation_template: build(:attestation_template),
+        attestation_acceptation_template: build(:attestation_template),
+        attestation_refus_template: build(:attestation_template, kind: 'refus'),
         accuse_lecture: true,
         api_entreprise_token:,
         initiated_mail:,
@@ -835,7 +836,8 @@ describe Administrateurs::ProceduresController, type: :controller do
                 instructeurs: '1',
                 champs: '1',
                 annotations: '1',
-                attestation_template: '1',
+                attestation_acceptation_template: '1',
+                attestation_refus_template: '1',
                 zones: '1',
                 service: '1',
                 monavis_embed: '1',
@@ -861,7 +863,8 @@ describe Administrateurs::ProceduresController, type: :controller do
           expect(Procedure.last.instructeurs_self_management_enabled).to be_truthy
           expect(Procedure.last.draft_revision.types_de_champ_public.count).to eq 1
           expect(Procedure.last.draft_revision.types_de_champ_private.count).to eq 1
-          expect(Procedure.last.attestation_template).not_to be_nil
+          expect(Procedure.last.attestation_acceptation_template).not_to be_nil
+          expect(Procedure.last.attestation_refus_template).not_to be_nil
           expect(Procedure.last.zones).not_to be_blank
           expect(Procedure.last.service).not_to be_nil
           expect(Procedure.last.monavis_embed).not_to be_nil
@@ -897,7 +900,8 @@ describe Administrateurs::ProceduresController, type: :controller do
                 instructeurs: '0',
                 champs: '0',
                 annotations: '0',
-                attestation_template: '0',
+                attestation_acceptation_template: '0',
+                attestation_refus_template: '0',
                 zones: '0',
                 service: '0',
                 monavis_embed: '0',
@@ -927,7 +931,8 @@ describe Administrateurs::ProceduresController, type: :controller do
           expect(Procedure.last.instructeurs_self_management_enabled).to be_falsey
           expect(Procedure.last.draft_revision.types_de_champ_public.count).to eq 0
           expect(Procedure.last.draft_revision.types_de_champ_private.count).to eq 0
-          expect(Procedure.last.attestation_template).to be_nil
+          expect(Procedure.last.attestation_acceptation_template).to be_nil
+          expect(Procedure.last.attestation_refus_template).to be_nil
           expect(Procedure.last.zones).to be_blank
           expect(Procedure.last.service).to be_nil
           expect(Procedure.last.monavis_embed).to be_nil
@@ -1520,7 +1525,7 @@ describe Administrateurs::ProceduresController, type: :controller do
 
       context 'procedure was closed and is re opened' do
         before do
-          procedure.publish!
+          procedure.publish!(procedure.administrateurs.first)
           procedure.update!(closing_reason: 'internal_procedure', replaced_by_procedure_id: procedure2.id)
           procedure.close!
           procedure.update!(closing_notification_brouillon: true, closing_notification_en_cours: true)

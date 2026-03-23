@@ -75,7 +75,8 @@ module Administrateurs
           draft_revision: {
             revision_types_de_champ: { type_de_champ: { piece_justificative_template_attachment: :blob } }
           },
-          attestation_template: [],
+          attestation_acceptation_template: [],
+          attestation_refus_template: [],
           initiated_mail: [],
           received_mail: [],
           closed_mail: [],
@@ -297,7 +298,7 @@ module Administrateurs
     end
 
     def modifications
-      ProcedureRevisionPreloader.new(@procedure.revisions).all
+      ProcedureRevisionPreloader.new(@procedure.revisions.includes(administrateur: :user).reorder(published_at: :desc)).all
     end
 
     def update_jeton
@@ -398,7 +399,7 @@ module Administrateurs
     end
 
     def publish_revision
-      @procedure.publish_revision!
+      @procedure.publish_revision!(current_administrateur)
       flash.notice = "Nouvelle version de la démarche publiée"
 
       redirect_to admin_procedure_path(@procedure)
@@ -700,7 +701,8 @@ module Administrateurs
         :annotations,
         :administrateurs,
         :instructeurs,
-        :attestation_template,
+        :attestation_acceptation_template,
+        :attestation_refus_template,
         :libelle,
         :zones,
         :service,
@@ -719,7 +721,8 @@ module Administrateurs
         clone_annotations: options[:annotations] == '1',
         clone_administrateurs: options[:administrateurs] == '1',
         clone_instructeurs: options[:instructeurs] == '1',
-        clone_attestation_template: options[:attestation_template] == '1',
+        clone_attestation_acceptation_template: options[:attestation_acceptation_template] == '1',
+        clone_attestation_refus_template: options[:attestation_refus_template] == '1',
         clone_zones: options[:zones] == '1',
         clone_service: options[:service] == '1',
         clone_ineligibilite: options[:ineligibilite] == '1',

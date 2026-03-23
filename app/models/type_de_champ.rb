@@ -478,11 +478,11 @@ class TypeDeChamp < ApplicationRecord
   end
 
   def drop_down_simple?
-    drop_down_list? && drop_down_mode != 'advanced'
+    (drop_down_list? || multiple_drop_down_list?) && drop_down_mode != 'advanced'
   end
 
   def drop_down_advanced?
-    drop_down_list? && drop_down_mode == 'advanced'
+    (drop_down_list? || multiple_drop_down_list?) && drop_down_mode == 'advanced'
   end
 
   def drop_down_options
@@ -764,7 +764,7 @@ class TypeDeChamp < ApplicationRecord
     type_champs.fetch(:datetime) => [:date_in_past, :start_date, :end_date, :range_date],
     type_champs.fetch(:carte) => TypesDeChamp::CarteTypeDeChamp::LAYERS,
     type_champs.fetch(:drop_down_list) => [:drop_down_other, :drop_down_options, :drop_down_mode],
-    type_champs.fetch(:multiple_drop_down_list) => [:drop_down_options],
+    type_champs.fetch(:multiple_drop_down_list) => [:drop_down_options, :drop_down_mode],
     type_champs.fetch(:linked_drop_down_list) => [:drop_down_options, :drop_down_secondary_libelle, :drop_down_secondary_description],
     type_champs.fetch(:piece_justificative) => [:old_pj, :skip_pj_validation, :skip_content_type_pj_validation],
     type_champs.fetch(:titre_identite) => [:old_pj, :skip_pj_validation, :skip_content_type_pj_validation],
@@ -877,20 +877,7 @@ class TypeDeChamp < ApplicationRecord
   private
 
   def castable_on_change?(from_type, to_type)
-    case [from_type, to_type]
-    when ['integer_number', 'decimal_number'], # recast numbers automatically
-      ['decimal_number', 'integer_number'], # may lose some data, but who cares ?
-      ['text', 'textarea'], # allow short text to long text
-      ['text', 'formatted'], # plain text can become formatted text
-      ['formatted', 'text'], # formatted text can become plain text
-      ['formatted', 'textarea'], # formatted text can become long text
-      ['drop_down_list', 'multiple_drop_down_list'], # single list can become multi
-      ['date', 'datetime'], # date <=> datetime
-      ['datetime', 'date'] # may lose some data, but who cares ?
-      true
-    else
-      false
-    end
+    Columns::ChampColumn::CAST.key?([from_type.to_sym, to_type.to_sym])
   end
 
   def populate_stable_id

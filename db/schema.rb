@@ -173,7 +173,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
     t.datetime "created_at", null: false
     t.text "footer"
     t.jsonb "json_body"
-    t.string "kind"
+    t.string "kind", null: false
     t.string "label_direction"
     t.string "label_logo"
     t.boolean "official_layout", default: true, null: false
@@ -182,7 +182,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
     t.text "title"
     t.datetime "updated_at", null: false
     t.integer "version", default: 1, null: false
-    t.index ["procedure_id", "version", "state"], name: "index_attestation_templates_on_procedure_version_state", unique: true
+    t.index ["procedure_id", "version", "state", "kind"], name: "index_attestation_templates_on_procedure_version_state_kind", unique: true
   end
 
   create_table "attestations", id: :serial, force: :cascade do |t|
@@ -991,6 +991,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
   end
 
   create_table "procedure_revisions", force: :cascade do |t|
+    t.bigint "administrateur_id"
     t.datetime "created_at", null: false
     t.bigint "dossier_submitted_message_id"
     t.boolean "ineligibilite_enabled", default: false, null: false
@@ -999,6 +1000,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
     t.bigint "procedure_id", null: false
     t.datetime "published_at"
     t.datetime "updated_at", null: false
+    t.index ["administrateur_id"], name: "index_procedure_revisions_on_administrateur_id"
     t.index ["dossier_submitted_message_id"], name: "index_procedure_revisions_on_dossier_submitted_message_id"
     t.index ["procedure_id"], name: "index_procedure_revisions_on_procedure_id"
   end

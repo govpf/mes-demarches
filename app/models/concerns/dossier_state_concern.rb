@@ -165,7 +165,7 @@ module DossierStateConcern
     end
 
     if attestation.nil?
-      self.attestation = build_attestation
+      self.attestation = build_attestation_acceptation
     end
 
     save!
@@ -189,6 +189,7 @@ module DossierStateConcern
 
     send_dossier_decision_to_experts(self)
     clean_champs_after_instruction!
+    remove_attente_avis_notification
   end
 
   def after_accepter_automatiquement
@@ -205,7 +206,7 @@ module DossierStateConcern
     save!
 
     if attestation.nil?
-      self.attestation = build_attestation
+      self.attestation = build_attestation_acceptation
     end
 
     save!
@@ -243,6 +244,10 @@ module DossierStateConcern
       self.justificatif_motivation.attach(justificatif)
     end
 
+    if attestation.nil?
+      self.attestation = build_attestation_refus
+    end
+
     save!
 
     MailTemplatePresenterService.create_commentaire_for_state(self, Dossier.states.fetch(:refuse))
@@ -264,6 +269,7 @@ module DossierStateConcern
 
     send_dossier_decision_to_experts(self)
     clean_champs_after_instruction!
+    remove_attente_avis_notification
   end
 
   def after_refuser_automatiquement
@@ -277,6 +283,10 @@ module DossierStateConcern
     self.expired_at = expiration_date
 
     save!
+
+    if attestation.nil?
+      self.attestation = build_attestation_refus
+    end
 
     MailTemplatePresenterService.create_commentaire_for_state(self, Dossier.states.fetch(:refuse))
 
@@ -332,6 +342,7 @@ module DossierStateConcern
 
     send_dossier_decision_to_experts(self)
     clean_champs_after_instruction!
+    remove_attente_avis_notification
   end
 
   def after_repasser_en_instruction(h)
@@ -460,5 +471,9 @@ module DossierStateConcern
         end
       end
     end
+  end
+
+  def remove_attente_avis_notification
+    DossierNotification.destroy_notifications_by_dossier_and_type(self, :attente_avis)
   end
 end

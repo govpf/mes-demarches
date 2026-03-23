@@ -876,7 +876,7 @@ describe Dossier, type: :model do
   end
 
   describe "#unspecified_attestation_champs" do
-    let(:procedure) { create(:procedure, attestation_template:, types_de_champ_public:, types_de_champ_private:) }
+    let(:procedure) { create(:procedure, attestation_acceptation_template:, types_de_champ_public:, types_de_champ_private:) }
     let(:dossier) { create(:dossier, :en_instruction, procedure:) }
 
     let(:types_de_champ_public) { [tdc_1, tdc_2, tdc_3, tdc_4] }
@@ -897,10 +897,10 @@ describe Dossier, type: :model do
         .each { |c| c.update_attribute(:value, "specified") }
     end
 
-    subject { dossier.unspecified_attestation_champs.map(&:libelle) }
+    subject { dossier.unspecified_attestation_champs(AttestationTemplate.kinds.fetch(:acceptation)).map(&:libelle) }
 
     context "without attestation template" do
-      let(:attestation_template) { nil }
+      let(:attestation_acceptation_template) { nil }
 
       it { is_expected.to eq([]) }
     end
@@ -913,7 +913,7 @@ describe Dossier, type: :model do
       # - with a dash in the champ libelle / tag
       let(:title) { "voici --specified champ-in-title-- un --unspecified champ-in-title-- beau --specified annotation privée-in-title-- titre --unspecified annotation privée-in-title-- non --numéro du dossier--" }
       let(:body) { "voici --specified champ-in-body-- un --unspecified champ-in-body-- beau --specified annotation privée-in-body-- body --unspecified annotation privée-in-body-- non ?" }
-      let(:attestation_template) { build(:attestation_template, title: title, body: body, activated: activated) }
+      let(:attestation_acceptation_template) { build(:attestation_template, title: title, body: body, activated: activated) }
 
       context "which is disabled" do
         let(:activated) { false }
@@ -946,7 +946,7 @@ describe Dossier, type: :model do
           { "type" => "mention", "attrs" => { "id" => "tdc#{procedure.types_de_champ_for_tags.find { _1.libelle == "unspecified champ-in-body" }.stable_id}", "label" => "unspecified champ-in-body" } }
         ]
       }
-      let(:attestation_template) { build(:attestation_template, :v2) }
+      let(:attestation_acceptation_template) { build(:attestation_template, :v2) }
 
       before do
         tdc_content = (types_de_champ_public + types_de_champ_private).filter_map do |tdc_config|
@@ -958,9 +958,9 @@ describe Dossier, type: :model do
           }
         end
 
-        json_body = attestation_template.json_body["content"]
-        attestation_template.json_body["content"][-1]["content"].concat(tdc_content)
-        attestation_template.save!
+        json_body = attestation_acceptation_template.json_body["content"]
+        attestation_acceptation_template.json_body["content"][-1]["content"].concat(tdc_content)
+        attestation_acceptation_template.save!
       end
 
       it do
@@ -972,12 +972,12 @@ describe Dossier, type: :model do
     end
   end
 
-  describe '#build_attestation' do
-    let(:attestation_template) { nil }
-    let(:procedure) { create(:procedure, attestation_template: attestation_template) }
+  describe '#build_attestation_acceptation' do
+    let(:attestation_acceptation_template) { nil }
+    let(:procedure) { create(:procedure, attestation_acceptation_template:) }
 
     before :each do
-      dossier.attestation = dossier.build_attestation
+      dossier.attestation = dossier.build_attestation_acceptation
       dossier.reload
     end
 
@@ -989,13 +989,13 @@ describe Dossier, type: :model do
       end
 
       context 'when the procedure has an unactivated attestation' do
-        let(:attestation_template) { build(:attestation_template, activated: false) }
+        let(:attestation_acceptation_template) { build(:attestation_template, activated: false) }
 
         it { expect(dossier.attestation).to be_nil }
       end
 
       context 'when the procedure attached has an activated attestation' do
-        let(:attestation_template) { build(:attestation_template, activated: true) }
+        let(:attestation_acceptation_template) { build(:attestation_template, activated: true) }
 
         it { expect(dossier.attestation).not_to be_nil }
       end
@@ -1331,7 +1331,7 @@ describe Dossier, type: :model do
 
     before do
       allow(NotificationMailer).to receive(:send_accepte_notification).and_return(double(deliver_later: true))
-      allow(dossier).to receive(:build_attestation).and_return(attestation)
+      allow(dossier).to receive(:build_attestation_acceptation).and_return(attestation)
 
       travel_to now
       dossier.accepter!(instructeur: instructeur, motivation: 'motivation')
@@ -1364,7 +1364,7 @@ describe Dossier, type: :model do
 
     before do
       allow(NotificationMailer).to receive(:send_accepte_notification).and_return(double(deliver_later: true))
-      allow(dossier).to receive(:build_attestation).and_return(attestation)
+      allow(dossier).to receive(:build_attestation_acceptation).and_return(attestation)
 
       travel_to(now)
     end
@@ -2095,7 +2095,7 @@ describe Dossier, type: :model do
   end
 
   describe '#repasser_en_instruction!' do
-    let(:dossier) { create(:dossier, :refuse, :with_attestation, :with_justificatif, archived: true, termine_close_to_expiration_notice_sent_at: Time.zone.now, sva_svr_decision_on: 1.day.ago) }
+    let(:dossier) { create(:dossier, :refuse, :with_attestation_acceptation, :with_justificatif, archived: true, termine_close_to_expiration_notice_sent_at: Time.zone.now, sva_svr_decision_on: 1.day.ago) }
     let!(:instructeur) { create(:instructeur) }
     let(:last_operation) { dossier.dossier_operation_logs.last }
 
@@ -2384,14 +2384,14 @@ describe Dossier, type: :model do
 
       context "when procedure published" do
         before do
-          procedure.publish!
+          procedure.publish!(procedure.administrateurs.first)
           dossier
           procedure.draft_revision.remove_type_de_champ(text_type_de_champ.stable_id)
           coordinate = procedure.draft_revision.add_type_de_champ(type_champ: TypeDeChamp.type_champs.fetch(:text), libelle: 'New text field', after_stable_id: repetition_type_de_champ.stable_id)
           procedure.draft_revision.find_and_ensure_exclusive_use(yes_no_type_de_champ.stable_id).update(libelle: 'Updated yes/no')
           procedure.draft_revision.find_and_ensure_exclusive_use(commune_type_de_champ.stable_id).update(libelle: 'Commune de naissance')
           procedure.draft_revision.find_and_ensure_exclusive_use(repetition_type_de_champ.stable_id).update(libelle: 'Repetition')
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
           dossier.reload
           procedure.reload
         end
@@ -2932,13 +2932,13 @@ describe Dossier, type: :model do
 
   def create_dossier_for_month(procedure, year, month)
     travel_to(Time.zone.local(year, month, 5)) do
-      create(:dossier, :accepte, :with_attestation, procedure: procedure)
+      create(:dossier, :accepte, :with_attestation_acceptation, procedure: procedure)
     end
   end
 
   def create_archived_dossier_for_month(procedure, year, month)
     travel_to(Time.zone.local(year, month, 5)) do
-      create(:dossier, :accepte, :archived, :with_attestation, procedure: procedure)
+      create(:dossier, :accepte, :archived, :with_attestation_acceptation, procedure: procedure)
     end
   end
 end
