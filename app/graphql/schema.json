@@ -23363,7 +23363,7 @@
             },
             {
               "name": "referentiel",
-              "description": "Référentiel à configurer (avancé)",
+              "description": "Référentiel configurable (avancé)",
               "isDeprecated": false,
               "deprecationReason": null
             },

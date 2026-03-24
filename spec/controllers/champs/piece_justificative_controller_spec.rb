@@ -154,8 +154,13 @@ describe Champs::PieceJustificativeController, type: :controller do
       }.compact, format: :turbo_stream
     end
 
-    context 'when the file is valid' do
+    context 'when the file is valid and then champ use external_data' do
       let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
+
+      before do
+        allow_any_instance_of(Champs::PieceJustificativeChamp).to receive(:uses_external_data?).and_return(true)
+        expect_any_instance_of(Champs::PieceJustificativeChamp).to receive(:fetch_later!)
+      end
 
       it 'attach the file' do
         subject
@@ -175,6 +180,7 @@ describe Champs::PieceJustificativeController, type: :controller do
       end
 
       it 'does not create a champ_revision' do
+        subject
         expect(ChampRevision.where(champ_id: champ.id).first).to eq(nil)
       end
 
