@@ -371,8 +371,10 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
   end
 
   describe '#focusable_input_id' do
-    it 'returns html_id without suffix' do
-      expect(champ.focusable_input_id).to eq(champ.html_id)
+    it 'returns an id with suffix to avoid collision with input_group_id' do
+      expect(champ.focusable_input_id).to include(champ.html_id)
+      expect(champ.focusable_input_id).not_to eq(champ.html_id)
+      expect(champ.focusable_input_id).not_to eq(champ.input_group_id)
     end
   end
 

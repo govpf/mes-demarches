@@ -37,6 +37,20 @@ RSpec.describe AdministrationMailer, type: :mailer do
       expect(subject.to).to eq([EQUIPE_EMAIL])
       expect(subject[BalancerDeliveryMethod::BYPASS_UNVERIFIED_MAIL_PROTECTION]).to be_present
     end
+
+    context 'with types de champ including repetition' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :text, libelle: 'Nom' },
+          { type: :repetition, libelle: 'Répétition', children: [{ type: :text, libelle: 'Champ enfant' }] }
+        ])
+      end
+
+      it 'renders the email body without error' do
+        expect(subject.body.encoded).to include('Nom')
+        expect(subject.body.encoded).to include('Répétition')
+      end
+    end
   end
 
   describe '#refuse_admin' do

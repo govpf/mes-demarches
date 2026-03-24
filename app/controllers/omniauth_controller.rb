@@ -106,7 +106,7 @@ class OmniauthController < ApplicationController
       @fci.create_email_merge_token!
       provider = provider_param
 
-      UserMailer.omniauth_merge_confirmation(@fci.email_france_connect, @fci.requested_email, @fci.email_merge_token, provider)
+      UserMailer.omniauth_merge_confirmation(@fci.email_france_connect, @fci.email_merge_token, @fci.email_merge_token_created_at, provider)
         .deliver_later
 
       redirect_to root_path, notice: t('omniauth.flash.confirmation_mail_sent')

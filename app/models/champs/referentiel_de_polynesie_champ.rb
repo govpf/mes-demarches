@@ -99,10 +99,9 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     normalized_data&.dig(path.to_s)
   end
 
-  # pf: pour les ancres d'erreur (#11420), le React ComboBox utilise html_id sans suffixe -input
-  def focusable_input_id(attribute = :value)
-    type_de_champ.referentiel&.exact_match? ? super : html_id
-  end
+  # pf: focusable_input_id n'est plus surchargé — on utilise le comportement par défaut
+  # (html_id + suffixe) pour éviter une collision d'ID avec input_group_id (html_id nu)
+  # qui causait un crash coldwired "Cannot apply actions inside fragment" lors du turbo replace.
 
   private
 
