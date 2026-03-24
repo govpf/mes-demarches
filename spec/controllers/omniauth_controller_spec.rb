@@ -332,6 +332,11 @@ describe OmniauthController, type: :controller do
       let!(:user) { create(:user, email: email) }
 
       it 'sends email confirmation and redirects to root' do
+        mailer_double = double('mailer', deliver_later: nil)
+        expect(UserMailer).to receive(:omniauth_merge_confirmation)
+          .with(fci.email_france_connect, kind_of(String), kind_of(Time), provider)
+          .and_return(mailer_double)
+
         subject
         fci.reload
 
