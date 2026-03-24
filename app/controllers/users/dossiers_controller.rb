@@ -129,7 +129,7 @@ module Users
 
     def qrcode
       if dossier&.match_encoded_date?(:created_at, params[:created_at]) && dossier&.attestation&.pdf&.attached?
-        attestation_template = dossier.attestation_template
+        attestation_template = dossier.attestation_acceptation_template
         if attestation_template&.activated
           @attestation = attestation_template.render_attributes_for(dossier: dossier)
           render 'qrcode'

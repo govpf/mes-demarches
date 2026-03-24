@@ -125,6 +125,7 @@ module Administrateurs
 
       v2_template = @procedure.attestation_templates.build(
         version: 2,
+        kind: v1_template.kind,
         json_body: tiptap_content.deep_stringify_keys,
         activated: v1_template.activated,
         footer: v1_template.footer,

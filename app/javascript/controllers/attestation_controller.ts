@@ -27,9 +27,10 @@ export class AttestationController extends ApplicationController {
     });
 
     this.on('turbo:submit-end', () => {
-      // Force iframe reload with cache busting parameter
-      const baseUrl = this.previewTarget.src.split('?')[0];
-      this.previewTarget.src = `${baseUrl}?t=${Date.now()}`;
+      // pf: force iframe reload with cache busting parameter
+      const url = new URL(this.previewTarget.src);
+      url.searchParams.set('t', Date.now().toString());
+      this.previewTarget.src = url.toString();
     });
   }
 

@@ -160,25 +160,6 @@
       "note": ""
     },
     {
-      "warning_type": "Unmaintained Dependency",
-      "warning_code": 122,
-      "fingerprint": "98b26f60d776fd41ee6f088c833725145be9aac2d7c5b33780241c273622db42",
-      "check_name": "EOLRails",
-      "message": "Support for Rails 7.1.5.2 ends on 2025-10-01",
-      "file": "Gemfile.lock",
-      "line": 642,
-      "link": "https://brakemanscanner.org/docs/warning_types/unmaintained_dependency/",
-      "code": null,
-      "render_path": null,
-      "location": null,
-      "user_input": null,
-      "confidence": "Medium",
-      "cwe_id": [
-        1104
-      ],
-      "note": ""
-    },
-    {
       "warning_type": "Cross-Site Scripting",
       "warning_code": 2,
       "fingerprint": "a7d18cc3434b4428a884f1217791f9a9db67839e73fb499f1ccd0f686f08eccc",
@@ -348,25 +329,6 @@
       "note": "The table and column are escaped, which should make this safe"
     },
     {
-      "warning_type": "Unmaintained Dependency",
-      "warning_code": 120,
-      "fingerprint": "d84924377155b41e094acae7404ec2e521629d86f97b0ff628e3d1b263f8101c",
-      "check_name": "EOLRails",
-      "message": "Support for Rails 7.0.8.7 ended on 2025-04-01",
-      "file": "Gemfile.lock",
-      "line": 590,
-      "link": "https://brakemanscanner.org/docs/warning_types/unmaintained_dependency/",
-      "code": null,
-      "render_path": null,
-      "location": null,
-      "user_input": null,
-      "confidence": "High",
-      "cwe_id": [
-        1104
-      ],
-      "note": "Rails 7.0.x EOL - acceptable for PF fork maintenance strategy"
-    },
-    {
       "warning_type": "Cross-Site Scripting",
       "warning_code": 2,
       "fingerprint": "1c3026ab97d6eefc30de3360f962ad7d5519f6597419b00916c57f90a23e1d85",
@@ -400,6 +362,27 @@
       "location": {
         "type": "template",
         "template": "administrateurs/attestation_template_v2s/_form"
+      },
+      "user_input": "params[:attestation_kind]",
+      "confidence": "Weak",
+      "cwe_id": [
+        79
+      ],
+      "note": ""
+    },
+    {
+      "warning_type": "Cross-Site Scripting",
+      "warning_code": 2,
+      "fingerprint": "31e3d371d5c547feb65d7d1bf3edd0204827dbc074b0e9e084e82b6efd499196",
+      "check_name": "CrossSiteScripting",
+      "message": "Unescaped parameter value",
+      "file": "app/views/administrateurs/attestation_template_v2s/show.html.haml",
+      "line": 29,
+      "link": "https://brakemanscanner.org/docs/warning_types/cross_site_scripting",
+      "code": "(@procedure.attestation_templates_for(params[:attestation_kind]).find(&:draft?) or (@procedure.attestation_templates_for(params[:attestation_kind]).find(&:published?) or build_default_attestation(params[:attestation_kind]))).generate_qrcode_svg(admin_procedure_attestation_template_v2_path(@procedure, :format => :pdf))",
+      "location": {
+        "type": "template",
+        "template": "administrateurs/attestation_template_v2s/show"
       },
       "user_input": "params[:attestation_kind]",
       "confidence": "Weak",

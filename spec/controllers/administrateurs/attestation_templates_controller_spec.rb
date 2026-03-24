@@ -268,17 +268,19 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
 
   describe 'POST #migrate' do
     context 'Migration v1 vers v2' do
+      let(:procedure) { create(:procedure, administrateur: admin) }
       let(:v1_attestation) do
         create(:attestation_template,
+          procedure: procedure,
           version: 1,
           title: 'Titre avec <b>gras</b> et <i>italique</i>',
           body: 'Corps avec <u>souligné</u> et <strong>strong</strong>',
           footer: 'Pied de page standard',
           activated: true)
       end
-      let(:procedure) { create(:procedure, administrateur: admin, attestation_template: v1_attestation) }
 
       before do
+        v1_attestation
         Flipper.enable(:attestation_v2)
       end
 
@@ -319,6 +321,7 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       context 'avec attachments' do
         let(:v1_attestation) do
           create(:attestation_template,
+            procedure: procedure,
             version: 1,
             title: 'Titre simple',
             body: 'Corps simple',
@@ -441,7 +444,7 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       end
 
       context 'procédure publiée' do
-        let(:procedure) { create(:procedure, :published, administrateur: admin, attestation_template: v1_attestation) }
+        let(:procedure) { create(:procedure, :published, administrateur: admin) }
 
         it 'crée un template draft en v2' do
           post :migrate, params: { procedure_id: procedure.id }
@@ -453,7 +456,7 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       end
 
       context 'procédure brouillon' do
-        let(:procedure) { create(:procedure, :draft, administrateur: admin, attestation_template: v1_attestation) }
+        let(:procedure) { create(:procedure, :draft, administrateur: admin) }
 
         it 'crée un template draft en v2' do
           post :migrate, params: { procedure_id: procedure.id }

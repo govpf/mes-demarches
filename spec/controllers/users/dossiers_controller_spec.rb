@@ -161,7 +161,7 @@ describe Users::DossiersController, type: :controller do
 
     context 'when the procedure has an attestation template' do
       let(:another_user) { create(:user) }
-      let!(:dossier) { create(:dossier, :with_attestation, user: user) }
+      let!(:dossier) { create(:dossier, :with_attestation_acceptation, user: user) }
 
       context 'when another user is connected' do
         before { sign_in(another_user) }
@@ -176,14 +176,14 @@ describe Users::DossiersController, type: :controller do
 
     context 'when the procedure no longer has an attestation template' do
       let(:another_user) { create(:user) }
-      let!(:dossier) { create(:dossier, :with_attestation, user: user) }
+      let!(:dossier) { create(:dossier, :with_attestation_acceptation, user: user) }
 
       context 'when another user is connected' do
         before { sign_in(another_user) }
         after { sign_in(user) }
 
         it 'returns error' do
-          attestation_template = dossier.attestation_template
+          attestation_template = dossier.attestation_acceptation_template
           attestation_template.activated = false
           attestation_template.save
 
@@ -195,7 +195,7 @@ describe Users::DossiersController, type: :controller do
 
     context 'when the dossier is no longer accepted' do
       let(:another_user) { create(:user) }
-      let!(:dossier) { create(:dossier, :with_attestation, :followed, :accepte, user: user) }
+      let!(:dossier) { create(:dossier, :with_attestation_acceptation, :followed, :accepte, user: user) }
       before { sign_in(user) }
 
       it 'display error message' do
