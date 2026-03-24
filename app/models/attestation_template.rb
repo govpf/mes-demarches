@@ -397,6 +397,7 @@ class AttestationTemplate < ApplicationRecord
 
     v2_template = procedure.attestation_templates.build(
       version: 2,
+      kind: v1_template.kind,
       tiptap_body: convert_v1_content_to_tiptap(v1_template, procedure).to_json,
       footer: v1_template.footer,
       activated: v1_template.activated,

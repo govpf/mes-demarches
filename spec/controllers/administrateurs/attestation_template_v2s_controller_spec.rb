@@ -474,7 +474,7 @@ describe Administrateurs::AttestationTemplateV2sController, type: :controller do
       end
 
       it 'permet le retour en arrière vers v1' do
-        get :edit, params: { procedure_id: procedure.id }
+        get :edit, params: { procedure_id: procedure.id, attestation_kind: :acceptation }
 
         # Test que le rendu fonctionne (le contenu sera testé dans les tests système)
         expect(response).to have_http_status(:success)
@@ -524,7 +524,7 @@ describe Administrateurs::AttestationTemplateV2sController, type: :controller do
       end
 
       it 'affiche l\'interface de retour arrière en v2' do
-        get :edit, params: { procedure_id: procedure.id }
+        get :edit, params: { procedure_id: procedure.id, attestation_kind: :acceptation }
 
         # Test que le rendu fonctionne après migration
         expect(response).to have_http_status(:success)
@@ -539,7 +539,7 @@ describe Administrateurs::AttestationTemplateV2sController, type: :controller do
       before { v2_template }
 
       it 'n\'affiche pas l\'option de retour arrière' do
-        get :edit, params: { procedure_id: procedure.id }
+        get :edit, params: { procedure_id: procedure.id, attestation_kind: :acceptation }
 
         # Pas d'encart de retour car pas d'attestation v1
         expect(response.body).not_to include('Pour modifier l\'attestation existante')

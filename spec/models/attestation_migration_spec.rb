@@ -145,19 +145,19 @@ describe 'Migration Attestations v1→v2', type: :model do
 
         # Cas 1: Sans attestation, avec feature v2 → v2
         procedure_empty = create(:procedure)
-        expect(procedure_empty.attestation_template).to be_nil
+        expect(procedure_empty.attestation_templates).to be_empty
         # Attendu: edit_admin_procedure_attestation_template_v2_path
 
         # Cas 2: Avec attestation v1 → v1
         procedure_v1 = create(:procedure)
         v1_template = create(:attestation_template, version: 1, procedure: procedure_v1)
-        expect(procedure_v1.attestation_template.version).to eq(1)
+        expect(procedure_v1.attestation_template_v1.version).to eq(1)
         # Attendu: edit_admin_procedure_attestation_template_path
 
         # Cas 3: Avec attestation v2 → v2
         procedure_v2 = create(:procedure)
         v2_template = create(:attestation_template, :v2, procedure: procedure_v2)
-        expect(procedure_v2.attestation_template.version).to eq(2)
+        expect(procedure_v2.attestation_templates.first.version).to eq(2)
         # Attendu: edit_admin_procedure_attestation_template_v2_path
       end
 
