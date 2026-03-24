@@ -438,7 +438,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'accredited_users' => ['user1@example.com', 'user2@example.com'], 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the accredited_users' do
@@ -451,7 +451,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'parcelles' => '1', 'batiments' => '0', 'zones_manuelles' => '1', 'te_fenua_layer' => '1', 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the parcelles, batiments, zones_manuelles and te_fenua_layer' do
@@ -464,7 +464,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'lexpol_modele' => 'modele_1', 'lexpol_mapping' => { 'field1' => 'value1' }, 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the lexpol_modele and lexpol_mapping' do
