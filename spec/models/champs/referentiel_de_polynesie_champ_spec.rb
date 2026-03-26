@@ -416,10 +416,11 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
 
     it 'pré-remplit le champ texte quand le job ChampFetchExternalDataJob est exécuté' do
       referentiel_champ.update!(external_id: '24:123', value: 'Papeete - Tahiti')
+      referentiel_champ.update_column(:external_state, 'waiting_for_job') # pf: upstream exige waiting_for_job avant fetch
 
       expect(text_champ.reload.value).to be_nil
 
-      ChampFetchExternalDataJob.perform_now(referentiel_champ, '24:123')
+      ChampFetchExternalDataJob.perform_now(referentiel_champ.reload, '24:123')
 
       expect(text_champ.reload.value).to eq('98714')
       expect(text_champ.prefilled).to be true
@@ -427,8 +428,9 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
 
     it 'conserve le label dans value après le fetch' do
       referentiel_champ.update!(external_id: '24:123', value: 'Papeete - Tahiti')
+      referentiel_champ.update_column(:external_state, 'waiting_for_job') # pf: upstream exige waiting_for_job avant fetch
 
-      ChampFetchExternalDataJob.perform_now(referentiel_champ, '24:123')
+      ChampFetchExternalDataJob.perform_now(referentiel_champ.reload, '24:123')
 
       # pf: value doit conserver le label (pas être remplacé par external_id comme upstream)
       expect(referentiel_champ.reload.value).to eq('Papeete - Tahiti')
@@ -437,8 +439,9 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
 
     it 'stocke les données brutes de l\'API en format plat dans data' do
       referentiel_champ.update!(external_id: '24:123', value: 'Papeete - Tahiti')
+      referentiel_champ.update_column(:external_state, 'waiting_for_job') # pf: upstream exige waiting_for_job avant fetch
 
-      ChampFetchExternalDataJob.perform_now(referentiel_champ, '24:123')
+      ChampFetchExternalDataJob.perform_now(referentiel_champ.reload, '24:123')
 
       expect(referentiel_champ.reload.data).to include('Nom' => 'Papeete', 'Code' => '98714')
     end
@@ -461,8 +464,9 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
 
       it 'calcule value_json via cast_displayable_values' do
         referentiel_champ.update!(external_id: '24:123', value: 'Papeete - Tahiti')
+        referentiel_champ.update_column(:external_state, 'waiting_for_job') # pf: upstream exige waiting_for_job avant fetch
 
-        ChampFetchExternalDataJob.perform_now(referentiel_champ, '24:123')
+        ChampFetchExternalDataJob.perform_now(referentiel_champ.reload, '24:123')
 
         expect(referentiel_champ.reload.value_json).to be_present
         expect(referentiel_champ.value_json['$.Nom']).to eq('Papeete')
@@ -509,8 +513,9 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
 
       it 'pré-remplit plusieurs champs en une seule opération' do
         referentiel_champ.update!(external_id: '24:123', value: 'Papeete - Tahiti')
+        referentiel_champ.update_column(:external_state, 'waiting_for_job') # pf: upstream exige waiting_for_job avant fetch
 
-        ChampFetchExternalDataJob.perform_now(referentiel_champ, '24:123')
+        ChampFetchExternalDataJob.perform_now(referentiel_champ.reload, '24:123')
 
         expect(text_champ.reload.value).to eq('98714')
         expect(second_text_champ.reload.value).to eq('Papeete')
