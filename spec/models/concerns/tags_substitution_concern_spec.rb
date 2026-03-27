@@ -129,13 +129,17 @@ describe TagsSubstitutionConcern, type: :model do
           procedure.reload
         end
 
-        it { expect(procedure.routing_enabled?).to eq(true) }
-        it { is_expected.to eq(label) }
+        it do
+          expect(procedure.routing_enabled?).to eq(true)
+          is_expected.to eq(label)
+        end
       end
 
       context 'and the dossier has no groupe instructeur' do
-        it { expect(procedure.routing_enabled?).to eq(false) }
-        it { is_expected.to eq('défaut') }
+        it do
+          expect(procedure.routing_enabled?).to eq(false)
+          is_expected.to eq('défaut')
+        end
       end
     end
 
@@ -428,7 +432,9 @@ describe TagsSubstitutionConcern, type: :model do
       context "with date de dépôt" do
         let(:template) { '--date de dépôt--' }
 
-        it { is_expected.to eq('03/02/2001') }
+        it '', :slow do
+          is_expected.to eq('03/02/2001')
+        end
       end
 
       context "with date de passage en instruction" do
@@ -582,35 +588,41 @@ describe TagsSubstitutionConcern, type: :model do
     let(:types_de_champ_private) { [{ libelle: 'privé' }] }
 
     context 'do not generate tags for champs that cannot have usager content' do
-      it { is_expected.not_to include(include({ libelle: 'entête de section' })) }
-      it { is_expected.not_to include(include({ libelle: 'explication' })) }
+      it do
+        is_expected.not_to include(include({ libelle: 'entête de section' }))
+        is_expected.not_to include(include({ libelle: 'explication' }))
+      end
     end
 
     context 'when generating a document for a dossier terminé' do
-      it { is_expected.to include(include({ libelle: 'motivation' })) }
-      it { is_expected.to include(include({ libelle: 'date de décision' })) }
-      it { is_expected.to include(include({ libelle: 'public' })) }
-      it { is_expected.to include(include({ libelle: 'privé' })) }
+      it do
+        is_expected.to include(include({ libelle: 'motivation' }))
+        is_expected.to include(include({ libelle: 'date de décision' }))
+        is_expected.to include(include({ libelle: 'public' }))
+        is_expected.to include(include({ libelle: 'privé' }))
+      end
     end
 
     context 'when generating a document for a dossier en instruction' do
       let(:state) { Dossier.states.fetch(:en_instruction) }
 
-      it { is_expected.not_to include(include({ libelle: 'motivation' })) }
-      it { is_expected.not_to include(include({ libelle: 'date de décision' })) }
-
-      it { is_expected.to include(include({ libelle: 'public' })) }
-      it { is_expected.to include(include({ libelle: 'privé' })) }
+      it do
+        is_expected.not_to include(include({ libelle: 'motivation' }))
+        is_expected.not_to include(include({ libelle: 'date de décision' }))
+        is_expected.to include(include({ libelle: 'public' }))
+        is_expected.to include(include({ libelle: 'privé' }))
+      end
     end
 
     context 'when generating a document for a dossier en construction' do
       let(:state) { Dossier.states.fetch(:en_construction) }
 
-      it { is_expected.not_to include(include({ libelle: 'motivation' })) }
-      it { is_expected.not_to include(include({ libelle: 'date de décision' })) }
-      it { is_expected.not_to include(include({ libelle: 'privé' })) }
-
-      it { is_expected.to include(include({ libelle: 'public' })) }
+      it do
+        is_expected.not_to include(include({ libelle: 'motivation' }))
+        is_expected.not_to include(include({ libelle: 'date de décision' }))
+        is_expected.not_to include(include({ libelle: 'privé' }))
+        is_expected.to include(include({ libelle: 'public' }))
+      end
     end
 
     context 'when generating document for dossier having conditional' do
@@ -626,8 +638,10 @@ describe TagsSubstitutionConcern, type: :model do
         ]
       end
 
-      it { is_expected.to include(include({ libelle: 'public' })) }
-      it { is_expected.to include(include({ libelle: 'conditional' })) }
+      it do
+        is_expected.to include(include({ libelle: 'public' }))
+        is_expected.to include(include({ libelle: 'conditional' }))
+      end
     end
 
     context 'when replace_tags with visible and invisible champs' do

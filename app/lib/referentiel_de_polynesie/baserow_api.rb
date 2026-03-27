@@ -4,8 +4,6 @@ class ReferentielDePolynesie::BaserowAPI
   TIMEOUT = 10 # pf: timeout en secondes pour les appels Baserow
 
   class << self
-    def secrets = Rails.application.secrets.baserow
-
     def search(domain_id, term, drop_down_other: false)
       config = config(domain_id)
       search_field = config['Champ de recherche']
@@ -22,7 +20,7 @@ class ReferentielDePolynesie::BaserowAPI
     end
 
     def available_tables
-      response = Typhoeus.get(rows_url(secrets[:config_table]), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
+      response = Typhoeus.get(rows_url(ENV['API_BASEROW_CONFIG_TABLE']), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
       if response.success?
         JSON.parse(response.body, symbolize_names: true)[:results]&.filter { _1[:Actif] }&.map do
           { name: _1[:Nom], id: _1[:id] }
@@ -101,7 +99,7 @@ class ReferentielDePolynesie::BaserowAPI
     end
 
     def config(row_id)
-      response = Typhoeus.get(row_url(secrets[:config_table], row_id), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
+      response = Typhoeus.get(row_url(ENV['API_BASEROW_CONFIG_TABLE'], row_id), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
       response.success? ? JSON.parse(response.body) : nil
     end
 
@@ -127,13 +125,13 @@ class ReferentielDePolynesie::BaserowAPI
       end
     end
 
-    def rows_url(table_id) = "#{secrets[:url]}/api/database/rows/table/#{table_id}/"
+    def rows_url(table_id) = "#{ENV['API_BASEROW_URL']}/api/database/rows/table/#{table_id}/"
 
     def row_url(table_id, row_id) = "#{rows_url(table_id)}#{row_id}/"
 
-    def list_database_table_fields(table_id) = "#{secrets[:url]}/api/database/fields/table/#{table_id}/"
+    def list_database_table_fields(table_id) = "#{ENV['API_BASEROW_URL']}/api/database/fields/table/#{table_id}/"
 
-    def config_database_headers = database_headers(secrets[:token])
+    def config_database_headers = database_headers(ENV['API_BASEROW_TOKEN'])
 
     def database_headers(token) = { 'Authorization' => "Token #{token}" }
 

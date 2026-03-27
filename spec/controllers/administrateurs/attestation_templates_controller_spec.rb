@@ -79,8 +79,10 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
     before { get :edit, params: { procedure_id: procedure.id } }
 
     context 'if an attestation template exists on the procedure' do
-      it { expect(subject.status).to eq(200) }
-      it { expect(assigns(:attestation_template)).to eq(attestation_template) }
+      it do
+        expect(subject.status).to eq(200)
+        expect(assigns(:attestation_template)).to eq(attestation_template)
+      end
     end
 
     context 'if an attestation template does not exist on the procedure' do
@@ -96,7 +98,7 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
 
   describe 'POST #create' do
     let(:attestation_template) { nil }
-    let(:attestation_params) { { title: 't', body: 'b', footer: 'f', activated: true } }
+    let(:attestation_params) { { title: 't', body: 'b', footer: 'f', activated: true, kind: 'acceptation' } }
 
     context 'nominal' do
       before do
@@ -112,6 +114,7 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
         expect(procedure.attestation_template.activated).to be true
         expect(procedure.attestation_template.logo.download).to eq(logo2.read)
         expect(procedure.attestation_template.signature.download).to eq(signature2.read)
+        expect(procedure.attestation_template.kind).to eq('acceptation')
         expect(response).to redirect_to edit_admin_procedure_attestation_template_path(procedure)
         expect(flash.notice).to eq("Le modèle de l’attestation a bien été enregistré")
       end

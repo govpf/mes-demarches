@@ -5,6 +5,7 @@ describe Champs::DecimalNumberChamp do
   let(:max_number) { nil }
   let(:range_number) { nil }
   let(:type_de_champ) { create(:type_de_champ, min_number:, max_number:, range_number:) }
+  let(:value) { nil }
 
   let(:champ) { build(:champ_decimal_number, value:, type_de_champ:) }
   subject { champ.validate(:champs_public_value) }
@@ -23,16 +24,14 @@ describe Champs::DecimalNumberChamp do
     end
     subject { champ.validate(:champs_public_value) }
 
-    context 'when the value is integer number' do
-      let(:value) { 2 }
+    context 'when the value is a valid number' do
+      it 'validates integer and decimal numbers' do
+        champ.value = 2
+        expect(champ.validate(:champs_public_value)).to be_truthy
 
-      it { is_expected.to be_truthy }
-    end
-
-    context 'when the value is decimal number' do
-      let(:value) { 2.6 }
-
-      it { is_expected.to be_truthy }
+        champ.value = 2.6
+        expect(champ.validate(:champs_public_value)).to be_truthy
+      end
     end
 
     context 'when the value is not a number' do
@@ -60,16 +59,14 @@ describe Champs::DecimalNumberChamp do
       end
     end
 
-    context 'when the value is blank' do
-      let(:value) { '' }
+    context 'when the value is blank or nil' do
+      it 'validates empty values' do
+        champ.value = ''
+        expect(champ.validate(:champs_public_value)).to be_truthy
 
-      it { is_expected.to be_truthy }
-    end
-
-    context 'when the value is nil' do
-      let(:value) { nil }
-
-      it { is_expected.to be_truthy }
+        champ.value = nil
+        expect(champ.validate(:champs_public_value)).to be_truthy
+      end
     end
 
     context 'when the value is negative' do

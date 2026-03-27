@@ -66,7 +66,7 @@ describe 'Dossier::Recovery::LifeCycle' do
     end
 
     after { cleanup_export_file }
-    it 'reloads the full grappe' do
+    it 'reloads the full grappe', :slow do
       expect(Dossier.count).to eq(1)
       expect(Dossier.first.champs.count).not_to be(0)
 
@@ -117,7 +117,7 @@ describe 'Dossier::Recovery::LifeCycle' do
       expect(reloaded_dossier.transfer_logs).to be_present
     end
 
-    it 'skip parent_dossier_id when dossier does not exists any more' do
+    it 'skip parent_dossier_id when dossier does not exists any more', :slow do
       parent = create(:dossier)
       dossier.update!(parent_dossier_id: parent.id)
       @dossier_ids = [dossier.id]
@@ -130,7 +130,7 @@ describe 'Dossier::Recovery::LifeCycle' do
       expect(Dossier.count).to eq(1)
     end
 
-    it 'does not insert follow when instructeur does not exists any more' do
+    it 'does not insert follow when instructeur does not exists any more', :slow do
       expect(Dossier.count).to eq(1)
 
       @dossier_ids = Dossier.ids

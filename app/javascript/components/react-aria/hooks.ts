@@ -16,10 +16,8 @@ import { Item } from './props';
 
 export type Loader = AsyncListOptions<Item, string>['load'];
 
-export interface ComboBoxProps extends Omit<
-  AriaComboBoxProps<Item>,
-  'children'
-> {
+export interface ComboBoxProps
+  extends Omit<AriaComboBoxProps<Item>, 'children'> {
   children: React.ReactNode | ((item: Item) => React.ReactNode);
   label?: string;
   description?: string;

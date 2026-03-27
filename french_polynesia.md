@@ -150,7 +150,7 @@ Le référentiel Baserow est spécifique à la Polynésie française. Il s'intè
 ### Architecture
 
 - **Stockage** : L'ID de table Baserow est stocké dans la colonne `url` au format `baserow://TABLE_ID`
-- **Configuration externe** : Les champs accessibles (usager / instructeur) sont définis dans la config BaserowAPI (`config/secrets.yml` → `baserow`), pas dans le modèle
+- **Configuration externe** : Les champs accessibles (usager / instructeur) sont définis via les variables d'environnement `API_BASEROW_URL`, `API_BASEROW_TOKEN`, `API_BASEROW_CONFIG_TABLE` (lues directement dans `ReferentielDePolynesie::BaserowAPI`), pas dans le modèle
 - **Recherche autocomplete** : Gérée par le contrôleur PF spécifique `data_sources/referentiel_de_polynesie_controller` via `data_sources_rdp_search_path`, **pas** par le flow upstream `DataSources::ReferentielController`
 
 ### Divergence avec le flow upstream `AutocompleteConfigurationComponent`

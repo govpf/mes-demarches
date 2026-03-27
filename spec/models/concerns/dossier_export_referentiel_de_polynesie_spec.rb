@@ -23,9 +23,10 @@ describe DossierExportConcern do
     describe '#champ_values_for_export' do
       let(:export_values) { dossier.champ_values_for_export([type_de_champ], format: :csv) }
 
-      it { expect(export_values.size).to eq(4) }
-
-      it { expect(export_values.first).to eq(['Commune', 'Papeete']) }
+      it do
+        expect(export_values.size).to eq(4)
+        expect(export_values.first).to eq(['Commune', 'Papeete'])
+      end
 
       it 'exports custom columns with labels and values' do
         values = export_values.to_h
