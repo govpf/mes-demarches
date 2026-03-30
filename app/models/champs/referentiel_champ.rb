@@ -58,15 +58,24 @@ class Champs::ReferentielChamp < Champ
 
   def prefillable_champs
     elligible_stable_ids = prefillable_stable_ids
-    if public?
-      dossier.project_champs_public
+    my_parent = dossier.revision.parent_of(type_de_champ)
+
+    # pf: si le referentiel est dans une répétition, retourner les siblings de la même row
+    if my_parent.present? && row_id.present?
+      dossier.project_rows_for(my_parent).flatten.filter do |champ|
+        champ.row_id == row_id && champ.stable_id.in?(elligible_stable_ids)
+      end
     else
-      dossier.project_champs_private
-    end.filter do |champ|
-      if champ.repetition?
-        dossier.revision.children_of(champ.type_de_champ).any? { _1.stable_id.in?(elligible_stable_ids) }
+      if public?
+        dossier.project_champs_public
       else
-        champ.stable_id.in?(elligible_stable_ids)
+        dossier.project_champs_private
+      end.filter do |champ|
+        if champ.repetition?
+          dossier.revision.children_of(champ.type_de_champ).any? { _1.stable_id.in?(elligible_stable_ids) }
+        else
+          champ.stable_id.in?(elligible_stable_ids)
+        end
       end
     end
   end
@@ -159,7 +168,10 @@ class Champs::ReferentielChamp < Champ
       end.group_by do |_, type_de_champ|
         dossier.revision.parent_of(type_de_champ)
       end.each do |repetition_type_de_champ, mappings|
-        if repetition_type_de_champ.present?
+        if repetition_type_de_champ.present? && repetition_type_de_champ == dossier.revision.parent_of(type_de_champ)
+          # pf: le referentiel est lui-même enfant de cette répétition — on met à jour les siblings dans la même row
+          update_sibling_prefillable_champs(data, mappings)
+        elsif repetition_type_de_champ.present?
           update_repetition_prefillable_champs(data, repetition_type_de_champ, mappings)
         else
           update_simple_prefillable_champs(data, mappings)
@@ -207,6 +219,14 @@ class Champs::ReferentielChamp < Champ
     mappings.each do |jsonpath, type_de_champ|
       raw_value = JsonPath.on(data.is_a?(Hash) ? data.with_indifferent_access : data, jsonpath).first
       update_prefillable_champ(type_de_champ:, raw_value:)
+    end
+  end
+
+  # pf: met à jour les champs siblings dans la même row de répétition que le referentiel courant
+  def update_sibling_prefillable_champs(data, mappings)
+    mappings.each do |jsonpath, type_de_champ|
+      raw_value = JsonPath.on(data.is_a?(Hash) ? data.with_indifferent_access : data, jsonpath).first
+      update_prefillable_champ(type_de_champ:, raw_value:, row_id:)
     end
   end
 
