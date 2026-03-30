@@ -16,7 +16,7 @@ describe "Dossier en_construction", js: true do
     visit_dossier(dossier)
 
     expect(page).not_to have_button("Remplacer")
-    click_on "Supprimer le fichier toto.txt"
+    find("button", text: "Supprimer le fichier toto.txt").click
 
     wait_until { user_buffer_champ.blank? }
     # pf #163: message flash supprimé pour éviter le scroll
@@ -28,7 +28,7 @@ describe "Dossier en_construction", js: true do
     scenario 'remplace a mandatory piece justificative' do
       visit_dossier(dossier)
 
-      click_on "Supprimer le fichier toto.txt"
+      find("button", text: "Supprimer le fichier toto.txt").click
       # pf #163: message flash supprimé pour éviter le scroll
 
       input_selector = "#attachment-multiple-empty-#{champ.public_id}"
@@ -46,7 +46,8 @@ describe "Dossier en_construction", js: true do
     scenario 'remplace a mandatory titre identite' do
       visit_dossier(dossier)
 
-      click_on "Supprimer le fichier toto.png"
+      expect(page).to have_button("Supprimer le fichier toto.png")
+      find("button", text: "Supprimer le fichier toto.png").click
       # pf #163: message flash supprimé pour éviter le scroll
 
       input_selector = "##{champ.focusable_input_id}"
