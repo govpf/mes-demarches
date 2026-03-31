@@ -4,10 +4,6 @@ class APIGeo::API
   TIMEOUT = 15
   CACHE_DURATION = 1.day
 
-  def self.pays
-    parse(File.read('app/lib/api_geo/pays.json'))
-  end
-
   def self.nationalites
     parse(File.read('app/lib/api_geo/nationalites.json'))
   end
