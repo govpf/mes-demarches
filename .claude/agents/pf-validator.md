@@ -63,6 +63,47 @@ bun install --frozen-lockfile
 **Action requise** : Corriger le Dockerfile avant de continuer les tests
 ```
 
+## Validation des migrations multi-releases (CRITIQUE)
+
+**⚠️ Vérification OBLIGATOIRE avant tout `db:migrate` sur une PR multi-releases :**
+
+Quand une PR empaquète plusieurs releases upstream, les maintenance tasks de backfill prévues entre
+les déploiements ne tournent jamais. Cela provoque des échecs de contraintes sur des colonnes non remplies.
+
+### Détection automatique
+```bash
+# 1. Lister les migrations qui posent des contraintes NOT NULL ou CHECK
+grep -rlE "change_column_null|validate_check_constraint|add_check_constraint.*validate: true" db/migrate/ | sort
+
+# 2. Pour chaque contrainte trouvée, identifier la table et colonne concernées
+# 3. Vérifier s'il existe une maintenance task de backfill pour cette colonne
+grep -rlE "update_all|where.*nil" app/tasks/maintenance/ | sort
+
+# 4. Comparer les timestamps : si la task est entre deux migrations → ALERTE
+```
+
+### Pattern à corriger
+Quand un backfill intercalé est détecté, la solution est d'intégrer le backfill dans la migration
+qui pose la contrainte (juste avant), en wrappant avec `safety_assured` pour StrongMigrations :
+
+```ruby
+def up
+  # pf: backfill avant contrainte — upstream utilise une maintenance_task entre releases
+  safety_assured { execute("UPDATE table SET col = 'default' WHERE col IS NULL") }
+  add_check_constraint :table, "col IS NOT NULL", name: "constraint_name", validate: false
+end
+```
+
+### Rapport
+Signaler dans le rapport de validation :
+```markdown
+#### 🔴 MIGRATIONS MULTI-RELEASES
+- **Table** : `attestation_templates`
+- **Colonne** : `kind`
+- **Problème** : Maintenance task `T20250908backfillAttestationTemplatesKindTask` intercalée entre migrations
+- **Statut** : ✅ Corrigé (backfill intégré dans migration) / ❌ NON CORRIGÉ → BLOQUANT
+```
+
 ## Domaines d'expertise PF
 
 ### 🔴 **CRITIQUES** (tests obligatoires)
