@@ -3195,6 +3195,11 @@ enum GeoAreaSource {
   cadastre
 
   """
+  Parcelle agricole
+  """
+  rpg
+
+  """
   Sélection utilisateur
   """
   selection_utilisateur

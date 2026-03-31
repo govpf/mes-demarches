@@ -142,7 +142,7 @@ class Champ < ApplicationRecord
   end
 
   def to_s
-    type_de_champ.champ_value(self)
+    type_de_champ.champ_value(self) || ''
   end
 
   def last_write_type_champ
@@ -309,6 +309,10 @@ class Champ < ApplicationRecord
     else
       attributes[:last_champ_updated_at] = updated_at
       attributes[:brouillon_close_to_expiration_notice_sent_at] = nil
+    end
+
+    if dossier.brouillon?
+      attributes[:expired_at] = (updated_at + dossier.duree_totale_conservation_in_months.months)
     end
 
     dossier.update_columns(attributes)

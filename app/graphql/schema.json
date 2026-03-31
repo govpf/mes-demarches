@@ -13259,6 +13259,12 @@
               "description": "Sélection utilisateur",
               "isDeprecated": false,
               "deprecationReason": null
+            },
+            {
+              "name": "rpg",
+              "description": "Parcelle agricole",
+              "isDeprecated": false,
+              "deprecationReason": null
             }
           ],
           "possibleTypes": null
