@@ -511,9 +511,42 @@ bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb
 
 #### **⚠️ Points de vigilance**
 - **Champs PF** : DN, communes, codes postaux, nationalités
-- **Authentification** : Tatou, Microsoft, workflows de merge  
+- **Authentification** : Tatou, Microsoft, workflows de merge
 - **Templates** : Personnalisations email PF à préserver
 - **Migrations** : Adaptations pour les données PF
+- **Migrations multi-releases** : Conflit migration/maintenance_task (voir ci-dessous)
+
+#### **🔴 Risque migrations multi-releases** (CRITIQUE)
+
+Upstream déploie une release à la fois et peut intercaler des maintenance tasks de backfill entre deux déploiements. Quand on empaquète plusieurs releases upstream dans une seule PR, `db:migrate` exécute toutes les migrations d'un coup — les maintenance tasks intercalées ne tournent jamais.
+
+**Pattern dangereux :**
+1. Release N — Migration : `add_column :table, :col, :string` (nullable)
+2. Release N — Maintenance task : `Table.where(col: nil).update_all(col: 'default')` (prévue entre déploiements)
+3. Release N+M — Migration : `validate_check_constraint` / `change_column_null :table, :col, false`
+→ **Échec** : `PG::CheckViolation` car la maintenance task n'a jamais tourné
+
+**Détection obligatoire lors de l'analyse de toute PR multi-releases :**
+```bash
+# 1. Identifier les migrations ajoutant des contraintes NOT NULL / CHECK
+grep -rlE "change_column_null|validate_check_constraint" db/migrate/
+
+# 2. Identifier les maintenance tasks de backfill
+grep -rlE "update_all|where.*nil" app/tasks/maintenance/
+
+# 3. Croiser les timestamps : si une task est intercalée entre deux migrations liées → ALERTE
+```
+
+**Correction standard :** Intégrer le backfill directement dans la migration qui pose la contrainte :
+```ruby
+def up
+  # pf: backfill avant contrainte — upstream utilise une maintenance_task entre releases
+  safety_assured { execute("UPDATE table SET col = 'default' WHERE col IS NULL") }
+  add_check_constraint :table, "col IS NOT NULL", name: "constraint_name", validate: false
+end
+```
+
+**Exemple réel (PR #319)** : La colonne `attestation_templates.kind` ajoutée en migration `20250908`, backfillée par `T20250908backfillAttestationTemplatesKindTask`, contrainte validée en migration `20250930`. Les 3 releases empaquetées → `PG::CheckViolation` au `db:migrate`.
 
 ### Checklist de validation
 
