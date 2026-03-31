@@ -399,6 +399,7 @@ Rails.application.routes.draw do
       get '/:path/sign_up', action: 'sign_up', as: :sign_up
       get '/:path/france_connect', action: 'france_connect', as: :france_connect
       get '/:path/:provider', action: 'openid_connect', as: :openid_connect, constraints: { :provider => /google|microsoft|yahoo|tatou/ }
+      # get '/:path/pro_connect', action: 'pro_connect', as: :pro_connect
     end
 
     resources :dossiers, only: [:index, :show, :destroy, :new] do
@@ -604,7 +605,7 @@ Rails.application.routes.draw do
             post 'add_instructeur'
             delete 'remove_instructeur'
             post 'add_signature'
-            get 'preview_attestation'
+            get 'preview_attestation_acceptation'
           end
         end
 
@@ -763,7 +764,7 @@ Rails.application.routes.draw do
           get 'reaffecter_dossiers'
           post 'reaffecter'
           post 'add_signature'
-          get 'preview_attestation'
+          get 'preview_attestation_acceptation'
         end
 
         collection do

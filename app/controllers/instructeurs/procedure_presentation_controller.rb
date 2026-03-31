@@ -7,6 +7,11 @@ module Instructeurs
     def add_filter
       statut = params[:statut]
 
+      if filter_params[:id].blank?
+        flash.alert = I18n.t('views.instructeurs.dossiers.filters.missing_column')
+        return redirect_back_or_to([:instructeur, procedure])
+      end
+
       new_filter = filtered_column_from_params
 
       if new_filter.valid?
@@ -49,7 +54,10 @@ module Instructeurs
     private
 
     def filtered_column_from_params
-      FilteredColumnType.new.cast(filter_params.to_h)
+      params_hash = filter_params.to_h.deep_stringify_keys
+      params_hash['filter'] = ValueNormalizer.normalize(params_hash['filter']) if params_hash.key?('filter')
+
+      FilteredColumnType.new.cast(params_hash)
     end
 
     def procedure = @procedure_presentation.procedure

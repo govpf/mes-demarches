@@ -30,6 +30,7 @@
 # available at http://guides.rubyonrails.org/i18n.html.
 
 en:
+  insee_down: INSEE is unavailable, company information will arrive within a few hours.
   invisible_captcha:
     sentence_for_humans: 'If you are a human, ignore this field'
   clipboard:
@@ -433,6 +434,7 @@ en:
         restore: "Restore"
         filters:
           title: Select a filter
+          missing_column: Please select a column before adding a filter
         select_all: Select all
         batch_operation:
           enabled: "Add file %{dossier_id} to the selection for the bulk operation"

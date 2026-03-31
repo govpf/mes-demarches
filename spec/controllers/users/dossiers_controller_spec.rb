@@ -161,7 +161,7 @@ describe Users::DossiersController, type: :controller do
 
     context 'when the procedure has an attestation template' do
       let(:another_user) { create(:user) }
-      let!(:dossier) { create(:dossier, :with_attestation, user: user) }
+      let!(:dossier) { create(:dossier, :with_attestation_acceptation, user: user) }
 
       context 'when another user is connected' do
         before { sign_in(another_user) }
@@ -176,14 +176,14 @@ describe Users::DossiersController, type: :controller do
 
     context 'when the procedure no longer has an attestation template' do
       let(:another_user) { create(:user) }
-      let!(:dossier) { create(:dossier, :with_attestation, user: user) }
+      let!(:dossier) { create(:dossier, :with_attestation_acceptation, user: user) }
 
       context 'when another user is connected' do
         before { sign_in(another_user) }
         after { sign_in(user) }
 
         it 'returns error' do
-          attestation_template = dossier.attestation_template
+          attestation_template = dossier.attestation_acceptation_template
           attestation_template.activated = false
           attestation_template.save
 
@@ -195,7 +195,7 @@ describe Users::DossiersController, type: :controller do
 
     context 'when the dossier is no longer accepted' do
       let(:another_user) { create(:user) }
-      let!(:dossier) { create(:dossier, :with_attestation, :followed, :accepte, user: user) }
+      let!(:dossier) { create(:dossier, :with_attestation_acceptation, :followed, :accepte, user: user) }
       before { sign_in(user) }
 
       it 'display error message' do
@@ -710,7 +710,7 @@ describe Users::DossiersController, type: :controller do
 
         before do
           procedure.draft_revision.remove_type_de_champ(champ_repetition.stable_id)
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
 
           champ_repetition.dossier.reload
           champ_repetition.dossier.rebase!
@@ -876,7 +876,7 @@ describe Users::DossiersController, type: :controller do
 
         before do
           procedure.draft_revision.remove_type_de_champ(champ_repetition.stable_id)
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
 
           champ_repetition.dossier.reload
           champ_repetition.dossier.rebase!
@@ -1009,6 +1009,39 @@ describe Users::DossiersController, type: :controller do
           subject
           expect(first_champ.reload.value).to eq(referentiel.items.first.id.to_s)
           expect(first_champ.reload.referentiel.fetch('data')).to eq(referentiel.items.first.data.merge('headers' => referentiel.headers))
+        end
+      end
+    end
+
+    context 'when the champ is a multiple_drop_down_list with referentiel' do
+      let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :multiple_drop_down_list }]) }
+
+      let(:referentiel) { create(:csv_referentiel, :with_items) }
+
+      let(:value) { [referentiel.items.first.id, referentiel.items.second.id].to_json }
+      let(:keys) { JSON.parse(value).map(&:to_s) }
+
+      let(:submit_payload) do
+        {
+          id: dossier.id,
+          dossier: {
+            champs_public_attributes: {
+              first_champ.public_id => {
+                value:
+              }
+            }
+          }
+        }
+      end
+
+      context 'with a valid value sent as string' do
+        before { procedure.active_revision.types_de_champ_public.first.update!(drop_down_mode: 'advanced', referentiel:) }
+
+        it 'updates the value' do
+          subject
+          expect(first_champ.reload.value).to eq(value)
+          expect(first_champ.reload.referentiels.keys).to eq(keys)
+          expect(first_champ.reload.referentiels).to eq({ keys.first => { 'data' => referentiel.items.first.data.merge('headers' => referentiel.headers) }, keys.second => { 'data' => referentiel.items.second.data.merge('headers' => referentiel.headers) } })
         end
       end
     end
@@ -1650,6 +1683,38 @@ describe Users::DossiersController, type: :controller do
           dossier.reload
           expect(first_champ_user_buffer.value).to eq('45187272')
         end
+      end
+    end
+
+    context 'when the champ is an autocomplete with prefillable champs' do
+      render_views
+      let(:referentiel) { create(:api_referentiel, :exact_match, :with_exact_match_response) }
+      let(:referentiel_stable_id) { 1 }
+      let(:external_id) { "PG46YY6YWCX8" }
+      let(:types_de_champ_public) do
+        [
+          {
+            type: :referentiel,
+            referentiel: referentiel,
+            stable_id: referentiel_stable_id
+          }
+        ]
+      end
+      let (:submit_payload) do
+        {
+          id: dossier.id,
+          dossier: {
+            champs_public_attributes: {
+              first_champ.public_id => {
+                external_id:
+              }
+            }
+          }
+        }
+      end
+
+      it 'includes enqueues job' do
+        expect { subject }.to have_enqueued_job(ChampFetchExternalDataJob)
       end
     end
   end

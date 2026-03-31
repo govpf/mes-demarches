@@ -17,7 +17,7 @@ describe 'Migration Attestations v1 vers v2', type: :system do
         # Test basé sur les spécifications du documents
 
         # Sans attestation, avec feature v2 → doit rediriger vers v2
-        expect(procedure.attestation_template).to be_nil
+        expect(procedure.attestation_templates).to be_empty
         expect(procedure.feature_enabled?(:attestation_v2)).to be true
         # Logique attendue : edit_admin_procedure_attestation_template_v2_path
 

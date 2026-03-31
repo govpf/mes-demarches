@@ -3,7 +3,7 @@
 describe DossierRebaseConcern do
   describe '#can_rebase?' do
     let(:procedure) { create(:procedure, types_de_champ_public: [{ mandatory: true }, { type: :yes_no, mandatory: false }], types_de_champ_private: [{}]) }
-    let(:attestation_template) { procedure.draft_revision.attestation_template.find_or_revise! }
+    let(:attestation_template) { procedure.draft_revision.attestation_acceptation_template.find_or_revise! }
     let(:type_de_champ) { procedure.active_revision.types_de_champ_public.find { |tdc| !tdc.mandatory? } }
     let(:private_type_de_champ) { procedure.active_revision.types_de_champ_private.first }
     let(:mandatory_type_de_champ) { procedure.active_revision.types_de_champ_public.find(&:mandatory?) }
@@ -23,7 +23,7 @@ describe DossierRebaseConcern do
       let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
 
       before do
-        procedure.publish!
+        procedure.publish!(procedure.administrateurs.first)
         procedure.reload
         dossier
       end
@@ -34,7 +34,7 @@ describe DossierRebaseConcern do
             type_champ: TypeDeChamp.type_champs.fetch(:text),
             libelle: "Un champ text"
           })
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
           dossier.reload
         end
 
@@ -49,7 +49,7 @@ describe DossierRebaseConcern do
       let(:dossier) { create(:dossier, :en_instruction, procedure: procedure) }
 
       before do
-        procedure.publish!
+        procedure.publish!(procedure.administrateurs.first)
         procedure.reload
         dossier
       end
@@ -60,7 +60,7 @@ describe DossierRebaseConcern do
             type_champ: TypeDeChamp.type_champs.fetch(:text),
             libelle: "Un champ text"
           })
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
           dossier.reload
         end
 
@@ -75,7 +75,7 @@ describe DossierRebaseConcern do
       let(:dossier) { create(:dossier, :accepte, procedure: procedure) }
 
       before do
-        procedure.publish!
+        procedure.publish!(procedure.administrateurs.first)
         procedure.reload
         dossier
       end
@@ -86,7 +86,7 @@ describe DossierRebaseConcern do
             type_champ: TypeDeChamp.type_champs.fetch(:text),
             libelle: "Un champ text"
           })
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
           dossier.reload
         end
 
@@ -139,7 +139,7 @@ describe DossierRebaseConcern do
 
     context "when revision is published" do
       before do
-        procedure.publish!
+        procedure.publish!(procedure.administrateurs.first)
         procedure.draft_revision.add_type_de_champ({
           type_champ: TypeDeChamp.type_champs.fetch(:text),
           libelle: "Un champ text"
@@ -191,7 +191,7 @@ describe DossierRebaseConcern do
         expect(repetition_champ.rows[0].size).to eq(1)
         expect(repetition_champ.rows[1].size).to eq(1)
 
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
         perform_enqueued_jobs
         procedure.reload
         dossier.reload
@@ -216,7 +216,7 @@ describe DossierRebaseConcern do
 
         dossier.passer_en_construction!
         procedure.draft_revision.find_and_ensure_exclusive_use(private_text_type_de_champ.stable_id).update(type_champ: TypeDeChamp.type_champs.fetch(:textarea))
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
         perform_enqueued_jobs
         procedure.reload
         dossier.reload
@@ -243,7 +243,7 @@ describe DossierRebaseConcern do
 
   context 'small grained' do
     subject do
-      procedure.publish_revision!
+      procedure.publish_revision!(procedure.administrateurs.first)
       perform_enqueued_jobs
 
       dossier.reload
@@ -253,7 +253,7 @@ describe DossierRebaseConcern do
       let!(:procedure) do
         create(:procedure).tap do |p|
           p.draft_revision.add_type_de_champ(type_champ: :drop_down_list, libelle: 'l1', drop_down_options: ["option", "v1"])
-          p.publish!
+          p.publish!(p.administrateurs.first)
         end
       end
       let!(:dossier) { create(:dossier, procedure: procedure) }
@@ -299,7 +299,7 @@ describe DossierRebaseConcern do
       let!(:procedure) do
         create(:procedure).tap do |p|
           p.draft_revision.add_type_de_champ(type_champ: :multiple_drop_down_list, libelle: 'l1', drop_down_options: ["option", "v1"])
-          p.publish!
+          p.publish!(p.administrateurs.first)
         end
       end
       let!(:dossier) { create(:dossier, procedure: procedure) }
@@ -345,7 +345,7 @@ describe DossierRebaseConcern do
       let!(:procedure) do
         create(:procedure).tap do |p|
           p.draft_revision.add_type_de_champ(type_champ: :linked_drop_down_list, libelle: 'l1', drop_down_options: ["--titre1--", "option", "v1", "--titre2--", "option2", "v2"])
-          p.publish!
+          p.publish!(p.administrateurs.first)
         end
       end
       let!(:dossier) { create(:dossier, procedure: procedure) }
@@ -391,7 +391,7 @@ describe DossierRebaseConcern do
       let!(:procedure) do
         create(:procedure).tap do |p|
           champ = p.draft_revision.add_type_de_champ(type_champ: :carte, libelle: 'l1', cadastres: true)
-          p.publish!
+          p.publish!(p.administrateurs.first)
         end
       end
       let!(:dossier) { create(:dossier, procedure: procedure) }
@@ -479,7 +479,7 @@ describe DossierRebaseConcern do
 
         it { expect { subject }.to change { dossier.revision.types_de_champ_public.map(&:type_champ) }.from(['text', 'text']).to(['integer_number', 'text']) }
         it { expect { subject }.to change { first_champ.class }.from(Champs::TextChamp).to(Champs::IntegerNumberChamp) }
-        it { expect { subject }.to change { first_champ.to_s }.from('v1').to('') }
+        it { expect { subject }.not_to change { first_champ.to_s } }
         it { expect { subject }.to change { first_champ.external_id }.from('123').to(nil) }
         it { expect { subject }.to change { first_champ.data }.from({ 'a' => 1 }).to(nil) }
         it { expect { subject }.to change { first_champ.geo_areas.count }.from(1).to(0) }
@@ -513,7 +513,7 @@ describe DossierRebaseConcern do
           last_child = procedure.draft_revision.children_of(repetition).last
           added_tdc = procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'c3', parent_stable_id: repetition.stable_id, after_stable_id: last_child)
           procedure.draft_revision.move_type_de_champ(added_tdc.stable_id, 1)
-          # procedure.publish_revision!
+          # procedure.publish_revision!(procedure.administrateurs.first)
         end
 
         it 'does somehting' do

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-source 'https://rubygems.org'
+source 'https://gem.coop'
 
 gem 'rails', '~> 7.2.2' # allows update to security fixes at any time
 
@@ -12,7 +12,6 @@ gem 'addressable'
 gem 'administrate'
 gem 'administrate-field-enum' # Allow using Field::Enum in administrate
 gem 'after_commit_everywhere'
-gem 'after_party'
 gem 'ancestry'
 gem 'anchored'
 gem 'aws-sdk-s3'

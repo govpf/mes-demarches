@@ -138,7 +138,8 @@ class Dossier < ApplicationRecord
   has_many :batch_operations, through: :dossier_batch_operations
 
   has_one :procedure, through: :revision
-  has_one :attestation_template, through: :procedure
+  has_one :attestation_acceptation_template, through: :procedure
+  has_one :attestation_refus_template, through: :procedure
 
   delegate :types_de_champ_public, :types_de_champ_private, to: :revision
 
@@ -388,7 +389,7 @@ class Dossier < ApplicationRecord
   scope :with_revision, -> { includes(revision: :revision_types_de_champ) }
   scope :for_api_v2, -> {
     with_revision
-      .includes(:attestation_template, :etablissement, :individual, :traitement, procedure: [:administrateurs], user: [:france_connect_informations])
+      .includes(:attestation_acceptation_template, :etablissement, :individual, :traitement, procedure: [:administrateurs], user: [:france_connect_informations])
   }
 
   scope :with_notifications, -> (instructeur) {
@@ -846,7 +847,8 @@ class Dossier < ApplicationRecord
     { lon: lon, lat: lat, zoom: zoom }
   end
 
-  def unspecified_attestation_champs
+  def unspecified_attestation_champs(kind)
+    attestation_template = attestation_template_for(kind)
     if attestation_template&.activated?
       attestation_template.unspecified_champs_for_dossier(self)
     else
@@ -854,13 +856,19 @@ class Dossier < ApplicationRecord
     end
   end
 
-  def unspecified_champs
-    (unspecified_attestation_champs + procedure.closed_mail_template.unspecified_champs_for_dossier(self)).uniq
+  def attestation_template_for(kind)
+    public_send("attestation_#{kind}_template")
   end
 
-  def build_attestation
-    if attestation_template&.activated?
-      attestation_template.attestation_for(self)
+  def build_attestation_acceptation
+    if attestation_acceptation_template&.activated?
+      attestation_acceptation_template.attestation_for(self)
+    end
+  end
+
+  def build_attestation_refus
+    if attestation_refus_template&.activated?
+      attestation_refus_template.attestation_for(self)
     end
   end
 

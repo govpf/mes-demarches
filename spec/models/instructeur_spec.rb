@@ -296,6 +296,10 @@ describe Instructeur, type: :model do
   end
 
   describe '#email_notification_data' do
+    # pf: freeze_time pour éviter les faux positifs liés au décalage UTC-10 (Pacific/Tahiti)
+    # quand les tests tournent proche de minuit PF, 10.minutes.ago peut tomber sur "yesterday"
+    before { freeze_time }
+
     let(:instructeur) { create(:instructeur) }
     let(:procedure_to_assign) { create(:procedure) }
 

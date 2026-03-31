@@ -16,10 +16,10 @@ describe 'users/dossiers/qrcode.html.haml', type: :view do
   end
 
   context "with dossier" do
-    let(:dossier) { create(:dossier, :with_attestation) }
+    let(:dossier) { create(:dossier, :with_attestation_acceptation) }
 
     context "with attestation" do
-      let(:attestation) { dossier.attestation_template.render_attributes_for(dossier: dossier) }
+      let(:attestation) { dossier.attestation_acceptation_template.render_attributes_for(dossier: dossier) }
 
       before do
         sign_in dossier.user
