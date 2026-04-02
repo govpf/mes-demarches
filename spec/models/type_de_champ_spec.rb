@@ -635,6 +635,22 @@ describe TypeDeChamp do
     it { is_expected.to eq([["« Référentiel des administrations »"], ["« Oui/Non »", "« Case à cocher seule »", "« Choix simple »", "« Choix multiple »"], ["« Nombre entier »", "« Nombre décimal »"], ["« Adresse en France »", "« Communes »", "« EPCI »", "« Départements »", "« Régions »", "« Pays »", "« Commune de Polynésie »", "« Code Postal de Polynésie »"]]) }
   end
 
+  describe '.referentiel_tables' do
+    it 'retourne les tables triées par ordre alphabétique' do
+      unsorted_tables = [
+        { name: 'Zones', id: 3 },
+        { name: 'Activités', id: 1 },
+        { name: 'Communes', id: 2 }
+      ]
+      allow(ReferentielDePolynesie::API).to receive(:available_tables).and_return(unsorted_tables)
+      Rails.cache.delete("referentiel_tables:#{Rails.env}")
+
+      result = TypeDeChamp.referentiel_tables
+
+      expect(result).to eq([['Activités', 1], ['Communes', 2], ['Zones', 3]])
+    end
+  end
+
   describe '#table_id' do
     let(:type_de_champ) { create(:type_de_champ_referentiel_de_polynesie) }
 
