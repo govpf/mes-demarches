@@ -634,7 +634,7 @@ class TypeDeChamp < ApplicationRecord
 
   def self.referentiel_tables
     Rails.cache.fetch("referentiel_tables:#{Rails.env}", expires_in: 5.minutes) do
-      ReferentielDePolynesie::API.available_tables.map { [_1[:name], _1[:id]] }
+      ReferentielDePolynesie::API.available_tables.map { [_1[:name], _1[:id]] }.sort_by { |name, _| name }
     end
   end
 
