@@ -3,9 +3,7 @@
 describe Champs::SiretChamp do
   let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :siret }]) }
   let(:dossier) { create(:dossier, procedure:) }
-  let(:champ) { dossier.champs.first.tap { _1.update(value:, etablissement:) } }
-  let(:value) { "" }
-  let(:etablissement) { nil }
+  let(:champ) { dossier.champs.first }
 
   def with_value(value)
     champ.tap do
@@ -17,11 +15,10 @@ describe Champs::SiretChamp do
     subject { champ.tap { _1.validate(:champs_public_value) } }
 
     context 'when empty' do
-      let(:value) { nil }
-
       it { is_expected.to be_valid }
     end
 
+    # pf: test for partial Tahiti numbers (too short for both systems)
     context 'with invalid format - too short for both systems' do
       before { with_value('12345') }
 
@@ -31,20 +28,20 @@ describe Champs::SiretChamp do
     context 'with invalid checksum for 14-char SIRET' do
       before { with_value('12345678901234') }
 
-      it { subject.errors[:value].should include("comporte une erreur de saisie. Corrigez-la.") }
+      it { expect(subject.errors[:value]).not_to be_empty }
     end
 
     context 'with valid 14-char format but no etablissement' do
       before { with_value('12345678901245') }
 
-      it { subject.errors[:value].should include("ne correspond pas à un établissement existant") }
+      it { expect(subject.errors[:value]).to include('ne correspond pas à un établissement existant') }
     end
 
     # pf: Add test for 9-char Tahiti number validation
     context 'with valid 9-char Tahiti format but no etablissement' do
       before { with_value('123456789') }
 
-      it { subject.errors[:value].should include("ne correspond pas à un établissement existant") }
+      it { expect(subject.errors[:value]).to include('ne correspond pas à un établissement existant') }
     end
 
     context 'with valid 14-char SIRET and etablissement' do

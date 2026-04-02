@@ -5,6 +5,13 @@ class Champs::SiretChamp < Champ
 
   validate :validate_siret_or_tahiti, if: :validate_champ_value?
 
+  # pf: override to maintain compatibility with upstream ChampExternalDataConcern
+  # Our SIRET logic is synchronous (via SiretChampEtablissementFetchableConcern),
+  # but upstream components check uses_external_data? and pending?
+  def uses_external_data?
+    true
+  end
+
   def search_terms
     etablissement.present? ? etablissement.search_terms : [value]
   end
@@ -43,6 +50,7 @@ class Champs::SiretChamp < Champ
   # pf: Validation for Tahiti numbers (9 chars) and partial SIRET
   def validate_etablissement_existence(siret_value)
     return if etablissement.present?
+    return if pending?
 
     errors.add(:value, :not_found)
   end

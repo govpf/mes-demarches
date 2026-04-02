@@ -328,10 +328,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
     t.string "email"
     t.bigint "expert_id"
     t.bigint "instructeur_id"
+    t.datetime "seen_by_recipient_at"
     t.datetime "updated_at", null: false
     t.index ["dossier_id"], name: "index_commentaires_on_dossier_id"
     t.index ["expert_id"], name: "index_commentaires_on_expert_id"
     t.index ["instructeur_id"], name: "index_commentaires_on_instructeur_id"
+    t.index ["seen_by_recipient_at"], name: "index_commentaires_on_seen_by_recipient_at"
   end
 
   create_table "contact_forms", force: :cascade do |t|

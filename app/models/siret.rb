@@ -12,9 +12,7 @@ class Siret
   before_validation :remove_whitespace
 
   def remove_whitespace
-    if siret.present?
-      siret.delete!(' ')
-      siret.delete!('-')
-    end
+    # pf: also remove hyphens for Tahiti number format (123456-789)
+    self.siret = siret.delete(' -') if siret.present?
   end
 end

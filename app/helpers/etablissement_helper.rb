@@ -34,8 +34,10 @@ module EtablissementHelper
     bilan&.key?("data")
   end
 
+  # pf: handles both French SIRET (14 chars) and Tahiti numbers (6-9 chars)
   def pretty_siret(siret)
     return if siret.blank?
+    siret = siret.gsub(/[[:space:]]/, "")
     if siret.length > 9
       "#{siret[0..2]} #{siret[3..5]} #{siret[6..8]} #{siret[9..]}"
     elsif siret.length > 6
