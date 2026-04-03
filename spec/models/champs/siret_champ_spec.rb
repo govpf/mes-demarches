@@ -61,5 +61,46 @@ describe Champs::SiretChamp do
 
       it { expect(subject).to be_valid }
     end
+
+    # pf: Tahiti hyphen format → cleaned to 9 chars, requires etablissement
+    context 'with Tahiti number formatted with hyphen and no etablissement' do
+      before { with_value('123456-789') }
+
+      it { expect(subject.errors[:value]).to include('ne correspond pas à un établissement existant') }
+    end
+
+    # pf: 6-char partial Tahiti requires selection from list
+    context 'with a partial 6-char Tahiti number and no etablissement' do
+      before { with_value('123456') }
+
+      it { expect(subject.errors[:value]).to include('doit avoir 9 chiffres. Sélectionnez un établissement.') }
+    end
+
+    # pf: 6-char Tahiti with auto-selected etablissement is valid
+    context 'with partial 6-char Tahiti and auto-selected etablissement' do
+      before do
+        with_value('123456')
+        champ.etablissement = build(:etablissement, siret: '123456001')
+      end
+
+      it { expect(subject).to be_valid }
+    end
+
+    # pf: length 10-13 is invalid for both SIRET and Tahiti
+    context 'with a 11-char value (invalid length for both systems)' do
+      before { with_value('12345678901') }
+
+      it { expect(subject.errors[:value]).not_to be_empty }
+    end
+  end
+
+  # pf: SiretChamp does NOT override uses_external_data? because PF uses a fully
+  # synchronous flow (Champs::SiretController + SiretChampEtablissementFetchableConcern).
+  # Overriding it to true would trigger reset_external_data! on every dossier save
+  # via users/dossiers_controller, which would wipe value and etablissement_id.
+  describe '#uses_external_data?' do
+    it 'returns false (PF stays out of upstream state machine)' do
+      expect(champ.uses_external_data?).to be false
+    end
   end
 end

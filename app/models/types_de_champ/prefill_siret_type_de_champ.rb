@@ -6,6 +6,7 @@ class TypesDeChamp::PrefillSiretTypeDeChamp < TypesDeChamp::PrefillTypeDeChamp
   end
 
   def to_assignable_attributes(champ, value)
-    { id: champ.id, external_id: value.presence }
+    # pf: also set value because PF template uses :value (not :external_id) for SIRET/TAHITI display
+    { id: champ.id, external_id: value.presence, value: value.presence }
   end
 end

@@ -401,8 +401,8 @@ describe Champs::ReferentielChamp, type: :model do
           expect { subject }
             .to change { dossier.reload.project_champs.find(&:siret?).external_id }.from(nil).to('13002526500013')
         end
-        it 'enqueue job' do
-          expect { subject }.to have_enqueued_job(ChampFetchExternalDataJob).with(dossier.reload.project_champs.find(&:siret?), '13002526500013')
+        it 'does not enqueue the upstream async fetch job (PF fetches SIRET synchronously)' do
+          expect { subject }.not_to have_enqueued_job(ChampFetchExternalDataJob)
         end
       end
 

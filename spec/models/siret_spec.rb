@@ -44,4 +44,35 @@ describe Siret, type: :model do
 
     it { is_expected.to be_valid }
   end
+
+  # pf: Tahiti number tests
+  context 'with a valid 9-char Tahiti number' do
+    let(:siret) { '123456789' }
+
+    it { is_expected.to be_valid }
+  end
+
+  context 'with a valid 6-char Tahiti number' do
+    let(:siret) { '123456' }
+
+    it { is_expected.to be_valid }
+  end
+
+  context 'with a valid 9-char Tahiti number formatted with hyphen' do
+    let(:siret) { '123456-789' }
+
+    it { is_expected.to be_valid }
+  end
+
+  context 'with a valid 9-char Tahiti number formatted with space' do
+    let(:siret) { '123456 789' }
+
+    it { is_expected.to be_valid }
+  end
+
+  context 'with a siret that has an invalid length for both SIRET and Tahiti (11 chars)' do
+    let(:siret) { '12345678901' }
+
+    it { is_expected.to be_invalid }
+  end
 end

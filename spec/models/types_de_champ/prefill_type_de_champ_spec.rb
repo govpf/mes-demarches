@@ -63,6 +63,13 @@ RSpec.describe TypesDeChamp::PrefillTypeDeChamp, type: :model do
       it { expect(built).to be_kind_of(TypesDeChamp::PrefillEpciTypeDeChamp) }
     end
 
+    # pf: siret has a custom prefill class to set both external_id and value
+    context 'when type de champ is siret' do
+      let(:type_de_champ) { build(:type_de_champ_siret, procedure: procedure) }
+
+      it { expect(built).to be_kind_of(TypesDeChamp::PrefillSiretTypeDeChamp) }
+    end
+
     context 'when any other type de champ' do
       let(:type_de_champ) { build(:type_de_champ_date, procedure: procedure) }
 

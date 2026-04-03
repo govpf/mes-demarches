@@ -960,8 +960,8 @@ describe Users::DossiersController, type: :controller do
 
         context 'when the SIRET is invalid' do
           let(:external_id) { 'nomatterthereason' }
-          it 'resets its etablissement' do
-            expect { subject }.to change { first_champ.reload.etablissement }.from(an_instance_of(Etablissement)).to(nil)
+          it 'does not reset its etablissement through the generic update controller (PF flow goes through SiretController)' do
+            expect { subject }.not_to change { first_champ.reload.etablissement }
           end
         end
 

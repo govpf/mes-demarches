@@ -124,6 +124,8 @@ RSpec.describe DossierPrefillableConcern do
       end
     end
 
+    # pf: SIRET is fetched synchronously via Champs::SiretController (INSEE + i-taiete APIs),
+    # not via upstream's ChampFetchExternalDataJob. So prefill must not enqueue the async job.
     context 'when dossier contains champs with external_id' do
       let(:types_de_champ_public) { [{ type: :siret }] }
       let(:values) { [{ id: champ_id_1, external_id: value_1 }] }
@@ -131,8 +133,8 @@ RSpec.describe DossierPrefillableConcern do
       let(:value_1) { "130 025 265 00013" }
       let(:champ_id_1) { find_champ_by_stable_id(dossier, type_de_champ_1.stable_id).id }
 
-      it "updates the champs with the new values and mark them as prefilled" do
-        expect { fill }.to have_enqueued_job(ChampFetchExternalDataJob).once
+      it "does not enqueue the upstream async fetch job (PF fetches SIRET synchronously)" do
+        expect { fill }.not_to have_enqueued_job(ChampFetchExternalDataJob)
       end
     end
 

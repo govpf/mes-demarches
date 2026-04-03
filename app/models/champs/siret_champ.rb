@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
+# pf: PF ne participe pas au state machine upstream (ChampExternalDataConcern).
+# Le flow SIRET / Numéro Tahiti est entièrement synchrone via Champs::SiretController
+# + SiretChampEtablissementFetchableConcern (API INSEE pour SIRET, API i-taiete pour Tahiti).
+#
+# Ne pas surcharger uses_external_data? à true : cela déclencherait reset_external_data!
+# sur chaque save du dossier (users/dossiers_controller.rb) qui effacerait value
+# et etablissement_id, alors que c'est là que PF stocke sa donnée SIRET/Tahiti.
 class Champs::SiretChamp < Champ
   include SiretChampEtablissementFetchableConcern
 
   validate :validate_siret_or_tahiti, if: :validate_champ_value?
-
-  # pf: override to maintain compatibility with upstream ChampExternalDataConcern
-  # Our SIRET logic is synchronous (via SiretChampEtablissementFetchableConcern),
-  # but upstream components check uses_external_data? and pending?
-  def uses_external_data?
-    true
-  end
 
   def search_terms
     etablissement.present? ? etablissement.search_terms : [value]
@@ -50,7 +50,6 @@ class Champs::SiretChamp < Champ
   # pf: Validation for Tahiti numbers (9 chars) and partial SIRET
   def validate_etablissement_existence(siret_value)
     return if etablissement.present?
-    return if pending?
 
     errors.add(:value, :not_found)
   end

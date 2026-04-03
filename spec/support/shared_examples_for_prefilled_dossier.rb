@@ -33,6 +33,6 @@ shared_examples "the user has got a prefilled dossier, owned by themselves" do
     expect(page).to have_field(type_de_champ_dossier_link.libelle, with: dossier_link_value)
     expect(page).to have_field(type_de_champ_commune.libelle, with: commune_libelle)
     expect(page).to have_content(address_value.last)
-    expect(page).to have_text("Recherche en cours pour le SIRET #{pretty_siret(siret_value)}")
+    expect(page).to have_text("Donnée remplie automatiquement")
   end
 end
