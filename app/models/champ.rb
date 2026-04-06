@@ -358,9 +358,8 @@ class Champ < ApplicationRecord
     return if !saved_change_to_value? || formule?
 
     dependent_formula_champs.each do |formula_champ|
-      # Recompute and save the formula value
       new_value = formula_champ.compute_value_from_formula
-      if formula_champ.value != new_value
+      if formula_champ.read_attribute(:value) != new_value
         # pf: Handle both persisted formulas (top-level) and non-persisted (in repetitions)
         if formula_champ.persisted?
           formula_champ.update_column(:value, new_value)

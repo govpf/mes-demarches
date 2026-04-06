@@ -8,11 +8,12 @@ describe Champs::FormuleChamp do
     allow(champ).to receive(:type_de_champ).and_return(type_de_champ)
   end
 
-  describe '#value' do
+  describe '#value (stored via before_validation)' do
     context 'with simple expression' do
       let(:expression) { '1 + 1' }
 
-      it 'returns the computed value' do
+      it 'returns the computed value after validation' do
+        champ.validate
         expect(champ.value).to eq('2')
       end
     end
@@ -21,6 +22,7 @@ describe Champs::FormuleChamp do
       let(:expression) { 'CONCAT({Prénom}, " ", {Nom})' }
 
       it 'returns error message for unsupported functions' do
+        champ.validate
         expect(champ.value).to include('Erreur')
       end
     end
@@ -28,16 +30,16 @@ describe Champs::FormuleChamp do
     context 'with blank expression' do
       let(:expression) { '' }
 
-      it 'returns empty string' do
-        expect(champ.value).to eq('')
+      it 'returns nil (no computation)' do
+        expect(champ.value).to be_nil
       end
     end
 
     context 'with nil expression' do
       let(:expression) { nil }
 
-      it 'returns empty string' do
-        expect(champ.value).to eq('')
+      it 'returns nil (no computation)' do
+        expect(champ.value).to be_nil
       end
     end
   end
@@ -60,35 +62,12 @@ describe Champs::FormuleChamp do
     end
   end
 
-  describe '#for_export' do
-    let(:expression) { '1 + 1' }
-
-    it 'returns the computed value' do
-      expect(champ.for_export).to eq(champ.value)
-    end
-  end
-
-  describe '#for_api' do
-    let(:expression) { '1 + 1' }
-
-    it 'returns the computed value' do
-      expect(champ.for_api).to eq(champ.value)
-    end
-  end
-
-  describe '#for_api_v2' do
-    let(:expression) { '1 + 1' }
-
-    it 'returns the computed value' do
-      expect(champ.for_api_v2).to eq(champ.value)
-    end
-  end
-
   describe '#search_terms' do
-    let(:expression) { 'Résultat test' }
+    let(:expression) { '1 + 1' }
 
-    it 'returns an array with the computed value' do
-      expect(champ.search_terms).to eq([champ.value])
+    it 'returns an array with the stored value' do
+      champ.validate
+      expect(champ.search_terms).to eq(['2'])
     end
   end
 

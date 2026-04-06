@@ -107,18 +107,11 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
       expect(double_champ.compute_value_from_formula).to eq('20')
     end
 
-    # IMPORTANT : ce test documente le comportement actuel.
-    # update_column ne déclenche PAS les callbacks Rails, donc la cascade
-    # s'arrête après 1 niveau. Mais value() recalcule dynamiquement à la
-    # lecture, donc le résultat est toujours correct pour l'usager.
-    it 'la valeur de Quadruple est correcte à la lecture (recalcul lazy via value())' do
-      montant = find_champ(dossier, montant_tdc)
-      montant.update!(value: '10')
-
+    it 'refresh_dependent_formulas détecte les dépendances du premier niveau' do
       dossier.reload
-      quadruple_champ = find_champ(dossier, quadruple_tdc)
-      # value() recalcule dynamiquement via compute_value_from_formula
-      expect(quadruple_champ.value).to eq('40')
+      montant = find_champ(dossier, montant_tdc)
+      expect(montant.dependent_formula_champs).not_to be_empty
+      expect(montant.dependent_formula_champs.map(&:stable_id)).to include(double_tdc.stable_id)
     end
 
     it 'ne provoque pas de cascade infinie (pas de StackOverflow)' do

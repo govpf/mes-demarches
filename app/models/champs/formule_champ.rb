@@ -5,33 +5,14 @@ class Champs::FormuleChamp < Champ
 
   validates :value, presence: true, if: :validate_champ_value?
 
+  # value : on utilise le reader AR par défaut (read_attribute).
+  # Le calcul est fait UNE SEULE FOIS via before_validation :store_computed_value
+  # ou via refresh_dependent_formulas (after_save sur le champ source).
+  # On ne surcharge PAS value — sinon chaque appel (validation, export, API,
+  # Turbo render) recrée un FormulaCalculationService + index colonnes.
+
   def blank?
-    value.blank?
-  end
-
-  def value
-    return '' if type_de_champ.formule_expression.blank?
-    compute_value_from_formula
-  end
-
-  def for_export(path = :value)
-    value
-  end
-
-  def for_api
-    value
-  end
-
-  def for_api_v2
-    value
-  end
-
-  def search_terms
-    [value].compact
-  end
-
-  def to_s
-    value.to_s
+    value.blank? && type_de_champ.formule_expression.blank?
   end
 
   def compute_value_from_formula
