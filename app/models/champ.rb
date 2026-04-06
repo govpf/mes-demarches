@@ -368,31 +368,21 @@ class Champ < ApplicationRecord
     # all_dependent_formula_champs retourne les champs dans l'ordre BFS (B avant C).
     # value_overrides accumule les valeurs fraîchement calculées pour que chaque
     # formule suivante dans la chaîne voie les résultats à jour, sans dépendre
-    # des caches AR du dossier (3 niveaux : association, @champs_on_stream, @champs_by_public_id).
+    # des caches AR du dossier.
     value_overrides = { stable_id => value }
 
     all_dependent_formula_champs.each do |formula_champ|
       service = FormulaCalculationService.new(dossier, value_overrides:)
       new_value = service.compute_value(formula_champ)
-      next if formula_champ.read_attribute(:value) == new_value
-
       value_overrides[formula_champ.stable_id] = new_value
 
-      if formula_champ.persisted?
-        formula_champ.update_column(:value, new_value)
-      else
-        # pf: Le champ formule n'existe pas encore en DB (premier calcul).
-        # On le persiste et on met à jour le cache AR du dossier pour que
-        # le Turbo Stream (qui reconstruit les project_champs) voie le bon objet.
-        formula_champ.write_attribute(:value, new_value)
-        Dossier.no_touching { formula_champ.save!(validate: false) }
-
-        target = dossier.champs.target
-        unless target.any? { _1.stable_id == formula_champ.stable_id && _1.row_id == formula_champ.row_id && _1.stream == formula_champ.stream }
-          target << formula_champ
-        end
-        dossier.send(:reset_champs_cache)
-      end
+      # pf: Utilise champ_upsert_by! pour respecter le stream du dossier.
+      # En mode buffer, ça crée/trouve le champ en user:buffer (pas en main).
+      # En mode main/brouillon, ça crée/trouve le champ en main.
+      # champ_upsert_by! gère aussi le cache AR (association + reset_champs_cache).
+      tdc = formula_champ.type_de_champ
+      target_champ = Dossier.no_touching { dossier.send(:champ_upsert_by!, tdc, formula_champ.row_id) }
+      target_champ.update_column(:value, new_value) if target_champ.read_attribute(:value) != new_value
     end
   end
 

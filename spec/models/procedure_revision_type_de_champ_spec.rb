@@ -242,24 +242,15 @@ describe ProcedureRevisionTypeDeChamp do
       end
 
       let(:sibling_tdc) do
-        procedure
-          .draft_revision
-          .types_de_champ
-          .find_by(libelle: 'Sibling')
+        procedure.draft_revision.types_de_champ.find { _1.libelle == 'Sibling' }
       end
 
       let(:parent_tdc) do
-        procedure
-          .draft_revision
-          .types_de_champ
-          .find_by(libelle: 'Parent')
+        procedure.draft_revision.types_de_champ.find { _1.libelle == 'Parent' }
       end
 
       let(:following_tdc) do
-        procedure
-          .draft_revision
-          .types_de_champ
-          .find_by(libelle: 'Suivant')
+        procedure.draft_revision.types_de_champ.find { _1.libelle == 'Suivant' }
       end
 
       it 'accepts sibling field (same row, preceding position)' do
@@ -341,10 +332,7 @@ describe ProcedureRevisionTypeDeChamp do
         end
 
         let(:sibling_prix) do
-          procedure
-            .draft_revision
-            .types_de_champ
-            .find_by(libelle: 'Prix')
+          procedure.draft_revision.types_de_champ.find { _1.libelle == 'Prix' }
         end
 
         it 'does not warn when field only in row' do

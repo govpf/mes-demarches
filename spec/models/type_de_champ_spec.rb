@@ -682,6 +682,7 @@ describe TypeDeChamp do
         expect(type_de_champ.table_id).to eq('25')
       end
     end
+  end
 
   describe 'formula expression methods' do
     let(:procedure) { build(:procedure) }

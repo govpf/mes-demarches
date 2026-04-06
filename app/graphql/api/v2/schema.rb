@@ -87,6 +87,7 @@ class API::V2::Schema < GraphQL::Schema
     Types::Champs::VisaChampType,
     Types::Champs::LexpolChampType,
     Types::Champs::EngagementJuridiqueChampType,
+    Types::Champs::FormuleChampType,
     Types::Champs::YesNoChampType,
     Types::GeoAreas::ParcelleCadastraleType,
     Types::GeoAreas::SelectionUtilisateurType,

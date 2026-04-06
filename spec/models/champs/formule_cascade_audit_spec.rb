@@ -12,7 +12,7 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
 
   def count_sql_queries(&block)
     count = 0
-    counter = ->(_name, _start, _finish, _id, payload) {
+    counter = -> (_name, _start, _finish, _id, payload) {
       count += 1 unless payload[:name] == 'SCHEMA' || payload[:sql]&.start_with?('SAVEPOINT', 'RELEASE')
     }
     ActiveSupport::Notifications.subscribed(counter, 'sql.active_record', &block)
@@ -34,25 +34,25 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
     let(:n_formulas) { 10 }
     let(:types) do
       [{ type: :integer_number, libelle: 'Source' }] +
-        n_formulas.times.map { |i| { type: :formule, libelle: "Formule #{i}" } }
+        Array.new(n_formulas) { |i| { type: :formule, libelle: "Formule #{i}" } }
     end
     let(:procedure) { create(:procedure, :published, types_de_champ_public: types) }
     let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
 
     before do
       source_tdc = procedure.active_revision.types_de_champ_public.find(&:integer_number?)
-      procedure.active_revision.types_de_champ_public.select(&:formule?).each do |formule_tdc|
+      procedure.active_revision.types_de_champ_public.filter(&:formule?).each do |formule_tdc|
         set_formule_expression(dossier, formule_tdc, "{tdc#{source_tdc.stable_id}} * 2")
       end
     end
 
-    it "recalcule les #{10} formules quand la source change" do
+    it "recalcule les 10 formules quand la source change" do
       source_champ = dossier.champs.find { |c| c.type_de_champ.integer_number? }
       source_champ.update!(value: '100')
 
       # Vérifier que les formules ont été recalculées
       dossier.reload
-      formule_champs = dossier.champs.select { |c| c.type_de_champ.formule? }
+      formule_champs = dossier.champs.filter { |c| c.type_de_champ.formule? }
       formule_champs.each do |fc|
         expect(fc.compute_value_from_formula).to eq('200'), "Formule #{fc.libelle} non recalculée"
       end
