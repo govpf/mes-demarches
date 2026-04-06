@@ -246,10 +246,15 @@ class FormulaCalculationService
   end
 
   def extract_field_references(expression)
-    expression.scan(/\{([^}]+)\}/).map do |match|
+    expression.scan(/\{([^}]+)\}/).filter_map do |match|
       ref = match[0].strip
-      # Return stable_id if it's a number, otherwise return as-is (for labels)
-      /^\d+$/.match?(ref) ? ref.to_i : ref
+      # pf: Support both {123} (old) and {tdc123} / {tdc123/path} (new) formats
+      if /^\d+$/.match?(ref)
+        ref.to_i
+      elsif ref.match?(/^tdc(\d+)/)
+        ref.match(/^tdc(\d+)/)[1].to_i
+      end
+      # System columns (dossier_*, individual_*) are ignored for circular reference detection
     end
   end
 
