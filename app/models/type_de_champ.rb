@@ -9,7 +9,8 @@ class TypeDeChamp < ApplicationRecord
     cojo: :cojo_type_de_champ,
     lexpol: :lexpol,
     expression_reguliere: :expression_reguliere_type_de_champ,
-    referentiel_de_polynesie: :referentiel_de_polynesie
+    referentiel_de_polynesie: :referentiel_de_polynesie,
+    formule: :formule
   }
 
   MINIMUM_TEXTAREA_CHARACTER_LIMIT_LENGTH = 400
@@ -22,7 +23,8 @@ class TypeDeChamp < ApplicationRecord
     referentiel_de_polynesie: 'referentiel_de_polynesie',
     te_fenua: 'te_fenua',
     lexpol: 'lexpol',
-    visa: 'visa'
+    visa: 'visa',
+    formule: 'formule'
   }
 
   STRUCTURE = :structure
@@ -44,7 +46,8 @@ class TypeDeChamp < ApplicationRecord
     te_fenua: REFERENTIEL_EXTERNE,
     lexpol: REFERENTIEL_EXTERNE,
     referentiel_de_polynesie: REFERENTIEL_EXTERNE,
-    visa: STRUCTURE
+    visa: STRUCTURE,
+    formule: STRUCTURE
   }
 
   TYPE_DE_CHAMP_TO_CATEGORIE = {
@@ -142,10 +145,10 @@ class TypeDeChamp < ApplicationRecord
     referentiel_de_polynesie: [:table_id, :drop_down_other, :referentiel_mapping],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
-    visa: [:accredited_users]
+    visa: [:accredited_users],
+    formule: [:formule_expression, :dependent_stable_ids]
   }
   INSTANCE_OPTIONS = INSTANCE_OPTIONS_BY_TYPE.values.reduce(&:+).uniq
-
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
 
   enum :nature, { RIB: 'RIB' }
@@ -260,6 +263,9 @@ class TypeDeChamp < ApplicationRecord
   before_validation :set_default_libelle, if: -> { type_champ_changed? }
   before_validation :normalize_libelle
   before_validation :set_drop_down_list_options, if: -> { type_champ_changed? }
+  # pf: Validation déplacée vers TypesDeChamp::FormulaValidator pour résoudre le N+1 (136+ requêtes → <10)
+  # La validation se fait maintenant au niveau Procedure avec tous les types_de_champ préchargés
+  # validate :validate_formula_references, if: :formule?
 
   before_save :remove_attachment, if: -> { type_champ_changed? }
 
@@ -445,6 +451,70 @@ class TypeDeChamp < ApplicationRecord
       TypeDeChamp.type_champs.fetch(:multiple_drop_down_list),
       TypeDeChamp.type_champs.fetch(:yes_no)
     ])
+  end
+
+  # pf: méthodes spécifiques au type formule (les prédicats type_champ sont générés par l'enum)
+  def formule_user_expression
+    return '' unless formule?
+    @formule_user_expression ||= (
+      if revisions.any?
+        FormulaExpressionService.convert_to_libelles(formule_expression, revisions.first)
+      else
+        formule_expression
+      end
+    )
+  end
+
+  def dependent_stable_ids
+    return [] unless formule?
+    # pf: Extract stable_ids from column references in the expression
+    stable_ids = []
+
+    formule_expression.to_s.scan(/\{([^}]+)\}/).each do |match|
+      ref = match[0].strip
+
+      if ref.match?(/^tdc(\d+)/)
+        stable_ids << ref.match(/^tdc(\d+)/)[1].to_i
+      elsif ref.match?(/^\d+$/)
+        stable_ids << ref.to_i
+      end
+    end
+
+    stable_ids.uniq
+  end
+
+  # pf: Returns champs that can be referenced by this formula field
+  def available_champs_for_formula(revision)
+    return [] unless formule?
+
+    coordinate = revision.coordinate_for(self)
+    return [] unless coordinate
+
+    current_position = coordinate.position
+
+    if private?
+      public_champs = revision.types_de_champ_public.filter(&:fillable?)
+      preceding_private_champs = revision.types_de_champ_private
+        .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < current_position }
+
+      public_champs + preceding_private_champs
+    else
+      revision.types_de_champ_public
+        .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < current_position }
+    end
+  end
+
+  def encode_column_id(column, tdc)
+    if column.is_a?(Columns::ChampColumn) && !column.is_a?(Columns::JSONPathColumn) && !column.is_a?(Columns::LinkedDropDownColumn)
+      "tdc#{tdc.stable_id}"
+    elsif column.is_a?(Columns::JSONPathColumn)
+      path_name = column.jsonpath.split('.').last
+      "tdc#{tdc.stable_id}/#{path_name}"
+    elsif column.is_a?(Columns::LinkedDropDownColumn)
+      "tdc#{tdc.stable_id}/#{column.path}"
+    else
+      column.send(:column_id)
+    end
   end
 
   def public?
@@ -904,5 +974,128 @@ class TypeDeChamp < ApplicationRecord
 
   def normalize_libelle
     self.libelle&.strip!
+  end
+
+  def validate_formula_references
+    return if formule_expression.blank?
+    return if revisions.empty?
+
+    revision = revisions.first
+
+    # Detect format: new (tdc456, dossier_number) or old (456, labels)
+    has_new_format = formule_expression.match?(/\{(tdc\d+|dossier_|individual_|entreprise_)/)
+
+    if has_new_format
+      validate_column_references(revision)
+    else
+      validate_old_format_references(revision)
+    end
+  end
+
+  def validate_column_references(revision)
+    # New validation using columns
+    coordinate = revision.coordinate_for(self)
+    return unless coordinate
+
+    revision.procedure
+    resolver = FormulaColumnResolver.new(revision, row_id: nil)
+
+    # Available columns with order constraints (from coordinate)
+    available_column_ids = coordinate.available_columns_for_formula
+      .filter { |col| col.is_a?(Columns::ChampColumn) }
+      .map do |col|
+        tdc = revision.types_de_champ.find { |t| col.stable_id == t.stable_id }
+        tdc ? encode_column_id(col, tdc) : nil
+      end
+      .compact
+
+    # Extract all references {tdc456}, {dossier_number}, {tdc456/commune}
+    referenced_ids = formule_expression.scan(/\{([^}]+)\}/).map(&:first)
+
+    # Validate each reference
+    referenced_ids.each do |ref|
+      column, _ = resolver.resolve_with_path(ref)
+
+      if column.nil?
+        errors.add(:formule_expression, "Colonne inconnue : #{ref}")
+        next
+      end
+
+      if column.champ_column?
+        # Verify order constraints for champ columns
+        base_ref = ref.split('/').first # tdc456
+
+        if coordinate.in_repetition?
+          # Formula IN repetition: can reference same-row fields + parent fields
+          unless coordinate.available_in_repetition_context?(base_ref)
+            errors.add(:formule_expression, "ne peut référencer « #{column.label} » dans cette répétition")
+            next
+          end
+
+          # ⚠️ Check for collision parent/row
+          coordinate.check_collision_warning(base_ref, errors)
+        else
+          # Formula outside repetition: classic order constraints
+          unless available_column_ids.include?(base_ref)
+            errors.add(:formule_expression, "ne peut référencer « #{column.label} » car une formule ne peut utiliser que les champs qui la précèdent")
+          end
+        end
+      end
+      # System columns (dossier_*, individual_*, etc.) are always accessible
+    end
+  end
+
+  def validate_old_format_references(revision)
+    # Old validation for backward compatibility
+    available_champs = available_champs_for_formula(revision)
+    available_stable_ids = available_champs.map(&:stable_id)
+    all_champs = revision.types_de_champ_public + revision.types_de_champ_private
+
+    # Build maps for label -> stable_id resolution
+    label_to_stable_id = all_champs.each_with_object({}) do |tdc, hash|
+      hash[tdc.libelle.strip.downcase] = tdc.stable_id
+    end
+
+    # Find all references (both labels and stable_ids)
+    label_refs = formule_expression.scan(/\{([^\d}][^}]*)\}/).map(&:first)
+    numeric_refs = formule_expression.scan(/\{(\d+)\}/).map { |match| match[0].to_i }
+
+    # Resolve labels to stable_ids
+    unknown_labels = []
+    resolved_stable_ids = label_refs.map do |label|
+      normalized_label = label.strip.downcase
+      stable_id = label_to_stable_id[normalized_label]
+
+      if stable_id.nil?
+        unknown_labels << label
+        nil
+      else
+        stable_id
+      end
+    end.compact
+
+    # Combine resolved and direct stable_id references
+    all_referenced_stable_ids = (resolved_stable_ids + numeric_refs).uniq
+
+    # Check for truly unknown labels (not found in any champ)
+    if unknown_labels.any?
+      errors.add(:formule_expression, "Champs inconnus : #{unknown_labels.join(', ')}")
+      return
+    end
+
+    # Check for forbidden references (champs that exist but are not available due to order constraints)
+    forbidden_refs = all_referenced_stable_ids - available_stable_ids
+    if forbidden_refs.any?
+      forbidden_labels = forbidden_refs.map do |stable_id|
+        tdc = all_champs.find { |t| t.stable_id == stable_id }
+        tdc&.libelle || "##{stable_id}"
+      end.join(', ')
+
+      if private?
+        errors.add(:formule_expression, "ne peut référencer « #{forbidden_labels} » car une annotation privée peut utiliser tous les champs publics et les annotations privées qui la précèdent")
+      else
+        errors.add(:formule_expression, "ne peut référencer « #{forbidden_labels} » car une formule ne peut utiliser que les champs qui la précèdent")
+      end
+    end
   end
 end

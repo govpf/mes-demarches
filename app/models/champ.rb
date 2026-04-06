@@ -46,8 +46,6 @@ class Champ < ApplicationRecord
     :current_section_level,
     :non_fillable?,
     :fillable?,
-    :te_fenua?,
-    :lexpol?,
     :mandatory?,
     :prefillable?,
     :refresh_after_update?,
@@ -79,7 +77,23 @@ class Champ < ApplicationRecord
   include DateEncodingConcern
 
   # pf champ
-  delegate :accredited_user_list, :visa?, :table_id, to: :type_de_champ
+  delegate :accredited_user_list, :table_id, to: :type_de_champ
+
+  def visa?
+    type_champ == 'visa'
+  end
+
+  def te_fenua?
+    type_champ == 'te_fenua'
+  end
+
+  def lexpol?
+    type_champ == 'lexpol'
+  end
+
+  def formule?
+    type_champ == 'formule'
+  end
 
   delegate(*TypeDeChamp.type_champs.values.map { "#{_1}?".to_sym }, to: :type_de_champ)
   delegate :piece_justificative_or_titre_identite?, :any_drop_down_list?, to: :type_de_champ
@@ -94,6 +108,8 @@ class Champ < ApplicationRecord
   scope :public_only, -> { where(private: false) }
   scope :private_only, -> { where(private: true) }
 
+  # pf: recalcul des formules dépendantes lors de la sauvegarde d'un champ
+  after_save :refresh_dependent_formulas
   def public?
     !private?
   end
@@ -308,6 +324,52 @@ class Champ < ApplicationRecord
     end
 
     dossier.update_columns(attributes)
+  end
+
+  def dependent_formula_champs
+    # Find all formula champs in the dossier that depend on this champ
+    # pf: Apply row_id precedence for formulas in repetitions
+    # pf: Use project_champs to include formula champs (which are not persisted)
+    all_champs = dossier.project_champs_public_all + dossier.project_champs_private_all
+
+    all_champs.filter do |formula_champ|
+      # Skip champs without stable_id (defensive programming for tests/edge cases)
+      next false if formula_champ.stable_id.nil?
+
+      # 1. Must be a formula that depends on our stable_id
+      next false unless formula_champ.formule? && formula_champ.type_de_champ.dependent_stable_ids&.include?(stable_id)
+
+      # 2. Apply row_id precedence rule
+      if row_id.present?
+        # Source champ is in a repetition → only update formula with SAME row_id or top level formulas
+        formula_champ.row_id == row_id || formula_champ.row_id.nil?
+      else
+        # Source champ is top-level → update ALL dependent formulas (top-level + all rows)
+        true
+      end
+    end
+  end
+
+  def refresh_dependent_formulas
+    # Skip if champ has no stable_id (defensive programming for tests/edge cases)
+    return if stable_id.nil?
+
+    # Only refresh formulas if this champ's value has changed and it's not a formula itself
+    return if !saved_change_to_value? || formule?
+
+    dependent_formula_champs.each do |formula_champ|
+      # Recompute and save the formula value
+      new_value = formula_champ.compute_value_from_formula
+      if formula_champ.value != new_value
+        # pf: Handle both persisted formulas (top-level) and non-persisted (in repetitions)
+        if formula_champ.persisted?
+          formula_champ.update_column(:value, new_value)
+        else
+          # Non-persisted formula in repetition → just update the attribute for Turbo Stream
+          formula_champ.value = new_value
+        end
+      end
+    end
   end
 
   class NotImplemented < ::StandardError
