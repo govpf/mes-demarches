@@ -727,4 +727,87 @@ describe Champ do
       end
     end
   end
+
+  describe '#dependent_formula_champs' do
+    let(:procedure) { create(:procedure, :published, :with_type_de_champ) }
+    let(:revision) { procedure.active_revision }
+    let(:dossier) { create(:dossier, procedure: procedure) }
+
+    let!(:montant_tdc) { create(:type_de_champ_integer_number, procedure: procedure, libelle: 'Montant HT') }
+    let!(:tva_tdc) { create(:type_de_champ_decimal_number, procedure: procedure, libelle: 'TVA') }
+    let!(:formule_tdc) do
+      create(:type_de_champ_formule,
+        procedure: procedure,
+        libelle: 'Total TTC',
+        formule_expression: "{tdc#{montant_tdc.stable_id}} + {tdc#{tva_tdc.stable_id}}")
+    end
+    let!(:autre_formule_tdc) do
+      create(:type_de_champ_formule,
+        procedure: procedure,
+        libelle: 'Montant x2',
+        formule_expression: "{tdc#{montant_tdc.stable_id}} * 2")
+    end
+
+    let(:montant_champ) { dossier.project_champ(montant_tdc) }
+    let(:tva_champ) { dossier.project_champ(tva_tdc) }
+    let(:formule_champ) { dossier.project_champ(formule_tdc) }
+    let(:autre_formule_champ) { dossier.project_champ(autre_formule_tdc) }
+
+    context 'when champ is referenced by formula champs' do
+      it 'returns all formula champs that depend on this champ' do
+        dependent_champs = montant_champ.dependent_formula_champs
+        dependent_stable_ids = dependent_champs.map(&:stable_id)
+
+        expect(dependent_stable_ids).to include(formule_tdc.stable_id, autre_formule_tdc.stable_id)
+      end
+
+      it 'returns only relevant formula champs' do
+        dependent_champs = tva_champ.dependent_formula_champs
+        dependent_stable_ids = dependent_champs.map(&:stable_id)
+
+        expect(dependent_stable_ids).to include(formule_tdc.stable_id)
+        expect(dependent_stable_ids).not_to include(autre_formule_tdc.stable_id)
+      end
+    end
+
+    context 'when champ is not referenced by any formula' do
+      let!(:text_tdc) { create(:type_de_champ_text, procedure: procedure, libelle: 'Commentaire') }
+      let(:text_champ) { dossier.project_champ(text_tdc) }
+
+      it 'returns empty array' do
+        dependent_champs = text_champ.dependent_formula_champs
+
+        expect(dependent_champs).to be_empty
+      end
+    end
+
+    context 'when there are no formula champs in dossier' do
+      let(:procedure_without_formulas) { create(:procedure, :published) }
+      let(:dossier_without_formulas) { create(:dossier, procedure: procedure_without_formulas) }
+      let!(:simple_montant_tdc) { create(:type_de_champ_integer_number, procedure: procedure_without_formulas, libelle: 'Montant') }
+      let(:simple_montant_champ) { dossier_without_formulas.project_champ(simple_montant_tdc) }
+
+      it 'returns empty array' do
+        dependent_champs = simple_montant_champ.dependent_formula_champs
+
+        expect(dependent_champs).to be_empty
+      end
+    end
+
+    context 'when dependent_stable_ids is nil' do
+      let!(:formule_tdc_without_deps) do
+        create(:type_de_champ_formule,
+          procedure: procedure,
+          libelle: 'Formule vide',
+          formule_expression: '1 + 1') # Expression sans référence à d'autres champs
+      end
+      let(:formule_champ_without_deps) { dossier.project_champ(formule_tdc_without_deps) }
+
+      it 'handles nil gracefully' do
+        dependent_champs = montant_champ.dependent_formula_champs
+
+        expect(dependent_champs).not_to include(formule_champ_without_deps)
+      end
+    end
+  end
 end
