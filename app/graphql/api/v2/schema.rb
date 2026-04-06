@@ -142,6 +142,7 @@ class API::V2::Schema < GraphQL::Schema
     Types::Champs::Descriptor::ReferentielChampDescriptorType,
     Types::Champs::Descriptor::FormattedChampDescriptorType,
     Types::Champs::Descriptor::EngagementJuridiqueChampDescriptorType,
+    Types::Champs::Descriptor::FormuleChampDescriptorType,
     Types::Columns::AttachmentsColumnType,
     Types::Columns::BooleanColumnType,
     Types::Columns::DateColumnType,
