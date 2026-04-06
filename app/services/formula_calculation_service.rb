@@ -49,12 +49,20 @@ class FormulaCalculationService
     "Erreur de calcul : #{e.message}"
   end
 
+  # pf: Crée un calculator Dentaku avec les fonctions FR, utilisable
+  # pour la validation syntaxique sans instancier le service complet.
+  def self.new_calculator(locale: I18n.locale)
+    calculator = Dentaku::Calculator.new
+    new_instance = allocate
+    new_instance.send(:add_french_functions, calculator) if locale.to_s.start_with?('fr')
+    calculator
+  end
+
   private
 
   def create_calculator
     calculator = Dentaku::Calculator.new
 
-    # Add French function aliases if locale is French
     if @locale.to_s.start_with?('fr')
       add_french_functions(calculator)
     end
