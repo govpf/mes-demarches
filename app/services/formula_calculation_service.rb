@@ -97,6 +97,23 @@ class FormulaCalculationService
     calculator.add_function(:NON, :logical, -> (value) {
       !(value == true || (value != false && value != nil && value != 0 && value != ''))
     })
+
+    # pf: French aliases for text functions
+    calculator.add_function(:CONCATENER, :string, -> (*args) { args.flatten.map(&:to_s).join })
+    calculator.add_function(:GAUCHE, :string, -> (text, n) { text.to_s[0, n.to_i] })
+    calculator.add_function(:DROITE, :string, -> (text, n) { text.to_s[(-n.to_i)..] || '' })
+    calculator.add_function(:STXT, :string, -> (text, start, n) { text.to_s[(start.to_i - 1), n.to_i] || '' })
+    calculator.add_function(:NBCAR, :numeric, -> (text) { text.to_s.length })
+    calculator.add_function(:CHERCHE, :numeric, -> (search, text, start = 1) {
+      pos = text.to_s.downcase.index(search.to_s.downcase, start.to_i - 1)
+      pos ? pos + 1 : 0
+    })
+    calculator.add_function(:SUBSTITUE, :string, -> (text, old_str, new_str) {
+      text.to_s.gsub(old_str.to_s, new_str.to_s)
+    })
+    calculator.add_function(:MAJUSCULE, :string, -> (text) { text.to_s.upcase })
+    calculator.add_function(:MINUSCULE, :string, -> (text) { text.to_s.downcase })
+    calculator.add_function(:SUPPRESPACE, :string, -> (text) { text.to_s.strip.gsub(/\s+/, ' ') })
   end
 
   def detect_circular_references(formule_champ, expression, visited = Set.new)

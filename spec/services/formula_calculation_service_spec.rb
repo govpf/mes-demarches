@@ -194,5 +194,58 @@ describe FormulaCalculationService do
         expect(result).to include('Erreur').or include('erreur').or be_empty
       end
     end
+
+    context 'with French text functions' do
+      let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+      def compute(expression)
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: expression))
+        service.compute_value(formule_champ)
+      end
+
+      it 'CONCATENER joins strings' do
+        expect(compute("CONCATENER('Bon', 'jour')")).to eq('Bonjour')
+      end
+
+      it 'GAUCHE extracts left characters' do
+        expect(compute("GAUCHE('Bonjour', 3)")).to eq('Bon')
+      end
+
+      it 'DROITE extracts right characters' do
+        expect(compute("DROITE('Bonjour', 4)")).to eq('jour')
+      end
+
+      it 'STXT extracts substring (1-based)' do
+        expect(compute("STXT('Bonjour', 4, 4)")).to eq('jour')
+      end
+
+      it 'NBCAR returns string length' do
+        expect(compute("NBCAR('Bonjour')")).to eq('7')
+      end
+
+      it 'CHERCHE finds substring position (case insensitive, 1-based)' do
+        expect(compute("CHERCHE('jour', 'Bonjour')")).to eq('4')
+      end
+
+      it 'CHERCHE returns 0 when not found' do
+        expect(compute("CHERCHE('xyz', 'Bonjour')")).to eq('0')
+      end
+
+      it 'SUBSTITUE replaces text' do
+        expect(compute("SUBSTITUE('Bonjour monde', 'monde', 'terre')")).to eq('Bonjour terre')
+      end
+
+      it 'MAJUSCULE converts to uppercase' do
+        expect(compute("MAJUSCULE('bonjour')")).to eq('BONJOUR')
+      end
+
+      it 'MINUSCULE converts to lowercase' do
+        expect(compute("MINUSCULE('BONJOUR')")).to eq('bonjour')
+      end
+
+      it 'SUPPRESPACE trims and collapses spaces' do
+        expect(compute("SUPPRESPACE('  bon   jour  ')")).to eq('bon jour')
+      end
+    end
   end
 end
