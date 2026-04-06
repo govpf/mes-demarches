@@ -23,6 +23,9 @@ module Administrateurs
     def update
       import_referentiel and return if referentiel_file.present?
 
+      # pf: Précharger la révision au début pour éviter N+1 dans coordinate_for
+      reload_procedure_with_includes
+
       type_de_champ = draft.find_and_ensure_exclusive_use(params[:stable_id])
       @coordinate = draft.coordinate_for(type_de_champ)
 
@@ -34,7 +37,9 @@ module Administrateurs
         reload_procedure_with_includes
         @morphed = champ_components_starting_at(@coordinate)
       else
-        flash.alert = type_de_champ.errors.full_messages
+        # Afficher l'erreur inline sous le champ au lieu d'un flash
+        errors = type_de_champ.errors.full_messages.join(', ')
+        @morphed = [champ_component_from(@coordinate, focused: false, errors:)]
       end
     end
 
@@ -306,6 +311,7 @@ module Administrateurs
         :expression_reguliere_exemple_text,
         :expression_reguliere_error_message,
         :nature,
+        :formule_expression,
         :lexpol_modele,
         :lexpol_mapping,
         editable_options: [
