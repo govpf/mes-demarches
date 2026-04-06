@@ -326,47 +326,72 @@ class Champ < ApplicationRecord
     dossier.update_columns(attributes)
   end
 
+  # pf: Formules directement dépendantes de ce champ (1 niveau)
   def dependent_formula_champs
-    # Find all formula champs in the dossier that depend on this champ
-    # pf: Apply row_id precedence for formulas in repetitions
-    # pf: Use project_champs to include formula champs (which are not persisted)
     all_champs = dossier.project_champs_public_all + dossier.project_champs_private_all
 
     all_champs.filter do |formula_champ|
-      # Skip champs without stable_id (defensive programming for tests/edge cases)
       next false if formula_champ.stable_id.nil?
-
-      # 1. Must be a formula that depends on our stable_id
       next false unless formula_champ.formule? && formula_champ.type_de_champ.dependent_stable_ids&.include?(stable_id)
 
-      # 2. Apply row_id precedence rule
       if row_id.present?
-        # Source champ is in a repetition → only update formula with SAME row_id or top level formulas
         formula_champ.row_id == row_id || formula_champ.row_id.nil?
       else
-        # Source champ is top-level → update ALL dependent formulas (top-level + all rows)
         true
       end
     end
   end
 
-  def refresh_dependent_formulas
-    # Skip if champ has no stable_id (defensive programming for tests/edge cases)
-    return if stable_id.nil?
+  # pf: Toutes les formules dépendantes (transitivité : A → B → C)
+  # Utilise public_id (stable_id + row_id) comme clé de visite pour
+  # distinguer les instances d'une même formule dans différentes lignes de répétition.
+  def all_dependent_formula_champs
+    result = []
+    visited = Set.new
+    queue = dependent_formula_champs.dup
 
-    # Only refresh formulas if this champ's value has changed and it's not a formula itself
+    while (champ = queue.shift)
+      next if visited.include?(champ.public_id)
+      visited.add(champ.public_id)
+      result << champ
+      queue.concat(champ.dependent_formula_champs)
+    end
+
+    result
+  end
+
+  def refresh_dependent_formulas
+    return if stable_id.nil?
     return if !saved_change_to_value? || formule?
 
-    dependent_formula_champs.each do |formula_champ|
-      new_value = formula_champ.compute_value_from_formula
-      if formula_champ.read_attribute(:value) != new_value
-        # pf: Handle both persisted formulas (top-level) and non-persisted (in repetitions)
-        if formula_champ.persisted?
-          formula_champ.update_column(:value, new_value)
-        else
-          # Non-persisted formula in repetition → just update the attribute for Turbo Stream
-          formula_champ.value = new_value
+    # pf: Recalcul de toutes les formules dépendantes (transitivité A → B → C).
+    # all_dependent_formula_champs retourne les champs dans l'ordre BFS (B avant C).
+    # value_overrides accumule les valeurs fraîchement calculées pour que chaque
+    # formule suivante dans la chaîne voie les résultats à jour, sans dépendre
+    # des caches AR du dossier (3 niveaux : association, @champs_on_stream, @champs_by_public_id).
+    value_overrides = { stable_id => value }
+
+    all_dependent_formula_champs.each do |formula_champ|
+      service = FormulaCalculationService.new(dossier, value_overrides:)
+      new_value = service.compute_value(formula_champ)
+      next if formula_champ.read_attribute(:value) == new_value
+
+      value_overrides[formula_champ.stable_id] = new_value
+
+      if formula_champ.persisted?
+        formula_champ.update_column(:value, new_value)
+      else
+        # pf: Le champ formule n'existe pas encore en DB (premier calcul).
+        # On le persiste et on met à jour le cache AR du dossier pour que
+        # le Turbo Stream (qui reconstruit les project_champs) voie le bon objet.
+        formula_champ.write_attribute(:value, new_value)
+        Dossier.no_touching { formula_champ.save!(validate: false) }
+
+        target = dossier.champs.target
+        unless target.any? { _1.stable_id == formula_champ.stable_id && _1.row_id == formula_champ.row_id && _1.stream == formula_champ.stream }
+          target << formula_champ
         end
+        dossier.send(:reset_champs_cache)
       end
     end
   end

@@ -6,12 +6,16 @@ class FormulaCalculationService
   class InvalidFieldReferenceError < StandardError; end
   class CalculationError < StandardError; end
 
-  def initialize(dossier, locale: I18n.locale)
+  # pf: value_overrides permet de passer des valeurs fraîchement calculées
+  # pour la transitivité (A → B → C) sans dépendre du cache AR du dossier.
+  # Hash { stable_id => value_string }
+  def initialize(dossier, locale: I18n.locale, value_overrides: {})
     @dossier = dossier
     @locale = locale
     @calculator = create_calculator
     @procedure = dossier.procedure
     @revision = dossier.revision
+    @value_overrides = value_overrides
   end
 
   def compute_value(formule_champ)
@@ -194,10 +198,13 @@ class FormulaCalculationService
 
   def extract_column_value(column, path)
     if column.dossier_column?
-      # Metadata columns: always accessible
       column.value(@dossier)
     elsif column.champ_column?
-      # Champ columns: resolve with automatic precedence (row then parent)
+      # pf: Prioriser les value_overrides pour la transitivité
+      if path == :value && @value_overrides.key?(column.stable_id)
+        return @value_overrides[column.stable_id]
+      end
+
       champ = find_champ_by_stable_id_and_row(column.stable_id, @row_id)
 
       if champ.nil?
@@ -205,7 +212,6 @@ class FormulaCalculationService
       end
 
       if path == :value
-        # Basic value
         column.value(champ)
       else
         # Sub-property (DN date_de_naissance, referentiel/Commune, etc.)

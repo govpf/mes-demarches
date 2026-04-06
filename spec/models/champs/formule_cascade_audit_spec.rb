@@ -97,21 +97,20 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
       set_formule_expression(dossier, quadruple_tdc, "{tdc#{double_tdc.stable_id}} * 2")
     end
 
-    it 'recalcule le premier niveau (Double)' do
+    it 'propage la transitivité A → B → C via propagate_formula_updates' do
+      # Persister les champs formule pour que update_column fonctionne
+      dossier.reload
+      double_champ = find_champ(dossier, double_tdc)
+      double_champ.save! unless double_champ.persisted?
+      quadruple_champ = find_champ(dossier, quadruple_tdc)
+      quadruple_champ.save! unless quadruple_champ.persisted?
+
       montant = find_champ(dossier, montant_tdc)
       montant.update!(value: '10')
 
-      # Reload pour que le service voie la valeur mise à jour
-      dossier.reload
-      double_champ = find_champ(dossier, double_tdc)
-      expect(double_champ.compute_value_from_formula).to eq('20')
-    end
-
-    it 'refresh_dependent_formulas détecte les dépendances du premier niveau' do
-      dossier.reload
-      montant = find_champ(dossier, montant_tdc)
-      expect(montant.dependent_formula_champs).not_to be_empty
-      expect(montant.dependent_formula_champs.map(&:stable_id)).to include(double_tdc.stable_id)
+      # Vérifier que les DEUX niveaux sont recalculés en DB
+      expect(double_champ.reload.read_attribute(:value)).to eq('20')
+      expect(quadruple_champ.reload.read_attribute(:value)).to eq('40')
     end
 
     it 'ne provoque pas de cascade infinie (pas de StackOverflow)' do
