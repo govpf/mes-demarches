@@ -189,7 +189,7 @@ class FormulaCalculationService
         if champ.nil?
           raise InvalidFieldReferenceError, "Champ ##{reference}"
         end
-        return get_champ_numeric_value(champ)
+        next get_champ_numeric_value(champ)
       end
 
       # New column-based resolution
