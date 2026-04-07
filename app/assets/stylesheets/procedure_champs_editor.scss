@@ -5,11 +5,6 @@
 .types-de-champ-editor {
   > .types-de-champ-block {
     padding-left: 0;
-
-    .types-de-champ-errors {
-      background-color: $background-red;
-      padding: $default-padding;
-    }
   }
 
   .type-de-champ {

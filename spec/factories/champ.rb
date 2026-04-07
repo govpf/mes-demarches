@@ -234,6 +234,10 @@ FactoryBot.define do
     factory :champ_do_not_use_referentiel, class: 'Champs::ReferentielChamp' do
     end
 
+    factory :champ_do_not_use_formule, class: 'Champs::FormuleChamp' do
+      value { 'Résultat calculé' }
+    end
+
     factory :champ_do_not_use_repetition, class: 'Champs::RepetitionChamp' do
       transient do
         rows { 2 }

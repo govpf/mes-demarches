@@ -91,6 +91,7 @@ fr:
             draft_types_de_champ_public:
               format: 'Le champ %{message}'
               invalid_condition: "a une logique conditionnelle invalide"
+              invalid_formula: "%{message}"
               empty_repetition: 'doit comporter au moins un champ répétable'
               empty_drop_down: 'doit comporter au moins un choix sélectionnable'
               empty_csv: 'doit comporter au moins un fichier csv'
@@ -101,6 +102,7 @@ fr:
             draft_types_de_champ_private:
               format: 'L’annotation privée %{message}'
               invalid_condition: "a une logique conditionnelle invalide"
+              invalid_formula: "%{message}"
               empty_repetition: 'doit comporter au moins un champ répétable'
               empty_drop_down: 'doit comporter au moins un choix sélectionnable'
               empty_csv: 'doit comporter au moins un fichier csv'

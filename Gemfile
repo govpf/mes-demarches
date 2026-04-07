@@ -28,6 +28,7 @@ gem 'deep_cloneable' # Enable deep clone of active record models
 gem 'delayed_cron_job', require: false # Cron jobs
 gem 'delayed_job_active_record'
 gem 'delayed_job_web'
+gem 'dentaku' # Math and logic formula parser and evaluator
 gem 'devise'
 gem 'devise-i18n'
 gem 'devise-two-factor'

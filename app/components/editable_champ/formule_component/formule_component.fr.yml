@@ -1,0 +1,6 @@
+fr:
+  views:
+    shared:
+      champs:
+        formule:
+          no_value: "Aucune valeur calculée"

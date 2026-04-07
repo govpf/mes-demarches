@@ -9,7 +9,8 @@ class TypeDeChamp < ApplicationRecord
     cojo: :cojo_type_de_champ,
     lexpol: :lexpol,
     expression_reguliere: :expression_reguliere_type_de_champ,
-    referentiel_de_polynesie: :referentiel_de_polynesie
+    referentiel_de_polynesie: :referentiel_de_polynesie,
+    formule: :formule
   }
 
   MINIMUM_TEXTAREA_CHARACTER_LIMIT_LENGTH = 400
@@ -22,7 +23,8 @@ class TypeDeChamp < ApplicationRecord
     referentiel_de_polynesie: 'referentiel_de_polynesie',
     te_fenua: 'te_fenua',
     lexpol: 'lexpol',
-    visa: 'visa'
+    visa: 'visa',
+    formule: 'formule'
   }
 
   STRUCTURE = :structure
@@ -44,7 +46,8 @@ class TypeDeChamp < ApplicationRecord
     te_fenua: REFERENTIEL_EXTERNE,
     lexpol: REFERENTIEL_EXTERNE,
     referentiel_de_polynesie: REFERENTIEL_EXTERNE,
-    visa: STRUCTURE
+    visa: STRUCTURE,
+    formule: STRUCTURE
   }
 
   TYPE_DE_CHAMP_TO_CATEGORIE = {
@@ -142,10 +145,10 @@ class TypeDeChamp < ApplicationRecord
     referentiel_de_polynesie: [:table_id, :drop_down_other, :referentiel_mapping],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
-    visa: [:accredited_users]
+    visa: [:accredited_users],
+    formule: [:formule_expression, :dependent_stable_ids]
   }
   INSTANCE_OPTIONS = INSTANCE_OPTIONS_BY_TYPE.values.reduce(&:+).uniq
-
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
 
   enum :nature, { RIB: 'RIB' }
@@ -445,6 +448,70 @@ class TypeDeChamp < ApplicationRecord
       TypeDeChamp.type_champs.fetch(:multiple_drop_down_list),
       TypeDeChamp.type_champs.fetch(:yes_no)
     ])
+  end
+
+  # pf: méthodes spécifiques au type formule (les prédicats type_champ sont générés par l'enum)
+  def formule_user_expression
+    return '' unless formule?
+    @formule_user_expression ||= (
+      if revisions.any?
+        FormulaExpressionService.convert_to_libelles(formule_expression, revisions.first)
+      else
+        formule_expression
+      end
+    )
+  end
+
+  def dependent_stable_ids
+    return [] unless formule?
+    # pf: Extract stable_ids from column references in the expression
+    stable_ids = []
+
+    formule_expression.to_s.scan(/\{([^}]+)\}/).each do |match|
+      ref = match[0].strip
+
+      if ref.match?(/^tdc(\d+)/)
+        stable_ids << ref.match(/^tdc(\d+)/)[1].to_i
+      elsif ref.match?(/^\d+$/)
+        stable_ids << ref.to_i
+      end
+    end
+
+    stable_ids.uniq
+  end
+
+  # pf: Returns champs that can be referenced by this formula field
+  def available_champs_for_formula(revision)
+    return [] unless formule?
+
+    coordinate = revision.coordinate_for(self)
+    return [] unless coordinate
+
+    current_position = coordinate.position
+
+    if private?
+      public_champs = revision.types_de_champ_public.filter(&:fillable?)
+      preceding_private_champs = revision.types_de_champ_private
+        .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < current_position }
+
+      public_champs + preceding_private_champs
+    else
+      revision.types_de_champ_public
+        .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < current_position }
+    end
+  end
+
+  def encode_column_id(column, tdc)
+    if column.is_a?(Columns::ChampColumn) && !column.is_a?(Columns::JSONPathColumn) && !column.is_a?(Columns::LinkedDropDownColumn)
+      "tdc#{tdc.stable_id}"
+    elsif column.is_a?(Columns::JSONPathColumn)
+      path_name = column.jsonpath.split('.').last
+      "tdc#{tdc.stable_id}/#{path_name}"
+    elsif column.is_a?(Columns::LinkedDropDownColumn)
+      "tdc#{tdc.stable_id}/#{column.path}"
+    else
+      column.send(:column_id)
+    end
   end
 
   def public?
