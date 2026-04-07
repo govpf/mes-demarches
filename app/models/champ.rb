@@ -363,9 +363,11 @@ class Champ < ApplicationRecord
   def refresh_dependent_formulas
     return if stable_id.nil?
     return if !saved_change_to_value?
-    # pf: type_de_champ peut lever si le stable_id n'est pas dans la révision
-    # (cas des tests qui créent des champs manuellement hors procédure)
-    return if (type_de_champ.formule? rescue false)
+    # pf: Court-circuit rapide — si la procédure n'a aucun champ formule, rien à faire.
+    # Évite tout accès à type_de_champ / project_champs (coûteux) pour les procédures sans formule.
+    return unless dossier.revision.types_de_champ.any?(&:formule?)
+    # pf: Les champs formule eux-mêmes ne déclenchent pas de recalcul (évite les boucles)
+    return if type_de_champ.formule?
 
     # pf: Recalcul de toutes les formules dépendantes (transitivité A → B → C).
     # all_dependent_formula_champs retourne les champs dans l'ordre BFS (B avant C).
