@@ -328,8 +328,54 @@ class Champ < ApplicationRecord
 
   # pf: Formules directement dépendantes de ce champ (1 niveau)
   def dependent_formula_champs
+    dependent_formula_champs_from(dossier.project_champs_public_all + dossier.project_champs_private_all)
+  end
+
+  # pf: Toutes les formules dépendantes (transitivité : A → B → C)
+  # Construit project_champs UNE SEULE FOIS et résout le graphe de dépendances
+  # via les types_de_champ (metadata) + BFS sur les stable_ids.
+  def all_dependent_formula_champs
     all_champs = dossier.project_champs_public_all + dossier.project_champs_private_all
 
+    # 1. Construire le graphe de dépendances depuis les types_de_champ (pas les champs)
+    formula_tdcs = dossier.revision.types_de_champ.filter(&:formule?)
+    # stable_id → [stable_ids des formules qui en dépendent]
+    deps_graph = Hash.new { |h, k| h[k] = Set.new }
+    formula_tdcs.each do |tdc|
+      tdc.dependent_stable_ids.each { |dep_sid| deps_graph[dep_sid].add(tdc.stable_id) }
+    end
+
+    # 2. BFS sur le graphe pour trouver tous les stable_ids de formules à recalculer (en ordre topologique)
+    ordered_formula_sids = []
+    visited = Set.new
+    queue = deps_graph[stable_id].to_a
+
+    while (sid = queue.shift)
+      next if visited.include?(sid)
+      visited.add(sid)
+      ordered_formula_sids << sid
+      queue.concat(deps_graph[sid].to_a)
+    end
+
+    return [] if ordered_formula_sids.empty?
+
+    # 3. Résoudre les champs une seule fois, filtrés par row_id
+    ordered_formula_sids.flat_map do |sid|
+      all_champs.filter do |champ|
+        next false unless champ.stable_id == sid
+
+        if row_id.present?
+          champ.row_id == row_id || champ.row_id.nil?
+        else
+          true
+        end
+      end
+    end.uniq(&:public_id)
+  end
+
+  private
+
+  def dependent_formula_champs_from(all_champs)
     all_champs.filter do |formula_champ|
       next false if formula_champ.stable_id.nil?
       next false unless formula_champ.formule? && formula_champ.type_de_champ.dependent_stable_ids&.include?(stable_id)
@@ -340,24 +386,6 @@ class Champ < ApplicationRecord
         true
       end
     end
-  end
-
-  # pf: Toutes les formules dépendantes (transitivité : A → B → C)
-  # Utilise public_id (stable_id + row_id) comme clé de visite pour
-  # distinguer les instances d'une même formule dans différentes lignes de répétition.
-  def all_dependent_formula_champs
-    result = []
-    visited = Set.new
-    queue = dependent_formula_champs.dup
-
-    while (champ = queue.shift)
-      next if visited.include?(champ.public_id)
-      visited.add(champ.public_id)
-      result << champ
-      queue.concat(champ.dependent_formula_champs)
-    end
-
-    result
   end
 
   def refresh_dependent_formulas
