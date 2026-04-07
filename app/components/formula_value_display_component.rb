@@ -28,10 +28,9 @@ class FormulaValueDisplayComponent < ApplicationComponent
   end
 
   def date?(value)
-    Date.parse(value)
-    true
-  rescue ArgumentError, TypeError
-    false
+    # pf: Date.parse est trop permissif (accepte "Pas validé100" → date).
+    # On ne reconnaît que les formats ISO et courants explicites.
+    value.match?(/\A\d{4}-\d{2}-\d{2}/) || value.match?(/\A\d{2}\/\d{2}\/\d{4}\z/)
   end
 
   def number?(value)
