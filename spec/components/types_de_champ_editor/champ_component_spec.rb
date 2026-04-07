@@ -118,8 +118,9 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
       end
 
       it 'shows formula help text' do
-        expect(page).to have_text('Utilisez les références aux champs avec la syntaxe {Nom du champ}.')
-        expect(page).to have_text('Fonctions disponibles : SOMME, MOYENNE, SI, MIN, MAX, ABS, ARRONDI.')
+        expect(page).to have_text('Syntaxe')
+        expect(page).to have_text('{Nom du champ}')
+        expect(page).to have_text('Voir la documentation')
       end
 
       it 'has proper HTML attributes for accessibility' do

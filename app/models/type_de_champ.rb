@@ -972,5 +972,4 @@ class TypeDeChamp < ApplicationRecord
   def normalize_libelle
     self.libelle&.strip!
   end
-
 end

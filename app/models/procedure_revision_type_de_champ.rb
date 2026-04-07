@@ -102,7 +102,7 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
       .filter(&:referentiel?)
       .find { stable_id.to_s.in?(it.referentiel_mapping_prefillable_stable_ids.map(&:to_s)) }
   end
-  
+
   # pf: Formula-specific methods
   def in_repetition?
     # A formula is in a repetition if its parent is a repetition
