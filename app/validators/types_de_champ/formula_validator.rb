@@ -44,12 +44,15 @@ class TypesDeChamp::FormulaValidator < ActiveModel::EachValidator
 
     resolver = FormulaColumnResolver.new(revision, row_id: nil)
 
+    # pf: Utilise TOUS les types_de_champ de la révision (pas juste la collection en cours)
+    # car une annotation privée peut référencer des champs publics.
+    all_revision_tdcs = revision.types_de_champ
+
     # Available columns with order constraints (from coordinate)
     available_column_ids = coordinate.available_columns_for_formula
       .filter { |col| col.is_a?(Columns::ChampColumn) }
       .map do |col|
-        # pf: Utilise all_tdcs déjà chargé au lieu de revision.types_de_champ.find (N+1)
-        found_tdc = all_tdcs.find { |t| col.stable_id == t.stable_id }
+        found_tdc = all_revision_tdcs.find { |t| col.stable_id == t.stable_id }
         found_tdc ? tdc.encode_column_id(col, found_tdc) : nil
       end
       .compact

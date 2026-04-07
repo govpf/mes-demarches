@@ -89,4 +89,26 @@ RSpec.describe TypesDeChamp::FormulaValidator do
       expect(procedure.errors.full_messages.join).to include('Champs inconnus')
     end
   end
+
+  context 'with a private formula referencing a public champ' do
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :integer_number, libelle: 'Montant' }
+      ], types_de_champ_private: [
+        { type: :formule, libelle: 'Calcul Privé' }
+      ])
+    end
+
+    subject { procedure.validate(:types_de_champ_private_editor) }
+
+    before do
+      montant_tdc = procedure.draft_revision.types_de_champ_public.find(&:integer_number?)
+      formule_tdc = procedure.draft_revision.types_de_champ_private.find(&:formule?)
+      formule_tdc.update_column(:options, { 'formule_expression' => "{tdc#{montant_tdc.stable_id}} * 2" })
+    end
+
+    it 'does not add errors (private can reference public)' do
+      expect { subject }.not_to change { procedure.errors.count }
+    end
+  end
 end
