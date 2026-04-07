@@ -12,14 +12,15 @@ order: 6
 
 Les **fonctions texte** permettent de manipuler des chaînes de caractères : concaténer, extraire des sous-chaînes, mesurer la longueur, etc.
 
-⚠️ **Note importante** : Les fonctions texte sont disponibles **uniquement avec leur nom anglais**. Il n'existe pas d'alias français pour ces fonctions (contrairement aux fonctions mathématiques).
+Les fonctions texte sont disponibles en **français** et en **anglais**.
 
-## CONCAT
+## CONCATENER / CONCAT
 
 Concatène (assemble) plusieurs chaînes de caractères.
 
 **Syntaxe** :
 ```
+CONCATENER(texte1, texte2, ...)
 CONCAT(texte1, texte2, ...)
 ```
 
@@ -42,12 +43,13 @@ CONCAT("Demande de ", {Prénom}, " ", {Nom}, " depuis ", {Code postal/commune})
 
 ---
 
-## LEFT
+## GAUCHE / LEFT
 
 Extrait les **N premiers caractères** d'une chaîne.
 
 **Syntaxe** :
 ```
+GAUCHE(texte, nombre)
 LEFT(texte, nombre)
 ```
 
@@ -80,12 +82,13 @@ CONCAT(LEFT({Code}, 3), "-", {Numéro})
 
 ---
 
-## RIGHT
+## DROITE / RIGHT
 
 Extrait les **N derniers caractères** d'une chaîne.
 
 **Syntaxe** :
 ```
+DROITE(texte, nombre)
 RIGHT(texte, nombre)
 ```
 
@@ -111,12 +114,13 @@ RIGHT({Code postal}, 3)
 
 ---
 
-## MID
+## STXT / MID
 
 Extrait une **sous-chaîne** à partir d'une position donnée.
 
 **Syntaxe** :
 ```
+STXT(texte, départ, longueur)
 MID(texte, départ, longueur)
 ```
 
@@ -145,12 +149,13 @@ MID({SIRET}, 1, 9)
 
 ---
 
-## LEN
+## NBCAR / LEN
 
 Retourne la **longueur** (nombre de caractères) d'une chaîne.
 
 **Syntaxe** :
 ```
+NBCAR(texte)
 LEN(texte)
 ```
 
@@ -239,27 +244,62 @@ CONCAT("Montant : ", {Prix}, " €")
 
 ---
 
-## Pas d'alias français
+## Fonctions supplémentaires
 
-⚠️ **Contrairement aux fonctions mathématiques**, les fonctions texte **n'ont pas d'alias français**.
+### CHERCHE
 
-**Fonctions valides** :
+Recherche la position d'un texte dans un autre (insensible à la casse). Retourne 0 si non trouvé.
+
+**Syntaxe** : `CHERCHE(recherche, texte)` ou `CHERCHE(recherche, texte, position_départ)`
+
 ```
-CONCAT({Prénom}, {Nom})  ✅
-LEFT({Code}, 2)          ✅
-RIGHT({SIRET}, 4)        ✅
-LEN({Nom})               ✅
-MID({Code}, 3, 2)        ✅
+CHERCHE("jour", "Bonjour")    → 4
+CHERCHE("xyz", "Bonjour")     → 0
 ```
 
-**Fonctions invalides** (n'existent pas) :
+### SUBSTITUE
+
+Remplace toutes les occurrences d'un texte par un autre.
+
+**Syntaxe** : `SUBSTITUE(texte, ancien, nouveau)`
+
 ```
-CONCATENER(...)  ❌
-GAUCHE(...)      ❌
-DROITE(...)      ❌
-LONGUEUR(...)    ❌
-MILIEU(...)      ❌
+SUBSTITUE("Bonjour monde", "monde", "terre")    → "Bonjour terre"
 ```
+
+### MAJUSCULE / MINUSCULE
+
+Convertit en majuscules ou minuscules.
+
+```
+MAJUSCULE("bonjour")    → "BONJOUR"
+MINUSCULE("BONJOUR")    → "bonjour"
+```
+
+### SUPPRESPACE
+
+Supprime les espaces en début/fin et réduit les espaces multiples.
+
+```
+SUPPRESPACE("  bon   jour  ")    → "bon jour"
+```
+
+---
+
+## Récapitulatif des alias français / anglais
+
+| Français | Anglais | Description |
+|----------|---------|-------------|
+| CONCATENER | CONCAT | Assembler des textes |
+| GAUCHE | LEFT | Premiers caractères |
+| DROITE | RIGHT | Derniers caractères |
+| STXT | MID | Sous-chaîne |
+| NBCAR | LEN | Longueur |
+| CHERCHE | - | Rechercher position |
+| SUBSTITUE | - | Remplacer du texte |
+| MAJUSCULE | - | Convertir en majuscules |
+| MINUSCULE | - | Convertir en minuscules |
+| SUPPRESPACE | - | Nettoyer les espaces |
 
 ---
 
@@ -287,12 +327,11 @@ MILIEU(...)      ❌
 ## Bonnes pratiques
 
 ### ✅ À faire
-- **Utiliser les noms anglais** (CONCAT, LEFT, RIGHT, LEN, MID)
+- **Utiliser les noms français ou anglais** selon votre préférence
 - **Tester** les extractions avec différentes longueurs de chaînes
 - **Combiner** avec des fonctions conditionnelles pour valider les formats
 
 ### ❌ À éviter
-- Essayer d'utiliser des noms français (`CONCATENER`, `GAUCHE`, etc.)
 - Oublier que les positions commencent à **1** (pas 0)
 - Supposer que les dates sont des chaînes formatées (ce sont des timestamps)
 
