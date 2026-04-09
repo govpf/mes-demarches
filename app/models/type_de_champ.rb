@@ -47,7 +47,7 @@ class TypeDeChamp < ApplicationRecord
     lexpol: REFERENTIEL_EXTERNE,
     referentiel_de_polynesie: REFERENTIEL_EXTERNE,
     visa: STRUCTURE,
-    formule: STRUCTURE
+    formule: STANDARD
   }
 
   TYPE_DE_CHAMP_TO_CATEGORIE = {
