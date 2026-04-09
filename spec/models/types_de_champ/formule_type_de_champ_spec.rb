@@ -60,6 +60,53 @@ describe TypesDeChamp::FormuleTypeDeChamp do
     end
   end
 
+  describe '#infer_output_type' do
+    context 'with arithmetic expression' do
+      let(:expression) { '1 + 2' }
+
+      it 'infers number' do
+        formule_type_de_champ
+        expect(type_de_champ.formule_output_type).to eq('number')
+      end
+    end
+
+    context 'with comparison' do
+      let(:expression) { '{Montant} > 1000' }
+
+      it 'infers boolean' do
+        formule_type_de_champ
+        expect(type_de_champ.formule_output_type).to eq('boolean')
+      end
+    end
+
+    context 'with logical function ET' do
+      let(:expression) { 'ET({x} > 5, {x} < 100)' }
+
+      it 'infers boolean' do
+        formule_type_de_champ
+        expect(type_de_champ.formule_output_type).to eq('boolean')
+      end
+    end
+
+    context 'with SI returning number' do
+      let(:expression) { 'SI({x} > 0, 1, 0)' }
+
+      it 'infers number (type of the true branch)' do
+        formule_type_de_champ
+        expect(type_de_champ.formule_output_type).to eq('number')
+      end
+    end
+
+    context 'with blank expression' do
+      let(:expression) { '' }
+
+      it 'does not set output type' do
+        formule_type_de_champ
+        expect(type_de_champ.formule_output_type).to be_nil
+      end
+    end
+  end
+
   describe '#estimated_fill_duration' do
     let(:expression) { '1 + 1' }
     let(:revision) { build(:procedure_revision) }
