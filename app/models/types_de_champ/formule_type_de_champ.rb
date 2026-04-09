@@ -31,7 +31,11 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     # variables fictives pour vérifier la syntaxe sans résoudre les références.
     testable = expression.gsub(/\{[^}]+\}/, 'x')
     calculator = FormulaCalculationService.new_calculator
-    calculator.ast(testable)
+    ast_node = calculator.ast(testable)
+
+    # pf: Inférence automatique du type de sortie via l'AST Dentaku.
+    # Utilisé par le système de conditions pour proposer les bons opérateurs.
+    @type_de_champ.formule_output_type = infer_output_type(ast_node)
   rescue Dentaku::ParseError => e
     @type_de_champ.errors.add(:formule_expression, :invalid_syntax, message: e.message)
   rescue Dentaku::TokenizerError => e
@@ -39,5 +43,13 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   rescue StandardError
     # Autres erreurs Dentaku (UnboundVariable, etc.) — OK à ce stade,
     # les variables seront résolues au calcul.
+  end
+
+  def infer_output_type(ast_node)
+    case ast_node&.type
+    when :logical then 'boolean'
+    when :string then 'string'
+    else 'number' # :numeric, nil, ou inconnu → fallback number
+    end
   end
 end

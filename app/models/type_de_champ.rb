@@ -146,7 +146,7 @@ class TypeDeChamp < ApplicationRecord
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
     visa: [:accredited_users],
-    formule: [:formule_expression, :dependent_stable_ids]
+    formule: [:formule_expression, :dependent_stable_ids, :formule_output_type]
   }
   INSTANCE_OPTIONS = INSTANCE_OPTIONS_BY_TYPE.values.reduce(&:+).uniq
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
