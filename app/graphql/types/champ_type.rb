@@ -125,6 +125,8 @@ module Types
           Types::Champs::EngagementJuridiqueChampType
         when ::Champs::ReferentielDePolynesieChamp
           Types::Champs::ReferentielDePolynesieChampType
+        when ::Champs::FormuleChamp
+          Types::Champs::FormuleChampType
         else
           Types::Champs::TextChampType
         end

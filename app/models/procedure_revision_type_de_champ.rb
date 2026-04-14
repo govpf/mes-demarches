@@ -102,4 +102,146 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
       .filter(&:referentiel?)
       .find { stable_id.to_s.in?(it.referentiel_mapping_prefillable_stable_ids.map(&:to_s)) }
   end
+
+  # pf: Formula-specific methods
+  def in_repetition?
+    # A formula is in a repetition if its parent is a repetition
+    parent_type_de_champ&.repetition? || false
+  end
+
+  # pf: Returns columns available for formula validation (respects order constraints)
+  # For formulas IN repetitions: only parent fields (fields OUTSIDE the repetition)
+  # For formulas OUTSIDE repetitions: preceding fields in the same scope
+  def available_columns_for_formula
+    return [] unless type_de_champ.formule?
+
+    # System columns: always available
+    system_columns = procedure.dossier_columns_for_export +
+                     procedure.usager_columns_for_export
+
+    # If the formula is INSIDE a repetition, return only PARENT fields
+    if in_repetition?
+      # All fields that precede the parent repetition
+      parent_position = parent.position
+
+      if private?
+        # Private annotation in repetition: all public + private before the repetition
+        public_columns = revision.types_de_champ_public
+          .filter(&:fillable?)
+          .flat_map { |tdc| tdc.columns(procedure:) }
+
+        private_columns = revision.types_de_champ_private
+          .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < parent_position }
+          .flat_map { |tdc| tdc.columns(procedure:) }
+
+        system_columns + public_columns + private_columns
+      else
+        # Public field in repetition: public fields before the repetition
+        champ_columns = revision.types_de_champ_public
+          .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < parent_position }
+          .flat_map { |tdc| tdc.columns(procedure:) }
+
+        system_columns + champ_columns
+      end
+    else
+      # Formula outside repetition: classic order constraints
+      if private?
+        # Annotation: all public + preceding private
+        public_columns = revision.types_de_champ_public
+          .filter(&:fillable?)
+          .flat_map { |tdc| tdc.columns(procedure:) }
+
+        private_columns = revision.types_de_champ_private
+          .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < position }
+          .flat_map { |tdc| tdc.columns(procedure:) }
+
+        system_columns + public_columns + private_columns
+      else
+        # Public field: preceding public fields only
+        champ_columns = revision.types_de_champ_public
+          .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < position }
+          .flat_map { |tdc| tdc.columns(procedure:) }
+
+        system_columns + champ_columns
+      end
+    end
+  end
+
+  # pf: Returns columns available for formula EDITOR (includes siblings for repetitions)
+  # This is used by the UI editor to show all available fields including siblings
+  def available_columns_for_formula_editor
+    return [] unless type_de_champ.formule?
+
+    parent_columns = available_columns_for_formula
+
+    # If the formula is INSIDE a repetition, also add sibling fields (same row)
+    if in_repetition?
+      sibling_columns = revision.children_of(parent_type_de_champ)
+        .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < position }
+        .flat_map { |tdc| tdc.columns(procedure:) }
+
+      parent_columns + sibling_columns
+    else
+      parent_columns
+    end
+  end
+
+  def available_in_repetition_context?(column_ref)
+    # For a formula in a repetition:
+    # 1. Can reference fields from the same row (siblings) that precede it
+    # 2. Can reference fields outside repetition (parents)
+
+    # Fields from the same row (siblings in the repetition)
+    sibling_columns = revision.children_of(parent_type_de_champ)
+      .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < position }
+      .flat_map do |tdc|
+        tdc.columns(procedure:).map { |col| type_de_champ.encode_column_id(col, tdc) }
+      end
+
+    # Parent fields (outside repetition)
+    parent_columns = available_columns_for_formula
+      .filter { |col| col.is_a?(Columns::ChampColumn) }
+      .map do |col|
+        tdc = revision.types_de_champ.find { |t| col.stable_id == t.stable_id }
+        tdc ? type_de_champ.encode_column_id(col, tdc) : nil
+      end
+      .compact
+
+    (sibling_columns + parent_columns).include?(column_ref)
+  end
+
+  def check_collision_warning(column_ref, errors_collector)
+    # Check if the field exists both in row AND parent
+    # Extract stable_id from column_ref (e.g., "tdc456" -> 456)
+    return unless column_ref.start_with?('tdc')
+
+    stable_id = column_ref.match(/tdc(\d+)/)[1].to_i
+    referenced_tdc = revision.types_de_champ.find { |t| t.stable_id == stable_id }
+    return unless referenced_tdc
+
+    # Get the libelle of the referenced field
+    referenced_libelle = referenced_tdc.libelle
+
+    # Check if a sibling field has this libelle
+    sibling_tdcs = revision.children_of(parent_type_de_champ)
+      .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < position }
+
+    has_sibling_with_libelle = sibling_tdcs.any? { |tdc| tdc.libelle == referenced_libelle }
+
+    # Check if a parent field has this libelle
+    parent_tdcs = available_columns_for_formula
+      .filter { |col| col.is_a?(Columns::ChampColumn) }
+      .map { |col| revision.types_de_champ.find { |t| col.stable_id == t.stable_id } }
+      .compact
+
+    has_parent_with_libelle = parent_tdcs.any? { |tdc| tdc.libelle == referenced_libelle }
+
+    # Collision detected: same libelle exists in both sibling and parent
+    if has_sibling_with_libelle && has_parent_with_libelle
+      # ⚠️ Warning only (not blocking error)
+      errors_collector.add(:formule_expression,
+        "⚠️ « #{referenced_libelle} » existe à la fois dans la ligne et comme champ parent. " \
+        "La formule utilisera la valeur de la ligne (renommez l'un des deux pour plus de clarté).")
+    end
+  end
 end

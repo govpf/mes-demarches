@@ -10,6 +10,10 @@ module TurboChampsConcern
       .filter { _1.refresh_after_update? || _1.user_buffer_changes? }
     prefillable_champs = champs.filter { it.referentiel? && it.autocomplete? }
     to_update += prefillable_champs.map(&:prefillable_champs).flatten.uniq if prefillable_champs.any?
+
+    # pf: Add all dependent formula champs (transitive: A → B → C)
+    updated_champs = champs.filter { _1.public_id.in?(params.keys) }
+    to_update += updated_champs.flat_map(&:all_dependent_formula_champs).uniq
     to_show, to_hide = champs.filter { it.conditional? || it.child? }
       .partition(&:visible?)
       .map { champs_to_one_selector(_1 - to_update) }

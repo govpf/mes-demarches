@@ -60,7 +60,7 @@ class Referentiels::BaserowService
     token = config['Token']
     return nil unless table_id.present? && token.present?
 
-    base_url = ReferentielDePolynesie::BaserowAPI.secrets[:url]
+    base_url = ENV['API_BASEROW_URL']
     headers = { 'Authorization' => "Token #{token}" }
 
     if referentiel.test_data.present?

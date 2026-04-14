@@ -25,6 +25,7 @@ class FAQsLoaderService
   def faqs_for_category(category)
     @faqs_by_path.values
       .filter { |faq| faq[:category] == category }
+      .sort_by { |faq| faq[:order] || 999 }
       .group_by { |faq| faq[:subcategory] }
    end
 
@@ -45,7 +46,7 @@ class FAQsLoaderService
       parsed = parse_with_substitutions(file_path)
       front_matter = parsed.front_matter.symbolize_keys
 
-      faq_data = front_matter.slice(:slug, :title, :category, :subcategory, :locale, :keywords).merge(file_path: file_path)
+      faq_data = front_matter.slice(:slug, :title, :category, :subcategory, :locale, :keywords, :order).merge(file_path: file_path)
 
       path = front_matter.fetch(:category) + '/' + front_matter.fetch(:slug)
       faqs_by_path[path] = faq_data

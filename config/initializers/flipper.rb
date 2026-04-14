@@ -38,6 +38,7 @@ features = [
   :sva,
   # :lexpol,
   :visa,
+  :formule,
   # pf: feature flag pour la navigation contextuelle entre personas
   :contextual_persona_navigation,
   :switch_domain

@@ -1,0 +1,6 @@
+.fr-text.fr-text--lg{ role: "status", "aria-live": "polite", "aria-labelledby": dom_id(@champ, :label) }
+  - if @champ.value.present?
+    = formatted_value
+  - else
+    %span.fr-text--mention-grey{ "aria-label": "Aucune valeur calculée disponible pour #{@champ.libelle}" }
+      = t('views.shared.champs.formule.no_value')

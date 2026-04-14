@@ -71,6 +71,21 @@ module Redcarpet
         view_context.content_tag(:blockquote, raw_html.html_safe)
       end
     end
+
+    def table(header, body)
+      view_context.content_tag(:div, class: 'fr-table fr-table--bordered') do
+        view_context.content_tag(:div, class: 'fr-table__wrapper') do
+          view_context.content_tag(:div, class: 'fr-table__container') do
+            view_context.content_tag(:div, class: 'fr-table__content') do
+              view_context.content_tag(:table) do
+                (header.present? ? view_context.content_tag(:thead, header.html_safe) : ''.html_safe) +
+                (body.present? ? view_context.content_tag(:tbody, body.html_safe) : ''.html_safe)
+              end
+            end
+          end
+        end
+      end
+    end
     # rubocop:enable Rails/OutputSafety
   end
 end
