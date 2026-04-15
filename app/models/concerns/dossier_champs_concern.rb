@@ -12,6 +12,7 @@ module DossierChampsConcern
       rebased_at = champ&.rebased_at
       type_de_champ.build_champ(dossier: self, row_id:, updated_at:, rebased_at:, value:, stream:)
     else
+      champ.type_de_champ = type_de_champ
       champ
     end
   end
@@ -231,7 +232,7 @@ module DossierChampsConcern
   end
 
   def reset_user_buffer_stream!
-    champs.where(stream: Champ::USER_BUFFER_STREAM).delete_all
+    champs.where(stream: Champ::USER_BUFFER_STREAM).destroy_all
 
     # update loaded champ instances
     association(:champs).target = champs.filter { _1.stream != Champ::USER_BUFFER_STREAM }
@@ -278,11 +279,11 @@ module DossierChampsConcern
   end
 
   def update_with_stream?
-    en_construction? && user_buffer_stream_enabled?
+    en_construction? && !with_editing_fork?
   end
 
   def update_with_fork?
-    en_construction? && !user_buffer_stream_enabled?
+    en_construction? && with_editing_fork?
   end
 
   # pf: méthode publique nécessaire pour éviter boucle infinie dans les conditions
@@ -292,11 +293,6 @@ module DossierChampsConcern
   end
 
   private
-
-  def user_buffer_stream_enabled?
-    return false if with_editing_fork?
-    procedure.feature_enabled?(:user_buffer_stream) || champs.any? { !_1.main_stream? }
-  end
 
   def with_stream(stream)
     if block_given?

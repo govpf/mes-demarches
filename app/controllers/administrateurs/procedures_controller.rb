@@ -257,12 +257,13 @@ module Administrateurs
     end
 
     def update_monavis
-      if !@procedure.update(procedure_params)
-        flash.now.alert = @procedure.errors.full_messages
-        render 'monavis'
-      else
+      @procedure.assign_attributes(procedure_params)
+      if @procedure.validate(:publication) && @procedure.save
         flash.notice = 'le champ MonAvis a bien été mis à jour'
         redirect_to admin_procedure_path(id: @procedure.id)
+      else
+        flash.now.alert = @procedure.errors.full_messages
+        render 'monavis'
       end
     end
 
@@ -332,7 +333,7 @@ module Administrateurs
     end
 
     def check_path
-      path = params[:path]
+      path = publish_params[:path]
       @path_available = @procedure.path_available?(path)
       @other_procedure = @procedure.other_procedure_with_path(path)
 
@@ -638,6 +639,7 @@ module Administrateurs
         :procedure_expires_when_termine_enabled,
         :rdv_enabled,
         :pro_connect_restricted,
+        :robots_indexable,
         { zone_ids: [], procedure_tag_names: [] }
       ]
 
@@ -670,7 +672,7 @@ module Administrateurs
     end
 
     def publish_params
-      params.permit(:path, :lien_site_web)
+      params.require(:procedure).permit(:path, :lien_site_web, :robots_indexable)
     end
 
     def closing_params

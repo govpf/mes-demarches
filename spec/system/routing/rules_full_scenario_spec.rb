@@ -137,7 +137,8 @@ describe 'The routing with rules', js: true do
     expect(procedure.groupe_instructeurs.count).to eq(4)
 
     # add contact_information to all groupes instructeur
-    procedure.groupe_instructeurs.each { |gi| gi.update!(contact_information: create(:contact_information)) }
+    # pf: noms explicites pour éviter collision avec procedure.service.nom (même séquence FactoryBot)
+    procedure.groupe_instructeurs.each { |gi| gi.update!(contact_information: create(:contact_information, nom: "Contact #{gi.label}")) }
 
     # publish
     publish_procedure(procedure)
@@ -260,7 +261,7 @@ describe 'The routing with rules', js: true do
   def publish_procedure(procedure)
     click_on procedure.libelle
     find('#publish-procedure-link').click
-    fill_in 'lien_site_web', with: 'http://some.website'
+    fill_in 'procedure[lien_site_web]', with: 'http://some.website'
     within('form') { click_on 'Publier' }
 
     expect(page).to have_text('Votre démarche est désormais publiée !')
