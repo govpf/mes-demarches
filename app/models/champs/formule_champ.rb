@@ -29,6 +29,14 @@ class Champs::FormuleChamp < Champ
   private
 
   def store_computed_value
+    # pf: garde contre les champs formule orphelins — un Champ persisté dont
+    # le TDC a été supprimé de la révision (cas typique d'un dossier de preview
+    # après une suppression de champ formule via l'éditeur admin). Sans cette
+    # garde, type_de_champ lève un RuntimeError qui fait crasher la page de
+    # preview. Les champs non persistés (construits en mémoire par build_champ)
+    # sont laissés passer : leur TDC est par construction valide.
+    return if persisted? && !in_dossier_revision?
+
     if type_de_champ.formule_expression.present?
       write_attribute(:value, compute_value_from_formula)
     end

@@ -111,6 +111,42 @@ describe Champs::FormuleChamp do
     end
   end
 
+  # pf: garde contre les champs formule persistés orphelins (TDC supprimé de
+  # la révision mais Champ encore en BDD — cas typique d'un dossier de preview).
+  describe 'store_computed_value with persisted orphan champ' do
+    let(:expression) { '1 + 1' }
+    let(:test_champ) { Champs::FormuleChamp.new(dossier: build(:dossier)) }
+
+    before do
+      allow(test_champ).to receive(:type_de_champ).and_return(type_de_champ)
+      allow(test_champ).to receive(:persisted?).and_return(true)
+      # Simule un orphelin : le stable_id n'est pas dans la révision courante.
+      allow(test_champ).to receive(:in_dossier_revision?).and_return(false)
+    end
+
+    it 'does not crash and does not compute anything' do
+      expect { test_champ.validate }.not_to raise_error
+      expect(test_champ.value).to be_nil
+    end
+  end
+
+  # pf: contre-épreuve — un champ non persisté (construit en mémoire) doit
+  # continuer à calculer, même s'il n'est pas dans la révision du dossier.
+  describe 'store_computed_value with non-persisted champ' do
+    let(:expression) { '3 + 4' }
+    let(:test_champ) { Champs::FormuleChamp.new(dossier: build(:dossier)) }
+
+    before do
+      allow(test_champ).to receive(:type_de_champ).and_return(type_de_champ)
+      allow(test_champ).to receive(:in_dossier_revision?).and_return(false)
+    end
+
+    it 'computes normally (guard only targets persisted orphans)' do
+      test_champ.validate
+      expect(test_champ.value).to eq('7')
+    end
+  end
+
   describe '#compute_value_from_formula' do
     let(:dossier) { build(:dossier) }
     let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }

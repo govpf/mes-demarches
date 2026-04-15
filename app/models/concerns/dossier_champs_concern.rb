@@ -6,7 +6,7 @@ module DossierChampsConcern
   def project_champ(type_de_champ, row_id: nil)
     check_valid_row_id_on_read?(type_de_champ, row_id)
     champ = champs_by_public_id[type_de_champ.public_id(row_id)]
-    if champ.nil? || !champ.is_type?(type_de_champ.type_champ)
+    projected = if champ.nil? || !champ.is_type?(type_de_champ.type_champ)
       value = type_de_champ.champ_blank?(champ) ? nil : champ.value
       updated_at = champ&.updated_at || depose_at || created_at
       rebased_at = champ&.rebased_at
@@ -15,6 +15,32 @@ module DossierChampsConcern
       champ.type_de_champ = type_de_champ
       champ
     end
+
+    # pf: quand le dossier est attaché à une révision brouillon (preview,
+    # dossier de test sur démarche brouillon, ou dossier de test ?test=1 sur
+    # démarche publiée), la révision mute en permanence — l'admin édite la
+    # procédure en direct. Les valeurs persistées des champs formule peuvent
+    # être obsolètes : nouveau TDC formule sans champ associé, expression
+    # modifiée, type ou présence des sources changés. On recalcule donc
+    # systématiquement en mémoire à la lecture. Aucune persistance : le flow
+    # refresh_dependent_formulas (after_save d'une source) prend le relais
+    # quand l'usager édite réellement. Les dossiers sur révision publiée
+    # (figée) ne sont pas concernés.
+    #
+    # Garde contre la récursion : FormulaCalculationService passe par
+    # project_champs_*_all → project_champ pour construire sa vue du dossier.
+    # Sans garde, le recalcul déclencherait un nouveau recalcul sur les mêmes
+    # champs, à l'infini. On ne recalcule que pour le premier appel entrant.
+    if revision&.draft? && type_de_champ.formule? && projected.respond_to?(:compute_value_from_formula) && !Thread.current[:dossier_champs_formule_recomputing]
+      Thread.current[:dossier_champs_formule_recomputing] = true
+      begin
+        projected.value = projected.compute_value_from_formula
+      ensure
+        Thread.current[:dossier_champs_formule_recomputing] = nil
+      end
+    end
+
+    projected
   end
 
   def project_champs_public

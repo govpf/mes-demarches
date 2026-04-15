@@ -139,6 +139,113 @@ RSpec.describe DossierChampsConcern do
         end
       end
     end
+
+    # pf: sur un dossier de preview, la draft_revision mute en direct via
+    # l'éditeur. On doit donc systématiquement recalculer les formules à
+    # la lecture pour refléter : TDC formule nouvellement ajouté, expression
+    # modifiée, source ajoutée/supprimée/changée.
+    context 'formule field on a preview dossier' do
+      let(:procedure) do
+        create(:procedure, types_de_champ_public: [
+          { type: :integer_number, libelle: 'Montant', stable_id: 10 },
+          { type: :formule, libelle: 'Double', stable_id: 11, formule_expression: '' }
+        ])
+      end
+      let(:dossier) { procedure.draft_revision.dossier_for_preview(create(:user)) }
+      let(:montant_tdc) { dossier.find_type_de_champ_by_stable_id(10) }
+      let(:formule_tdc) { dossier.find_type_de_champ_by_stable_id(11) }
+
+      before do
+        dossier.project_champ(montant_tdc).update!(value: '7')
+        # Convertit l'expression en stable_ids avant de l'injecter dans le TDC
+        expr, _deps = FormulaExpressionService.convert_to_stable_ids('{Montant} * 2', procedure.draft_revision)
+        formule_tdc.update!(formule_expression: expr)
+      end
+
+      context 'when the formule champ is not yet persisted' do
+        before { dossier.champs.where(type: 'Champs::FormuleChamp').destroy_all; dossier.reload }
+
+        it 'computes the value in memory on read' do
+          projected = dossier.project_champ(formule_tdc)
+          expect(projected.new_record?).to be_truthy
+          expect(projected.value).to eq('14')
+        end
+      end
+
+      context 'when the persisted formule value is stale' do
+        before do
+          persisted = dossier.champs.find_or_initialize_by(stable_id: 11, row_id: nil)
+          persisted.type = 'Champs::FormuleChamp'
+          persisted.value = '999' # valeur périmée
+          persisted.save(validate: false)
+          dossier.reload
+        end
+
+        it 'recomputes on read using the current formule_expression' do
+          projected = dossier.project_champ(formule_tdc)
+          expect(projected.value).to eq('14')
+        end
+      end
+    end
+
+    # pf: un dossier de test (non preview) sur une démarche brouillon est lui
+    # aussi attaché à la draft_revision qui mute en direct — il doit bénéficier
+    # du même recalcul que les previews.
+    context 'formule field on a test dossier (non preview) on a brouillon procedure' do
+      let(:procedure) do
+        create(:procedure, types_de_champ_public: [
+          { type: :integer_number, libelle: 'Montant', stable_id: 30 },
+          { type: :formule, libelle: 'Double', stable_id: 31, formule_expression: '' }
+        ])
+      end
+      let(:dossier) { create(:dossier, procedure: procedure) }
+      let(:montant_tdc) { dossier.find_type_de_champ_by_stable_id(30) }
+      let(:formule_tdc) { dossier.find_type_de_champ_by_stable_id(31) }
+
+      before do
+        expect(dossier.for_procedure_preview).to be_falsey # sanity check
+        expect(dossier.revision.draft?).to be_truthy
+
+        dossier.project_champ(montant_tdc).update!(value: '5')
+        expr, _deps = FormulaExpressionService.convert_to_stable_ids('{Montant} * 3', procedure.draft_revision)
+        formule_tdc.update!(formule_expression: expr)
+      end
+
+      it 'recomputes on read like a preview dossier' do
+        dossier.champs.where(type: 'Champs::FormuleChamp').destroy_all
+        dossier.reload
+        projected = dossier.project_champ(formule_tdc)
+        expect(projected.value).to eq('15')
+      end
+    end
+
+    # pf: sur un dossier soumis à une révision publiée (figée), on ne force
+    # pas le recalcul : refresh_dependent_formulas a déjà fait son travail
+    # au moment du save d'une source, et la révision ne bougera plus.
+    context 'formule field on a dossier attached to a published revision' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :integer_number, libelle: 'Montant', stable_id: 40 },
+          { type: :formule, libelle: 'Double', stable_id: 41, formule_expression: '1 + 1' }
+        ])
+      end
+      # Dossier sur la révision publiée (figée)
+      let(:dossier) { create(:dossier, procedure: procedure, revision: procedure.published_revision) }
+      let(:formule_tdc) { dossier.find_type_de_champ_by_stable_id(41) }
+
+      it 'does not recompute — trusts the persisted value' do
+        expect(dossier.revision.draft?).to be_falsey # sanity check
+
+        persisted = dossier.champs.find_or_initialize_by(stable_id: 41, row_id: nil)
+        persisted.type = 'Champs::FormuleChamp'
+        persisted.value = 'persisted-value'
+        persisted.save(validate: false)
+        dossier.reload
+
+        projected = dossier.project_champ(formule_tdc)
+        expect(projected.value).to eq('persisted-value')
+      end
+    end
   end
 
   describe '#project_champs_public' do
