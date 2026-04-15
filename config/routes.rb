@@ -418,6 +418,7 @@ Rails.application.routes.draw do
         get 'attestation'
         get 'qrcode/:created_at', action: 'qrcode', as: :qrcode
         get 'transferer', to: 'dossiers#transferer'
+        post 'transferer', to: 'transfers#create', as: :transfer
         get 'papertrail', format: :pdf
         get 'set_accuse_lecture_agreement_at'
         get 'corbeille', to: 'dossiers#show_in_trash'
@@ -425,7 +426,7 @@ Rails.application.routes.draw do
       end
 
       collection do
-        resources :transfers, only: [:create, :update, :destroy]
+        resources :transfers, only: [:update, :destroy]
       end
     end
 
