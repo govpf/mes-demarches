@@ -764,6 +764,57 @@ describe ProcedureRevision do
         end
       end
 
+      # pf: vérifie la détection du changement de formule_expression
+      # (sinon aucun avertissement de republication quand la formule est modifiée).
+      context 'when formule_expression changes' do
+        let(:procedure) do
+          create(:procedure, types_de_champ_public: [
+            { type: :integer_number, libelle: 'Montant' },
+            { type: :formule, libelle: 'Double', formule_expression: '{Montant} * 2' }
+          ])
+        end
+        let(:formule_tdc) { draft.types_de_champ_public.find(&:formule?) }
+
+        before do
+          updated = new_draft.find_and_ensure_exclusive_use(formule_tdc.stable_id)
+          updated.update(formule_expression: '{Montant} * 3')
+        end
+
+        it 'reports the change' do
+          is_expected.to include({
+            attribute: :formule_expression,
+            from: '{Montant} * 2',
+            to: '{Montant} * 3',
+            label: 'Double',
+            op: :update,
+            private: false,
+            stable_id: formule_tdc.stable_id
+          })
+        end
+      end
+
+      context 'when formule_expression is cleared' do
+        let(:procedure) do
+          create(:procedure, types_de_champ_public: [
+            { type: :integer_number, libelle: 'Montant' },
+            { type: :formule, libelle: 'Double', formule_expression: '{Montant} * 2' }
+          ])
+        end
+        let(:formule_tdc) { draft.types_de_champ_public.find(&:formule?) }
+
+        before do
+          updated = new_draft.find_and_ensure_exclusive_use(formule_tdc.stable_id)
+          updated.update(formule_expression: '')
+        end
+
+        it 'reports the removal' do
+          change = subject.find { |c| c[:attribute] == :formule_expression }
+          expect(change).not_to be_nil
+          expect(change[:from]).to eq('{Montant} * 2')
+          expect(change[:to]).to be_blank
+        end
+      end
+
       context 'when drop_down_options changes from filled to empty' do
         let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :drop_down_list, libelle: 'Liste', drop_down_options: ['A', 'B'] }]) }
 

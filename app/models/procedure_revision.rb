@@ -612,6 +612,13 @@ class ProcedureRevision < ApplicationRecord
       compare_referentiel_changes(from_type_de_champ, to_type_de_champ).each do |change|
         changes << change
       end
+    elsif to_type_de_champ.formule?
+      if from_type_de_champ.formule_expression != to_type_de_champ.formule_expression
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :formule_expression,
+          from_type_de_champ.formule_expression,
+          to_type_de_champ.formule_expression)
+      end
     # pf: gestion du type lexpol (textes juridiques polynésiens)
     elsif to_type_de_champ.lexpol?
       if from_type_de_champ.lexpol_modele != to_type_de_champ.lexpol_modele
