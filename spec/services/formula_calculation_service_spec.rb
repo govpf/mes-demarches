@@ -247,5 +247,80 @@ describe FormulaCalculationService do
         expect(compute("SUPPRESPACE('  bon   jour  ')")).to eq('bon jour')
       end
     end
+
+    # pf: régression — un champ texte référencé nu doit retourner son contenu,
+    # et non être silencieusement converti en 0 via extract_number_from_text.
+    context 'with text field references (non-regression for silent ->0 coercion)' do
+      let(:procedure) {
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :text, libelle: 'Text court' },
+          { type: :text, libelle: 'Prénom' },
+          { type: :text, libelle: 'Nom' },
+          { type: :text, libelle: 'SIRET' },
+          { type: :text, libelle: 'Prix texte' },
+          { type: :formule, libelle: 'Résultat' }
+        ])
+      }
+      let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
+      let(:text_court) { dossier.project_champs_public[0] }
+      let(:prenom)     { dossier.project_champs_public[1] }
+      let(:nom)        { dossier.project_champs_public[2] }
+      let(:siret)      { dossier.project_champs_public[3] }
+      let(:prix_texte) { dossier.project_champs_public[4] }
+      let(:formule)    { dossier.project_champs_public[5] }
+      let(:service)    { described_class.new(dossier, locale: :fr) }
+
+      def compute_with(expression)
+        expr, _deps = FormulaExpressionService.convert_to_stable_ids(expression, procedure.active_revision)
+        formule.type_de_champ.update(formule_expression: expr)
+        service.compute_value(formule)
+      end
+
+      it 'returns the raw text of a referenced text field' do
+        text_court.update(value: 'Bonjour')
+        expect(compute_with('{Text court}')).to eq('Bonjour')
+      end
+
+      it 'CONCATENER works with text field references' do
+        prenom.update(value: 'Jean')
+        nom.update(value: 'Dupont')
+        expect(compute_with('CONCATENER({Prénom}, " ", {Nom})')).to eq('Jean Dupont')
+      end
+
+      it 'STXT preserves leading zeros when extracting from a text field' do
+        siret.update(value: '01234567890123')
+        expect(compute_with('STXT({SIRET}, 1, 3)')).to eq('012')
+      end
+
+      it 'STXT preserves a middle zero' do
+        siret.update(value: '12305678')
+        expect(compute_with('STXT({SIRET}, 3, 2)')).to eq('30')
+      end
+
+      it 'VALEUR converts a text field to a number for arithmetic' do
+        prix_texte.update(value: '42,5')
+        expect(compute_with('VALEUR({Prix texte}) * 2')).to eq('85')
+      end
+
+      it 'VALEUR returns 0 for non-numeric text' do
+        prix_texte.update(value: 'abc')
+        expect(compute_with('VALEUR({Prix texte})')).to eq('0')
+      end
+
+      it 'escapes double quotes in text values' do
+        text_court.update(value: 'Dit "bonjour"')
+        expect(compute_with('{Text court}')).to eq('Dit "bonjour"')
+      end
+
+      it 'escapes backslashes in text values' do
+        text_court.update(value: 'a\\b')
+        expect(compute_with('{Text court}')).to eq('a\\b')
+      end
+
+      it 'returns empty string for an empty text field' do
+        text_court.update(value: '')
+        expect(compute_with('{Text court}')).to eq('')
+      end
+    end
   end
 end

@@ -25,6 +25,11 @@ class FormulaCalculationService
     @formula_champ = formule_champ
     @row_id = formule_champ.row_id
     @resolver = FormulaColumnResolver.new(@revision, row_id: @row_id)
+    # pf: valeurs passées à Dentaku comme variables plutôt qu'injectées dans
+    # la chaîne d'expression — évite tout problème d'échappement (guillemets,
+    # backslashes) dans les champs texte.
+    @variables = {}
+    @var_counter = 0
 
     # Detect circular references
     detect_circular_references(formule_champ, expression)
@@ -33,7 +38,7 @@ class FormulaCalculationService
     resolved_expression = resolve_column_references(expression)
 
     # Calculate with Dentaku
-    result = @calculator.evaluate(resolved_expression)
+    result = @calculator.evaluate(resolved_expression, @variables)
 
     # Format result
     format_result(result)
@@ -126,6 +131,15 @@ class FormulaCalculationService
     calculator.add_function(:MAJUSCULE, :string, -> (text) { text.to_s.upcase })
     calculator.add_function(:MINUSCULE, :string, -> (text) { text.to_s.downcase })
     calculator.add_function(:SUPPRESPACE, :string, -> (text) { text.to_s.strip.gsub(/\s+/, ' ') })
+
+    # pf: conversion explicite texte → nombre (équivalent VALUE/CNUM d'Excel).
+    # Gère le séparateur décimal français (virgule) et retourne 0 si non parsable.
+    calculator.add_function(:VALEUR, :numeric, -> (text) {
+      str = text.to_s.strip
+      return 0 if str.empty?
+      match = str.match(/-?\d+(?:[.,]\d+)?/)
+      match ? match[0].tr(',', '.').to_f : 0
+    })
   end
 
   def detect_circular_references(formule_champ, expression, visited = Set.new)
@@ -189,7 +203,7 @@ class FormulaCalculationService
         if champ.nil?
           raise InvalidFieldReferenceError, "Champ ##{reference}"
         end
-        next get_champ_numeric_value(champ)
+        next register_variable(get_champ_numeric_value(champ))
       end
 
       # New column-based resolution
@@ -200,8 +214,20 @@ class FormulaCalculationService
       end
 
       value = extract_column_value(column, path)
-      format_value_for_dentaku(value, column.type)
+      register_variable(format_value_for_dentaku(value, column.type))
     end
+  end
+
+  # pf: enregistre une valeur sous un nom de variable unique et retourne
+  # ce nom pour injection dans l'expression Dentaku. Dentaku recevra la
+  # valeur native (String, Integer, Float) via son hash de variables,
+  # sans sérialisation/parsing intermédiaire.
+  def register_variable(value)
+    @var_counter ||= 0
+    @var_counter += 1
+    name = "__formula_var_#{@var_counter}__"
+    @variables[name] = value
+    name
   end
 
   def extract_column_value(column, path)
@@ -248,12 +274,10 @@ class FormulaCalculationService
     when :date, :datetime
       # Convert to timestamp for calculations
       value.present? ? value.to_time.to_i : 0
-    when :enum
-      # Try to extract number from enum value
-      extract_number_from_text(value)
     else
-      # Text or unknown: try to extract number
-      extract_number_from_text(value)
+      # pf: text, enum ou inconnu — conservé tel quel (String). Pour faire
+      # des maths sur un champ textuel, utiliser explicitement VALEUR({champ}).
+      value.to_s
     end
   rescue StandardError
     0
