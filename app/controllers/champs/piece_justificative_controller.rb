@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Champs::PieceJustificativeController < Champs::ChampController
+  before_action :ensure_legitimate_access
+
   def show
     # pf used to redirect to this route to download PJ ==> if param h is present (old pf link) then redirect to new route
     return redirect_to download_path if params[:h].present?
@@ -72,6 +74,12 @@ class Champs::PieceJustificativeController < Champs::ChampController
       hexapdf_error: error.message,
     }
     Sentry.capture_message("PieceJustificative: PDF malformé, tampon QR-code non apposé", level: :warning, extra: extra)
+  end
+
+  def ensure_legitimate_access
+    return if @champ.piece_justificative?
+
+    head :not_found
   end
 
   def attach_piece_justificative
