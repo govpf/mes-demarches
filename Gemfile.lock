@@ -237,6 +237,9 @@ GEM
       delayed_job (> 2.0.3)
       rack-protection (>= 1.5.5)
       sinatra (>= 1.4.4)
+    dentaku (3.5.4)
+      bigdecimal
+      concurrent-ruby
     descendants_tracker (0.0.4)
       thread_safe (~> 0.3, >= 0.3.1)
     devise (4.9.4)
@@ -668,7 +671,7 @@ GEM
       rack (>= 3.0.0, < 4)
     rack-proxy (0.7.7)
       rack
-    rack-session (2.1.1)
+    rack-session (2.1.2)
       base64 (>= 0.1.0)
       rack (>= 3.0.0)
     rack-test (2.2.0)
@@ -1072,6 +1075,7 @@ DEPENDENCIES
   delayed_cron_job
   delayed_job_active_record
   delayed_job_web
+  dentaku
   devise
   devise-i18n
   devise-two-factor

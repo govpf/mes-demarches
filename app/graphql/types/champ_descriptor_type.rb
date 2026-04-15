@@ -124,6 +124,8 @@ module Types
           Types::Champs::Descriptor::COJOChampDescriptorType
         when TypeDeChamp.type_champs.fetch(:formatted)
           Types::Champs::Descriptor::FormattedChampDescriptorType
+        when TypeDeChamp.type_champs.fetch(:formule)
+          Types::Champs::Descriptor::FormuleChampDescriptorType
         end
       end
     end

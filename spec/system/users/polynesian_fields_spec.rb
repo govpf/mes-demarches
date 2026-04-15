@@ -91,6 +91,13 @@ describe 'Polynesian Fields - Nationalités, Commune, Code Postal & Numéro DN P
     expect(page).to have_field('DN', with: '2106223')
     expect(page).to have_field('Date de naissance', with: '1983-11-28')
 
+    # pf: attendre que la vérification DN (requête debouncée séparée de l'autosave,
+    # servie par Champs::NumeroDnController qui hérite de set_champ → champ_upsert_by!)
+    # soit arrivée avant de soumettre le dossier. Sans cette attente, la requête peut
+    # atteindre le serveur après la transition en_construction et lever
+    # "Can not write to main stream on a dossier en construction".
+    expect(page).to have_content('Le numéro DN a été vérifié avec succès.')
+
     click_on 'Déposer le dossier'
 
     expect(page).to have_current_path(merci_dossier_path(user_dossier))

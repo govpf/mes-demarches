@@ -226,6 +226,7 @@ class Procedure < ApplicationRecord
 
   validates :draft_types_de_champ_public,
     'types_de_champ/condition': true,
+    'types_de_champ/formula': true,
     'types_de_champ/header_section_consistency': true,
     'types_de_champ/no_empty_block': true,
     'types_de_champ/no_empty_drop_down': true,
@@ -236,6 +237,7 @@ class Procedure < ApplicationRecord
 
   validates :draft_types_de_champ_private,
     'types_de_champ/condition': true,
+    'types_de_champ/formula': true,
     'types_de_champ/header_section_consistency': true,
     'types_de_champ/no_empty_block': true,
     'types_de_champ/no_empty_drop_down': true,

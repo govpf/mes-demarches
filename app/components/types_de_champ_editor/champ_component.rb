@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class TypesDeChampEditor::ChampComponent < ApplicationComponent
-  attr_reader :coordinate, :upper_coordinates
+  attr_reader :coordinate, :upper_coordinates, :errors
 
   def initialize(coordinate:, upper_coordinates:, focused: false, errors: '')
     @coordinate = coordinate
@@ -37,6 +37,102 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
 
   def filtered_upper_tdcs
     @upper_coordinates.map(&:type_de_champ).filter { |tdc| tdc.private? == type_de_champ.private? }
+  end
+
+  # pf: Generate available columns for formula editor
+  def available_columns_for_formula
+    return [] unless type_de_champ.formule?
+
+    # Optimize: create hash map to avoid N+1 queries
+    @types_de_champ_by_stable_id ||= revision.types_de_champ.index_by(&:stable_id)
+
+    coordinate.available_columns_for_formula_editor.map do |col|
+      {
+        id: encode_column_id(col),
+        label: col.label,
+        type: col.type.to_s,
+        category: col.table,
+        paths: extract_sub_paths(col)
+      }.compact
+    end
+  end
+
+  def encode_column_id(column)
+    # Encode column according to attestation v2 pattern
+    if column.is_a?(Columns::ChampColumn) && column.stable_id.present?
+      tdc = @types_de_champ_by_stable_id[column.stable_id]
+      return nil unless tdc
+
+      type_de_champ.encode_column_id(column, tdc)
+    elsif column.is_a?(Columns::DossierColumn)
+      # Map dossier column to semantic tag
+      case [column.table, column.column.to_s]
+      when ['self', 'id']
+        'dossier_number'
+      when ['self', 'state']
+        'dossier_state'
+      when ['self', 'depose_at']
+        'dossier_depose_at'
+      when ['self', 'en_instruction_at']
+        'dossier_en_instruction_at'
+      when ['self', 'processed_at']
+        'dossier_processed_at'
+      when ['individual', 'gender']
+        'individual_gender'
+      when ['individual', 'prenom']
+        'individual_first_name'
+      when ['individual', 'nom']
+        'individual_last_name'
+      when ['etablissement', 'entreprise_siren']
+        'entreprise_siren'
+      when ['etablissement', 'siret']
+        'entreprise_siret'
+      when ['etablissement', 'entreprise_raison_sociale']
+        'entreprise_raison_sociale'
+      else
+        "#{column.table}_#{column.column}"
+      end
+    else
+      nil
+    end
+  end
+
+  def extract_sub_paths(column)
+    # Return sub-properties for DN, referentiels, etc.
+    return nil unless column.is_a?(Columns::ChampColumn) && column.stable_id.present?
+
+    tdc = @types_de_champ_by_stable_id[column.stable_id]
+    return nil unless tdc
+
+    # Get paths from the type_de_champ
+    paths = case tdc.type_champ
+    when 'numero_dn'
+      [{ path: 'date_de_naissance', label: 'Date de naissance' }]
+    when 'code_postal_polynesie'
+      [
+        { path: 'commune', label: 'Commune' },
+        { path: 'ile', label: 'Île' },
+        { path: 'archipel', label: 'Archipel' }
+      ]
+    when 'referentiel_de_polynesie'
+      # Get columns from referentiel if it exists
+      if tdc.referentiel&.headers.present?
+        tdc.referentiel.headers.map { |header| { path: header, label: header } }
+      else
+        nil
+      end
+    when 'siret', 'rna'
+      # SIRET/RNA have predefined sub-paths
+      [
+        { path: 'code_naf', label: 'Code NAF' },
+        { path: 'raison_sociale', label: 'Raison sociale' },
+        { path: 'adresse', label: 'Adresse' }
+      ]
+    else
+      nil
+    end
+
+    paths
   end
 
   private

@@ -171,6 +171,36 @@ describe Logic::ChampValue do
       it { is_expected.to eq({ code_departement: '43', code_region: '84' }) }
     end
 
+    context 'formule tdc (numeric)' do
+      let(:tdc_type) { :formule }
+      let(:champ) { Champs::FormuleChamp.new(value: '42', stable_id: tdc.stable_id, dossier:) }
+
+      before { tdc.update_column(:options, tdc.options.merge('formule_output_type' => 'number')) }
+
+      it do
+        expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:number)
+        is_expected.to eq(42.0)
+      end
+    end
+
+    context 'formule tdc (boolean)' do
+      let(:tdc_type) { :formule }
+      let(:champ) { Champs::FormuleChamp.new(value: '1', stable_id: tdc.stable_id, dossier:) }
+
+      before { tdc.update_column(:options, tdc.options.merge('formule_output_type' => 'boolean')) }
+
+      it do
+        expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:boolean)
+        is_expected.to eq(true)
+      end
+
+      context 'with false value' do
+        let(:champ) { Champs::FormuleChamp.new(value: '0', stable_id: tdc.stable_id, dossier:) }
+
+        it { is_expected.to eq(false) }
+      end
+    end
+
     describe 'errors' do
       let(:tdc_type) { :number }
       let(:champ) { Champs::IntegerNumberChamp.new(value: nil, stable_id: tdc.stable_id, dossier:) }

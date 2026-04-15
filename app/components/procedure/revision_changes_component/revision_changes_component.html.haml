@@ -231,6 +231,13 @@
         - else
           - list.with_item do
             = t(".#{prefix}.update_max_character_length", label: change.label, to: change.to)
+      - when :formule_expression
+        - if change.to.blank?
+          - list.with_item do
+            = t(".#{prefix}.remove_formule_expression", label: change.label)
+        - else
+          - list.with_item do
+            = t(".#{prefix}.update_formule_expression", label: change.label, to: change.to)
       - when :referentiel_url
         - list.with_item do
           -# pf: pour Baserow, afficher un message lisible au lieu de "baserow://42"

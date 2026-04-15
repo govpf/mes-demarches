@@ -8,7 +8,7 @@ class FAQController < ApplicationController
   end
 
   def show
-    @renderer = Redcarpet::Markdown.new(Redcarpet::TrustedRenderer.new(view_context), autolink: true)
+    @renderer = Redcarpet::Markdown.new(Redcarpet::TrustedRenderer.new(view_context), autolink: true, tables: true)
 
     @siblings = loader_service.faqs_for_category(@metadata[:category])
   end

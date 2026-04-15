@@ -217,6 +217,16 @@ class ProcedureRevision < ApplicationRecord
     end
   end
 
+  def dependent_formulas(tdc)
+    stable_id = tdc.stable_id
+
+    (tdc.public? ? types_de_champ_public : types_de_champ_private).filter do |other_tdc|
+      next if !other_tdc.formule?
+
+      other_tdc.dependent_stable_ids.include?(stable_id)
+    end
+  end
+
   # Estimated duration to fill the form, in seconds.
   #
   # If the revision is locked (i.e. published), the result is cached (because type de champs can no longer be mutated).
@@ -601,6 +611,13 @@ class ProcedureRevision < ApplicationRecord
     elsif to_type_de_champ.referentiel?
       compare_referentiel_changes(from_type_de_champ, to_type_de_champ).each do |change|
         changes << change
+      end
+    elsif to_type_de_champ.formule?
+      if from_type_de_champ.formule_expression != to_type_de_champ.formule_expression
+        changes << ProcedureRevisionChange::UpdateChamp.new(from_type_de_champ,
+          :formule_expression,
+          from_type_de_champ.formule_expression,
+          to_type_de_champ.formule_expression)
       end
     # pf: gestion du type lexpol (textes juridiques polynésiens)
     elsif to_type_de_champ.lexpol?
