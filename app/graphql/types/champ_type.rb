@@ -125,6 +125,12 @@ module Types
           Types::Champs::EngagementJuridiqueChampType
         when ::Champs::ReferentielDePolynesieChamp
           Types::Champs::ReferentielDePolynesieChampType
+        when ::Champs::HeaderSectionChamp
+          Types::Champs::HeaderSectionChampType
+        when ::Champs::ExplicationChamp
+          Types::Champs::ExplicationChampType
+        when ::Champs::DropDownListChamp
+          Types::Champs::DropDownListChampType
         else
           Types::Champs::TextChampType
         end

@@ -481,7 +481,7 @@ fr:
           birthdate: Date de naissance
           complete_siret: Renseignez le numéro TAHITI de votre entreprise, administration ou association pour commencer la démarche.
           siret_help_html: Pour trouver votre numéro TAHITI, utilisez %{annuaire_link} ou renseignez-vous auprès de votre service comptable.
-          siret_placeholder: numéro TAHITI à 6 ou 9 caractères
+          siret_hint: 'Format attendu : 14 chiffres (SIRET) ou 6/9 caractères (numéro TAHITI)'
           annuaire_link_title: Rechercher un numéro TAHITI sur l’Annuaire des Entreprises
           siret_loading: Récupération des informations…
           continue: Continuer

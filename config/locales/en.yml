@@ -481,7 +481,7 @@ en:
           birthdate: Birth date
           complete_siret: Fill the TAHITI number of your company, administration or association to start the procedure.
           siret_help_html: To find your TAHITI number, use %{annuaire_link} or ask your accounting department.
-          siret_placeholder: TAHITI number with 6 or 9 characters
+          siret_hint: 'Expected format: 14 digits (SIRET) or 6/9 characters (TAHITI number)'
           annuaire_link_title: Search for a TAHITI number in the Companies Directory
           siret_loading: Information retrieval…
           continue: Continue

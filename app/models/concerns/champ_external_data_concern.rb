@@ -80,8 +80,8 @@ module ChampExternalDataConcern
 
     def ready_for_external_call? = external_id.present?
 
-    def fetch_external_data_later
-      ChampFetchExternalDataJob.perform_later(self, external_id)
+    def fetch_external_data_later(wait: nil)
+      ChampFetchExternalDataJob.set(wait:).perform_later(self, external_id)
     end
 
     # it should only be called after fetch! event callback
@@ -102,7 +102,7 @@ module ChampExternalDataConcern
         in Failure(retryable: true, reason:, code:)
           save_external_exception(reason, code)
           retry!
-          raise reason
+          raise RetryableFetchError.new(reason)
         in Failure(retryable: false, reason:, code:)
           save_external_exception(reason, code)
           Sentry.capture_exception(reason) if code != 404
