@@ -563,7 +563,7 @@ Rails.application.routes.draw do
           resources :avis, only: [], path: "(:statut)/dossiers", defaults: { statut: 'a-suivre' } do
             member do
               patch 'revoquer'
-              get 'remind'
+              patch 'remind'
             end
           end
 
