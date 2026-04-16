@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
 class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
-  def initialize(type_de_champ)
-    super
-    validate_expression
-  end
+  # pf: enregistré comme validation ActiveModel pour que validate_expression
+  # tourne à chaque appel de valid?, pas seulement au chargement initial du
+  # TDC. Sans ça, une modif de formule_expression n'était jamais validée
+  # côté serveur (le message d'erreur restait vide et la formule invalide
+  # pouvait être sauvegardée — cf. double parenthèse )) passée au travers).
+  validate :validate_expression
 
   def estimated_fill_duration(revision)
     0.seconds

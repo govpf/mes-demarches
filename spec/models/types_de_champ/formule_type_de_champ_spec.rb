@@ -36,7 +36,7 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       let(:expression) { 'A' * 1001 }
 
       it 'is invalid' do
-        formule_type_de_champ # trigger initialization
+        expect(type_de_champ).not_to be_valid
         expect(type_de_champ.errors[:formule_expression]).to be_present
       end
     end
@@ -45,7 +45,7 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       let(:expression) { '{}' }
 
       it 'is invalid' do
-        formule_type_de_champ # trigger initialization
+        expect(type_de_champ).not_to be_valid
         expect(type_de_champ.errors[:formule_expression]).to be_present
       end
     end
@@ -65,7 +65,7 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       let(:expression) { '1 + 2' }
 
       it 'infers number' do
-        formule_type_de_champ
+        type_de_champ.valid?
         expect(type_de_champ.formule_output_type).to eq('number')
       end
     end
@@ -74,7 +74,7 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       let(:expression) { '{Montant} > 1000' }
 
       it 'infers boolean' do
-        formule_type_de_champ
+        type_de_champ.valid?
         expect(type_de_champ.formule_output_type).to eq('boolean')
       end
     end
@@ -83,7 +83,7 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       let(:expression) { 'ET({x} > 5, {x} < 100)' }
 
       it 'infers boolean' do
-        formule_type_de_champ
+        type_de_champ.valid?
         expect(type_de_champ.formule_output_type).to eq('boolean')
       end
     end
@@ -92,7 +92,7 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       let(:expression) { 'SI({x} > 0, 1, 0)' }
 
       it 'infers number (type of the true branch)' do
-        formule_type_de_champ
+        type_de_champ.valid?
         expect(type_de_champ.formule_output_type).to eq('number')
       end
     end
