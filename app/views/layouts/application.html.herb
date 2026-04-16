@@ -66,9 +66,11 @@
       <meta name="robots" content="<%= content_for(:meta_robots) %>">
     <% end %>
   </head>
+  <%# pf: expose le profil courant sur la balise body afin de pouvoir scoper des styles (ex. largeur du container) par profil %>
+  <% nav_bar_profile = controller.try(:nav_bar_profile) || controller.try(:fallback_nav_bar_profile) || :guest %>
   <body
     id="<%= content_for(:page_id) %>"
-    class="<%= browser.platform.ios? ? 'ios' : '' %>"
+    class="<%= class_names('ios' => browser.platform.ios?, "nav-profile-#{nav_bar_profile}" => nav_bar_profile.present?) %>"
     data-controller="turbo number-input fix-table-border"
   >
     <%= render partial: 'layouts/skiplinks' %>

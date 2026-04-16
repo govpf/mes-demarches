@@ -1,0 +1,11 @@
+body.nav-profile-instructeur {
+  .fr-container {
+    @media (min-width: 78em) {
+      max-width: 120rem;
+    }
+  }
+
+  .container {
+    max-width: 100rem;
+  }
+}
