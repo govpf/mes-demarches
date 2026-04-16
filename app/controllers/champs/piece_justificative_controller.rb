@@ -77,7 +77,8 @@ class Champs::PieceJustificativeController < Champs::ChampController
   end
 
   def ensure_legitimate_access
-    return if @champ.piece_justificative?
+    # pf: @champ est nil si le lien permanent (h) ne correspond pas ; download gère ce cas
+    return if @champ.nil? || @champ.piece_justificative?
 
     head :not_found
   end

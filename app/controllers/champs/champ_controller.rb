@@ -11,7 +11,7 @@ class Champs::ChampController < ApplicationController
     scope = instructeur_signed_in? ? nil : :public
     type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id], scope)
 
-    if type_de_champ.nil? || !(dossier.brouillon? || dossier.en_construction?)
+    if type_de_champ.nil? || !dossier_writable?(dossier, type_de_champ)
       head :not_found
       return
     end
@@ -22,6 +22,14 @@ class Champs::ChampController < ApplicationController
       dossier.project_champ(type_de_champ)
     else
       dossier.champ_for_update(type_de_champ, row_id: params_row_id, updated_by: current_user.email)
+    end
+  end
+
+  def dossier_writable?(dossier, type_de_champ)
+    if type_de_champ.private?
+      !dossier.brouillon?
+    else
+      dossier.brouillon? || dossier.en_construction?
     end
   end
 
