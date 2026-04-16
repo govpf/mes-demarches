@@ -60,11 +60,8 @@ module DossierRebaseConcern
       .filter { _1.formule? && _1.stable_id.in?(added_stable_ids) }
       .each do |type_de_champ|
         champ = type_de_champ.build_champ(dossier: self, row_id: nil, rebased_at: Time.zone.now)
-        champ.value = begin
-          FormulaCalculationService.new(self).compute_value(champ)
-        rescue StandardError
-          nil
-        end
+        computed = FormulaCalculationService.new(self).compute_value(champ) rescue nil
+        champ.value = computed
         self.champs << champ
       end
   end
