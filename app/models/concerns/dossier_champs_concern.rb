@@ -16,22 +16,27 @@ module DossierChampsConcern
       champ
     end
 
-    # pf: quand le dossier est attaché à une révision brouillon (preview,
-    # dossier de test sur démarche brouillon, ou dossier de test ?test=1 sur
-    # démarche publiée), la révision mute en permanence — l'admin édite la
-    # procédure en direct. Les valeurs persistées des champs formule peuvent
-    # être obsolètes : nouveau TDC formule sans champ associé, expression
-    # modifiée, type ou présence des sources changés. On recalcule donc
-    # systématiquement en mémoire à la lecture. Aucune persistance : le flow
-    # refresh_dependent_formulas (after_save d'une source) prend le relais
-    # quand l'usager édite réellement. Les dossiers sur révision publiée
-    # (figée) ne sont pas concernés.
+    # pf: recalcul en mémoire des champs formule dans deux situations :
+    #
+    # 1. Révision brouillon (preview, dossier de test) : la révision mute en
+    #    permanence — l'admin édite la procédure en direct. Les valeurs
+    #    persistées peuvent être obsolètes (expression modifiée, source
+    #    ajoutée/supprimée). On recalcule systématiquement.
+    #
+    # 2. Champ non encore persisté (new_record?) : après un rebase ou une
+    #    création lazy, le champ formule n'a pas de ligne en BDD. On calcule
+    #    sa valeur à la lecture pour que l'affichage soit correct, même si
+    #    le rebase n'a pas créé le champ (filet de sécurité pour les dossiers
+    #    rebasés avant le fix du rebase).
+    #
+    # Les dossiers sur révision publiée avec champ déjà persisté ne sont pas
+    # concernés : refresh_dependent_formulas garde leur valeur à jour.
     #
     # Garde contre la récursion : FormulaCalculationService passe par
     # project_champs_*_all → project_champ pour construire sa vue du dossier.
     # Sans garde, le recalcul déclencherait un nouveau recalcul sur les mêmes
     # champs, à l'infini. On ne recalcule que pour le premier appel entrant.
-    if revision&.draft? && type_de_champ.formule? && projected.respond_to?(:compute_value_from_formula) && !Thread.current[:dossier_champs_formule_recomputing]
+    if type_de_champ.formule? && !Thread.current[:dossier_champs_formule_recomputing] && (revision&.draft? || projected.new_record?) && projected.respond_to?(:compute_value_from_formula)
       Thread.current[:dossier_champs_formule_recomputing] = true
       begin
         projected.value = projected.compute_value_from_formula

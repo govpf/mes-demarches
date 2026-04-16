@@ -426,6 +426,51 @@ describe DossierRebaseConcern do
         it { expect { subject }.to change { champ_libelles }.from(['l1', 'l2']).to(['l1', 'l3', 'l2']) }
       end
 
+      # pf: quand un champ formule est ajouté dans une nouvelle révision, le
+      # rebase doit créer le champ en BDD avec sa valeur calculée pour que
+      # les tableaux instructeur l'affichent correctement.
+      # pf: quand un champ formule est ajouté dans une nouvelle révision, le
+      # rebase doit créer le champ en BDD avec sa valeur calculée pour que
+      # les tableaux instructeur l'affichent correctement.
+      context 'when a formule tdc is added' do
+        before do
+          # Étape 1 : ajouter un champ Montant et publier
+          procedure.draft_revision.add_type_de_champ(
+            type_champ: :integer_number, libelle: 'Montant',
+            after_stable_id: procedure.draft_revision.types_de_champ_public.last.stable_id
+          )
+          procedure.publish_revision!(procedure.administrateurs.first)
+          # Rebaser le dossier pour qu'il voie le champ Montant
+          dossier.reload
+          dossier.rebase!
+          dossier.reload
+
+          # L'usager remplit le champ Montant
+          montant = dossier.project_champs_public.find { _1.libelle == 'Montant' }
+          montant.update!(value: '100')
+
+          # Étape 2 : l'admin ajoute un champ formule dans la prochaine révision
+          montant_tdc = procedure.draft_revision.types_de_champ.find { _1.libelle == 'Montant' }
+          expr, _deps = FormulaExpressionService.convert_to_stable_ids('{Montant} * 2', procedure.draft_revision)
+          procedure.draft_revision.add_type_de_champ(
+            type_champ: :formule, libelle: 'Double', formule_expression: expr,
+            after_stable_id: montant_tdc.stable_id
+          )
+        end
+
+        it 'creates the formule champ with its computed value on rebase' do
+          procedure.publish_revision!(procedure.administrateurs.first)
+          dossier.reload
+          dossier.rebase!
+          dossier.reload
+
+          formule_champ = dossier.champs.find { _1.libelle == 'Double' }
+          expect(formule_champ).to be_present
+          expect(formule_champ).to be_persisted
+          expect(formule_champ.value).to eq('200')
+        end
+      end
+
       context 'when the first tdc is removed' do
         before do
           stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
