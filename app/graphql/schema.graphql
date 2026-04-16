@@ -3229,7 +3229,7 @@ type FormuleChampDescriptor implements ChampDescriptor {
   description: String
 
   """
-  Expression de la formule
+  Expression de la formule avec les libellés des champs référencés
   """
   expression: String
   id: ID!

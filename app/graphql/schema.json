@@ -13352,7 +13352,7 @@
             },
             {
               "name": "expression",
-              "description": "Expression de la formule",
+              "description": "Expression de la formule avec les libellés des champs référencés",
               "args": [],
               "type": {
                 "kind": "SCALAR",
