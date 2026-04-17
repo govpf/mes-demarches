@@ -46,10 +46,10 @@ class FormulaCalculationService
     "Erreur : référence circulaire détectée"
   rescue InvalidFieldReferenceError => e
     "Erreur : champ '#{e.message}' introuvable"
-  rescue Dentaku::ParseError => e
-    "Erreur de syntaxe : #{e.message}"
+  rescue Dentaku::ParseError, Dentaku::TokenizerError => e
+    "Erreur de syntaxe : #{self.class.translate_error(e)}"
   rescue Dentaku::UnboundVariableError => e
-    "Erreur : variable '#{e.unbound_variable}' non définie"
+    self.class.translate_error(e)
   rescue StandardError => e
     "Erreur de calcul : #{e.message}"
   end
@@ -61,6 +61,39 @@ class FormulaCalculationService
     new_instance = allocate
     new_instance.send(:add_french_functions, calculator) if locale.to_s.start_with?('fr')
     calculator
+  end
+
+  # pf: Traduit une exception Dentaku en message utilisateur français.
+  # Dentaku ne supporte pas l'i18n (messages hardcodés en anglais), on
+  # utilise l'attribut `reason` et `meta` des exceptions pour construire
+  # un message traduisible via I18n.
+  def self.translate_error(exception)
+    case exception
+    when Dentaku::ParseError
+      I18n.t("formula_errors.parse.#{exception.reason}",
+             **exception.meta,
+             default: exception.message)
+    when Dentaku::TokenizerError
+      I18n.t("formula_errors.tokenizer.#{exception.reason}",
+             **exception.meta,
+             default: exception.message)
+    when Dentaku::UnboundVariableError
+      I18n.t('formula_errors.unbound_variable',
+             variable: exception.unbound_variables.join(', '),
+             default: exception.message)
+    else
+      I18n.t('formula_errors.generic', message: exception.message)
+    end
+  end
+
+  # pf: Détecte l'usage du signe '=' seul (confusion fréquente avec '==').
+  # Retourne un message d'aide ciblé, ou nil si pas ce cas.
+  def self.detect_equals_operator_hint(expression)
+    return nil if expression.blank?
+    # Match '=' qui n'est pas précédé ni suivi de '=', '<', '>', '!'
+    if expression.match?(/(?<![=<>!])=(?!=)/)
+      I18n.t('formula_errors.equals_operator_hint')
+    end
   end
 
   private

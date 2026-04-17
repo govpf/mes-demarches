@@ -3,4 +3,4 @@ fr:
     shared:
       champs:
         formule:
-          no_value: "Aucune valeur calculée"
+          no_value: "En attente — remplissez les champs référencés par la formule"

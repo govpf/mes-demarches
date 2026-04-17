@@ -29,6 +29,15 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
       return
     end
 
+    # pf: détection préalable de '=' seul (confusion fréquente avec '==').
+    # Dentaku traite 'x = 5' comme une affectation et remonte un
+    # UnboundVariableError peu compréhensible pour l'utilisateur.
+    hint = FormulaCalculationService.detect_equals_operator_hint(expression)
+    if hint.present?
+      @type_de_champ.errors.add(:formule_expression, :invalid_syntax, message: hint)
+      return
+    end
+
     # pf: Validation syntaxique Dentaku — on remplace les {tdc123} par des
     # variables fictives pour vérifier la syntaxe sans résoudre les références.
     testable = expression.gsub(/\{[^}]+\}/, 'x')
@@ -38,10 +47,9 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     # pf: Inférence automatique du type de sortie via l'AST Dentaku.
     # Utilisé par le système de conditions pour proposer les bons opérateurs.
     @type_de_champ.formule_output_type = infer_output_type(ast_node)
-  rescue Dentaku::ParseError => e
-    @type_de_champ.errors.add(:formule_expression, :invalid_syntax, message: e.message)
-  rescue Dentaku::TokenizerError => e
-    @type_de_champ.errors.add(:formule_expression, :invalid_syntax, message: e.message)
+  rescue Dentaku::ParseError, Dentaku::TokenizerError => e
+    @type_de_champ.errors.add(:formule_expression, :invalid_syntax,
+                              message: FormulaCalculationService.translate_error(e))
   rescue StandardError
     # Autres erreurs Dentaku (UnboundVariable, etc.) — OK à ce stade,
     # les variables seront résolues au calcul.

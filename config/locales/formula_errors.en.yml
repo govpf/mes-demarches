@@ -1,0 +1,25 @@
+---
+en:
+  formula_errors:
+    parse:
+      node_invalid: "Operator '%{operator}' expects operands of type %{expect}, but got %{actual}"
+      too_few_operands: "Operator '%{operator}' has too few operands (given %{actual}, expected %{expect})"
+      too_many_operands: "Operator '%{operator}' has too many operands (given %{actual}, expected %{expect})"
+      undefined_function: "Function '%{function_name}' does not exist"
+      unprocessed_token: "Unrecognized element: '%{token_name}'"
+      unknown_case_token: "Unknown token in condition: '%{token_name}'"
+      unbalanced_bracket: "Unbalanced bracket '[' or ']'"
+      unbalanced_parenthesis: "Unbalanced parenthesis '(' or ')'"
+      unknown_grouping_token: "Unknown grouping token: '%{token_name}'"
+      not_implemented_token_category: "Unsupported token category: %{token_category}"
+      invalid_statement: "Invalid expression"
+
+    tokenizer:
+      parse_error: "The expression contains a malformed element"
+      too_many_closing_parentheses: "Too many closing parentheses ')'"
+      too_many_opening_parentheses: "Too many opening parentheses '('"
+      unexpected_zero_width_match: "The expression contains a malformed element"
+
+    unbound_variable: "Variable '%{variable}' is not defined"
+    equals_operator_hint: "Use '==' instead of '=' for equality testing (e.g.: IF({Age} == 18, ..., ...))"
+    generic: "Error in expression: %{message}"

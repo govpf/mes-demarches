@@ -323,4 +323,69 @@ describe FormulaCalculationService do
       end
     end
   end
+
+  # pf: traductions françaises des erreurs Dentaku
+  describe '.translate_error' do
+    it 'translates undefined function in French' do
+      error = begin
+        FormulaCalculationService.new_calculator.evaluate!('FOO(1)')
+      rescue Dentaku::ParseError => e
+        e
+      end
+      expect(described_class.translate_error(error)).to eq("La fonction 'foo' n'existe pas")
+    end
+
+    it 'translates unbalanced parenthesis in French' do
+      error = begin
+        FormulaCalculationService.new_calculator.evaluate!('(1+2')
+      rescue Dentaku::TokenizerError => e
+        e
+      end
+      expect(described_class.translate_error(error)).to eq("Trop de parenthèses ouvrantes '('")
+    end
+
+    it 'translates too few operands in French' do
+      error = begin
+        FormulaCalculationService.new_calculator.evaluate!('1 +')
+      rescue Dentaku::ParseError => e
+        e
+      end
+      expect(described_class.translate_error(error)).to include("manque d'opérandes")
+    end
+
+    it 'translates unbound variable in French' do
+      error = begin
+        FormulaCalculationService.new_calculator.evaluate!('x + 1')
+      rescue Dentaku::UnboundVariableError => e
+        e
+      end
+      expect(described_class.translate_error(error)).to eq("La variable 'x' n'est pas définie")
+    end
+  end
+
+  describe '.detect_equals_operator_hint' do
+    it 'detects single = and returns hint' do
+      expect(described_class.detect_equals_operator_hint('SI({x} = 5, 1, 0)')).to include("Utilisez '=='")
+    end
+
+    it 'does not trigger on ==' do
+      expect(described_class.detect_equals_operator_hint('SI({x} == 5, 1, 0)')).to be_nil
+    end
+
+    it 'does not trigger on >=' do
+      expect(described_class.detect_equals_operator_hint('SI({x} >= 5, 1, 0)')).to be_nil
+    end
+
+    it 'does not trigger on <=' do
+      expect(described_class.detect_equals_operator_hint('SI({x} <= 5, 1, 0)')).to be_nil
+    end
+
+    it 'does not trigger on !=' do
+      expect(described_class.detect_equals_operator_hint('SI({x} != 5, 1, 0)')).to be_nil
+    end
+
+    it 'returns nil on blank expression' do
+      expect(described_class.detect_equals_operator_hint('')).to be_nil
+    end
+  end
 end

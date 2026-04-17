@@ -401,9 +401,11 @@ export class FormulaAutocompleteController extends ApplicationController {
     const textBefore = text.substring(0, cursorPos);
     const lastOpenBrace = textBefore.lastIndexOf('{');
 
-    // Build new text
-    const prefix = text.substring(0, lastOpenBrace);
-    const suffix = text.substring(cursorPos);
+    // Build new text — skip existing closing brace if present after cursor
+    let suffix = text.substring(cursorPos);
+    if (suffix.startsWith('}')) {
+      suffix = suffix.substring(1);
+    }
     const newText = prefix + `{${column.label}}` + suffix;
 
     textarea.value = newText;

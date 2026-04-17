@@ -3,4 +3,4 @@ en:
     shared:
       champs:
         formule:
-          no_value: "No calculated value"
+          no_value: "Pending — fill in the fields referenced by the formula"
