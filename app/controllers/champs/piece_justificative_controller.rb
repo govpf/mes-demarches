@@ -69,6 +69,10 @@ class Champs::PieceJustificativeController < Champs::ChampController
       @champ.fetch_later! if @champ.uses_external_data?
 
       @champ.update_timestamps
+
+      dossier = DossierPreloader.load_one(@champ.dossier, pj_template: true)
+      # because preloader reassigns new champ instances champs, we have to reassign it
+      @champ = dossier.champs.find { it.id == @champ.id }
     end
 
     save_succeed
@@ -82,9 +86,5 @@ class Champs::PieceJustificativeController < Champs::ChampController
     type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
     champ = dossier.project_champ(type_de_champ, row_id: params_row_id)
     champ&.match_encoded_date?(:created_at, h) ? champ : nil
-  end
-
-  def dossier
-    @champ.dossier
   end
 end

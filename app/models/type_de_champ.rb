@@ -723,7 +723,15 @@ class TypeDeChamp < ApplicationRecord
       []
     end
     layers = layers.map do |layer|
-      [layer, layer_enabled?(layer)]
+      disabled = case layer
+      when :cadastres
+        layer_enabled?(:rpg)
+      when :rpg
+        layer_enabled?(:cadastres)
+      else
+        false
+      end
+      [layer, layer_enabled?(layer), disabled]
     end
     layers.each_slice((layers.size / 2.0).round).to_a
   end
