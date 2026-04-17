@@ -1,81 +1,86 @@
-- each_champ do |champ|
-  - if champ.repetition?
-    - types_de_champ = champ.dossier.revision.children_of(champ.type_de_champ)
-    - champ.row_ids.each.with_index(1) do |row_id, row_number|
-      .fr-background-alt--grey.fr-p-2w.fr-my-3w.fr-ml-2w.champ-repetition
-        %p.font-weight-bold= "#{champ.libelle} #{row_number} :"
-        = render ViewableChamp::SectionComponent.new(dossier: champ.dossier, types_de_champ:, row_id:, demande_seen_at: seen_at, profile:)
+-# pf: wrapper .champs-grid + .champ-grid-item pour l'affichage multi-colonnes côté instructeur.
+-# La logique de largeur est centralisée dans InstructeurChampDisplayHelper (aucun override par dynamic_type).
+.champs-grid
+  - each_champ do |champ|
+    - if champ.repetition?
+      .champ-grid-item.champ-grid-item--full
+        - types_de_champ = champ.dossier.revision.children_of(champ.type_de_champ)
+        - champ.row_ids.each.with_index(1) do |row_id, row_number|
+          .fr-background-alt--grey.fr-p-2w.fr-my-3w.fr-ml-2w.champ-repetition
+            %p.font-weight-bold= "#{champ.libelle} #{row_number} :"
+            = render ViewableChamp::SectionComponent.new(dossier: champ.dossier, types_de_champ:, row_id:, demande_seen_at: seen_at, profile:)
 
-  - else
-    = render Dossiers::RowShowComponent.new(label: champ.libelle, seen_at:, profile:, content_class: champ.type_champ, updated_at: updated_at_after_deposer(champ)) do |c|
-      - if champ.blank?
-        - c.with_blank do
-          = t(blank_key(champ))
-      - else
-        - c.with_value do
-          - case champ.type_champ
-          - when TypeDeChamp.type_champs.fetch(:carte)
-            = render partial: "shared/champs/carte/show", locals: { champ: champ }
-          - when TypeDeChamp.type_champs.fetch(:dossier_link)
-            = render partial: "shared/champs/dossier_link/show", locals: { champ: champ }
-          - when TypeDeChamp.type_champs.fetch(:drop_down_list)
-            = render partial: "shared/champs/drop_down_list/show", locals: { champ: champ }
-          - when TypeDeChamp.type_champs.fetch(:multiple_drop_down_list)
-            = render partial: "shared/champs/multiple_drop_down_list/show", locals: { champ: champ }
-          - when TypeDeChamp.type_champs.fetch(:piece_justificative), TypeDeChamp.type_champs.fetch(:titre_identite)
-            = render partial: "shared/champs/piece_justificative/show", locals: { champ: champ, profile: @profile  }
-          - when TypeDeChamp.type_champs.fetch(:siret)
-            - etablissement = champ.etablissement
-            - if etablissement.present?
-              - if etablissement.as_degraded_mode?
-                = render Dossiers::DegradedIdentiteEntrepriseComponent.new(etablissement:, profile: @profile)
-              - elsif @profile == 'usager'
-                = render Dossiers::IdentiteEntrepriseForUsagerComponent.new(etablissement:)
-              - else
-                = render Dossiers::IdentiteEntrepriseComponent.new(champ:, avis: @avis)
-          - when TypeDeChamp.type_champs.fetch(:iban)
-            = render partial: "shared/champs/iban/show", locals: { champ: champ }
-          - when TypeDeChamp.type_champs.fetch(:annuaire_education)
-            = render Dossiers::AnnuaireEducationComponent.new(champ:)
-          - when TypeDeChamp.type_champs.fetch(:cnaf)
-            = render partial: "shared/champs/cnaf/show", locals: { champ: champ, profile: @profile }
-          - when TypeDeChamp.type_champs.fetch(:dgfip)
-            = render partial: "shared/champs/dgfip/show", locals: { champ: champ, profile: @profile }
-          - when TypeDeChamp.type_champs.fetch(:pole_emploi)
-            = render partial: "shared/champs/pole_emploi/show", locals: { champ: champ, profile: @profile }
-          - when TypeDeChamp.type_champs.fetch(:mesri)
-            = render partial: "shared/champs/mesri/show", locals: { champ: champ, profile: @profile }
-          - when TypeDeChamp.type_champs.fetch(:address)
-            = render Dossiers::AddressComponent.new(champ:)
-          - when TypeDeChamp.type_champs.fetch(:communes)
-            = render Dossiers::CommuneComponent.new(champ:)
-          - when TypeDeChamp.type_champs.fetch(:departements)
-            = render Dossiers::DepartementComponent.new(champ:)
-          - when TypeDeChamp.type_champs.fetch(:regions)
-            = render Dossiers::RegionComponent.new(champ:)
-          - when TypeDeChamp.type_champs.fetch(:rna)
-            = render Dossiers::RNAComponent.new(champ:)
-          - when TypeDeChamp.type_champs.fetch(:rnf)
-            = render Dossiers::RNFComponent.new(champ:)
-          - when TypeDeChamp.type_champs.fetch(:epci)
-            = render Dossiers::EpciComponent.new(champ:)
-          - when TypeDeChamp.type_champs.fetch(:te_fenua)
-            = render partial: "shared/champs/te_fenua/show", locals: { champ: champ, profile: @profile }
-          - when TypeDeChamp.type_champs.fetch(:numero_dn)
-            = render partial: "shared/champs/numero_dn/show", locals: { champ: champ, profile: @profile }
-          - when TypeDeChamp.type_champs.fetch(:referentiel_de_polynesie)
-            = render partial: "shared/champs/referentiel_de_polynesie/show", locals: { champ: champ, profile: @profile }
-          - when TypeDeChamp.type_champs.fetch(:cojo)
-            = render partial: "shared/champs/cojo/show", locals: { champ: champ, profile: @profile }
-          - when TypeDeChamp.type_champs.fetch(:date)
-            %p.copy-zone= champ.to_s
-          - when TypeDeChamp.type_champs.fetch(:datetime)
-            %p.copy-zone= champ.to_s
-          - when TypeDeChamp.type_champs.fetch(:number), TypeDeChamp.type_champs.fetch(:integer_number), TypeDeChamp.type_champs.fetch(:decimal_number)
-            %p.copy-zone= helpers.number_with_html_delimiter(champ.to_s)
-          - when TypeDeChamp.type_champs.fetch(:referentiel)
-            = render Dossiers::ReferentielComponent.new(champ:, profile: @profile)
-
+    - else
+      %div{ class: "champ-grid-item #{helpers.champ_display_width_class(champ)}" }
+        = render Dossiers::RowShowComponent.new(label: champ.libelle, seen_at:, profile:, content_class: champ.type_champ, updated_at: updated_at_after_deposer(champ)) do |c|
+          - if champ.blank?
+            - c.with_blank do
+              = t(blank_key(champ))
           - else
-            .copy-zone{ 'data-to-copy': champ.to_s.strip }
-              = helpers.format_text_value(champ.to_s.strip)
+            - c.with_value do
+              - case champ.type_champ
+              - when TypeDeChamp.type_champs.fetch(:carte)
+                = render partial: "shared/champs/carte/show", locals: { champ: champ }
+              - when TypeDeChamp.type_champs.fetch(:dossier_link)
+                = render partial: "shared/champs/dossier_link/show", locals: { champ: champ }
+              - when TypeDeChamp.type_champs.fetch(:drop_down_list)
+                = render partial: "shared/champs/drop_down_list/show", locals: { champ: champ }
+              - when TypeDeChamp.type_champs.fetch(:multiple_drop_down_list)
+                = render partial: "shared/champs/multiple_drop_down_list/show", locals: { champ: champ }
+              - when TypeDeChamp.type_champs.fetch(:piece_justificative), TypeDeChamp.type_champs.fetch(:titre_identite)
+                = render partial: "shared/champs/piece_justificative/show", locals: { champ: champ, profile: @profile  }
+              - when TypeDeChamp.type_champs.fetch(:siret)
+                - etablissement = champ.etablissement
+                - if etablissement.present?
+                  - if etablissement.as_degraded_mode?
+                    = render Dossiers::DegradedIdentiteEntrepriseComponent.new(etablissement:, profile: @profile)
+                  - elsif @profile == 'usager'
+                    = render Dossiers::IdentiteEntrepriseForUsagerComponent.new(etablissement:)
+                  - else
+                    = render Dossiers::IdentiteEntrepriseComponent.new(champ:, avis: @avis)
+              - when TypeDeChamp.type_champs.fetch(:iban)
+                = render partial: "shared/champs/iban/show", locals: { champ: champ }
+              - when TypeDeChamp.type_champs.fetch(:annuaire_education)
+                = render Dossiers::AnnuaireEducationComponent.new(champ:)
+              - when TypeDeChamp.type_champs.fetch(:cnaf)
+                = render partial: "shared/champs/cnaf/show", locals: { champ: champ, profile: @profile }
+              - when TypeDeChamp.type_champs.fetch(:dgfip)
+                = render partial: "shared/champs/dgfip/show", locals: { champ: champ, profile: @profile }
+              - when TypeDeChamp.type_champs.fetch(:pole_emploi)
+                = render partial: "shared/champs/pole_emploi/show", locals: { champ: champ, profile: @profile }
+              - when TypeDeChamp.type_champs.fetch(:mesri)
+                = render partial: "shared/champs/mesri/show", locals: { champ: champ, profile: @profile }
+              - when TypeDeChamp.type_champs.fetch(:address)
+                = render Dossiers::AddressComponent.new(champ:)
+              - when TypeDeChamp.type_champs.fetch(:communes)
+                = render Dossiers::CommuneComponent.new(champ:)
+              - when TypeDeChamp.type_champs.fetch(:departements)
+                = render Dossiers::DepartementComponent.new(champ:)
+              - when TypeDeChamp.type_champs.fetch(:regions)
+                = render Dossiers::RegionComponent.new(champ:)
+              - when TypeDeChamp.type_champs.fetch(:rna)
+                = render Dossiers::RNAComponent.new(champ:)
+              - when TypeDeChamp.type_champs.fetch(:rnf)
+                = render Dossiers::RNFComponent.new(champ:)
+              - when TypeDeChamp.type_champs.fetch(:epci)
+                = render Dossiers::EpciComponent.new(champ:)
+              - when TypeDeChamp.type_champs.fetch(:te_fenua)
+                = render partial: "shared/champs/te_fenua/show", locals: { champ: champ, profile: @profile }
+              - when TypeDeChamp.type_champs.fetch(:numero_dn)
+                = render partial: "shared/champs/numero_dn/show", locals: { champ: champ, profile: @profile }
+              - when TypeDeChamp.type_champs.fetch(:referentiel_de_polynesie)
+                = render partial: "shared/champs/referentiel_de_polynesie/show", locals: { champ: champ, profile: @profile }
+              - when TypeDeChamp.type_champs.fetch(:cojo)
+                = render partial: "shared/champs/cojo/show", locals: { champ: champ, profile: @profile }
+              - when TypeDeChamp.type_champs.fetch(:date)
+                %p.copy-zone= champ.to_s
+              - when TypeDeChamp.type_champs.fetch(:datetime)
+                %p.copy-zone= champ.to_s
+              - when TypeDeChamp.type_champs.fetch(:number), TypeDeChamp.type_champs.fetch(:integer_number), TypeDeChamp.type_champs.fetch(:decimal_number)
+                %p.copy-zone= helpers.number_with_html_delimiter(champ.to_s)
+              - when TypeDeChamp.type_champs.fetch(:referentiel)
+                = render Dossiers::ReferentielComponent.new(champ:, profile: @profile)
+
+              - else
+                .copy-zone{ 'data-to-copy': champ.to_s.strip }
+                  = helpers.format_text_value(champ.to_s.strip)

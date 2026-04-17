@@ -1,0 +1,60 @@
+// pf: grille multi-colonnes pour l'affichage des champs côté instructeur.
+// Base 12 (alignée avec DSFR) pour laisser la porte ouverte à two_thirds plus tard.
+// Toute la logique de largeur est ici : aucun override dans les types de champ.
+
+.dossier-show .champs-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  align-items: start;
+  column-gap: 0.5rem;
+  row-gap: 0;
+
+  // mobile / petite tablette : mono-colonne (comportement actuel)
+  @media (max-width: 62em) {
+    grid-template-columns: 1fr;
+  }
+
+  // impression / PDF : force mono-colonne
+  @media print {
+    grid-template-columns: 1fr;
+  }
+
+  .champ-grid-item {
+    grid-column: span 12; // safe default
+
+    &.champ-grid-item--full {
+      grid-column: span 12;
+    }
+    &.champ-grid-item--half {
+      grid-column: span 6;
+    }
+    &.champ-grid-item--third {
+      grid-column: span 4;
+    }
+    &.champ-grid-item--quarter {
+      grid-column: span 3;
+    }
+  }
+
+  // tablette large (62em–80em) : passage intermédiaire 6 colonnes effectives
+  @media (min-width: 62em) and (max-width: 80em) {
+    .champ-grid-item {
+      &.champ-grid-item--half {
+        grid-column: span 12;
+      }
+      &.champ-grid-item--third {
+        grid-column: span 6;
+      }
+      &.champ-grid-item--quarter {
+        grid-column: span 6;
+      }
+    }
+  }
+
+  // print : garde-fou, tout en full quelle que soit la classe
+  @media print {
+    .champ-grid-item {
+      grid-column: span 12 !important;
+    }
+  }
+}
