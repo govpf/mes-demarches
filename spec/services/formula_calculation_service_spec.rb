@@ -329,8 +329,8 @@ describe FormulaCalculationService do
     it 'translates undefined function in French' do
       error = begin
         FormulaCalculationService.new_calculator.evaluate!('FOO(1)')
-      rescue Dentaku::ParseError => e
-        e
+              rescue Dentaku::ParseError => e
+                e
       end
       expect(described_class.translate_error(error)).to eq("La fonction 'foo' n'existe pas")
     end
@@ -338,26 +338,49 @@ describe FormulaCalculationService do
     it 'translates unbalanced parenthesis in French' do
       error = begin
         FormulaCalculationService.new_calculator.evaluate!('(1+2')
-      rescue Dentaku::TokenizerError => e
-        e
+              rescue Dentaku::TokenizerError => e
+                e
       end
       expect(described_class.translate_error(error)).to eq("Trop de parenthèses ouvrantes '('")
     end
 
-    it 'translates too few operands in French' do
+    it 'translates too few operands in French with readable operator symbol' do
       error = begin
         FormulaCalculationService.new_calculator.evaluate!('1 +')
-      rescue Dentaku::ParseError => e
-        e
+              rescue Dentaku::ParseError => e
+                e
       end
-      expect(described_class.translate_error(error)).to include("manque d'opérandes")
+      msg = described_class.translate_error(error)
+      expect(msg).to include("manque d'arguments")
+      expect(msg).to include("'+'")
+      expect(msg).not_to include('Dentaku::AST')
+      expect(msg).not_to include('#<Class')
+    end
+
+    it 'translates too few operands for a custom function (SI) with readable name' do
+      calc = FormulaCalculationService.new_calculator(locale: :fr)
+      error = begin
+        calc.evaluate!('SI(1)')
+              rescue Dentaku::ParseError => e
+                e
+      end
+      msg = described_class.translate_error(error)
+      expect(msg).to include("'SI'")
+      expect(msg).not_to include('#<Class')
+    end
+
+    it 'formats arithmetic operators as their symbol' do
+      expect(described_class.format_operator(Dentaku::AST::Addition)).to eq('+')
+      expect(described_class.format_operator(Dentaku::AST::Multiplication)).to eq('*')
+      expect(described_class.format_operator(Dentaku::AST::Division)).to eq('/')
+      expect(described_class.format_operator(Dentaku::AST::Equal)).to eq('==')
     end
 
     it 'translates unbound variable in French' do
       error = begin
         FormulaCalculationService.new_calculator.evaluate!('x + 1')
-      rescue Dentaku::UnboundVariableError => e
-        e
+              rescue Dentaku::UnboundVariableError => e
+                e
       end
       expect(described_class.translate_error(error)).to eq("La variable 'x' n'est pas définie")
     end

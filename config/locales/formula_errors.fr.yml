@@ -6,9 +6,9 @@ fr:
   formula_errors:
     # Erreurs de parsing (Dentaku::ParseError)
     parse:
-      node_invalid: "L'opérateur '%{operator}' attend des opérandes de type %{expect}, mais a reçu %{actual}"
-      too_few_operands: "L'opérateur '%{operator}' manque d'opérandes (%{actual} donné, %{expect} attendu)"
-      too_many_operands: "L'opérateur '%{operator}' a trop d'opérandes (%{actual} donné, %{expect} attendu)"
+      node_invalid: "'%{operator}' attend des opérandes de type %{expect}, mais a reçu %{actual}"
+      too_few_operands: "'%{operator}' manque d'arguments (%{actual} fourni, %{expect} attendu)"
+      too_many_operands: "'%{operator}' a trop d'arguments (%{actual} fourni, %{expect} attendu)"
       undefined_function: "La fonction '%{function_name}' n'existe pas"
       unprocessed_token: "Élément non reconnu : '%{token_name}'"
       unknown_case_token: "Élément non reconnu dans la condition : '%{token_name}'"

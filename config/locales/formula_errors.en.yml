@@ -2,9 +2,9 @@
 en:
   formula_errors:
     parse:
-      node_invalid: "Operator '%{operator}' expects operands of type %{expect}, but got %{actual}"
-      too_few_operands: "Operator '%{operator}' has too few operands (given %{actual}, expected %{expect})"
-      too_many_operands: "Operator '%{operator}' has too many operands (given %{actual}, expected %{expect})"
+      node_invalid: "'%{operator}' expects operands of type %{expect}, but got %{actual}"
+      too_few_operands: "'%{operator}' is missing arguments (given %{actual}, expected %{expect})"
+      too_many_operands: "'%{operator}' has too many arguments (given %{actual}, expected %{expect})"
       undefined_function: "Function '%{function_name}' does not exist"
       unprocessed_token: "Unrecognized element: '%{token_name}'"
       unknown_case_token: "Unknown token in condition: '%{token_name}'"

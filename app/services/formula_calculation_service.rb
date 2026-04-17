@@ -71,11 +71,11 @@ class FormulaCalculationService
     case exception
     when Dentaku::ParseError
       I18n.t("formula_errors.parse.#{exception.reason}",
-             **exception.meta,
+             **sanitize_meta(exception.meta),
              default: exception.message)
     when Dentaku::TokenizerError
       I18n.t("formula_errors.tokenizer.#{exception.reason}",
-             **exception.meta,
+             **sanitize_meta(exception.meta),
              default: exception.message)
     when Dentaku::UnboundVariableError
       I18n.t('formula_errors.unbound_variable',
@@ -84,6 +84,55 @@ class FormulaCalculationService
     else
       I18n.t('formula_errors.generic', message: exception.message)
     end
+  end
+
+  # pf: Rend les métadonnées de l'exception Dentaku lisibles par un humain.
+  # En particulier, `meta[:operator]` contient la classe AST interne
+  # (ex: Dentaku::AST::Addition, ou une classe anonyme pour les fonctions
+  # personnalisées). L'interpolation directe donne "#<Class:0x...>" ou
+  # "Dentaku::AST::Multiplication" — pas parlant pour l'utilisateur.
+  def self.sanitize_meta(meta)
+    meta.transform_values do |value|
+      if value.is_a?(Class) && value < Dentaku::AST::Node
+        format_operator(value)
+      else
+        value
+      end
+    end
+  end
+
+  # pf: Formate une classe d'opérateur Dentaku en chaîne lisible.
+  # Fonctions custom (SI, SOMME, CONCATENER...) → leur nom en majuscules.
+  # Opérateurs arithmétiques → symbole correspondant (+, -, *, /, ...).
+  # Fallback → nom de la classe sans le préfixe Dentaku::AST::.
+  OPERATOR_SYMBOLS = {
+    'Addition' => '+',
+    'Subtraction' => '-',
+    'Multiplication' => '*',
+    'Division' => '/',
+    'Modulo' => '%',
+    'Exponentiation' => '^',
+    'Negation' => '-',
+    'LessThan' => '<',
+    'LessThanOrEqual' => '<=',
+    'GreaterThan' => '>',
+    'GreaterThanOrEqual' => '>=',
+    'Equal' => '==',
+    'NotEqual' => '!=',
+    'And' => 'ET',
+    'Or' => 'OU',
+    'Not' => 'NON'
+  }.freeze
+
+  def self.format_operator(klass)
+    # Fonction custom (SOMME, SI, CONCATENER, ...) : klass.name est un Symbol
+    # ex: :SI → "SI"
+    return klass.name.to_s.upcase if klass.name.is_a?(Symbol)
+
+    name = klass.name.to_s
+    # Opérateur built-in : Dentaku::AST::Addition → "+"
+    short = name.sub('Dentaku::AST::', '')
+    OPERATOR_SYMBOLS[short] || short
   end
 
   # pf: Détecte l'usage du signe '=' seul (confusion fréquente avec '==').
