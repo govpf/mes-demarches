@@ -12,7 +12,36 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     0.seconds
   end
 
+  # pf: la colonne d'un champ formule doit porter le type réel de sa sortie
+  # (number, boolean, string), pas le :text par défaut de TypeDeChamp.column_type.
+  # Ça permet à FormulaCalculationService de dispatcher correctement dans
+  # format_value_for_dentaku quand une formule est référencée par une autre.
+  def columns(procedure:, displayable: true, prefix: nil)
+    return [] unless fillable?
+
+    [
+      Columns::ChampColumn.new(
+        procedure_id: procedure.id,
+        stable_id:,
+        tdc_type: type_champ,
+        label: libelle_with_prefix(prefix),
+        type: column_type_from_output,
+        displayable:,
+        options_for_select:,
+        mandatory: mandatory?
+      )
+    ]
+  end
+
   private
+
+  def column_type_from_output
+    case @type_de_champ.formule_output_type
+    when 'boolean' then :boolean
+    when 'number' then :decimal
+    else :text # 'string' ou nil
+    end
+  end
 
   def validate_expression
     return if @type_de_champ.formule_expression.blank?

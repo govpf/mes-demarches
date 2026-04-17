@@ -95,7 +95,7 @@ class Logic::ChampValue < Logic::Term
     when "Champs::FormuleChamp" # pf: formule comme source de condition
       case targeted_champ.type_de_champ.formule_output_type
       when 'boolean'
-        targeted_champ.value == '1'
+        targeted_champ.value == Champs::BooleanChamp::TRUE_VALUE
       else
         targeted_champ.value&.to_f
       end

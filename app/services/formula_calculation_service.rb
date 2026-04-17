@@ -352,7 +352,13 @@ class FormulaCalculationService
     when :decimal
       value.present? ? value.to_f : 0
     when :boolean
-      value ? 1 : 0
+      # pf: les champs booléens (yes_no/checkbox/formule) stockent "true"/"false".
+      # Attention : en Ruby la string "false" est truthy, donc on teste la valeur
+      # explicitement plutôt que de faire `value ? 1 : 0`.
+      case value
+      when true, Champs::BooleanChamp::TRUE_VALUE then 1
+      else 0
+      end
     when :date, :datetime
       # Convert to timestamp for calculations
       value.present? ? value.to_time.to_i : 0
@@ -419,9 +425,15 @@ class FormulaCalculationService
     when 'checkbox'
       champ.value == 'on' ? 1 : 0
     when 'formule'
-      # Recursive calculation for formula fields
+      # pf: calcul récursif — la formule référencée peut être numérique, booléenne
+      # ou texte. On dispatche selon formule_output_type pour convertir correctement.
       result = compute_value(champ)
-      result.is_a?(String) && result.match?(/\A-?\d+(\.\d+)?\z/) ? result.to_f : 0
+      case champ.type_de_champ.formule_output_type
+      when 'boolean'
+        result == Champs::BooleanChamp::TRUE_VALUE ? 1 : 0
+      else # 'number', 'string', ou nil
+        result.is_a?(String) && result.match?(/\A-?\d+(\.\d+)?\z/) ? result.to_f : 0
+      end
     when 'date'
       # Convert date to days since epoch for calculations
       champ.value.present? ? Date.parse(champ.value).to_time.to_i / (24 * 3600) : 0
@@ -464,7 +476,11 @@ class FormulaCalculationService
         result.to_s.sub(/\.?0+$/, '')
       end
     when TrueClass, FalseClass
-      result ? '1' : '0'
+      # pf: storage aligné avec les champs yes_no/checkbox (Champs::BooleanChamp).
+      # Permet une interop propre avec GraphQL/Lexpol et le moteur de conditions.
+      # Pour utiliser un booléen en arithmétique (ex: SOMME des vrais), passer
+      # explicitement par SI({formule_bool}, 1, 0).
+      result ? 'true' : 'false'
     else
       result.to_s
     end

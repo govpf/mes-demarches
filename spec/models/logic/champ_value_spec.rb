@@ -185,7 +185,8 @@ describe Logic::ChampValue do
 
     context 'formule tdc (boolean)' do
       let(:tdc_type) { :formule }
-      let(:champ) { Champs::FormuleChamp.new(value: '1', stable_id: tdc.stable_id, dossier:) }
+      # pf: storage aligné avec Champs::BooleanChamp — "true"/"false"
+      let(:champ) { Champs::FormuleChamp.new(value: 'true', stable_id: tdc.stable_id, dossier:) }
 
       before { tdc.update_column(:options, tdc.options.merge('formule_output_type' => 'boolean')) }
 
@@ -195,7 +196,7 @@ describe Logic::ChampValue do
       end
 
       context 'with false value' do
-        let(:champ) { Champs::FormuleChamp.new(value: '0', stable_id: tdc.stable_id, dossier:) }
+        let(:champ) { Champs::FormuleChamp.new(value: 'false', stable_id: tdc.stable_id, dossier:) }
 
         it { is_expected.to eq(false) }
       end
