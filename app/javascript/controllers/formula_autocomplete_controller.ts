@@ -400,6 +400,7 @@ export class FormulaAutocompleteController extends ApplicationController {
     // Find the start of the current {...}
     const textBefore = text.substring(0, cursorPos);
     const lastOpenBrace = textBefore.lastIndexOf('{');
+    const prefix = text.substring(0, lastOpenBrace);
 
     // Build new text — skip existing closing brace if present after cursor
     let suffix = text.substring(cursorPos);

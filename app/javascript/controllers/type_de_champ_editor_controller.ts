@@ -66,6 +66,11 @@ export class TypeDeChampEditorController extends ApplicationController {
   private onInput(event: Event) {
     matchInputElement(event.target, {
       inputable: (target) => {
+        // pf: opt-out — certains champs ne doivent pas déclencher l'autosave
+        // à chaque frappe (ex: formule, où une expression en cours de saisie
+        // est intrinsèquement invalide). Le `change` handler s'en charge au blur.
+        if ((target as HTMLElement).dataset?.autosaveOnBlurOnly === 'true') return;
+
         if (target.form) {
           this.#dirtyForms.add(target.form);
           this.debounce(this.save, AUTOSAVE_DEBOUNCE_DELAY);
