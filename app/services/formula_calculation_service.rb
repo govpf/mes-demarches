@@ -352,12 +352,18 @@ class FormulaCalculationService
     when :decimal
       value.present? ? value.to_f : 0
     when :boolean
-      # pf: les champs booléens (yes_no/checkbox/formule) stockent "true"/"false".
-      # Attention : en Ruby la string "false" est truthy, donc on teste la valeur
-      # explicitement plutôt que de faire `value ? 1 : 0`.
+      # pf: on passe des booléens natifs à Dentaku (pas 0/1) pour que le
+      # typage soit préservé jusqu'à format_result. Une formule `{CaseACocher}`
+      # doit rendre "true"/"false" (affiché Oui/Non), pas "1"/"0".
+      # Pour l'arithmétique, l'utilisateur doit écrire explicitement
+      # `SI({CaseACocher}, 1, 0)` — pas de conversion implicite boolean→number
+      # (cohérent avec un langage fonctionnel, Dentaku lève une erreur claire
+      # sur `true + 1`).
+      # Attention : en Ruby la string "false" est truthy, donc on teste
+      # explicitement les valeurs plutôt que de faire `value ? true : false`.
       case value
-      when true, Champs::BooleanChamp::TRUE_VALUE then 1
-      else 0
+      when true, Champs::BooleanChamp::TRUE_VALUE then true
+      when false, Champs::BooleanChamp::FALSE_VALUE then false
       end
     when :date, :datetime
       # Convert to timestamp for calculations

@@ -385,6 +385,67 @@ describe FormulaCalculationService do
       end
     end
 
+    # pf: non-régression — une formule qui référence juste un champ booléen
+    # (checkbox, yes_no, ou formule booléenne) doit rendre "true"/"false",
+    # pas "1"/"0". Le typage boolean doit se propager jusqu'à format_result.
+    context 'single-reference boolean formulas' do
+      let(:procedure) {
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :checkbox, libelle: 'CaseACocher' },
+          { type: :yes_no, libelle: 'OuiNon' },
+          { type: :formule, libelle: 'FCheckbox' }, # expression: {CaseACocher}
+          { type: :formule, libelle: 'FYesNo' }     # expression: {OuiNon}
+        ])
+      }
+      let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
+      let(:case_champ) { dossier.project_champs_public[0] }
+      let(:ouinon_champ) { dossier.project_champs_public[1] }
+      let(:f_checkbox) { dossier.project_champs_public[2] }
+      let(:f_ouinon) { dossier.project_champs_public[3] }
+      let(:service) { described_class.new(dossier, locale: :fr) }
+
+      before do
+        expr1, _ = FormulaExpressionService.convert_to_stable_ids('{CaseACocher}', procedure.active_revision)
+        f_checkbox.type_de_champ.update(formule_expression: expr1)
+        expr2, _ = FormulaExpressionService.convert_to_stable_ids('{OuiNon}', procedure.active_revision)
+        f_ouinon.type_de_champ.update(formule_expression: expr2)
+      end
+
+      it '{CaseACocher} returns "true" when checked' do
+        case_champ.update!(value: 'true')
+        expect(service.compute_value(f_checkbox)).to eq('true')
+      end
+
+      it '{CaseACocher} returns "false" when unchecked' do
+        case_champ.update!(value: 'false')
+        expect(service.compute_value(f_checkbox)).to eq('false')
+      end
+
+      it '{OuiNon} returns "true" when yes' do
+        ouinon_champ.update!(value: 'true')
+        expect(service.compute_value(f_ouinon)).to eq('true')
+      end
+
+      # pf: transitivité — une formule qui référence une formule booléenne
+      # doit elle-même renvoyer "true"/"false", pas "0"/"1".
+      it 'chained boolean formula: {FCheckbox} preserves boolean type' do
+        case_champ.update!(value: 'true')
+        # Calcule et stocke FCheckbox
+        f_checkbox.update!(value: service.compute_value(f_checkbox))
+        # Inférence du type de sortie de FCheckbox (boolean via la référence nue)
+        f_checkbox.type_de_champ.valid?
+        f_checkbox.type_de_champ.save!
+
+        # Maintenant, une formule qui référence FCheckbox
+        expr_chain, _ = FormulaExpressionService.convert_to_stable_ids('{FCheckbox}', procedure.active_revision)
+        f_ouinon.type_de_champ.update(formule_expression: expr_chain)
+        f_ouinon.type_de_champ.valid?
+        f_ouinon.type_de_champ.save!
+
+        expect(service.compute_value(f_ouinon)).to eq('true')
+      end
+    end
+
     # pf: pattern recommandé pour convertir explicitement des booléens en
     # nombres — SI(..., 1, 0). Pas de conversion implicite boolean→number.
     context 'counting booleans explicitly via SI' do
