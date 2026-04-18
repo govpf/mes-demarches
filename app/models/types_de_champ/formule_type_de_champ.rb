@@ -123,9 +123,9 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   def find_referenced_tdc(ref, revision)
     # Supporte les formats {tdc123}, {tdc123/path}, {123} (legacy)
     stable_id = case ref
-                when /^tdc(\d+)/ then Regexp.last_match(1).to_i
-                when /^\d+$/ then ref.to_i
-                end
+    when /^tdc(\d+)/ then Regexp.last_match(1).to_i
+    when /^\d+$/ then ref.to_i
+    end
     return nil if stable_id.nil?
     revision.types_de_champ.find { |t| t.stable_id == stable_id }
   end

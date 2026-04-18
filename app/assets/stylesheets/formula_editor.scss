@@ -30,6 +30,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px; // pf: garantit un espace minimum entre le libellé et le type
     margin-bottom: 4px;
     padding: 8px 12px;
     border: 1px solid var(--border-default-grey);
