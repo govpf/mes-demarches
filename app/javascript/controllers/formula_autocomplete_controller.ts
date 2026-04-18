@@ -129,21 +129,6 @@ export class FormulaAutocompleteController extends ApplicationController {
   }
 
   /**
-   * Handle column selection via click
-   */
-  selectColumn(event: Event) {
-    const button = event.currentTarget as HTMLButtonElement;
-    const columnId = button.dataset.columnId;
-
-    if (!columnId) return;
-
-    const column = this.#filteredColumns.find((col) => col.id === columnId);
-    if (column) {
-      this.insertColumn(column);
-    }
-  }
-
-  /**
    * Show dropdown with filtered columns
    */
   private showDropdown(query: string) {
@@ -165,7 +150,11 @@ export class FormulaAutocompleteController extends ApplicationController {
         interactive: true,
         trigger: 'manual',
         placement: 'bottom-start',
-        appendTo: () => document.body
+        // pf: on ancre le popup dans le scope du controller (comme
+        // shared/tiptap/tags.ts le fait avec editorElement) plutôt que dans
+        // document.body. Ça évite que le popup devienne "orphelin" si le
+        // composant est re-rendu par turbo.
+        appendTo: () => this.element as HTMLElement
       });
     } else {
       this.#popup.setProps({
@@ -331,12 +320,24 @@ export class FormulaAutocompleteController extends ApplicationController {
         index === this.#selectedIndex ? 'true' : 'false'
       );
       button.dataset.columnId = column.id;
-      button.dataset.action = 'click->formula-autocomplete#selectColumn';
 
       button.innerHTML = `
         <span class="formula-column-label">${this.escapeHtml(column.label)}</span>
         <span class="formula-column-type">${this.getTypeLabel(column.type)}</span>
       `;
+
+      // pf: on attache les listeners programmatiquement plutôt que via
+      // data-action Stimulus, car tippy.js déplace le popup dans document.body
+      // — hors du scope du controller Stimulus, les data-action ne sont pas
+      // enregistrés.
+      //
+      // `mousedown preventDefault` empêche le textarea de perdre le focus
+      // quand l'utilisateur clique sur une suggestion. Sans ça, le blur
+      // déclenche l'autosave (data-autosave-on-blur-only) → turbo re-render →
+      // le bouton disparaît avant que le click n'aboutisse = flickering et
+      // insertion impossible.
+      button.addEventListener('mousedown', (event) => event.preventDefault());
+      button.addEventListener('click', () => this.insertColumn(column));
 
       item.appendChild(button);
       list.appendChild(item);
@@ -400,10 +401,13 @@ export class FormulaAutocompleteController extends ApplicationController {
     // Find the start of the current {...}
     const textBefore = text.substring(0, cursorPos);
     const lastOpenBrace = textBefore.lastIndexOf('{');
-
-    // Build new text
     const prefix = text.substring(0, lastOpenBrace);
-    const suffix = text.substring(cursorPos);
+
+    // Build new text — skip existing closing brace if present after cursor
+    let suffix = text.substring(cursorPos);
+    if (suffix.startsWith('}')) {
+      suffix = suffix.substring(1);
+    }
     const newText = prefix + `{${column.label}}` + suffix;
 
     textarea.value = newText;

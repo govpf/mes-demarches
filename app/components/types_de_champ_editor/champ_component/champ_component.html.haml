@@ -50,13 +50,16 @@
               .cell.fr-mt-1w{ data: { controller: 'formula-editor formula-autocomplete', formula_editor_available_columns_value: columns_data.to_json, formula_editor_champs_value: available_champs.to_json, formula_autocomplete_available_columns_value: columns_data.to_json } }
                 = form.label :formule_user_expression, for: dom_id(type_de_champ, :formule_user_expression) do
                   Expression de la formule
+                -# pf: pas d'autosave au fil de l'eau sur la formule — une expression incomplète
+                -# déclencherait des validations erronées en milieu de frappe. Le save se fait
+                -# naturellement via l'événement `change` (au blur) ou à la soumission explicite.
                 = form.text_area :formule_user_expression,
                   value: type_de_champ.formule_user_expression,
                   class: "fr-input small-margin small width-100 resize-y",
                   rows: 3,
                   id: dom_id(type_de_champ, :formule_user_expression),
                   placeholder: "Exemple: {Montant HT} * (1 + {Taux TVA})",
-                  data: { formula_editor_target: 'userExpression', formula_autocomplete_target: 'textarea', action: 'input->formula-editor#onInput input->formula-autocomplete#onInput keydown->formula-autocomplete#onKeyDown' }
+                  data: { formula_editor_target: 'userExpression', formula_autocomplete_target: 'textarea', autosave_on_blur_only: 'true', action: 'input->formula-editor#onInput input->formula-autocomplete#onInput keydown->formula-autocomplete#onKeyDown' }
                 = form.hidden_field :formule_expression,
                   value: type_de_champ.formule_expression,
                   id: dom_id(type_de_champ, :formule_expression),

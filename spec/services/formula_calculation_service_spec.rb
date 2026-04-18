@@ -322,5 +322,227 @@ describe FormulaCalculationService do
         expect(compute_with('{Text court}')).to eq('')
       end
     end
+
+    # pf: Les formules booléennes stockent "true"/"false" pour être cohérentes
+    # avec les champs yes_no/checkbox (Champs::BooleanChamp). Permet interop
+    # propre avec GraphQL/Lexpol et moteur de conditions.
+    context 'with boolean expressions' do
+      let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+      it 'returns "true" for a true comparison' do
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: '5 > 3'))
+        expect(service.compute_value(formule_champ)).to eq('true')
+      end
+
+      it 'returns "false" for a false comparison' do
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: '5 < 3'))
+        expect(service.compute_value(formule_champ)).to eq('false')
+      end
+
+      it 'returns "true" for ET with all truthy' do
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: 'ET(5 > 3, 10 > 1)'))
+        expect(service.compute_value(formule_champ)).to eq('true')
+      end
+    end
+
+    # pf: quand une formule référence une autre formule booléenne,
+    # format_value_for_dentaku doit convertir "true"/"false" correctement
+    # (bug latent si on fait seulement `value ? 1 : 0` car "false" est truthy).
+    context 'when a formula references another boolean formula' do
+      let(:procedure) {
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :integer_number, libelle: 'Age' },
+          { type: :formule, libelle: 'Majeur' }, # sera défini comme {Age} >= 18
+          { type: :formule, libelle: 'Label' }   # sera défini comme SI({Majeur}, "adulte", "mineur")
+        ])
+      }
+      let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
+      let(:age_champ) { dossier.project_champs_public[0] }
+      let(:majeur_champ) { dossier.project_champs_public[1] }
+      let(:label_champ) { dossier.project_champs_public[2] }
+      let(:service) { described_class.new(dossier, locale: :fr) }
+
+      before do
+        expr_majeur, _ = FormulaExpressionService.convert_to_stable_ids('{Age} >= 18', procedure.active_revision)
+        majeur_champ.type_de_champ.update(formule_expression: expr_majeur)
+        majeur_champ.type_de_champ.valid? # trigger output_type inference
+        majeur_champ.type_de_champ.save!
+
+        expr_label, _ = FormulaExpressionService.convert_to_stable_ids('SI({Majeur}, "adulte", "mineur")', procedure.active_revision)
+        label_champ.type_de_champ.update(formule_expression: expr_label)
+      end
+
+      it 'handles true case correctly' do
+        age_champ.update(value: '25')
+        majeur_champ.update(value: service.compute_value(majeur_champ)) # "true"
+        expect(service.compute_value(label_champ)).to eq('adulte')
+      end
+
+      it 'handles false case correctly (no "false" truthy bug)' do
+        age_champ.update(value: '15')
+        majeur_champ.update(value: service.compute_value(majeur_champ)) # "false"
+        expect(service.compute_value(label_champ)).to eq('mineur')
+      end
+    end
+
+    # pf: non-régression — une formule qui référence juste un champ booléen
+    # (checkbox, yes_no, ou formule booléenne) doit rendre "true"/"false",
+    # pas "1"/"0". Le typage boolean doit se propager jusqu'à format_result.
+    context 'single-reference boolean formulas' do
+      let(:procedure) {
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :checkbox, libelle: 'CaseACocher' },
+          { type: :yes_no, libelle: 'OuiNon' },
+          { type: :formule, libelle: 'FCheckbox' }, # expression: {CaseACocher}
+          { type: :formule, libelle: 'FYesNo' }     # expression: {OuiNon}
+        ])
+      }
+      let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
+      let(:case_champ) { dossier.project_champs_public[0] }
+      let(:ouinon_champ) { dossier.project_champs_public[1] }
+      let(:f_checkbox) { dossier.project_champs_public[2] }
+      let(:f_ouinon) { dossier.project_champs_public[3] }
+      let(:service) { described_class.new(dossier, locale: :fr) }
+
+      before do
+        expr1, _ = FormulaExpressionService.convert_to_stable_ids('{CaseACocher}', procedure.active_revision)
+        f_checkbox.type_de_champ.update(formule_expression: expr1)
+        expr2, _ = FormulaExpressionService.convert_to_stable_ids('{OuiNon}', procedure.active_revision)
+        f_ouinon.type_de_champ.update(formule_expression: expr2)
+      end
+
+      it '{CaseACocher} returns "true" when checked' do
+        case_champ.update!(value: 'true')
+        expect(service.compute_value(f_checkbox)).to eq('true')
+      end
+
+      it '{CaseACocher} returns "false" when unchecked' do
+        case_champ.update!(value: 'false')
+        expect(service.compute_value(f_checkbox)).to eq('false')
+      end
+
+      it '{OuiNon} returns "true" when yes' do
+        ouinon_champ.update!(value: 'true')
+        expect(service.compute_value(f_ouinon)).to eq('true')
+      end
+
+      # pf: transitivité — une formule qui référence une formule booléenne
+      # doit elle-même renvoyer "true"/"false", pas "0"/"1".
+      it 'chained boolean formula: {FCheckbox} preserves boolean type' do
+        case_champ.update!(value: 'true')
+        # Calcule et stocke FCheckbox
+        f_checkbox.update!(value: service.compute_value(f_checkbox))
+        # Inférence du type de sortie de FCheckbox (boolean via la référence nue)
+        f_checkbox.type_de_champ.valid?
+        f_checkbox.type_de_champ.save!
+
+        # Maintenant, une formule qui référence FCheckbox
+        expr_chain, _ = FormulaExpressionService.convert_to_stable_ids('{FCheckbox}', procedure.active_revision)
+        f_ouinon.type_de_champ.update(formule_expression: expr_chain)
+        f_ouinon.type_de_champ.valid?
+        f_ouinon.type_de_champ.save!
+
+        expect(service.compute_value(f_ouinon)).to eq('true')
+      end
+    end
+
+    # pf: pattern recommandé pour convertir explicitement des booléens en
+    # nombres — SI(..., 1, 0). Pas de conversion implicite boolean→number.
+    context 'counting booleans explicitly via SI' do
+      let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+      it 'SOMME(SI(cond1,1,0), SI(cond2,1,0)) counts truthy conditions' do
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: 'SOMME(SI(5 > 3, 1, 0), SI(2 > 10, 1, 0), SI(1 == 1, 1, 0))'))
+        expect(service.compute_value(formule_champ)).to eq('2')
+      end
+    end
+  end
+
+  # pf: traductions françaises des erreurs Dentaku
+  describe '.translate_error' do
+    it 'translates undefined function in French' do
+      error = begin
+        FormulaCalculationService.new_calculator.evaluate!('FOO(1)')
+              rescue Dentaku::ParseError => e
+                e
+      end
+      expect(described_class.translate_error(error)).to eq("La fonction 'foo' n'existe pas")
+    end
+
+    it 'translates unbalanced parenthesis in French' do
+      error = begin
+        FormulaCalculationService.new_calculator.evaluate!('(1+2')
+              rescue Dentaku::TokenizerError => e
+                e
+      end
+      expect(described_class.translate_error(error)).to eq("Trop de parenthèses ouvrantes '('")
+    end
+
+    it 'translates too few operands in French with readable operator symbol' do
+      error = begin
+        FormulaCalculationService.new_calculator.evaluate!('1 +')
+              rescue Dentaku::ParseError => e
+                e
+      end
+      msg = described_class.translate_error(error)
+      expect(msg).to include("manque d'arguments")
+      expect(msg).to include("'+'")
+      expect(msg).not_to include('Dentaku::AST')
+      expect(msg).not_to include('#<Class')
+    end
+
+    it 'translates too few operands for a custom function (SI) with readable name' do
+      calc = FormulaCalculationService.new_calculator(locale: :fr)
+      error = begin
+        calc.evaluate!('SI(1)')
+              rescue Dentaku::ParseError => e
+                e
+      end
+      msg = described_class.translate_error(error)
+      expect(msg).to include("'SI'")
+      expect(msg).not_to include('#<Class')
+    end
+
+    it 'formats arithmetic operators as their symbol' do
+      expect(described_class.format_operator(Dentaku::AST::Addition)).to eq('+')
+      expect(described_class.format_operator(Dentaku::AST::Multiplication)).to eq('*')
+      expect(described_class.format_operator(Dentaku::AST::Division)).to eq('/')
+      expect(described_class.format_operator(Dentaku::AST::Equal)).to eq('==')
+    end
+
+    it 'translates unbound variable in French' do
+      error = begin
+        FormulaCalculationService.new_calculator.evaluate!('x + 1')
+              rescue Dentaku::UnboundVariableError => e
+                e
+      end
+      expect(described_class.translate_error(error)).to eq("La variable 'x' n'est pas définie")
+    end
+  end
+
+  describe '.detect_equals_operator_hint' do
+    it 'detects single = and returns hint' do
+      expect(described_class.detect_equals_operator_hint('SI({x} = 5, 1, 0)')).to include("Utilisez '=='")
+    end
+
+    it 'does not trigger on ==' do
+      expect(described_class.detect_equals_operator_hint('SI({x} == 5, 1, 0)')).to be_nil
+    end
+
+    it 'does not trigger on >=' do
+      expect(described_class.detect_equals_operator_hint('SI({x} >= 5, 1, 0)')).to be_nil
+    end
+
+    it 'does not trigger on <=' do
+      expect(described_class.detect_equals_operator_hint('SI({x} <= 5, 1, 0)')).to be_nil
+    end
+
+    it 'does not trigger on !=' do
+      expect(described_class.detect_equals_operator_hint('SI({x} != 5, 1, 0)')).to be_nil
+    end
+
+    it 'returns nil on blank expression' do
+      expect(described_class.detect_equals_operator_hint('')).to be_nil
+    end
   end
 end

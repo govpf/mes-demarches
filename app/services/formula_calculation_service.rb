@@ -46,10 +46,10 @@ class FormulaCalculationService
     "Erreur : référence circulaire détectée"
   rescue InvalidFieldReferenceError => e
     "Erreur : champ '#{e.message}' introuvable"
-  rescue Dentaku::ParseError => e
-    "Erreur de syntaxe : #{e.message}"
+  rescue Dentaku::ParseError, Dentaku::TokenizerError => e
+    "Erreur de syntaxe : #{self.class.translate_error(e)}"
   rescue Dentaku::UnboundVariableError => e
-    "Erreur : variable '#{e.unbound_variable}' non définie"
+    self.class.translate_error(e)
   rescue StandardError => e
     "Erreur de calcul : #{e.message}"
   end
@@ -61,6 +61,88 @@ class FormulaCalculationService
     new_instance = allocate
     new_instance.send(:add_french_functions, calculator) if locale.to_s.start_with?('fr')
     calculator
+  end
+
+  # pf: Traduit une exception Dentaku en message utilisateur français.
+  # Dentaku ne supporte pas l'i18n (messages hardcodés en anglais), on
+  # utilise l'attribut `reason` et `meta` des exceptions pour construire
+  # un message traduisible via I18n.
+  def self.translate_error(exception)
+    case exception
+    when Dentaku::ParseError
+      I18n.t("formula_errors.parse.#{exception.reason}",
+             **sanitize_meta(exception.meta),
+             default: exception.message)
+    when Dentaku::TokenizerError
+      I18n.t("formula_errors.tokenizer.#{exception.reason}",
+             **sanitize_meta(exception.meta),
+             default: exception.message)
+    when Dentaku::UnboundVariableError
+      I18n.t('formula_errors.unbound_variable',
+             variable: exception.unbound_variables.join(', '),
+             default: exception.message)
+    else
+      I18n.t('formula_errors.generic', message: exception.message)
+    end
+  end
+
+  # pf: Rend les métadonnées de l'exception Dentaku lisibles par un humain.
+  # En particulier, `meta[:operator]` contient la classe AST interne
+  # (ex: Dentaku::AST::Addition, ou une classe anonyme pour les fonctions
+  # personnalisées). L'interpolation directe donne "#<Class:0x...>" ou
+  # "Dentaku::AST::Multiplication" — pas parlant pour l'utilisateur.
+  def self.sanitize_meta(meta)
+    meta.transform_values do |value|
+      if value.is_a?(Class) && value < Dentaku::AST::Node
+        format_operator(value)
+      else
+        value
+      end
+    end
+  end
+
+  # pf: Formate une classe d'opérateur Dentaku en chaîne lisible.
+  # Fonctions custom (SI, SOMME, CONCATENER...) → leur nom en majuscules.
+  # Opérateurs arithmétiques → symbole correspondant (+, -, *, /, ...).
+  # Fallback → nom de la classe sans le préfixe Dentaku::AST::.
+  OPERATOR_SYMBOLS = {
+    'Addition' => '+',
+    'Subtraction' => '-',
+    'Multiplication' => '*',
+    'Division' => '/',
+    'Modulo' => '%',
+    'Exponentiation' => '^',
+    'Negation' => '-',
+    'LessThan' => '<',
+    'LessThanOrEqual' => '<=',
+    'GreaterThan' => '>',
+    'GreaterThanOrEqual' => '>=',
+    'Equal' => '==',
+    'NotEqual' => '!=',
+    'And' => 'ET',
+    'Or' => 'OU',
+    'Not' => 'NON'
+  }.freeze
+
+  def self.format_operator(klass)
+    # Fonction custom (SOMME, SI, CONCATENER, ...) : klass.name est un Symbol
+    # ex: :SI → "SI"
+    return klass.name.to_s.upcase if klass.name.is_a?(Symbol)
+
+    name = klass.name.to_s
+    # Opérateur built-in : Dentaku::AST::Addition → "+"
+    short = name.sub('Dentaku::AST::', '')
+    OPERATOR_SYMBOLS[short] || short
+  end
+
+  # pf: Détecte l'usage du signe '=' seul (confusion fréquente avec '==').
+  # Retourne un message d'aide ciblé, ou nil si pas ce cas.
+  def self.detect_equals_operator_hint(expression)
+    return nil if expression.blank?
+    # Match '=' qui n'est pas précédé ni suivi de '=', '<', '>', '!'
+    if expression.match?(/(?<![=<>!])=(?!=)/)
+      I18n.t('formula_errors.equals_operator_hint')
+    end
   end
 
   private
@@ -270,7 +352,19 @@ class FormulaCalculationService
     when :decimal
       value.present? ? value.to_f : 0
     when :boolean
-      value ? 1 : 0
+      # pf: on passe des booléens natifs à Dentaku (pas 0/1) pour que le
+      # typage soit préservé jusqu'à format_result. Une formule `{CaseACocher}`
+      # doit rendre "true"/"false" (affiché Oui/Non), pas "1"/"0".
+      # Pour l'arithmétique, l'utilisateur doit écrire explicitement
+      # `SI({CaseACocher}, 1, 0)` — pas de conversion implicite boolean→number
+      # (cohérent avec un langage fonctionnel, Dentaku lève une erreur claire
+      # sur `true + 1`).
+      # Attention : en Ruby la string "false" est truthy, donc on teste
+      # explicitement les valeurs plutôt que de faire `value ? true : false`.
+      case value
+      when true, Champs::BooleanChamp::TRUE_VALUE then true
+      when false, Champs::BooleanChamp::FALSE_VALUE then false
+      end
     when :date, :datetime
       # Convert to timestamp for calculations
       value.present? ? value.to_time.to_i : 0
@@ -337,9 +431,15 @@ class FormulaCalculationService
     when 'checkbox'
       champ.value == 'on' ? 1 : 0
     when 'formule'
-      # Recursive calculation for formula fields
+      # pf: calcul récursif — la formule référencée peut être numérique, booléenne
+      # ou texte. On dispatche selon formule_output_type pour convertir correctement.
       result = compute_value(champ)
-      result.is_a?(String) && result.match?(/\A-?\d+(\.\d+)?\z/) ? result.to_f : 0
+      case champ.type_de_champ.formule_output_type
+      when 'boolean'
+        result == Champs::BooleanChamp::TRUE_VALUE ? 1 : 0
+      else # 'number', 'string', ou nil
+        result.is_a?(String) && result.match?(/\A-?\d+(\.\d+)?\z/) ? result.to_f : 0
+      end
     when 'date'
       # Convert date to days since epoch for calculations
       champ.value.present? ? Date.parse(champ.value).to_time.to_i / (24 * 3600) : 0
@@ -382,7 +482,11 @@ class FormulaCalculationService
         result.to_s.sub(/\.?0+$/, '')
       end
     when TrueClass, FalseClass
-      result ? '1' : '0'
+      # pf: storage aligné avec les champs yes_no/checkbox (Champs::BooleanChamp).
+      # Permet une interop propre avec GraphQL/Lexpol et le moteur de conditions.
+      # Pour utiliser un booléen en arithmétique (ex: SOMME des vrais), passer
+      # explicitement par SI({formule_bool}, 1, 0).
+      result ? 'true' : 'false'
     else
       result.to_s
     end

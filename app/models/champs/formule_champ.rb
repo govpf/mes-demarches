@@ -3,7 +3,10 @@
 class Champs::FormuleChamp < Champ
   before_validation :store_computed_value
 
-  validates :value, presence: true, if: :validate_champ_value?
+  # pf: message spécifique — l'usager ne contrôle pas la valeur d'un champ
+  # formule, donc "doit être rempli" est trompeur. On explique que le calcul
+  # n'a pas abouti et qu'il faut vérifier les champs sources.
+  validates :value, presence: { message: "n'a pas pu être calculée. Vérifiez que les champs référencés dans la formule sont remplis." }, if: :validate_champ_value?
 
   # value : on utilise le reader AR par défaut (read_attribute).
   # Le calcul est fait UNE SEULE FOIS via before_validation :store_computed_value
