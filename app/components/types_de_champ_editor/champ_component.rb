@@ -97,6 +97,17 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     end
   end
 
+  # pf: Génère la documentation textuelle à copier dans une IA externe
+  # pour aider à la rédaction d'une formule. Délègue au service dédié.
+  def ai_prompt_for_formula
+    return nil unless type_de_champ.formule?
+
+    FormulaAiPromptService.new(
+      type_de_champ: type_de_champ,
+      coordinate: coordinate
+    ).generate
+  end
+
   def extract_sub_paths(column)
     # Return sub-properties for DN, referentiels, etc.
     return nil unless column.is_a?(Columns::ChampColumn) && column.stable_id.present?
