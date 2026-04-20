@@ -30,6 +30,12 @@
 # available at http://guides.rubyonrails.org/i18n.html.
 
 en:
+  time:
+    formats:
+      long_date: "%A %d %B %Y"
+      long_datetime: "%A %d %B %Y at %H:%M"
+      short_date: "%d/%m/%Y"
+      short_datetime: "%d/%m/%Y %H:%M"
   insee_down: INSEE is unavailable, company information will arrive within a few hours.
   invisible_captcha:
     sentence_for_humans: 'If you are a human, ignore this field'
@@ -473,6 +479,7 @@ en:
           first_name: First Name
           last_name: Last Name
           birthdate: Birth date
+          # pf: Tahiti number is used instead of SIRET in French Polynesia
           complete_siret: Fill the TAHITI number of your company, administration or association to start the procedure.
           siret_help_html: To find your TAHITI number, use %{annuaire_link} or ask your accounting department.
           siret_placeholder: TAHITI number with 6 or 9 characters

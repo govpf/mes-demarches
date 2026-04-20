@@ -12,6 +12,8 @@
 
 ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_buffercache"
+  enable_extension "pg_stat_statements"
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
   enable_extension "postgis"
@@ -328,10 +330,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
     t.string "email"
     t.bigint "expert_id"
     t.bigint "instructeur_id"
+    t.datetime "seen_by_recipient_at"
     t.datetime "updated_at", null: false
     t.index ["dossier_id"], name: "index_commentaires_on_dossier_id"
     t.index ["expert_id"], name: "index_commentaires_on_expert_id"
     t.index ["instructeur_id"], name: "index_commentaires_on_instructeur_id"
+    t.index ["seen_by_recipient_at"], name: "index_commentaires_on_seen_by_recipient_at"
   end
 
   create_table "contact_forms", force: :cascade do |t|
@@ -473,6 +477,17 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
     t.index ["dossier_id"], name: "index_dossier_operation_logs_on_dossier_id"
     t.index ["id"], name: "index_dossier_operation_logs_on_id", where: "(data IS NOT NULL)"
     t.index ["keep_until"], name: "index_dossier_operation_logs_on_keep_until"
+  end
+
+  create_table "dossier_pending_responses", force: :cascade do |t|
+    t.bigint "commentaire_id"
+    t.datetime "created_at", null: false
+    t.bigint "dossier_id", null: false
+    t.datetime "responded_at"
+    t.datetime "updated_at", null: false
+    t.index ["commentaire_id"], name: "index_dossier_pending_responses_on_commentaire_id"
+    t.index ["dossier_id"], name: "index_dossier_pending_responses_on_dossier_id"
+    t.index ["responded_at"], name: "index_dossier_pending_responses_on_responded_at", where: "(responded_at IS NULL)"
   end
 
   create_table "dossier_submitted_messages", force: :cascade do |t|
@@ -908,6 +923,33 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
     t.index ["procedure_id"], name: "index_labels_on_procedure_id"
   end
 
+  create_table "llm_rule_suggestion_items", force: :cascade do |t|
+    t.datetime "applied_at"
+    t.datetime "created_at", null: false
+    t.text "justification"
+    t.bigint "llm_rule_suggestion_id", null: false
+    t.string "model"
+    t.string "op_kind", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.bigint "stable_id"
+    t.datetime "updated_at", null: false
+    t.string "verify_status", default: "pending", null: false
+    t.index ["llm_rule_suggestion_id"], name: "index_items_on_llm_rule_suggestion_id"
+  end
+
+  create_table "llm_rule_suggestions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "error"
+    t.bigint "procedure_revision_id", null: false
+    t.string "rule", null: false
+    t.string "schema_hash", null: false
+    t.string "state", default: "pending", null: false
+    t.jsonb "token_usage"
+    t.datetime "updated_at", null: false
+    t.index ["procedure_revision_id", "schema_hash", "rule"], name: "index_llm_rule_suggestions_on_revision_schema_rule"
+    t.index ["procedure_revision_id"], name: "index_llm_rule_suggestions_on_procedure_revision_id"
+  end
+
   create_table "maintenance_tasks_runs", force: :cascade do |t|
     t.text "arguments"
     t.text "backtrace"
@@ -967,6 +1009,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
     t.jsonb "displayed_fields", default: [{"label" => "Demandeur", "table" => "user", "column" => "email"}], null: false
     t.jsonb "expirant_filters", default: [], null: false, array: true
     t.jsonb "filters", default: {"tous" => [], "suivis" => [], "traites" => [], "a-suivre" => [], "archives" => [], "expirant" => [], "supprimes" => []}, null: false
+    t.boolean "filters_expanded", default: true, null: false
     t.jsonb "sort", default: {"order" => "desc", "table" => "notifications", "column" => "notifications"}, null: false
     t.jsonb "sorted_column"
     t.jsonb "suivis_filters", default: [], null: false, array: true
@@ -1483,6 +1526,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
   add_foreign_key "instructeurs_procedures", "instructeurs"
   add_foreign_key "instructeurs_procedures", "procedures"
   add_foreign_key "labels", "procedures"
+  add_foreign_key "llm_rule_suggestion_items", "llm_rule_suggestions"
   add_foreign_key "merge_logs", "users"
   add_foreign_key "procedure_paths", "procedures"
   add_foreign_key "procedure_presentations", "assign_tos"
