@@ -1,60 +1,50 @@
-// pf: grille multi-colonnes pour l'affichage des champs côté instructeur.
-// Base 12 (alignée avec DSFR) pour laisser la porte ouverte à two_thirds plus tard.
-// Toute la logique de largeur est ici : aucun override dans les types de champ.
+// pf: grille multi-colonnes pour l'affichage des champs côté instructeur
+// Base 12 (alignée avec DSFR)
+// Toute la logique de largeur est ici : aucun override dans les types de champ
 
 .dossier-show .champs-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  align-items: start;
-  column-gap: 0.5rem;
+  align-items: stretch;
+  column-gap: 1rem;
   row-gap: 0;
-
-  // mobile / petite tablette : mono-colonne (comportement actuel)
-  @media (max-width: 62em) {
-    grid-template-columns: 1fr;
-  }
-
-  // impression / PDF : force mono-colonne
-  @media print {
-    grid-template-columns: 1fr;
-  }
 
   .champ-grid-item {
     grid-column: span 12; // safe default
 
-    &.champ-grid-item--full {
-      grid-column: span 12;
-    }
-    &.champ-grid-item--half {
-      grid-column: span 6;
-    }
-    &.champ-grid-item--third {
-      grid-column: span 4;
-    }
-    &.champ-grid-item--quarter {
-      grid-column: span 3;
-    }
+    // liseret discret bas : sépare visuellement les champs adjacents
+    border-bottom: 1px solid var(--border-default-grey);
+    padding: 0.25rem 0;
+
+    &.champ-grid-item--full    { grid-column: span 12; }
+    &.champ-grid-item--half    { grid-column: span 6; }
+    &.champ-grid-item--quarter { grid-column: span 3; }
   }
 
-  // tablette large (62em–80em) : passage intermédiaire 6 colonnes effectives
+  // tablette (62em–80em) : half reste en half, quarter se regroupe par 2
   @media (min-width: 62em) and (max-width: 80em) {
     .champ-grid-item {
-      &.champ-grid-item--half {
-        grid-column: span 12;
-      }
-      &.champ-grid-item--third {
-        grid-column: span 6;
-      }
-      &.champ-grid-item--quarter {
-        grid-column: span 6;
-      }
+      &.champ-grid-item--quarter { grid-column: span 6; }
     }
   }
 
-  // print : garde-fou, tout en full quelle que soit la classe
+  // mobile / petite tablette (<62em = <992px) : mono-colonne forcée
+  // !important pour neutraliser les span qui créeraient sinon des colonnes implicites
+  @media (max-width: 62em) {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+
+    .champ-grid-item { grid-column: 1 / -1 !important; }
+  }
+
+  // impression / PDF : mono-colonne, pas de bordure
   @media print {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+
     .champ-grid-item {
-      grid-column: span 12 !important;
+      grid-column: 1 / -1 !important;
+      border-bottom: none;
     }
   }
 }

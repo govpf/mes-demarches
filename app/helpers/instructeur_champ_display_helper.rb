@@ -18,19 +18,11 @@ module InstructeurChampDisplayHelper
     te_fenua: :full,
     engagement_juridique: :full,
     formule: :full,
-    # third : numériques compacts
-    integer_number: :third,
-    decimal_number: :third,
-    number: :third,
-    numero_dn: :third,
-    code_postal_de_polynesie: :third,
-    departements: :third,
-    regions: :third,
-    # quarter : booléens / signatures courtes
+    # quarter : booléens / signatures courtes (4 par ligne)
     checkbox: :quarter,
     yes_no: :quarter,
     visa: :quarter
-    # default = :half pour tous les autres (text, email, phone, date, etc.)
+    # default = :half pour tous les autres (text, email, phone, date, numbers, dropdowns, etc.)
   }.freeze
 
   def champ_display_width(champ)
