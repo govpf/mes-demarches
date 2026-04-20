@@ -222,6 +222,69 @@ class FormulaCalculationService
       match = str.match(/-?\d+(?:[.,]\d+)?/)
       match ? match[0].tr(',', '.').to_f : 0
     })
+
+    add_french_date_functions(calculator)
+  end
+
+  # pf: Fonctions de date en français. Les champs date sont passés à Dentaku
+  # comme objets Date/DateTime natifs (cf. format_value_for_dentaku), ce qui
+  # permet d'utiliser aussi directement les opérateurs natifs +/-/</> et la
+  # fonction DURATION(n, years|months|days) exposée par Dentaku.
+  def add_french_date_functions(calculator)
+    calculator.add_function(:AUJOURDHUI, :datetime, -> { Date.current })
+    calculator.add_function(:MAINTENANT, :datetime, -> { DateTime.current })
+
+    calculator.add_function(:JOUR, :numeric, -> (d) {
+      d.nil? ? nil : to_date(d).day
+    })
+    calculator.add_function(:MOIS, :numeric, -> (d) {
+      d.nil? ? nil : to_date(d).month
+    })
+    calculator.add_function(:ANNEE, :numeric, -> (d) {
+      d.nil? ? nil : to_date(d).year
+    })
+    # pf: ISO 8601 : lundi = 1 ... dimanche = 7
+    calculator.add_function(:JOURSEM, :numeric, -> (d) {
+      d.nil? ? nil : to_date(d).cwday
+    })
+
+    calculator.add_function(:EST_PASSEE, :logical, -> (d) {
+      d.nil? ? false : to_date(d) < Date.current
+    })
+    calculator.add_function(:EST_FUTURE, :logical, -> (d) {
+      d.nil? ? false : to_date(d) > Date.current
+    })
+
+    # pf: Calcul d'âge en années révolues, avec gestion du cas où l'anniversaire
+    # n'est pas encore passé cette année.
+    calculator.add_function(:AGE, :numeric, -> (birth) {
+      next nil if birth.nil?
+      birth_date = to_date(birth)
+      today = Date.current
+      age = today.year - birth_date.year
+      if today.month < birth_date.month || (today.month == birth_date.month && today.day < birth_date.day)
+        age -= 1
+      end
+      age
+    })
+
+    # pf: Alias FR explicites pour DURATION — s'utilisent avec l'arithmétique
+    # Date ± Duration. Ex: {DateNaissance} + DUREE_ANNEES(18) → Date 18 ans plus tard.
+    calculator.add_function(:DUREE_ANNEES, :duration, -> (n) {
+      Dentaku::AST::Duration::Value.new(n.to_i, 'years')
+    })
+    calculator.add_function(:DUREE_MOIS, :duration, -> (n) {
+      Dentaku::AST::Duration::Value.new(n.to_i, 'months')
+    })
+    calculator.add_function(:DUREE_JOURS, :duration, -> (n) {
+      Dentaku::AST::Duration::Value.new(n.to_i, 'days')
+    })
+  end
+
+  # pf: Les fonctions date acceptent indifféremment Date/DateTime/Time.
+  # On normalise vers Date quand l'appelant veut un jour calendrier.
+  def to_date(value)
+    value.respond_to?(:to_date) ? value.to_date : value
   end
 
   def detect_circular_references(formule_champ, expression, visited = Set.new)
@@ -365,16 +428,26 @@ class FormulaCalculationService
       when true, Champs::BooleanChamp::TRUE_VALUE then true
       when false, Champs::BooleanChamp::FALSE_VALUE then false
       end
-    when :date, :datetime
-      # Convert to timestamp for calculations
-      value.present? ? value.to_time.to_i : 0
+    when :date
+      # pf: on passe un objet Date natif à Dentaku plutôt qu'un timestamp.
+      # Permet l'usage direct des fonctions natives (DURATION) et custom
+      # (AUJOURDHUI, AGE, ANNEE, ...) ainsi que les opérateurs Date ± Date
+      # (retourne jours) et Date ± Duration (retourne Date).
+      value.present? ? Date.parse(value.to_s) : nil
+    when :datetime
+      value.present? ? DateTime.parse(value.to_s) : nil
     else
       # pf: text, enum ou inconnu — conservé tel quel (String). Pour faire
       # des maths sur un champ textuel, utiliser explicitement VALEUR({champ}).
       value.to_s
     end
   rescue StandardError
-    0
+    # pf: pour les dates, on ne peut pas retourner 0 (type incompatible avec
+    # l'arithmétique Date). Retourner nil laisse Dentaku propager silencieusement.
+    case type
+    when :date, :datetime then nil
+    else 0
+    end
   end
 
   def extract_field_references(expression)
@@ -441,11 +514,11 @@ class FormulaCalculationService
         result.is_a?(String) && result.match?(/\A-?\d+(\.\d+)?\z/) ? result.to_f : 0
       end
     when 'date'
-      # Convert date to days since epoch for calculations
-      champ.value.present? ? Date.parse(champ.value).to_time.to_i / (24 * 3600) : 0
+      # pf: Retourne un objet Date natif (le nom "numeric" est historique ;
+      # cette méthode sert de convertisseur type-aware pour Dentaku).
+      champ.value.present? ? Date.parse(champ.value) : nil
     when 'datetime'
-      # Convert datetime to timestamp for calculations
-      champ.value.present? ? DateTime.parse(champ.value).to_time.to_i : 0
+      champ.value.present? ? DateTime.parse(champ.value) : nil
     when 'drop_down_list', 'multiple_drop_down_list'
       # Try to extract numbers from dropdown values
       extract_number_from_text(champ.value)
@@ -473,6 +546,11 @@ class FormulaCalculationService
     case result
     when Integer
       result.to_s
+    when Rational
+      # pf: Retour de "Date - Date" = jours (Rational exact). On rend
+      # l'entier quand c'est entier (Date - Date), le flottant sinon
+      # (DateTime - DateTime = jours avec partie fractionnaire).
+      result.denominator == 1 ? result.to_i.to_s : result.to_f.to_s
     when Float, BigDecimal
       # Si pas de partie décimale, convertir en entier
       if result % 1 == 0
@@ -487,6 +565,10 @@ class FormulaCalculationService
       # Pour utiliser un booléen en arithmétique (ex: SOMME des vrais), passer
       # explicitement par SI({formule_bool}, 1, 0).
       result ? 'true' : 'false'
+    when Date, DateTime, Time
+      # pf: Retour de AUJOURDHUI(), MAINTENANT(), ou arithmétique Date ± Duration.
+      # Sérialisation ISO 8601 (cohérent avec le stockage natif des champs Date).
+      result.iso8601
     else
       result.to_s
     end
