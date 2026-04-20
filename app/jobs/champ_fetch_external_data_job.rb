@@ -10,7 +10,8 @@ class ChampFetchExternalDataJob < ApplicationJob
     champ = job.arguments.first
     champ.external_data_error!
 
-    raise err.cause
+    # Don't raise, otherwise it will pop forever as "working" queue without doing anything
+    Sentry.capture_exception(err.cause)
   end
 
   def perform(champ, external_id)
