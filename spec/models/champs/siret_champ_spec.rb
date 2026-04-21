@@ -143,5 +143,63 @@ describe Champs::SiretChamp do
         expect(champ.reload.etablissement.entreprise_raison_sociale).to eq("DIRECTION INTERMINISTERIELLE DU NUMERIQUE")
       end
     end
+
+    context 'when the partial Tahiti number matches several etablissements', vcr: { cassette_name: 'pf_api_entreprise' } do
+      let(:siret) { '075390' }
+
+      it 'returns Success with the multiple_found payload (no etablissement created)' do
+        result = fetch_external_data
+        expect(result).to be_success
+        expect(result.value!).to have_key(:multiple_found)
+        expect(result.value![:multiple_found]).to be_an(Array)
+        expect(result.value![:multiple_found].size).to be > 1
+      end
+
+      it 'transitions the champ to multiple_found and stores the candidates when the job runs' do
+        champ.fetch!
+        champ.reload
+        expect(champ).to be_multiple_found
+        candidates = champ.etablissement_candidates
+        expect(candidates.size).to be > 1
+        expect(candidates.first['entreprise_raison_sociale']).to eq('BANQUE SOCREDO')
+      end
+    end
+
+    context 'when the partial Tahiti number auto-completes (single match)' do
+      let(:siret) { '123456' }
+      let(:candidate) do
+        {
+          num_entreprise: 7,
+          siret: siret,
+          entreprise_raison_sociale: 'ACME TAHITI',
+          entreprise_nom_commercial: 'ACME',
+          entreprise_siren: siret,
+          localite: 'Papeete',
+          code_postal: '98713',
+          naf: '1234Z',
+          libelle_naf: 'Activité fictive'
+        }
+      end
+
+      before { allow(APIEntrepriseService).to receive(:list_etablissements).with(siret, procedure.id).and_return([candidate]) }
+
+      it 'returns Success with the etablissement and the full 9-char external_id' do
+        result = fetch_external_data
+        expect(result).to be_success
+        expect(result.value!).to have_key(:etablissement)
+        expect(result.value![:etablissement]).to be_a(Etablissement)
+        expect(result.value![:external_id]).to eq("#{siret}007")
+      end
+
+      it 'reuses the candidate data and does NOT make a second API call' do
+        expect(APIEntrepriseService).not_to receive(:create_etablissement)
+        champ.fetch!
+        champ.reload
+        expect(champ).to be_fetched
+        expect(champ.external_id).to eq("#{siret}007")
+        expect(champ.etablissement).to be_present
+        expect(champ.etablissement.entreprise_raison_sociale).to eq('ACME TAHITI')
+      end
+    end
   end
 end
