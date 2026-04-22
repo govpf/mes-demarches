@@ -192,6 +192,26 @@ class FormulaAiPromptService
       - `MAJUSCULE(texte)` / `MINUSCULE(texte)` → texte
       - `SUPPRESPACE(texte)` → texte — supprime les espaces en début/fin et réduit les espaces multiples
       - `VALEUR(texte)` → nombre — convertit un texte en nombre (gère la virgule française, retourne 0 si non convertible)
+
+      ### Date
+      Les champs de type date sont manipulés comme des objets Date natifs. L’arithmétique `+` `-` et les comparaisons `<` `>` `==` fonctionnent directement entre deux dates, ou entre une date et une durée.
+
+      - `AUJOURDHUI()` → date — la date du jour
+      - `MAINTENANT()` → date et heure — l’instant courant
+      - `JOUR(date)` → nombre — jour du mois (1 à 31)
+      - `MOIS(date)` → nombre — mois (1 à 12)
+      - `ANNEE(date)` → nombre — année sur 4 chiffres
+      - `JOURSEM(date)` → nombre — jour de la semaine ISO (lundi = 1, ..., dimanche = 7)
+      - `AGE(date_de_naissance)` → nombre — âge en années révolues (tient compte de l’anniversaire)
+      - `EST_PASSEE(date)` → booléen — la date est-elle strictement antérieure à aujourd’hui ?
+      - `EST_FUTURE(date)` → booléen — la date est-elle strictement postérieure à aujourd’hui ?
+      - `DUREE_ANNEES(n)` / `DUREE_MOIS(n)` / `DUREE_JOURS(n)` → durée — à utiliser en arithmétique avec une date. Ex : `{DateNaissance} + DUREE_ANNEES(18)` → date du 18e anniversaire.
+      - `DURATION(n, years|months|days)` → durée — équivalent anglais natif, interchangeable avec les `DUREE_*`.
+
+      Opérations dérivées de l’arithmétique native :
+      - `{Date1} - {Date2}` → nombre de jours entre deux dates (entier si les deux sont des dates simples).
+      - `{Date} + DUREE_JOURS(n)` / `{Date} - DUREE_MOIS(n)` → nouvelle date.
+      - `{Date} < AUJOURDHUI()` équivaut à `EST_PASSEE({Date})`.
     TXT
   end
 
@@ -216,17 +236,6 @@ class FormulaAiPromptService
   def unsupported_section
     <<~TXT
       ## Fonctionnalités NON DISPONIBLES actuellement
-
-      ### Dates
-      ⚠️ **Aucune fonction de manipulation de dates n’est disponible.** Pas
-      d’équivalent à AUJOURDHUI(), DATE(), DATEDIF(), année/mois/jour, ou calcul
-      d’âge. Les champs de type date sont référençables en tant que variables
-      mais on ne peut ni les comparer en tant que dates, ni en extraire des
-      composants, ni en calculer la différence.
-
-      **Si le besoin implique de la manipulation de dates** (calcul d’âge,
-      différence entre deux dates, date du jour, etc.), réponds `IMPOSSIBLE`
-      (voir section « Format de réponse »).
 
       ### Blocs répétables (tableaux)
       Un « bloc répétable » est un groupe de champs que l’usager peut dupliquer
@@ -280,7 +289,7 @@ class FormulaAiPromptService
         réorganiser le formulaire, faire saisir autrement…).
 
       Exemples de réponses IMPOSSIBLE valides :
-      - `IMPOSSIBLE: aucune fonction de calcul d’âge n’est disponible.` Suggestion : demander à l’usager de saisir directement son âge dans un champ nombre, puis réutiliser ce champ dans la formule.
+      - `IMPOSSIBLE: aucune agrégation sur un bloc répétable n’est disponible.` Suggestion : faire saisir un total directement par l’usager dans un champ nombre, ou ajouter un champ formule dans le bloc qui sera ensuite exploité hors bloc une fois la Phase 2 du moteur déployée.
       - `IMPOSSIBLE: le champ « Nom du conjoint » existe mais n’est pas accessible depuis cette formule.` Suggestion : placer « Nom du conjoint » avant le champ formule dans le formulaire.
     TXT
   end
@@ -294,7 +303,7 @@ class FormulaAiPromptService
       3. ✅ Chaque variable `{...}` figure bien dans « Variables disponibles » (et PAS dans « Variables NON accessibles ») ?
       4. ✅ Le type de retour correspond au type attendu ?
       5. ✅ Tu n’utilises pas `=` seul pour tester une égalité ?
-      6. ✅ Tu n’utilises aucune fonction de date ni aucune agrégation sur tableau ?
+      6. ✅ Tu n’utilises aucune fonction d’agrégation sur un bloc répétable (non supportée) ?
       7. ✅ Ton explication tient en 2 à 4 phrases et est compréhensible par un non-développeur ?
 
       Si une seule de ces vérifications échoue, **reformule ou réponds IMPOSSIBLE**.

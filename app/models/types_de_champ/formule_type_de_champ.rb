@@ -44,6 +44,15 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   end
 
   def validate_expression
+    # pf: Met à jour les flags clock_dependent / state_dependent à chaque
+    # validation — permettent au RefreshFormulasJob (clock) et aux hooks de
+    # transition d'état (state) de cibler efficacement les formules à
+    # recalculer. Fait avant le return early pour que l'expression vide
+    # remette les flags à false.
+    expression = @type_de_champ.formule_expression
+    @type_de_champ.clock_dependent = FormulaCalculationService.clock_dependent?(expression)
+    @type_de_champ.state_dependent = FormulaCalculationService.state_dependent?(expression)
+
     return if @type_de_champ.formule_expression.blank?
 
     expression = @type_de_champ.formule_expression.strip

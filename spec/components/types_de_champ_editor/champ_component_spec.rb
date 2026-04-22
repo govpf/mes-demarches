@@ -117,10 +117,10 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
         expect(page).to have_field('Expression de la formule', type: 'textarea', with: '{Prix HT} * 1.20')
       end
 
-      it 'shows formula help text' do
-        expect(page).to have_text('Syntaxe')
-        expect(page).to have_text('{Nom du champ}')
-        expect(page).to have_text('Voir la documentation')
+      it 'shows the AI helper banner' do
+        expect(page).to have_text('Besoin d’aide pour écrire cette formule ?')
+        expect(page).to have_button('Préparer la demande pour une IA')
+        expect(page).to have_link('Voir la documentation')
       end
 
       it 'has proper HTML attributes for accessibility' do

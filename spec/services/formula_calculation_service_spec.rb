@@ -456,6 +456,202 @@ describe FormulaCalculationService do
         expect(service.compute_value(formule_champ)).to eq('2')
       end
     end
+
+    # pf: Fonctions de date FR + natives Dentaku (DURATION).
+    # Les champs date sont passés à Dentaku comme objets Date/DateTime natifs.
+    context 'with French date functions' do
+      let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+      let(:service) { described_class.new(dossier, locale: :fr) }
+
+      def compute(expression)
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: expression))
+        service.compute_value(formule_champ)
+      end
+
+      describe 'AUJOURDHUI / MAINTENANT' do
+        it 'AUJOURDHUI returns the current date as ISO 8601' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI()')).to eq('2026-04-19')
+          end
+        end
+
+        it 'MAINTENANT returns the current datetime as ISO 8601' do
+          expect(compute('MAINTENANT()')).to match(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
+        end
+      end
+
+      describe 'extraction JOUR / MOIS / ANNEE / JOURSEM' do
+        it 'JOUR extracts the day' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('JOUR(AUJOURDHUI())')).to eq('19')
+          end
+        end
+
+        it 'MOIS extracts the month' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('MOIS(AUJOURDHUI())')).to eq('4')
+          end
+        end
+
+        it 'ANNEE extracts the year' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('ANNEE(AUJOURDHUI())')).to eq('2026')
+          end
+        end
+
+        it 'JOURSEM returns ISO 8601 weekday (monday = 1)' do
+          # 2026-04-20 = lundi
+          travel_to Time.zone.local(2026, 4, 20) do
+            expect(compute('JOURSEM(AUJOURDHUI())')).to eq('1')
+          end
+        end
+      end
+
+      describe 'EST_PASSEE / EST_FUTURE' do
+        it 'EST_PASSEE returns true for yesterday' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('EST_PASSEE(AUJOURDHUI() - DUREE_JOURS(1))')).to eq('true')
+          end
+        end
+
+        it 'EST_PASSEE returns false for tomorrow' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('EST_PASSEE(AUJOURDHUI() + DUREE_JOURS(1))')).to eq('false')
+          end
+        end
+
+        it 'EST_FUTURE returns true for tomorrow' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('EST_FUTURE(AUJOURDHUI() + DUREE_JOURS(1))')).to eq('true')
+          end
+        end
+
+        it 'EST_FUTURE returns false for yesterday' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('EST_FUTURE(AUJOURDHUI() - DUREE_JOURS(1))')).to eq('false')
+          end
+        end
+      end
+
+      describe 'AGE' do
+        it 'AGE computes years elapsed when anniversary has passed' do
+          travel_to Time.zone.local(2026, 6, 1) do
+            expect(compute('AGE(AUJOURDHUI() - DUREE_ANNEES(36) - DUREE_JOURS(17))')).to eq('36')
+          end
+        end
+
+        it 'AGE subtracts one when anniversary has not yet occurred this year' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            # Né demain, donc anniv pas encore passé cette année → 35 au lieu de 36
+            expect(compute('AGE(AUJOURDHUI() - DUREE_ANNEES(36) + DUREE_JOURS(1))')).to eq('35')
+          end
+        end
+      end
+
+      describe 'DUREE_ANNEES / DUREE_MOIS / DUREE_JOURS' do
+        it 'Date + DUREE_ANNEES adds years' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() + DUREE_ANNEES(5)')).to eq('2031-04-19')
+          end
+        end
+
+        it 'Date + DUREE_MOIS adds months' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() + DUREE_MOIS(3)')).to eq('2026-07-19')
+          end
+        end
+
+        it 'Date + DUREE_JOURS adds days' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() + DUREE_JOURS(10)')).to eq('2026-04-29')
+          end
+        end
+
+        it 'Date - DUREE_ANNEES subtracts years' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() - DUREE_ANNEES(1)')).to eq('2025-04-19')
+          end
+        end
+      end
+
+      describe 'DURATION (native Dentaku)' do
+        it 'exposes DURATION natively with years/months/days identifiers' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() + DURATION(1, years)')).to eq('2027-04-19')
+            expect(compute('AUJOURDHUI() + DURATION(6, months)')).to eq('2026-10-19')
+            expect(compute('AUJOURDHUI() + DURATION(7, days)')).to eq('2026-04-26')
+          end
+        end
+      end
+
+      describe 'Date arithmetic (Date - Date, comparisons)' do
+        it 'Date - Date returns number of days' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() - (AUJOURDHUI() - DUREE_JOURS(7))')).to eq('7')
+          end
+        end
+
+        it 'Date comparisons work' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() > AUJOURDHUI() - DUREE_JOURS(1)')).to eq('true')
+            expect(compute('AUJOURDHUI() < AUJOURDHUI() + DUREE_JOURS(1)')).to eq('true')
+          end
+        end
+      end
+
+      context 'with a date field reference' do
+        let(:procedure) {
+          create(:procedure, :published, types_de_champ_public: [
+            { type: :date, libelle: 'Date de naissance' },
+            { type: :formule, libelle: 'Age' }
+          ])
+        }
+        let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
+        let(:date_champ) { dossier.project_champs_public[0] }
+        let(:formule)    { dossier.project_champs_public[1] }
+        let(:service)    { described_class.new(dossier, locale: :fr) }
+
+        def compute_with(expression)
+          expr, _deps = FormulaExpressionService.convert_to_stable_ids(expression, procedure.active_revision)
+          formule.type_de_champ.update(formule_expression: expr)
+          service.compute_value(formule)
+        end
+
+        it 'computes AGE from a date field' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            date_champ.update(value: '1990-05-15')
+            # Anniversaire du 15 mai pas encore passé au 19 avril 2026
+            expect(compute_with('AGE({Date de naissance})')).to eq('35')
+          end
+        end
+
+        it 'ANNEE extracts year from a date field' do
+          date_champ.update(value: '1990-05-15')
+          expect(compute_with('ANNEE({Date de naissance})')).to eq('1990')
+        end
+
+        it 'Date field + DUREE_ANNEES works' do
+          date_champ.update(value: '1990-05-15')
+          expect(compute_with('{Date de naissance} + DUREE_ANNEES(18)')).to eq('2008-05-15')
+        end
+
+        it 'EST_PASSEE on a past date field returns true' do
+          date_champ.update(value: '1990-05-15')
+          expect(compute_with('EST_PASSEE({Date de naissance})')).to eq('true')
+        end
+
+        it 'AGE returns empty string when date field is empty' do
+          date_champ.update(value: '')
+          # AGE(nil) retourne nil, sérialisé en string vide par format_result
+          expect(compute_with('AGE({Date de naissance})')).to eq('')
+        end
+
+        it 'EST_PASSEE on an empty date field returns false (no crash)' do
+          date_champ.update(value: '')
+          expect(compute_with('EST_PASSEE({Date de naissance})')).to eq('false')
+        end
+      end
+    end
   end
 
   # pf: traductions françaises des erreurs Dentaku
