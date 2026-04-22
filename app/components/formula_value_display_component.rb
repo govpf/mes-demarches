@@ -10,7 +10,9 @@ class FormulaValueDisplayComponent < ApplicationComponent
   def formatted_value
     return '' if @value.blank?
 
-    if url?(@value)
+    if boolean?(@value)
+      format_as_boolean(@value)
+    elsif url?(@value)
       format_as_url(@value)
     elsif number?(@value)
       format_as_number(@value)
@@ -22,6 +24,14 @@ class FormulaValueDisplayComponent < ApplicationComponent
   end
 
   private
+
+  def boolean?(value)
+    value == Champs::BooleanChamp::TRUE_VALUE || value == Champs::BooleanChamp::FALSE_VALUE
+  end
+
+  def format_as_boolean(value)
+    value == Champs::BooleanChamp::TRUE_VALUE ? t('utils.yes') : t('utils.no')
+  end
 
   def url?(value)
     value.match?(/\Ahttps?:\/\//)

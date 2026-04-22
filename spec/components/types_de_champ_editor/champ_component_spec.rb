@@ -117,10 +117,10 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
         expect(page).to have_field('Expression de la formule', type: 'textarea', with: '{Prix HT} * 1.20')
       end
 
-      it 'shows formula help text' do
-        expect(page).to have_text('Syntaxe')
-        expect(page).to have_text('{Nom du champ}')
-        expect(page).to have_text('Voir la documentation')
+      it 'shows the AI helper banner' do
+        expect(page).to have_text('Besoin d’aide pour écrire cette formule ?')
+        expect(page).to have_button('Préparer la demande pour une IA')
+        expect(page).to have_link('Voir la documentation')
       end
 
       it 'has proper HTML attributes for accessibility' do
@@ -140,20 +140,20 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
   describe 'ACCEPTED_TYPES' do
     it 'contains expected conversions' do
       expect(described_class::ACCEPTED_TYPES).to include(
-        "checkbox" => ["checkbox", "text"],
-        "civilite" => ["civilite", "textarea"],
-        "date" => ["date", "text"],
-        "datetime" => ["datetime", "text"],
-        "decimal_number" => ["decimal_number", "text"],
-        "drop_down_list" => ["drop_down_list", "text"],
-        "email" => ["email", "textarea"],
-        "formatted" => ["formatted", "text"],
-        "integer_number" => ["integer_number", "text"],
-        "multiple_drop_down_list" => ["multiple_drop_down_list", "text"],
-        "phone" => ["phone", "textarea"],
-        "text" => ["text", "formatted"],
-        "textarea" => ["textarea", "formatted"],
-        "yes_no" => ["yes_no", "text"]
+        "checkbox" => ["yes_no", "text", "textarea", "formatted"],
+        "civilite" => ["text", "textarea", "formatted"],
+        "date" => ["datetime", "text", "textarea", "formatted"],
+        "datetime" => ["date", "text", "textarea", "formatted"],
+        "decimal_number" => ["integer_number", "text", "textarea", "formatted"],
+        "drop_down_list" => ["multiple_drop_down_list", "text", "textarea", "formatted"],
+        "email" => ["text", "textarea", "formatted"],
+        "formatted" => ["textarea", "text", "email", "phone"],
+        "integer_number" => ["decimal_number", "text", "textarea", "formatted"],
+        "multiple_drop_down_list" => ["drop_down_list", "text", "textarea", "formatted"],
+        "phone" => ["text", "textarea", "formatted"],
+        "text" => ["textarea", "formatted", "email", "phone", "decimal_number", "integer_number"],
+        "textarea" => ["text", "formatted"],
+        "yes_no" => ["checkbox", "text", "textarea", "formatted"]
       )
     end
   end
