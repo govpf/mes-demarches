@@ -57,4 +57,13 @@
       border-bottom: none;
     }
   }
+
+  &.champs-grid--stacked {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+
+    .champ-grid-item {
+      grid-column: 1 / -1 !important;
+    }
+  }
 }

@@ -1,0 +1,16 @@
+- current_mode = instructeur_champs_layout_mode
+- target_mode = current_mode == :grid ? :stacked : :grid
+- toggle_label = current_mode == :grid ? "Revenir à l'ancien affichage" : "Revenir au nouvel affichage"
+
+- if !instructeur_champs_layout_chosen?
+  .fr-container.fr-mb-2w
+    = render Dsfr::CalloutComponent.new(title: "Nouvel affichage des champs", theme: :info, icon: "fr-icon-layout-grid-fill") do |c|
+      - c.with_html_body do
+        %p
+          Les champs remplis par l'usager s'affichent désormais sur plusieurs colonnes pour mieux exploiter la largeur de l'écran.
+          Vous pouvez revenir à l'ancien affichage mono-colonne en cliquant sur le bouton ci-dessous.
+        = button_to "Revenir à l'ancien affichage", instructeur_dossier_layout_path(mode: :stacked), class: 'fr-btn fr-btn--secondary fr-mt-1w'
+
+- else
+  .fr-container.fr-mb-1w.flex.justify-end
+    = button_to toggle_label, instructeur_dossier_layout_path(mode: target_mode), class: 'fr-btn fr-btn--tertiary-no-outline fr-btn--sm'

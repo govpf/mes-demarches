@@ -14,6 +14,8 @@
         %p
           Les informations sur l'entreprise arriveront d'ici quelques heures.
 
+= render partial: "shared/dossiers/dossier_layout_toggle"
+
 .fr-container
   .fr-grid-row.fr-grid-row--center
     - summary = ViewableChamp::HeaderSectionsSummaryComponent.new(dossier: @dossier, is_private: false)
