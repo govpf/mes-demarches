@@ -145,6 +145,26 @@ SI(JOURSEM({Date anniversaire}) == JOURSEM(AUJOURDHUI()), "Oui", "Non")
 ANNEE({Date de dépôt})
 ```
 
+## Recalcul automatique des formules temporelles
+
+Certaines formules **dépendent du temps qui passe** : `AGE`, `AUJOURDHUI`, `MAINTENANT`, `EST_PASSEE`, `EST_FUTURE`, ou toute formule qui en dérive. Si rien ne les déclenche, leur valeur devient obsolète (un `AGE` calculé l'an dernier vaudra toujours `35` même si la personne est passée à `36` depuis). Le système gère ce cas automatiquement, avec deux règles distinctes selon le type de champ.
+
+### Champs formule visibles par l'usager (publics)
+
+- **Tant que le dossier est en brouillon** : la formule est recalculée automatiquement tous les jours (minuit, heure de Polynésie). Un usager qui revient sur son brouillon quelques mois plus tard voit un âge à jour.
+- **Au moment du dépôt** : la valeur est **figée** à ce qu'elle vaut à cet instant.
+- **Après le dépôt** : la formule n'est **plus recalculée**, même si un anniversaire passe. C'est l'immutabilité de la demande au dépôt : la condition d'âge (par exemple) est appréciée à la date où le dossier a été soumis.
+- **Correction d'une source** : si l'usager corrige un champ source (par exemple la date de naissance) après avoir repassé le dossier en construction, la formule est recalculée. L'immutabilité s'applique au temps qui passe, pas aux corrections de données.
+
+### Annotations privées formule (visibles par l'instructeur)
+
+- Toujours recalculées quotidiennement et à chaque transition d'état du dossier, jusqu'à la décision finale (accepté / refusé / classé sans suite).
+- Permettent de suivre des indicateurs vivants type `AUJOURDHUI() - {Date de passage en instruction}` (« nombre de jours en instruction »).
+
+### Transitions d'état
+
+Les formules qui utilisent un timestamp d'état du dossier (`{Date de dépôt}`, `{Date de passage en instruction}`, etc.) sont recalculées **immédiatement** à la transition correspondante — pas besoin d'attendre le lendemain.
+
 ## Cas particuliers
 
 ### Champs vides

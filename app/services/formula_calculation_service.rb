@@ -145,6 +145,33 @@ class FormulaCalculationService
     end
   end
 
+  # pf: Pattern de détection des fonctions qui dépendent de l'instant présent
+  # (i.e. qui renvoient une valeur différente au fil du temps sans qu'aucun
+  # champ source n'ait changé). Utilisé par le TDC pour marquer la formule,
+  # et par RefreshFormulasJob pour cibler les formules à recalculer à minuit.
+  # AGE/EST_PASSEE/EST_FUTURE dépendent implicitement de Date.current.
+  # JOUR/MOIS/ANNEE/JOURSEM ne sont PAS clock-dependent (dépendent uniquement
+  # de leur argument).
+  CLOCK_DEPENDENT_PATTERN = /\b(AUJOURDHUI|MAINTENANT|AGE|EST_PASSEE|EST_FUTURE)\s*\(/
+
+  def self.clock_dependent?(expression)
+    return false if expression.blank?
+    expression.match?(CLOCK_DEPENDENT_PATTERN)
+  end
+
+  # pf: Pattern de détection des références aux timestamps d'état du dossier.
+  # Ces valeurs changent à chaque transition (depose_at au dépôt,
+  # en_instruction_at au passage en instruction, etc.), et nécessitent donc
+  # un recalcul synchrone au moment de la transition — le job quotidien
+  # créerait un lag max 24h inacceptable pour des formules type "jours en
+  # instruction".
+  STATE_DEPENDENT_PATTERN = /\{dossier_(depose|en_construction|en_instruction|processed)_at\}/
+
+  def self.state_dependent?(expression)
+    return false if expression.blank?
+    expression.match?(STATE_DEPENDENT_PATTERN)
+  end
+
   private
 
   def create_calculator
