@@ -5,6 +5,7 @@ class ReferentielChampValidator < ActiveModel::Validator
   def validate(record)
     return if record.external_id.blank? # not filled by user
     return if record.data.present? # already fetched successfully
+    return unless record.uses_external_data? # pf: TDC referentiel_de_polynesie sans Referentiel attaché (ancienne révision) — pas de fetch externe à attendre, éviter le faux positif Sentry
 
     if record.waiting_for_external_data? # user filled the field, but background job is still running / pending
       record.errors.add(:value, :api_response_pending)

@@ -608,7 +608,7 @@ class ProcedureRevision < ApplicationRecord
           from_type_de_champ.max_character_length,
           to_type_de_champ.max_character_length)
       end
-    elsif to_type_de_champ.referentiel?
+    elsif to_type_de_champ.referentiel? || to_type_de_champ.referentiel_de_polynesie? # pf: même flux de diff pour le type PF (referentiel_id, referentiel_mapping)
       compare_referentiel_changes(from_type_de_champ, to_type_de_champ).each do |change|
         changes << change
       end
