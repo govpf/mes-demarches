@@ -10,17 +10,19 @@ class Referentiels::BaserowService
   end
 
   # pf: retourne un hash plat { 'Nom' => 'Papeete', ... } (sans enveloppe row)
+  # pf: format standard PF "domain_id:row_id" produit par BaserowAPI#parse_search_results / #search_with_data
   def call(external_id)
-    result = if referentiel.exact_match?
-      ReferentielDePolynesie::API.find_by_exact_value(referentiel.table_id, external_id)
-    else
-      ReferentielDePolynesie::API.fetch_row(external_id)
-    end
+    if external_id.to_s.match?(/\A\d+:\d+\z/)
+      domain_id, row_id = external_id.to_s.split(':')
+      result = ReferentielDePolynesie::API.fetch_row(domain_id.to_i, row_id.to_i)
 
-    if result.present? && result.is_a?(Hash) && result.keys.any?
-      Success(result)
+      if result.present? && result.is_a?(Hash) && result.keys.any?
+        Success(result)
+      else
+        Failure(retryable: false, reason: StandardError.new('Row not found'), code: 404)
+      end
     else
-      Failure(retryable: false, reason: StandardError.new('Row not found'), code: 404)
+      Failure(retryable: false, reason: StandardError.new("Unsupported external_id: #{external_id.inspect}"), code: 400)
     end
   rescue StandardError => e
     Rails.logger.error("Referentiels::BaserowService error: #{e.class} - #{e.message}")
