@@ -375,7 +375,7 @@ describe 'The user', js: true do
 
   let(:procedure_with_referentiel_pf) do
     create(:procedure, :published, :for_individual, types_de_champ_public: [
-      { type: :referentiel_de_polynesie, libelle: 'Commune PF', mandatory: false, table_id: '24' }
+      { type: :referentiel_de_polynesie, libelle: 'Commune PF', mandatory: false, table_id: '24' },
     ])
   end
 
@@ -384,7 +384,7 @@ describe 'The user', js: true do
       .with('24', 'Papeete', drop_down_other: anything)
       .and_return([
         { label: '43916 - Commune de Papeete', value: '24:20', row_data: { 'Nom' => '43916 - Commune de Papeete' } },
-        { label: '46397 - JEUNESSE DE PAPEETE', value: '24:31', row_data: { 'Nom' => '46397 - JEUNESSE DE PAPEETE' } }
+        { label: '46397 - JEUNESSE DE PAPEETE', value: '24:31', row_data: { 'Nom' => '46397 - JEUNESSE DE PAPEETE' } },
       ])
 
     log_in(user, procedure_with_referentiel_pf)

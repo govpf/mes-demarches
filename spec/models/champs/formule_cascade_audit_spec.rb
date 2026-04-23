@@ -83,7 +83,7 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
       create(:procedure, :published, types_de_champ_public: [
         { type: :integer_number, libelle: 'Montant' },
         { type: :formule, libelle: 'Double' },
-        { type: :formule, libelle: 'Quadruple' }
+        { type: :formule, libelle: 'Quadruple' },
       ])
     end
     let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
@@ -126,7 +126,7 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
     let(:procedure) do
       create(:procedure, :published, types_de_champ_public: [
         { type: :formule, libelle: 'Formule A' },
-        { type: :formule, libelle: 'Formule B' }
+        { type: :formule, libelle: 'Formule B' },
       ])
     end
     let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
@@ -155,7 +155,7 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
     let(:procedure) do
       create(:procedure, :published, types_de_champ_public: [
         { type: :integer_number, libelle: 'Source' },
-        { type: :formule, libelle: 'Résultat' }
+        { type: :formule, libelle: 'Résultat' },
       ])
     end
     let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }

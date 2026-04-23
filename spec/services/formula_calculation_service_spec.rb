@@ -24,7 +24,7 @@ describe FormulaCalculationService do
         create(:procedure, :published, types_de_champ_public: [
           { type: :integer_number, libelle: 'Montant HT' },
           { type: :decimal_number, libelle: 'Taux TVA' },
-          { type: :formule, libelle: 'Total TTC' }
+          { type: :formule, libelle: 'Total TTC' },
         ])
       }
       let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
@@ -84,7 +84,7 @@ describe FormulaCalculationService do
           { type: :integer_number, libelle: 'Prix 1' },
           { type: :integer_number, libelle: 'Prix 2' },
           { type: :integer_number, libelle: 'Prix 3' },
-          { type: :formule, libelle: 'Résultat' }
+          { type: :formule, libelle: 'Résultat' },
         ])
       }
       let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
@@ -258,7 +258,7 @@ describe FormulaCalculationService do
           { type: :text, libelle: 'Nom' },
           { type: :text, libelle: 'SIRET' },
           { type: :text, libelle: 'Prix texte' },
-          { type: :formule, libelle: 'Résultat' }
+          { type: :formule, libelle: 'Résultat' },
         ])
       }
       let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
@@ -353,7 +353,7 @@ describe FormulaCalculationService do
         create(:procedure, :published, types_de_champ_public: [
           { type: :integer_number, libelle: 'Age' },
           { type: :formule, libelle: 'Majeur' }, # sera défini comme {Age} >= 18
-          { type: :formule, libelle: 'Label' }   # sera défini comme SI({Majeur}, "adulte", "mineur")
+          { type: :formule, libelle: 'Label' }, # sera défini comme SI({Majeur}, "adulte", "mineur")
         ])
       }
       let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
@@ -394,7 +394,7 @@ describe FormulaCalculationService do
           { type: :checkbox, libelle: 'CaseACocher' },
           { type: :yes_no, libelle: 'OuiNon' },
           { type: :formule, libelle: 'FCheckbox' }, # expression: {CaseACocher}
-          { type: :formule, libelle: 'FYesNo' }     # expression: {OuiNon}
+          { type: :formule, libelle: 'FYesNo' }, # expression: {OuiNon}
         ])
       }
       let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
@@ -603,7 +603,7 @@ describe FormulaCalculationService do
         let(:procedure) {
           create(:procedure, :published, types_de_champ_public: [
             { type: :date, libelle: 'Date de naissance' },
-            { type: :formule, libelle: 'Age' }
+            { type: :formule, libelle: 'Age' },
           ])
         }
         let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }

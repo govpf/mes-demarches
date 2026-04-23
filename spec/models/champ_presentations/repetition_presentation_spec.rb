@@ -58,54 +58,54 @@ describe ChampPresentations::RepetitionPresentation do
               content: [
                 {
                   type: "tableHeader",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "nom" }] }]
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "nom" }] }],
                 },
                 {
                   type: "tableHeader",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "stars" }] }]
-                }
-              ]
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "stars" }] }],
+                },
+              ],
             },
             {
               type: "tableRow",
               content: [
                 {
                   type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "ruby" }] }]
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "ruby" }] }],
                 },
                 {
                   type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "5" }] }]
-                }
-              ]
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "5" }] }],
+                },
+              ],
             },
             {
               type: "tableRow",
               content: [
                 {
                   type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "js" }] }]
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "js" }] }],
                 },
                 {
                   type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }]
-                }
-              ]
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }],
+                },
+              ],
             },
             {
               type: "tableRow",
               content: [
                 {
                   type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "rust" }] }]
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "rust" }] }],
                 },
                 {
                   type: "tableCell",
-                  content: [{ type: "paragraph", content: [{ type: "text", text: "4" }] }]
-                }
-              ]
-            }
-          ]
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "4" }] }],
+                },
+              ],
+            },
+          ],
         }
 
         expect(representation.to_tiptap_node).to eq(expected_node)
@@ -120,9 +120,9 @@ describe ChampPresentations::RepetitionPresentation do
             type: :repetition,
             children: [
               { type: :header_section, libelle: "Section info" },
-              { type: :text, libelle: "nom" }
-            ]
-          }
+              { type: :text, libelle: "nom" },
+            ],
+          },
         ])
       }
       let(:dossier_with_headers) { create(:dossier, procedure: procedure_with_headers) }
@@ -161,9 +161,9 @@ describe ChampPresentations::RepetitionPresentation do
             type: :repetition,
             children: [
               { type: :text, libelle: "description" },
-              { type: :piece_justificative, libelle: "document" }
-            ]
-          }
+              { type: :piece_justificative, libelle: "document" },
+            ],
+          },
         ])
       }
       let(:dossier_with_files) { create(:dossier, procedure: procedure_with_files) }

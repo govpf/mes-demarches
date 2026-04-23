@@ -1533,7 +1533,7 @@ describe Instructeurs::DossiersController, type: :controller do
         [
           { type: :text, libelle: 'champ_avant_visa' },
           { type: :visa, libelle: 'mon_visa', accredited_users: [instructeur.email] },
-          { type: :text, libelle: 'champ_apres_visa' }
+          { type: :text, libelle: 'champ_apres_visa' },
         ]
       end
       let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
@@ -1554,9 +1554,9 @@ describe Instructeurs::DossiersController, type: :controller do
           dossier: {
             champs_private_attributes: {
               champ_avant.public_id => { value: 'bloqué' },
-                        champ_apres.public_id => { value: 'autorisé' }
-            }
-          }
+                        champ_apres.public_id => { value: 'autorisé' },
+            },
+          },
         }, format: :turbo_stream
 
         expect(champ_avant.reload.value).not_to eq('bloqué')
@@ -1568,7 +1568,7 @@ describe Instructeurs::DossiersController, type: :controller do
       let(:types_de_champ_private) do
         [
           { type: :text, libelle: 'champ_libre' },
-          { type: :visa, libelle: 'visa_non_coche', accredited_users: [instructeur.email] }
+          { type: :visa, libelle: 'visa_non_coche', accredited_users: [instructeur.email] },
         ]
       end
       let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
@@ -1580,7 +1580,7 @@ describe Instructeurs::DossiersController, type: :controller do
         patch :update_annotations, params: {
           procedure_id: procedure.id,
           dossier_id: dossier.id,
-          dossier: { champs_private_attributes: { champ_libre.public_id => { value: 'modifié' } } }
+          dossier: { champs_private_attributes: { champ_libre.public_id => { value: 'modifié' } } },
         }, format: :turbo_stream
 
         expect(champ_libre.reload.value).to eq('modifié')
@@ -1593,9 +1593,9 @@ describe Instructeurs::DossiersController, type: :controller do
           {
             type: :repetition, libelle: 'bloc_repetable', children: [
               { type: :text, libelle: 'champ_dans_bloc' },
-              { type: :visa, libelle: 'visa_bloc', accredited_users: [instructeur.email] }
-            ]
-          }
+              { type: :visa, libelle: 'visa_bloc', accredited_users: [instructeur.email] },
+            ],
+          },
         ]
       end
       let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
@@ -1631,9 +1631,9 @@ describe Instructeurs::DossiersController, type: :controller do
           dossier: {
             champs_private_attributes: {
               row1_public_id => { value: 'modifié row1' },
-                        row2_public_id => { value: 'modifié row2' }
-            }
-          }
+                        row2_public_id => { value: 'modifié row2' },
+            },
+          },
         }, format: :turbo_stream
 
         expect(Champ.find(champ_row1.id).value).to eq('modifié row1')
@@ -1647,7 +1647,7 @@ describe Instructeurs::DossiersController, type: :controller do
           { type: :text, libelle: 'champ_section1' },
           { type: :header_section, libelle: 'Section 2', header_section_level: 1 },
           { type: :text, libelle: 'champ_section2' },
-          { type: :visa, libelle: 'visa_section2', accredited_users: [instructeur.email] }
+          { type: :visa, libelle: 'visa_section2', accredited_users: [instructeur.email] },
         ]
       end
       let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
@@ -1667,9 +1667,9 @@ describe Instructeurs::DossiersController, type: :controller do
           dossier: {
             champs_private_attributes: {
               champ_section1.public_id => { value: 'modifié section1' },
-                        champ_section2.public_id => { value: 'modifié section2' }
-            }
-          }
+                        champ_section2.public_id => { value: 'modifié section2' },
+            },
+          },
         }, format: :turbo_stream
 
         expect(champ_section1.reload.value).to eq('modifié section1')

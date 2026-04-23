@@ -326,9 +326,9 @@ describe AttestationTemplate, type: :model do
                     'content' => [
                       { 'type' => 'text', 'text' => 'fort', 'marks' => [{ 'type' => 'bold' }] },
                       { 'type' => 'text', 'text' => ' et ' },
-                      { 'type' => 'text', 'text' => 'emphase', 'marks' => [{ 'type' => 'italic' }] }
-                    ]
-          }
+                      { 'type' => 'text', 'text' => 'emphase', 'marks' => [{ 'type' => 'italic' }] },
+                    ],
+          },
         ]
         expect(result).to eq(expected)
       end

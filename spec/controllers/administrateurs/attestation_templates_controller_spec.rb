@@ -373,8 +373,8 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
               { 'type' => 'text', 'text' => 'Texte ' },
               { 'type' => 'text', 'text' => 'gras', 'marks' => [{ 'type' => 'bold' }] },
               { 'type' => 'text', 'text' => ' et ' },
-              { 'type' => 'text', 'text' => 'italique', 'marks' => [{ 'type' => 'italic' }] }
-            ]
+              { 'type' => 'text', 'text' => 'italique', 'marks' => [{ 'type' => 'italic' }] },
+            ],
           }
         end
 

@@ -109,7 +109,7 @@ class Conditions::ConditionsComponent < ApplicationComponent
     when ChampValue::CHAMP_VALUE_TYPE.fetch(:commune_de_polynesie_enum), ChampValue::CHAMP_VALUE_TYPE.fetch(:code_postal_de_polynesie_enum)
       [
         [t(InArchipelOperator.name, scope: 'logic.operators'), InArchipelOperator.name],
-        [t(NotInArchipelOperator.name, scope: 'logic.operators'), NotInArchipelOperator.name]
+        [t(NotInArchipelOperator.name, scope: 'logic.operators'), NotInArchipelOperator.name],
       ]
     when ChampValue::CHAMP_VALUE_TYPE.fetch(:departement_enum)
       [

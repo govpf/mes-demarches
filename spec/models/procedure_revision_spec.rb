@@ -770,7 +770,7 @@ describe ProcedureRevision do
         let(:procedure) do
           create(:procedure, types_de_champ_public: [
             { type: :integer_number, libelle: 'Montant' },
-            { type: :formule, libelle: 'Double', formule_expression: '{Montant} * 2' }
+            { type: :formule, libelle: 'Double', formule_expression: '{Montant} * 2' },
           ])
         end
         let(:formule_tdc) { draft.types_de_champ_public.find(&:formule?) }
@@ -788,7 +788,7 @@ describe ProcedureRevision do
             label: 'Double',
             op: :update,
             private: false,
-            stable_id: formule_tdc.stable_id
+            stable_id: formule_tdc.stable_id,
           })
         end
       end
@@ -797,7 +797,7 @@ describe ProcedureRevision do
         let(:procedure) do
           create(:procedure, types_de_champ_public: [
             { type: :integer_number, libelle: 'Montant' },
-            { type: :formule, libelle: 'Double', formule_expression: '{Montant} * 2' }
+            { type: :formule, libelle: 'Double', formule_expression: '{Montant} * 2' },
           ])
         end
         let(:formule_tdc) { draft.types_de_champ_public.find(&:formule?) }

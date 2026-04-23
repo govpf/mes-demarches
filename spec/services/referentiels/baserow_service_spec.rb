@@ -134,7 +134,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
           'Table' => '873',
           'Token' => 'test-token',
           'Champs usager' => 'Nom',
-          'Champs instructeur' => 'Code'
+          'Champs instructeur' => 'Code',
         }
       end
       let(:sample_row) { { 'id' => 1, 'Nom' => 'Test Row', 'Adresse' => '123 Test St' } }
@@ -170,7 +170,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
           'Table' => '873',
           'Token' => 'test-token',
           'Champs usager' => 'Nom',
-          'Champs instructeur' => 'Code'
+          'Champs instructeur' => 'Code',
         }
       end
       let(:api_response) do

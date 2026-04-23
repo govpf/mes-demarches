@@ -64,9 +64,9 @@ describe ProcedureRevisionTypeDeChamp do
                  types_de_champ_public: [
                    {
                      type: :repetition, libelle: 'Bloc', children: [
-                       { type: :formule, libelle: 'Formule' }
-                     ]
-                   }
+                       { type: :formule, libelle: 'Formule' },
+                     ],
+                   },
                  ])
         end
 
@@ -86,7 +86,7 @@ describe ProcedureRevisionTypeDeChamp do
         let(:procedure) do
           create(:procedure,
                  types_de_champ_public: [
-                   { type: :formule, libelle: 'Formule' }
+                   { type: :formule, libelle: 'Formule' },
                  ])
         end
 
@@ -113,9 +113,9 @@ describe ProcedureRevisionTypeDeChamp do
                    {
                      type: :repetition, libelle: 'Bloc', children: [
                        { type: :integer_number, libelle: 'Sibling' },
-                       { type: :formule, libelle: 'Formule' }
-                     ]
-                   }
+                       { type: :formule, libelle: 'Formule' },
+                     ],
+                   },
                  ])
         end
 
@@ -144,7 +144,7 @@ describe ProcedureRevisionTypeDeChamp do
                  types_de_champ_public: [
                    { type: :integer_number, libelle: 'Champ 1' },
                    { type: :integer_number, libelle: 'Champ 2' },
-                   { type: :formule, libelle: 'Formule' }
+                   { type: :formule, libelle: 'Formule' },
                  ])
         end
 
@@ -173,9 +173,9 @@ describe ProcedureRevisionTypeDeChamp do
                    {
                      type: :repetition, libelle: 'Bloc', children: [
                        { type: :integer_number, libelle: 'Sibling' },
-                       { type: :formule, libelle: 'Formule' }
-                     ]
-                   }
+                       { type: :formule, libelle: 'Formule' },
+                     ],
+                   },
                  ])
         end
 
@@ -199,7 +199,7 @@ describe ProcedureRevisionTypeDeChamp do
           create(:procedure,
                  types_de_champ_public: [
                    { type: :integer_number, libelle: 'Champ 1' },
-                   { type: :formule, libelle: 'Formule' }
+                   { type: :formule, libelle: 'Formule' },
                  ])
         end
 
@@ -228,9 +228,9 @@ describe ProcedureRevisionTypeDeChamp do
                    type: :repetition, libelle: 'Bloc', children: [
                      { type: :integer_number, libelle: 'Sibling' },
                      { type: :formule, libelle: 'Formule' },
-                     { type: :integer_number, libelle: 'Suivant' }
-                   ]
-                 }
+                     { type: :integer_number, libelle: 'Suivant' },
+                   ],
+                 },
                ])
       end
 
@@ -278,9 +278,9 @@ describe ProcedureRevisionTypeDeChamp do
                    {
                      type: :repetition, libelle: 'Bloc', children: [
                        { type: :integer_number, libelle: 'Prix' },
-                       { type: :formule, libelle: 'Formule' }
-                     ]
-                   }
+                       { type: :formule, libelle: 'Formule' },
+                     ],
+                   },
                  ])
         end
 
@@ -318,9 +318,9 @@ describe ProcedureRevisionTypeDeChamp do
                    {
                      type: :repetition, libelle: 'Bloc', children: [
                        { type: :integer_number, libelle: 'Prix' },
-                       { type: :formule, libelle: 'Formule' }
-                     ]
-                   }
+                       { type: :formule, libelle: 'Formule' },
+                     ],
+                   },
                  ])
         end
 

@@ -29,7 +29,7 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
         displayable:,
         options_for_select:,
         mandatory: mandatory?
-      )
+      ),
     ]
   end
 

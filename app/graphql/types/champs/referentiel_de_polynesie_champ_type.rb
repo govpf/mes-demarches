@@ -23,7 +23,7 @@ module Types::Champs
           {
             name: opts[:libelle] || jsonpath,
             value: format_value_for_api(object.value_json[jsonpath]),
-            type: (opts[:type] || 'string').to_s
+            type: (opts[:type] || 'string').to_s,
           }
         end
       end
@@ -39,7 +39,7 @@ module Types::Champs
         {
           name: field_name,
           value: format_value_for_api(value),
-          type: infer_type(value)
+          type: infer_type(value),
         }
       end
     rescue JSON::ParserError

@@ -404,7 +404,7 @@ describe Administrateurs::TypesDeChampController, type: :controller do
     let(:params) do
       {
         procedure_id: procedure.id,
-        stable_id: second_coordinate.stable_id
+        stable_id: second_coordinate.stable_id,
       }
     end
 
@@ -441,7 +441,7 @@ describe Administrateurs::TypesDeChampController, type: :controller do
                    {
                      type: :yes_no,
                      libelle: 'Destination',
-                     options: ['Local', 'International']
+                     options: ['Local', 'International'],
                    },
                    {
                      type: :repetition,
@@ -450,18 +450,18 @@ describe Administrateurs::TypesDeChampController, type: :controller do
                        {
                          type: :drop_down_list,
                          libelle: 'Type',
-                         options: ['Importation', 'Fabrication']
+                         options: ['Importation', 'Fabrication'],
                        },
                        {
                          type: :text,
-                         libelle: 'Pays'
+                         libelle: 'Pays',
                        },
                        {
                          type: :text,
-                         libelle: 'Ville'
-                       }
-                     ]
-                   }
+                         libelle: 'Ville',
+                       },
+                     ],
+                   },
                  ])
         end
 
@@ -472,7 +472,7 @@ describe Administrateurs::TypesDeChampController, type: :controller do
         let(:params) do
           {
             procedure_id: procedure.id,
-            stable_id: repetition_coordinate.stable_id
+            stable_id: repetition_coordinate.stable_id,
           }
         end
 

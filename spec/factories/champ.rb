@@ -294,7 +294,7 @@ FactoryBot.define do
         evaluator.rows.times do |row|
           champ_repetition.champs << [
             build(:champ_piece_justificative, dossier: champ_repetition.dossier, row: row, type_de_champ: type_de_champ_pj0),
-            build(:champ_piece_justificative, dossier: champ_repetition.dossier, row: row, type_de_champ: type_de_champ_pj1)
+            build(:champ_piece_justificative, dossier: champ_repetition.dossier, row: row, type_de_champ: type_de_champ_pj1),
           ]
         end
       end

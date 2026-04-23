@@ -223,7 +223,7 @@ describe LexpolService do
           create(:type_de_champ_piece_justificative, libelle: 'Pièce jointe', procedure: draft_procedure),
           create(:type_de_champ_titre_identite, libelle: 'Titre d\'identité', procedure: draft_procedure),
           create(:type_de_champ_header_section, libelle: 'Section', procedure: draft_procedure),
-          create(:type_de_champ_explication, libelle: 'Explication', procedure: draft_procedure)
+          create(:type_de_champ_explication, libelle: 'Explication', procedure: draft_procedure),
         ]
       end
 

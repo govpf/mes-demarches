@@ -640,7 +640,7 @@ describe TypeDeChamp do
       unsorted_tables = [
         { name: 'Zones', id: 3 },
         { name: 'Activités', id: 1 },
-        { name: 'Communes', id: 2 }
+        { name: 'Communes', id: 2 },
       ]
       allow(ReferentielDePolynesie::API).to receive(:available_tables).and_return(unsorted_tables)
       Rails.cache.delete("referentiel_tables:#{Rails.env}")

@@ -870,7 +870,7 @@ describe Instructeurs::ProceduresController, type: :controller do
         before do
           patch :update_email_notifications, params: {
             procedure_id: procedure.id,
-            assign_to: { id: assign_to.id, deletion_email_notifications_enabled: false }
+            assign_to: { id: assign_to.id, deletion_email_notifications_enabled: false },
           }
         end
 

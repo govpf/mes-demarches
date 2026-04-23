@@ -29,10 +29,10 @@ class AdministrationMailerPreview < ActionMailer::Preview
                   service: Service.new(nom: 'DMRA'),
                   types_de_champ: [
                     TypeDeChamp.new(libelle: 'iban', description: 'Compte à créditer'),
-                    TypeDeChamp.new(libelle: 'numéro de carte bleu', description: 'Carte bleue à débiter')
+                    TypeDeChamp.new(libelle: 'numéro de carte bleu', description: 'Carte bleue à débiter'),
                   ],
                   types_de_champ_private: [
-                    TypeDeChamp.new(libelle: 'Avis', description: 'Avis du ministère')
+                    TypeDeChamp.new(libelle: 'Avis', description: 'Avis du ministère'),
                   ])
   end
 

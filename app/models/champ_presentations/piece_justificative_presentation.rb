@@ -37,15 +37,15 @@ class ChampPresentations::PieceJustificativePresentation < ChampPresentations::B
           src: @image_src, # pf: data URI pour affichage <img> (sans authentification)
           href: @url, # pf: URL pour lien <a> téléchargement (avec authentification)
           alt: @filename, # pf: nom du fichier pour accessibilité
-          display: 'Télécharger' # pf: texte court et universel
-        }
+          display: 'Télécharger', # pf: texte court et universel
+        },
       }
     else
       # pf: fallback sur lien de téléchargement si preview échoue ou pas disponible
       {
         type: 'attachmentLink',
         attrs: { href: @url, target: '_blank', rel: 'noopener' },
-        content: [{ type: 'text', text: "Télécharger #{@filename}" }] # pf: afficher le nom du fichier
+        content: [{ type: 'text', text: "Télécharger #{@filename}" }], # pf: afficher le nom du fichier
       }
     end
   end

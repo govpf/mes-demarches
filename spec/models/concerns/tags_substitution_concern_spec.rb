@@ -321,7 +321,7 @@ describe TagsSubstitutionConcern, type: :model do
         # pf: structure réelle des données Baserow avec row imbriqué et instructeur_fields
         champ.update_external_data!(data: {
           'row' => { 'code_postal' => '98714', 'archipel' => 'Iles du Vent' },
-          'instructeur_fields' => ['code_postal', 'archipel']
+          'instructeur_fields' => ['code_postal', 'archipel'],
         })
       end
 
@@ -657,22 +657,22 @@ describe TagsSubstitutionConcern, type: :model do
             type: :drop_down_list,
             libelle: 'Département',
             stable_id: departement_stable_id,
-            options: ['Vendée', 'Charente']
+            options: ['Vendée', 'Charente'],
           },
           {
             type: :drop_down_list,
             libelle: 'Ville',
             stable_id: ville_vendee_stable_id,
             options: ['Luçon', 'La Tranche'],
-            condition: ds_eq(champ_value(departement_stable_id), constant('Vendée'))
+            condition: ds_eq(champ_value(departement_stable_id), constant('Vendée')),
           },
           {
             type: :drop_down_list,
             libelle: 'Ville',
             stable_id: ville_charente_stable_id,
             options: ['La Rochelle', 'Rochefort'],
-            condition: ds_eq(champ_value(departement_stable_id), constant('Charente'))
-          }
+            condition: ds_eq(champ_value(departement_stable_id), constant('Charente')),
+          },
         ]
       end
 

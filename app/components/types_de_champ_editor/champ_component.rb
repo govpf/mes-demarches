@@ -52,7 +52,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
         label: col.label,
         type: col.type.to_s,
         category: col.table,
-        paths: extract_sub_paths(col)
+        paths: extract_sub_paths(col),
       }.compact
     end
   end
@@ -123,7 +123,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
       [
         { path: 'commune', label: 'Commune' },
         { path: 'ile', label: 'Île' },
-        { path: 'archipel', label: 'Archipel' }
+        { path: 'archipel', label: 'Archipel' },
       ]
     when 'referentiel_de_polynesie'
       # Get columns from referentiel if it exists
@@ -137,7 +137,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
       [
         { path: 'code_naf', label: 'Code NAF' },
         { path: 'raison_sociale', label: 'Raison sociale' },
-        { path: 'adresse', label: 'Adresse' }
+        { path: 'adresse', label: 'Adresse' },
       ]
     else
       nil

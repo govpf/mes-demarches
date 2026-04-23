@@ -15,7 +15,7 @@ describe Individual do
       'ANNE-GAELLE' => 'Anne-Gaelle',
       'franÇois-jean' => "François-Jean",
       'gilbert' => "Gilbert",
-      'arthur, gilbert andré , roger' => 'Arthur, Gilbert André , Roger'
+      'arthur, gilbert andré , roger' => 'Arthur, Gilbert André , Roger',
     }
     test_data.each do |input, expected|
       it "normalisation of #{input}" do
@@ -31,7 +31,7 @@ describe Individual do
       'de la tourandière' => 'DE LA TOURANDIÈRE',
       'Lalumière-Dufour' => 'LALUMIÈRE-DUFOUR',
       "D'Ornano" => "D'ORNANO",
-      ' noël ' => "NOËL"
+      ' noël ' => "NOËL",
     }
     test_data.each do |input, expected|
       it "normalisation of #{input}" do

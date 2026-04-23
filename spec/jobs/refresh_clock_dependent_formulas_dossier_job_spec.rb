@@ -4,7 +4,7 @@ describe RefreshClockDependentFormulasDossierJob do
   let(:procedure) {
     create(:procedure, :published, types_de_champ_public: [
       { type: :date, libelle: 'Date de naissance' },
-      { type: :formule, libelle: 'Age' }
+      { type: :formule, libelle: 'Age' },
     ])
   }
   let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }

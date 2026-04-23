@@ -126,7 +126,7 @@ class S3Synchronization < ApplicationRecord
     def blob_status
       {
         count: ActiveStorage::Blob.group(:service_name).count,
-        sum: ActiveStorage::Blob.group(:service_name).sum(:byte_size)
+        sum: ActiveStorage::Blob.group(:service_name).sum(:byte_size),
       }
     end
 

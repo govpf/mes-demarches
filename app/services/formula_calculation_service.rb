@@ -121,7 +121,7 @@ class FormulaCalculationService
     'NotEqual' => '!=',
     'And' => 'ET',
     'Or' => 'OU',
-    'Not' => 'NON'
+    'Not' => 'NON',
   }.freeze
 
   def self.format_operator(klass)

@@ -28,7 +28,7 @@ describe Champs::PieceJustificativeController, type: :controller do
         position: '1',
         dossier_id: dossier.id,
         stable_id: annotation.stable_id,
-        blob_signed_id: blob.signed_id
+        blob_signed_id: blob.signed_id,
       }, format: 'turbo_stream'
       sign_out instructeur.user
       sign_in current_user
@@ -40,7 +40,7 @@ describe Champs::PieceJustificativeController, type: :controller do
         dossier_id: dossier.id,
         stable_id: annotation.stable_id,
         h: annotation.encoded_date(:created_at),
-        i: 0
+        i: 0,
       }
     end
 

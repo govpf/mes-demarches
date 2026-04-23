@@ -148,7 +148,7 @@ RSpec.describe DossierChampsConcern do
       let(:procedure) do
         create(:procedure, types_de_champ_public: [
           { type: :integer_number, libelle: 'Montant', stable_id: 10 },
-          { type: :formule, libelle: 'Double', stable_id: 11, formule_expression: '' }
+          { type: :formule, libelle: 'Double', stable_id: 11, formule_expression: '' },
         ])
       end
       let(:dossier) { procedure.draft_revision.dossier_for_preview(create(:user)) }
@@ -195,7 +195,7 @@ RSpec.describe DossierChampsConcern do
       let(:procedure) do
         create(:procedure, types_de_champ_public: [
           { type: :integer_number, libelle: 'Montant', stable_id: 30 },
-          { type: :formule, libelle: 'Double', stable_id: 31, formule_expression: '' }
+          { type: :formule, libelle: 'Double', stable_id: 31, formule_expression: '' },
         ])
       end
       let(:dossier) { create(:dossier, procedure: procedure) }
@@ -226,7 +226,7 @@ RSpec.describe DossierChampsConcern do
       let(:procedure) do
         create(:procedure, :published, types_de_champ_public: [
           { type: :integer_number, libelle: 'Montant', stable_id: 40 },
-          { type: :formule, libelle: 'Double', stable_id: 41, formule_expression: '1 + 1' }
+          { type: :formule, libelle: 'Double', stable_id: 41, formule_expression: '1 + 1' },
         ])
       end
       # Dossier sur la révision publiée (figée)
