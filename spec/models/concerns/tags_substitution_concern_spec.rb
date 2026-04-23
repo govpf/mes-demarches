@@ -51,7 +51,7 @@ describe TagsSubstitutionConcern, type: :model do
           ["dossier_depose_at", "date de dépôt"],
           ["dossier_processed_at", "date d’instruction"],
           ["dossier_procedure_libelle", "Nom de la démarche"],
-          ["tdc_123", "Un champ"]
+          ["tdc_123", "Un champ"],
         ])
       end
 
@@ -147,7 +147,7 @@ describe TagsSubstitutionConcern, type: :model do
       let(:types_de_champ_public) do
         [
           { libelle: 'libelleA' },
-          { libelle: "libelle\xc2\xA0B".encode('utf-8') }
+          { libelle: "libelle\xc2\xA0B".encode('utf-8') },
         ]
       end
 
@@ -188,7 +188,7 @@ describe TagsSubstitutionConcern, type: :model do
     context 'when the procedure has a type de champ with apostrophes' do
       let(:types_de_champ_public) do
         [
-          { libelle: "Intitulé de l'’«\"évènement\"»’" }
+          { libelle: "Intitulé de l'’«\"évènement\"»’" },
         ]
       end
 
@@ -210,7 +210,7 @@ describe TagsSubstitutionConcern, type: :model do
     context 'when the procedure has a type de champ with double dash (--)' do
       let(:types_de_champ_public) do
         [
-          { libelle: "bon pote -- c'est top" }
+          { libelle: "bon pote -- c'est top" },
         ]
       end
 
@@ -276,7 +276,7 @@ describe TagsSubstitutionConcern, type: :model do
             let(:types_de_champ_public) do
               [
                 { type: :linked_drop_down_list, libelle: 'libelle', options: ["--primo--", "secundo"] },
-                { type: :header_section, libelle: 'libelle' }
+                { type: :header_section, libelle: 'libelle' },
               ]
             end
 
@@ -391,7 +391,7 @@ describe TagsSubstitutionConcern, type: :model do
       let(:types_de_champ_public) do
         [
           { type: :date, libelle: TypeDeChamp.type_champs.fetch(:date) },
-          { type: :datetime, libelle: TypeDeChamp.type_champs.fetch(:datetime) }
+          { type: :datetime, libelle: TypeDeChamp.type_champs.fetch(:datetime) },
         ]
       end
 
@@ -582,7 +582,7 @@ describe TagsSubstitutionConcern, type: :model do
       [
         { libelle: 'public' },
         { type: :header_section, libelle: 'entête de section' },
-        { type: :explication, libelle: 'explication' }
+        { type: :explication, libelle: 'explication' },
       ]
     end
     let(:types_de_champ_private) { [{ libelle: 'privé' }] }
@@ -634,7 +634,7 @@ describe TagsSubstitutionConcern, type: :model do
       let(:types_de_champ_public) do
         [
           { type: :text, libelle: 'public' },
-          { type: :text, libelle: 'conditional', condition: condition }
+          { type: :text, libelle: 'conditional', condition: condition },
         ]
       end
 
@@ -702,7 +702,7 @@ describe TagsSubstitutionConcern, type: :model do
       [
         { libelle: 'public' },
         { type: :header_section, libelle: 'entête de section' },
-        { type: :explication, libelle: 'explication' }
+        { type: :explication, libelle: 'explication' },
       ]
     end
 
@@ -717,7 +717,7 @@ describe TagsSubstitutionConcern, type: :model do
       [
         { libelle: 'public' },
         { type: :header_section, libelle: 'entête de section' },
-        { type: :explication, libelle: 'explication' }
+        { type: :explication, libelle: 'explication' },
       ]
     end
 
@@ -728,7 +728,7 @@ describe TagsSubstitutionConcern, type: :model do
     let(:types_de_champ_public) do
       [
         { libelle: 'public' },
-        { type: :email, libelle: 'email' }
+        { type: :email, libelle: 'email' },
       ]
     end
 
@@ -752,7 +752,7 @@ describe TagsSubstitutionConcern, type: :model do
         { text: ", un test" },
         { tag: "yolo" },
         { text: " encore du text\n" + "---\n" + " encore du text --- et encore du text\n" },
-        { tag: "tag" }
+        { tag: "tag" },
       ])
     end
 
@@ -768,7 +768,7 @@ describe TagsSubstitutionConcern, type: :model do
         { text: " " },
         { tag: "around" },
         { text: " world -" },
-        { tag: "numéro-du - dossier" }
+        { tag: "numéro-du - dossier" },
       ])
     end
 
@@ -778,7 +778,7 @@ describe TagsSubstitutionConcern, type: :model do
         { text: "hello " },
         { tag: "Jour(s) fixe(s) souhaité(s) :" },
         { text: " world " },
-        { tag: "B.8 COMMUNE  où est située le site d'exploitation" }
+        { tag: "B.8 COMMUNE  où est située le site d'exploitation" },
       ])
     end
   end

@@ -41,7 +41,7 @@ features = [
   :formule,
   # pf: feature flag pour la navigation contextuelle entre personas
   :contextual_persona_navigation,
-  :switch_domain
+  :switch_domain,
 ]
 
 def database_exists?

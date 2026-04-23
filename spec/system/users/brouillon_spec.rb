@@ -218,7 +218,7 @@ describe 'The user', js: true do
       { mandatory: false, libelle: "nombre entier", type: :integer_number },
       { mandatory: false, libelle: "nombre décimal", type: :decimal_number },
       { mandatory: false, libelle: 'address', type: :address },
-      { mandatory: false, libelle: 'IBAN', type: :iban }
+      { mandatory: false, libelle: 'IBAN', type: :iban },
     ], duree_conservation_dossiers_dans_ds: 6)
   }
 
@@ -523,9 +523,9 @@ describe 'The user', js: true do
             { type: :integer_number, libelle: 'UNIQ_LABEL', mandatory: false, stable_id: },
             {
               type: :repetition, libelle: 'repetition', mandatory: repetition_mandatory, condition:, children: [
-                { type: :text, libelle: 'nom', mandatory: true }
-              ]
-            }
+                { type: :text, libelle: 'nom', mandatory: true },
+              ],
+            },
           ])
       end
 
@@ -569,9 +569,9 @@ describe 'The user', js: true do
             {
               type: :repetition, libelle: 'repetition', mandatory: true, children: [
                 { type: :checkbox, libelle: 'champ_b', stable_id: b_stable_id },
-                { type: :text, libelle: 'champ_c', condition: }
-              ]
-            }
+                { type: :text, libelle: 'champ_c', condition: },
+              ],
+            },
           ])
       end
 
@@ -608,7 +608,7 @@ describe 'The user', js: true do
         create(:procedure, :published, :for_individual,
           types_de_champ_public: [
             { type: :integer_number, libelle: 'UNIQ_LABEL', mandatory: false, stable_id: },
-            { type: :text, libelle: 'nom', mandatory: true, condition: }
+            { type: :text, libelle: 'nom', mandatory: true, condition: },
           ])
       end
 
@@ -649,7 +649,7 @@ describe 'The user', js: true do
             { type: :yes_no, libelle: 'permis de conduire', stable_id: permis_stable_id, condition: permis_condition, mandatory: false },
             { type: :header_section, libelle: 'info voiture', condition: permis_condition, mandatory: false },
             { type: :integer_number, libelle: 'tonnage', stable_id: tonnage_stable_id, condition: tonnage_condition, mandatory: false },
-            { type: :text, libelle: 'parking', condition: parking_condition, mandatory: false }
+            { type: :text, libelle: 'parking', condition: parking_condition, mandatory: false },
           ])
       end
 

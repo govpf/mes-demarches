@@ -8,9 +8,9 @@ describe ChampPresentations::RepetitionPresentation do
         type: :repetition,
         children: [
           { type: :text, libelle: "nom" },
-          { type: :integer_number, libelle: "stars" }
-        ]
-      }
+          { type: :integer_number, libelle: "stars" },
+        ],
+      },
     ])
   }
 

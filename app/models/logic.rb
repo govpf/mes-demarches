@@ -30,7 +30,7 @@ module Logic
       InRegionOperator,
       NotInRegionOperator,
       InArchipelOperator,
-      NotInArchipelOperator
+      NotInArchipelOperator,
     ].find { |c| c.name == name }
   end
 

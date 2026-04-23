@@ -34,7 +34,7 @@ describe Instructeurs::DossiersController, type: :controller do
           recipients: [recipient.id],
           procedure_id: procedure.id,
           dossier_id: dossier.id,
-          statut: 'a-suivre'
+          statut: 'a-suivre',
         }
       )
     end
@@ -405,7 +405,7 @@ describe Instructeurs::DossiersController, type: :controller do
             procedure_id: procedure.id,
             dossier_id: dossier.id,
             dossier: { motivation: "Non" },
-            statut: 'a-suivre'
+            statut: 'a-suivre',
           }, format: :turbo_stream
         end
 
@@ -619,7 +619,7 @@ describe Instructeurs::DossiersController, type: :controller do
             procedure_id: procedure.id,
             dossier_id: dossier.id,
             dossier: { motivation: "Yallah" },
-            statut: 'a-suivre'
+            statut: 'a-suivre',
           }, format: :turbo_stream
         end
 
@@ -693,7 +693,7 @@ describe Instructeurs::DossiersController, type: :controller do
       post :pending_correction, params: {
         procedure_id: procedure.id, dossier_id: dossier.id, statut: 'a-suivre',
         dossier: { motivation: message, justificatif_motivation: justificatif },
-        reason:
+        reason:,
       }, format: :turbo_stream
     end
 
@@ -835,9 +835,9 @@ describe Instructeurs::DossiersController, type: :controller do
         dossier_id: dossier.id,
         commentaire: {
           body: body,
-          file: file
+          file: file,
         },
-        statut: 'a-suivre'
+        statut: 'a-suivre',
       }
     }
 
@@ -929,7 +929,7 @@ describe Instructeurs::DossiersController, type: :controller do
         procedure_id: procedure.id,
         dossier_id: dossier.id,
         avis: { emails: emails, introduction: 'intro', confidentiel: true, invite_linked_dossiers: invite_linked_dossiers, claimant: instructeur, experts_procedure: experts_procedure },
-        statut: 'a-suivre'
+        statut: 'a-suivre',
       }
     end
 
@@ -1112,7 +1112,7 @@ describe Instructeurs::DossiersController, type: :controller do
           procedure_id: procedure.id,
           dossier_id: dossier.id,
           statut: 'a-suivre',
-          format: :pdf
+          format: :pdf,
         }
       end
 
@@ -1245,7 +1245,7 @@ describe Instructeurs::DossiersController, type: :controller do
         { type: :linked_drop_down_list },
         { type: :datetime },
         { type: :repetition, children: [{}] },
-        { type: :drop_down_list, options: [:a, :b, :other] }
+        { type: :drop_down_list, options: [:a, :b, :other] },
       ]
     end
     let(:types_de_champ_public) { [] }
@@ -1278,15 +1278,15 @@ describe Instructeurs::DossiersController, type: :controller do
         let(:champs_private_attributes) do
           {
             champ_multiple_drop_down_list.public_id => {
-              value: ['', 'val1', 'val2']
-            }
+              value: ['', 'val1', 'val2'],
+            },
           }
         end
         let(:params) do
           {
             procedure_id: procedure.id,
             dossier_id: dossier.id,
-            dossier: { champs_private_attributes: }
+            dossier: { champs_private_attributes: },
           }
         end
 
@@ -1307,8 +1307,8 @@ describe Instructeurs::DossiersController, type: :controller do
           let(:champs_private_attributes) do
             {
               champ_datetime.public_id => {
-                value: '2019-12-21T13:17'
-              }
+                value: '2019-12-21T13:17',
+              },
             }
           end
 
@@ -1325,8 +1325,8 @@ describe Instructeurs::DossiersController, type: :controller do
             {
               champ_linked_drop_down_list.public_id => {
                 primary_value: 'primary',
-                secondary_value: 'secondary'
-              }
+                secondary_value: 'secondary',
+              },
             }
           end
 
@@ -1343,8 +1343,8 @@ describe Instructeurs::DossiersController, type: :controller do
           let(:champs_private_attributes) do
             {
               champ_repetition.rows.first.first.public_id => {
-                value: 'text'
-              }
+                value: 'text',
+              },
             }
           end
 
@@ -1367,18 +1367,18 @@ describe Instructeurs::DossiersController, type: :controller do
                   children: [
                     {
                       type: :referentiel,
-                      referentiel_id: referentiel.id
-                    }
-                  ]
+                      referentiel_id: referentiel.id,
+                    },
+                  ],
                 },
-                { type: :drop_down_list, options: [:a, :b, :other] }
+                { type: :drop_down_list, options: [:a, :b, :other] },
               ]
             end
             let(:champs_private_attributes) do
               {
                 champ_repetition.rows.first.first.public_id => {
-                  external_id: 'text'
-                }
+                  external_id: 'text',
+                },
               }
             end
 
@@ -1396,8 +1396,8 @@ describe Instructeurs::DossiersController, type: :controller do
             {
               champ_drop_down_list.public_id => {
                 value: '__other__',
-                value_other: 'other value'
-              }
+                value_other: 'other value',
+              },
             }
           end
 
@@ -1420,10 +1420,10 @@ describe Instructeurs::DossiersController, type: :controller do
               champs_public_attributes: {
                 '0': {
                   id: champ_multiple_drop_down_list.id,
-                  value: ['', 'val1', 'val2']
-                }
-              }
-            }
+                  value: ['', 'val1', 'val2'],
+                },
+              },
+            },
           }
         end
 
@@ -1446,10 +1446,10 @@ describe Instructeurs::DossiersController, type: :controller do
             champs_private_attributes: {},
             champs_public_attributes: {
               champ_multiple_drop_down_list.public_id => {
-                value: ['', 'val1', 'val2']
-              }
-            }
-          }
+                value: ['', 'val1', 'val2'],
+              },
+            },
+          },
         }
       end
 
@@ -1462,7 +1462,7 @@ describe Instructeurs::DossiersController, type: :controller do
     context "with invalid project_champs_public (DecimalNumberChamp)" do
       let(:types_de_champ_public) do
         [
-          { type: :decimal_number }
+          { type: :decimal_number },
         ]
       end
 
@@ -1475,10 +1475,10 @@ describe Instructeurs::DossiersController, type: :controller do
           dossier: {
             champs_private_attributes: {
               champ_datetime.public_id => {
-                value: '2024-03-30T07:03'
-              }
-            }
-          }
+                value: '2024-03-30T07:03',
+              },
+            },
+          },
         }
       end
 
@@ -1501,10 +1501,10 @@ describe Instructeurs::DossiersController, type: :controller do
           dossier: {
             champs_private_attributes: {
               champ_datetime.public_id => {
-                value: '2024-03-30T07:03'
-              }
-            }
-          }
+                value: '2024-03-30T07:03',
+              },
+            },
+          },
         }
       end
 
@@ -1722,7 +1722,7 @@ describe Instructeurs::DossiersController, type: :controller do
     subject do
       get :telecharger_pjs, params: {
         procedure_id: procedure.id,
-        dossier_id: dossier.id
+        dossier_id: dossier.id,
       }
     end
 
@@ -1758,7 +1758,7 @@ describe Instructeurs::DossiersController, type: :controller do
       delete :destroy, params: {
         procedure_id: procedure.id,
         dossier_id: dossier.id,
-        statut: 'a-suivre'
+        statut: 'a-suivre',
       }
     end
 
@@ -1890,7 +1890,7 @@ describe Instructeurs::DossiersController, type: :controller do
       params: {
         procedure_id: procedure.id,
         dossier_id: dossier.id,
-        statut: 'a-suivre'
+        statut: 'a-suivre',
       }
     end
 
@@ -1983,7 +1983,7 @@ describe Instructeurs::DossiersController, type: :controller do
          params: {
            procedure_id: procedure.id,
            dossier_id: dossier.id,
-           statut: 'a-suivre'
+           statut: 'a-suivre',
          }
     end
 
@@ -2009,7 +2009,7 @@ describe Instructeurs::DossiersController, type: :controller do
           procedure_id: procedure.id,
           dossier_id: dossier.id,
           groupe_instructeur_id: gi_2.id,
-          statut: 'a-suivre'
+          statut: 'a-suivre',
         }
     end
 
@@ -2045,7 +2045,7 @@ describe Instructeurs::DossiersController, type: :controller do
         params: {
           procedure_id: routed_procedure.id,
           dossier_id: dossier.id,
-          statut: 'a-suivre'
+          statut: 'a-suivre',
         }
     end
 
@@ -2063,7 +2063,7 @@ describe Instructeurs::DossiersController, type: :controller do
     subject do
       get :print, params: {
         procedure_id: procedure.id,
-        dossier_id: dossier.id
+        dossier_id: dossier.id,
       }
     end
 
@@ -2105,7 +2105,7 @@ describe Instructeurs::DossiersController, type: :controller do
       get :pieces_jointes, params: {
         procedure_id: procedure.id,
         dossier_id: dossier.id,
-        statut: 'a-suivre'
+        statut: 'a-suivre',
       }
     end
 
@@ -2164,7 +2164,7 @@ describe Instructeurs::DossiersController, type: :controller do
     subject do
       get :rendez_vous, params: {
         procedure_id: procedure.id,
-        dossier_id: dossier.id
+        dossier_id: dossier.id,
       }
     end
 
