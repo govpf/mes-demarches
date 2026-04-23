@@ -13,8 +13,7 @@ class Referentiels::BaserowService
   # pf: format standard PF "domain_id:row_id" produit par BaserowAPI#parse_search_results / #search_with_data
   def call(external_id)
     if external_id.to_s.match?(/\A\d+:\d+\z/)
-      domain_id, row_id = external_id.to_s.split(':')
-      result = ReferentielDePolynesie::API.fetch_row(domain_id.to_i, row_id.to_i)
+      result = ReferentielDePolynesie::API.fetch_row(external_id)
 
       if result.present? && result.is_a?(Hash) && result.keys.any?
         Success(result)

@@ -17,7 +17,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
 
         before do
           allow(ReferentielDePolynesie::API).to receive(:fetch_row)
-            .with(24, 123)
+            .with(external_id)
             .and_return(api_response)
         end
 
@@ -32,7 +32,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
       context 'when API returns nil' do
         before do
           allow(ReferentielDePolynesie::API).to receive(:fetch_row)
-            .with(24, 123)
+            .with(external_id)
             .and_return(nil)
         end
 
@@ -47,7 +47,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
       context 'when API returns empty hash' do
         before do
           allow(ReferentielDePolynesie::API).to receive(:fetch_row)
-            .with(24, 123)
+            .with(external_id)
             .and_return({})
         end
 
@@ -62,7 +62,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
       context 'when API raises an exception' do
         before do
           allow(ReferentielDePolynesie::API).to receive(:fetch_row)
-            .with(24, 123)
+            .with(external_id)
             .and_raise(StandardError, 'Connection timeout')
         end
 
