@@ -2,7 +2,7 @@
 
 module Instructeurs
   class ProcedurePresentationController < InstructeurController
-    before_action :set_procedure_presentation, only: [:update, :refresh_column_filter, :add_filter, :remove_filter]
+    before_action :set_procedure_presentation, only: [:update, :refresh_column_filter, :add_filter, :remove_filter, :set_full_text_filter]
 
     def add_filter
       statut = params[:statut]
@@ -28,6 +28,16 @@ module Instructeurs
       @procedure_presentation.remove_filter_for_statut!(params[:statut], filtered_column_from_params)
 
       redirect_back_or_to([:instructeur, procedure])
+    end
+
+    def set_full_text_filter
+      statut = params[:statut]
+      query = params[:query].to_s.strip
+      filter = query.present? ? FilteredColumn.new(column: Columns::PfFullTextColumn.new(procedure_id: procedure.id), filter: { 'operator' => 'match', 'value' => [query] }) : nil
+
+      @procedure_presentation.set_full_text_filter_for_statut!(statut, filter)
+
+      redirect_back_or_to([:instructeur, procedure, { statut: }])
     end
 
     def update

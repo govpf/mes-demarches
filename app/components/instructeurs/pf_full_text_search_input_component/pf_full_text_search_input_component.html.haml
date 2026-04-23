@@ -1,0 +1,12 @@
+= form_with url: form_url, method: :post, class: 'pf-full-text-search fr-mr-2w', data: { turbo: true } do |form|
+  .fr-search-bar.fr-search-bar--sm{ role: 'search' }
+    = text_field_tag :query, current_query,
+      id: 'pf-full-text-search-input',
+      type: 'search',
+      class: 'fr-input',
+      placeholder: t('.placeholder'),
+      autocomplete: 'off',
+      'aria-label': t('.label')
+    %button.fr-btn{ type: 'submit', title: t('.submit') }
+      = t('.submit')
+  = form.hidden_field :statut, value: @statut

@@ -39,6 +39,7 @@ module ColumnsConcern
         columns.concat(moral_columns) if !for_individual
         columns.concat(procedure_chorus_columns) if chorusable? && chorus_configuration.complete?
         columns.concat(types_de_champ_columns)
+        columns.concat([Columns::PfFullTextColumn.new(procedure_id: id)])
       end
     end
 

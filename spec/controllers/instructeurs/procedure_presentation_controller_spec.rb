@@ -180,4 +180,47 @@ describe Instructeurs::ProcedurePresentationController, type: :controller do
       end
     end
   end
+
+  describe 'PF full-text search' do
+    let(:procedure) { create(:procedure) }
+    let(:instructeur) { create(:instructeur) }
+    let(:procedure_presentation) do
+      assign_to = create(:assign_to, instructeur:, groupe_instructeur: procedure.defaut_groupe_instructeur)
+      assign_to.procedure_presentation_or_default_and_errors.first
+    end
+    let(:full_text_column) { Columns::PfFullTextColumn.new(procedure_id: procedure.id) }
+
+    before { sign_in(instructeur.user) }
+
+    describe '#set_full_text_filter' do
+      it 'stores a single full-text filter' do
+        post :set_full_text_filter, params: { id: procedure_presentation.id, statut: 'tous', query: 'dupont' }
+
+        filters = procedure_presentation.reload.tous_filters
+        expect(filters.size).to eq(1)
+        expect(filters.first.column).to be_a(Columns::PfFullTextColumn)
+        expect(filters.first.filter_value).to eq(['dupont'])
+      end
+
+      it 'clears the filter on blank query' do
+        procedure_presentation.update!(tous_filters: [FilteredColumn.new(column: full_text_column, filter: { 'operator' => 'match', 'value' => ['old'] })])
+
+        post :set_full_text_filter, params: { id: procedure_presentation.id, statut: 'tous', query: '  ' }
+
+        expect(procedure_presentation.reload.tous_filters).to eq([])
+      end
+    end
+
+    describe '#add_filter with PfFullTextColumn replaces rather than accumulates' do
+      it 'keeps exactly one full-text filter when submitted twice via the picker' do
+        procedure_presentation.update!(tous_filters: [FilteredColumn.new(column: full_text_column, filter: { 'operator' => 'match', 'value' => ['old'] })])
+
+        post :add_filter, params: { id: procedure_presentation.id, statut: 'tous', filter: { id: full_text_column.id, filter: { operator: 'match', value: ['new'] } } }
+
+        filters = procedure_presentation.reload.tous_filters
+        expect(filters.size).to eq(1)
+        expect(filters.first.filter_value).to eq(['new'])
+      end
+    end
+  end
 end

@@ -32,6 +32,7 @@
 
   .fr-container--fluid.fr-mx-4w.overflow-y-visible
     .flex
+      = render Instructeurs::PfFullTextSearchInputComponent.new(procedure_presentation: @procedure_presentation, statut: @statut)
       - if @filtered_sorted_paginated_ids.present? || @current_filters.count > 0
         = render partial: "dossiers_filter_dropdown", locals: { procedure: @procedure, statut: @statut, procedure_presentation: @procedure_presentation, instructeur_procedure: @instructeur_procedure }
 

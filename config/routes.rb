@@ -516,6 +516,7 @@ Rails.application.routes.draw do
         post 'refresh_column_filter'
         post 'add_filter'
         delete 'remove_filter'
+        post 'set_full_text_filter'
       end
     end
 
