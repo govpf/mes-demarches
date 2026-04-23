@@ -73,7 +73,7 @@ module Manager
         end
         notices.push "L’administrateur #{administrateur.email} a été ajouté à la démarche."
       else
-        alerts.push "L’administrateur #{administrateur.email} est introuvable."
+        alerts.push "L’administrateur #{current_super_admin.email} est introuvable."
       end
 
       if instructeur
@@ -88,7 +88,7 @@ module Manager
           notices.push "L'instructeur #{instructeur.email} a été ajouté à la démarche."
         end
       else
-        alerts.push "L'instructeur #{instructeur.email} est introuvable."
+        alerts.push "L'instructeur #{current_super_admin.email} est introuvable."
       end
 
       flash[:notice] = notices.join(" ") if notices.present?
