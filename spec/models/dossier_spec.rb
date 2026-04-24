@@ -1851,7 +1851,7 @@ describe Dossier, type: :model do
       let(:champ_siret) { dossier.champs.first }
 
       before do
-        champ_siret.update(value: '44011762001530')
+        champ_siret.update(external_id: '44011762001530')
         champ_siret.valid?
       end
 
@@ -1861,13 +1861,12 @@ describe Dossier, type: :model do
 
       context "and invalid SIRET" do
         before do
-          champ_siret.update(value: "1234")
+          champ_siret.update(external_id: "1234")
           champ_siret.validate(:champs_public_value)
         end
 
         it 'should have errors' do
-          expect(champ_siret.errors).not_to be_empty
-          expect(champ_siret.errors.first.full_message).to eq("doit avoir 9 chiffres. Sélectionnez un établissement.")
+          expect(champ_siret.errors[:external_id]).to include("doit comporter 9 chiffres (Tahiti) ou 14 chiffres (SIRET)")
         end
       end
     end

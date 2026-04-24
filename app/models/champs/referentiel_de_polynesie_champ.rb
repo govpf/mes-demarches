@@ -58,9 +58,10 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     end
   end
 
-  # pf: autocomplete utilise le flux inline (pas de job) ; exact_match utilise le job asynchrone
+  # pf: autocomplete utilise le flux inline (pas de job) ; exact_match utilise le job asynchrone ;
+  # pf: __other__ = saisie libre de drop_down_other — pas de fetch externe à tenter
   def uses_external_data?
-    exact_match?
+    exact_match? && external_id != Champs::DropDownListChamp::OTHER
   end
 
   # pf: fallback legacy si pas encore de referentiel lié

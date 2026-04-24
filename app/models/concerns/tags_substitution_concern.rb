@@ -137,7 +137,7 @@ module TagsSubstitutionConcern
       id: 'dossier_url',
       libelle: 'lien dossier',
       description: '',
-      lambda: -> (d) { external_link(dossier_url(d)) },
+      lambda: -> (d) { external_link(dossier_url(d, host:)) },
       available_for_states: Dossier::SOUMIS,
       escapable: false
     },
@@ -145,7 +145,7 @@ module TagsSubstitutionConcern
       id: 'dossier_attestation_url',
       libelle: 'lien attestation',
       description: '',
-      lambda: -> (d) { external_link(attestation_dossier_url(d)) },
+      lambda: -> (d) { external_link(attestation_dossier_url(d, host:)) },
       available_for_states: [Dossier.states.fetch(:accepte), Dossier.states.fetch(:refuse)],
       escapable: false
     },
@@ -352,7 +352,7 @@ module TagsSubstitutionConcern
 
   def url_for_justificatif_motivation(dossier)
     if dossier.justificatif_motivation.attached?
-      Rails.application.routes.url_helpers.url_for(dossier.justificatif_motivation)
+      Rails.application.routes.url_helpers.rails_blob_url(dossier.justificatif_motivation, host:)
     end
   end
 
@@ -511,4 +511,6 @@ module TagsSubstitutionConcern
       ENTREPRISE_TAGS
     ]
   end
+
+  def host = Current.host || ENV["APP_HOST"]
 end

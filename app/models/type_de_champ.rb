@@ -763,14 +763,14 @@ class TypeDeChamp < ApplicationRecord
 
   def self.refresh_after_update?(type_champ)
     # We should refresh all champs after update except for champs using react or custom refresh
-    # logic (RNA, SIRET, etc.)
+    # logic (RNA, etc.). SIRET now uses the generic state machine + turbo-poll flow.
     case type_champ
     when type_champs.fetch(:carte),
       type_champs.fetch(:titre_identite),
       type_champs.fetch(:rna),
-      type_champs.fetch(:siret),
+      # pf: custom react-based widgets
       type_champs.fetch(:numero_dn),
-      type_champs.fetch(:te_fenua),
+      type_champs.fetch(:te_fenua)
       false
     else
       true

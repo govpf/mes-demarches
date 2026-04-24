@@ -36,6 +36,14 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
       it 'retourne true (le job doit se lancer)' do
         expect(champ.uses_external_data?).to be true
       end
+
+      context 'quand external_id = __other__ (drop_down_other)' do
+        before { champ.update_column(:external_id, Champs::DropDownListChamp::OTHER) }
+
+        it 'retourne false (saisie libre, pas de fetch externe à tenter)' do
+          expect(champ.uses_external_data?).to be false
+        end
+      end
     end
   end
 
