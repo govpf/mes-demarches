@@ -7,8 +7,9 @@ RSpec.describe Referentiels::BaserowService, type: :service do
   let(:service) { described_class.new(referentiel:) }
 
   describe '#call' do
-    context 'in autocomplete mode' do
-      let(:referentiel) { create(:baserow_referentiel, :autocomplete) }
+    # pf: external_id au format "domain_id:row_id" (cf. BaserowAPI#parse_search_results) —
+    # le mode autocomplete/exact_match ne change pas le lookup, c'est le format qui détermine
+    context 'with a well-formed external_id "domain:row"' do
       let(:external_id) { '24:123' }
 
       context 'when API returns valid data' do
@@ -80,49 +81,15 @@ RSpec.describe Referentiels::BaserowService, type: :service do
       end
     end
 
-    context 'in exact_match mode' do
-      let(:referentiel) { create(:baserow_referentiel, :exact_match) }
-      let(:external_id) { 'MON-NUMERO-123' }
+    context 'with a malformed external_id (saisie libre, anomalie)' do
+      it 'returns a Failure with code 400 without calling the API' do
+        expect(ReferentielDePolynesie::API).not_to receive(:fetch_row)
+        expect(ReferentielDePolynesie::API).not_to receive(:find_by_exact_value)
 
-      context 'when API returns a matching row' do
-        let(:api_response) { { 'Nom' => 'Papeete', 'Code' => '98714' } }
+        result = service.call('not-a-row-id')
 
-        before do
-          allow(ReferentielDePolynesie::API).to receive(:find_by_exact_value)
-            .with(referentiel.table_id, external_id)
-            .and_return(api_response)
-        end
-
-        it 'calls find_by_exact_value instead of fetch_row' do
-          expect(ReferentielDePolynesie::API).to receive(:find_by_exact_value)
-            .with(referentiel.table_id, external_id)
-            .and_return(api_response)
-          expect(ReferentielDePolynesie::API).not_to receive(:fetch_row)
-
-          service.call(external_id)
-        end
-
-        it 'returns a Success with the flat data' do
-          result = service.call(external_id)
-
-          expect(result).to be_success
-          expect(result.value!).to eq(api_response)
-        end
-      end
-
-      context 'when no matching row is found' do
-        before do
-          allow(ReferentielDePolynesie::API).to receive(:find_by_exact_value)
-            .with(referentiel.table_id, external_id)
-            .and_return({})
-        end
-
-        it 'returns a Failure with code 404' do
-          result = service.call(external_id)
-
-          expect(result).to be_failure
-          expect(result.failure).to include(retryable: false, code: 404)
-        end
+        expect(result).to be_failure
+        expect(result.failure).to include(retryable: false, code: 400)
       end
     end
   end

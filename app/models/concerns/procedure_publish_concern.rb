@@ -141,7 +141,8 @@ module ProcedurePublishConcern
 
   def nullify_unused_referentiels
     draft_revision.types_de_champ
-      .reject { _1.drop_down_list? || _1.multiple_drop_down_list? || _1.referentiel? }
+      # pf: referentiel_de_polynesie utilise aussi referentiel_id depuis la migration vers Referentiel — sans cette whitelist, chaque publication efface l'association
+      .reject { _1.drop_down_list? || _1.multiple_drop_down_list? || _1.referentiel? || _1.referentiel_de_polynesie? }
       .each do |type_de_champ|
         type_de_champ.update!(referentiel_id: nil)
       end
