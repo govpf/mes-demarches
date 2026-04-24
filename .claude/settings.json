@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kubectl get *)",
+      "Bash(kubectl logs *)",
+      "Bash(terraform plan *)",
+      "Bash(terraform validate *)",
+      "Bash(helm template *)",
+      "Bash(helm pull *)",
+      "Bash(helm show *)"
+    ]
+  }
+}
