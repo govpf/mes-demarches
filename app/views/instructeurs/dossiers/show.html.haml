@@ -20,5 +20,6 @@
   .fr-grid-row.fr-grid-row--center
     - summary = ViewableChamp::HeaderSectionsSummaryComponent.new(dossier: @dossier, is_private: false)
     = render summary
-    %div{ class: class_names("fr-col-12", "fr-col-xl-9" => summary.render?, "fr-col-xl-8" => !summary.render?) }
+    -# pf: élargi pour laisser respirer le mode grid (PR #334). fr-col-xl-9 conservé si sommaire présent (3+9=12).
+    %div{ class: class_names("fr-col-12", "fr-col-xl-9" => summary.render?) }
       = render partial: "shared/dossiers/demande", locals: { dossier: @dossier, demande_seen_at: @demande_seen_at, profile: 'instructeur' }

@@ -93,8 +93,8 @@ describe InstructeurChampDisplayHelper do
       around { |ex| travel_to(InstructeurChampDisplayHelper::FEATURE_ROLLOUT_DATE + InstructeurChampDisplayHelper::BANNER_DURATION + 1.day) { ex.run } }
 
       it 'utilise les libellés neutres' do
-        expect(helper.dossier_layout_toggle_label(:grid)).to eq('Affichage en liste')
-        expect(helper.dossier_layout_toggle_label(:stacked)).to eq('Affichage en grille')
+        expect(helper.dossier_layout_toggle_label(:grid)).to eq('Passer au mode liste')
+        expect(helper.dossier_layout_toggle_label(:stacked)).to eq('Passer au mode grille')
       end
     end
   end
