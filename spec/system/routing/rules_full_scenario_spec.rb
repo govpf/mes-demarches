@@ -158,14 +158,18 @@ describe 'The routing with rules', js: true do
     expect(page).not_to have_text(scientifique_user.email)
 
     # the search only show litteraires dossiers
-    fill_in 'q', with: scientifique_user.email
-    find('.fr-search-bar .fr-btn').click
+    within('#search-modal') do
+      fill_in 'q', with: scientifique_user.email
+      find('.fr-search-bar .fr-btn').click
+    end
     expect(page).to have_text('Aucun dossier')
 
     # weird bug, capabary appends text instead of replaces it
     # see https://github.com/redux-form/redux-form/issues/686
-    fill_in('q', with: litteraire_user.email, fill_options: { clear: :backspace })
-    find('.fr-search-bar .fr-btn').click
+    within('#search-modal') do
+      fill_in('q', with: litteraire_user.email, fill_options: { clear: :backspace })
+      find('.fr-search-bar .fr-btn').click
+    end
     expect(page).to have_text('1 dossier trouvé')
 
     ## and the result is clickable

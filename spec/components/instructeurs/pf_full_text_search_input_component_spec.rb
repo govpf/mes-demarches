@@ -18,7 +18,12 @@ describe Instructeurs::PfFullTextSearchInputComponent, type: :component do
     expect(input).not_to be_nil
     expect(input['value']).to eq('dupont')
     expect(input['type']).to eq('search')
-    expect(input['aria-label']).to eq('Rechercher dans cette démarche')
+
+    label = subject.css('label[for="query"]').first
+    expect(label).not_to be_nil
+    expect(label['class']).to include('sr-only')
+    expect(label.text.strip).to eq('Rechercher dans cette démarche')
+
     expect(subject.css('form').first['action']).to include('set_full_text_filter')
   end
 end
