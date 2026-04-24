@@ -1,0 +1,20 @@
+fr:
+  instructeurs:
+    dossier_layout:
+      banner:
+        title: "Nouvel affichage des champs"
+        body_html: "Les champs remplis par l'usager s'affichent désormais sur plusieurs colonnes pour mieux exploiter la largeur de l'écran."
+        keep_new: "Garder le nouvel affichage"
+        back_to_old: "Revenir à l'ancien affichage"
+      toggle:
+        during_rollout:
+          switch_to_stacked: "Revenir à l'ancien affichage"
+          switch_to_grid: "Revenir au nouvel affichage"
+        neutral:
+          switch_to_stacked: "Affichage en liste"
+          switch_to_grid: "Affichage en grille"
+        aria_label_switch_to_stacked: "Basculer vers l'affichage empilé"
+        aria_label_switch_to_grid: "Basculer vers l'affichage en grille"
+        live_grid: "Affichage en grille activé"
+        live_stacked: "Affichage empilé activé"
+        error: "Impossible d'enregistrer votre préférence"

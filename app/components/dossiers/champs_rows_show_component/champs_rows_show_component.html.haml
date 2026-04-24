@@ -1,6 +1,7 @@
 -# pf: wrapper .champs-grid + .champ-grid-item pour l'affichage multi-colonnes côté instructeur.
 -# La logique de largeur est centralisée dans InstructeurChampDisplayHelper (aucun override par dynamic_type).
-.champs-grid{ class: (profile == 'instructeur' && helpers.instructeur_champs_layout_mode == :stacked ? 'champs-grid--stacked' : nil) }
+- force_stacked = profile == 'instructeur' && (!helpers.dossier_layout_grid_enabled?(current_instructeur) || helpers.instructeur_champs_layout_mode(current_instructeur) == :stacked)
+.champs-grid{ class: (force_stacked ? 'champs-grid--stacked' : nil) }
   - each_champ do |champ|
     - if champ.repetition?
       .champ-grid-item.champ-grid-item--full
