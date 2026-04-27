@@ -885,11 +885,20 @@ describe Instructeurs::ProceduresController, type: :controller do
 
       context 'when updating deletion_email_notifications_enabled' do
         let(:assign_to) { instructeur.assign_to.joins(:groupe_instructeur).find_by(groupe_instructeurs: { procedure: procedure }) }
+        let!(:instructeur_procedure) { create(:instructeurs_procedure, instructeur:, procedure:) }
 
         before do
           patch :update_email_notifications, params: {
             procedure_id: procedure.id,
-            assign_to: { id: assign_to.id, deletion_email_notifications_enabled: false },
+            assign_to: {
+              id: assign_to.id,
+              deletion_email_notifications_enabled: false,
+              daily_email_notifications_enabled: false,
+              weekly_email_notifications_enabled: false,
+              instant_email_dossier_notifications_enabled: false,
+              instant_email_message_notifications_enabled: false,
+              instant_expert_avis_email_notifications_enabled: false,
+            },
           }
         end
 
