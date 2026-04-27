@@ -100,7 +100,7 @@ module Users
     end
 
     def ensure_update_email_is_authorized
-      if current_user.instructeur? && !target_email_allowed?
+      if (current_user.instructeur? || current_user.administrateur?) && !target_email_allowed?
         flash.alert = t('users.profil.ensure_update_email_is_authorized.email_not_allowed', contact_email: Current.contact_email, requested_email: requested_email)
         redirect_to profil_path
       end
