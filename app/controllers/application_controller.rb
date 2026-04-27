@@ -24,6 +24,7 @@ class ApplicationController < ActionController::Base
   before_action :setup_javascript_settings
   before_action :setup_tracking
   before_action :set_customizable_view_path
+  before_action :display_csrf_retry_message
 
   around_action :switch_locale
 
@@ -39,9 +40,9 @@ class ApplicationController < ActionController::Base
     Current.host = request.host_with_port
 
     if Current.host.include?(".gouv.fr")
-      Current.application_name = "demarches.numerique.gouv.fr"
-      Current.contact_email = "contact@demarches.numerique.gouv.fr"
-      Current.application_base_url = "https://demarches.numerique.gouv.fr"
+      Current.application_name = "demarche.numerique.gouv.fr"
+      Current.contact_email = "contact@demarche.numerique.gouv.fr"
+      Current.application_base_url = "https://demarche.numerique.gouv.fr"
     else
       Current.application_name = APPLICATION_NAME
       Current.contact_email = CONTACT_EMAIL
@@ -147,6 +148,14 @@ class ApplicationController < ActionController::Base
 
   def feature_enabled?(feature_name)
     Flipper.enabled?(feature_name, current_user)
+  end
+
+  private
+
+  def display_csrf_retry_message
+    return unless params[:csrf_retry] == '1'
+
+    flash.now[:alert] = I18n.t('errors.csrf_retry.message')
   end
 
   def authenticate_logged_user!

@@ -13,6 +13,7 @@ module Instructeurs
 
     before_action :redirect_on_dossier_not_found, only: :show
     before_action :redirect_on_dossier_in_batch_operation, only: [:archive, :unarchive, :follow, :unfollow, :passer_en_instruction, :repasser_en_construction, :repasser_en_instruction, :terminer, :restore, :destroy, :extend_conservation]
+    before_action :dossier_with_champs, only: [:show]
     before_action :set_gallery_attachments, only: [:show, :pieces_jointes, :annotations_privees, :avis, :messagerie, :personnes_impliquees, :reaffectation, :rendez_vous]
     before_action :retrieve_procedure_presentation, only: [:annotations_privees, :avis_new, :avis, :messagerie, :personnes_impliquees, :pieces_jointes, :reaffectation, :rendez_vous, :show, :dossier_labels, :passer_en_instruction, :repasser_en_construction, :repasser_en_instruction, :terminer, :pending_correction, :create_avis, :create_commentaire]
     before_action :set_notifications, only: [:show, :annotations_privees, :avis, :avis_new, :messagerie, :personnes_impliquees, :pieces_jointes, :reaffectation, :rendez_vous, :dossier_labels, :repasser_en_construction, :repasser_en_instruction, :create_avis, :create_commentaire]
@@ -21,7 +22,6 @@ module Instructeurs
     after_action :mark_messagerie_as_read, only: [:messagerie, :create_commentaire, :pending_correction]
     after_action :mark_avis_as_read, only: [:avis]
     after_action :mark_annotations_privees_as_read, only: [:annotations_privees, :update_annotations]
-    after_action :mark_pieces_jointes_as_read, only: [:pieces_jointes]
     after_action -> { destroy_notification(:dossier_modifie) }, only: [:show], if: -> { @notifications.any?(&:dossier_modifie?) }
     after_action -> { destroy_notification(:message) }, only: [:messagerie], if: -> { @notifications.any?(&:message?) }
     after_action -> { destroy_notification(:annotation_instructeur) }, only: [:annotations_privees], if: -> { @notifications.any?(&:annotation_instructeur?) }
@@ -433,7 +433,6 @@ module Instructeurs
 
     def pieces_jointes
       @dossier = dossier
-      @pieces_jointes_seen_at = current_instructeur.follows.find_by(dossier: dossier)&.pieces_jointes_seen_at
     end
 
     def next
@@ -506,7 +505,7 @@ module Instructeurs
     end
 
     def dossier_with_champs
-      @dossier ||= DossierPreloader.load_one(dossier_scope.find(params[:dossier_id]))
+      @dossier ||= DossierPreloader.load_one(dossier_scope.find(params[:dossier_id]), pj_template: true)
     end
 
     def commentaire_params
@@ -606,10 +605,6 @@ module Instructeurs
       current_instructeur.mark_tab_as_seen(dossier, :annotations_privees)
     end
 
-    def mark_pieces_jointes_as_read
-      current_instructeur.mark_tab_as_seen(dossier, :pieces_jointes)
-    end
-
     def aasm_error_message(exception, target_state:)
       if exception.originating_state == target_state
         "Le dossier est déjà #{dossier_display_state(target_state, lower: true)}."
@@ -670,7 +665,11 @@ module Instructeurs
 
         champs_attachments_ids + commentaires_attachments_ids + avis_attachments_ids + [justificatif_motivation_id]
       end
-      @gallery_attachments = ActiveStorage::Attachment.where(id: gallery_attachments_ids)
+
+      @gallery_attachments = ActiveStorage::Attachment
+        .with_all_variant_records
+        .includes(:record, :blob)
+        .where(id: gallery_attachments_ids)
     end
   end
 end

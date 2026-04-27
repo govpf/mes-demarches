@@ -82,6 +82,12 @@ class Champs::SiretChamp < Champ
     (data || {}).fetch('multiple_found', []) || []
   end
 
+  def save_additional_job_exception(exception, code)
+    exceptions = fetch_external_data_exceptions || []
+    exceptions << ExternalDataException.new(reason: exception.inspect, code:)
+    update_columns(fetch_external_data_exceptions: exceptions)
+  end
+
   private
 
   # pf: query ISPF for a partial Tahiti number and dispatch on result count
