@@ -12,7 +12,9 @@ module Maintenance
       subject(:collection) { described_class.collection }
 
       context "when there is assign_to with default preferences" do
-        let!(:ignored_assign_to) { create(:assign_to, procedure:, instructeur:) }
+        # pf: les défauts PF activent les notifs instantanées (commit 952eb7ece0, migration 20230907014353)
+        # donc un assign_to "ignored" doit explicitement mettre tous les flags à false
+        let!(:ignored_assign_to) { create(:assign_to, procedure:, instructeur:, instant_email_dossier_notifications_enabled: false, instant_email_message_notifications_enabled: false) }
         let!(:keept_assign_to) { create(:assign_to, groupe_instructeur: other_groupe_instructeur, instructeur:, daily_email_notifications_enabled: true) }
 
         it "returns assign_to that have at least one preference with true" do
@@ -45,8 +47,8 @@ module Maintenance
           expect(ip.last_revision_seen_id).to eq(procedure.published_revision_id)
           expect(ip.position).to eq(1)
           expect(ip.daily_email_summary).to be(true)
-          expect(ip.instant_email_new_dossier).to be(false)
-          expect(ip.instant_email_new_message).to be(false)
+          expect(ip.instant_email_new_dossier).to be(true)
+          expect(ip.instant_email_new_message).to be(true)
           expect(ip.instant_email_new_expert_avis).to be(false)
           expect(ip.weekly_email_summary).to be(false)
         end
@@ -63,8 +65,8 @@ module Maintenance
           expect(ip.last_revision_seen_id).to eq(123)
           expect(ip.position).to eq(456)
           expect(ip.daily_email_summary).to be(true)
-          expect(ip.instant_email_new_message).to be(false)
-          expect(ip.instant_email_new_dossier).to be(false)
+          expect(ip.instant_email_new_message).to be(true)
+          expect(ip.instant_email_new_dossier).to be(true)
           expect(ip.instant_email_new_expert_avis).to be(false)
           expect(ip.weekly_email_summary).to be(false)
         end
