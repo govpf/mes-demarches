@@ -1121,6 +1121,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_24_100307) do
     t.string "path"
     t.boolean "piece_justificative_multiple", default: true, null: false
     t.boolean "pro_connect_restricted", default: false, null: false
+    t.string "pro_connect_restriction", default: "none", null: false
     t.boolean "procedure_expires_when_termine_enabled", default: true
     t.datetime "published_at"
     t.bigint "published_revision_id"
