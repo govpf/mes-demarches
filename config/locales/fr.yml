@@ -463,7 +463,7 @@ fr:
       avis:
         introduction_file_explaination: "Fichier joint à la demande d’avis"
       search:
-        dossier_not_in_instructor_group: "Le dossier n° %{dossier_id} de la procédure « %{procedure_libelle} » correspond à votre recherche mais il est rattaché au groupe d’instructeurs « %{groupe_instructeur_label} »."
+        dossier_not_in_instructor_group: "Le dossier n° %{dossier_id} de la procédure « %{procedure_libelle} » correspond à votre recherche mais il est rattaché à un autre groupe d’instructeurs."
         deleted_dossier: "Le dossier n° %{dossier_id} de la procédure « %{procedure_libelle} » correspond à votre recherche mais il a été supprimé le %{deleted_at}."
         hidden_dossier: "Le dossier n° %{dossier_id} de la procédure « %{procedure_libelle} » correspond à votre recherche mais il a été placé dans la "
         hidden_dossier_link: "corbeille"
