@@ -175,10 +175,23 @@ module DossierFormulaRefreshConcern
   end
 
   def formule_champs_for_tdc(tdc)
-    # pf: filter sur stable_id seulement — le dossier est lié à une revision
-    # donnée, et stable_id est unique dans une revision. Le champ projeté
-    # peut ne pas avoir type_de_champ_id (construction lazy via build_champ).
-    (project_champs_public_all + project_champs_private_all)
-      .filter { |c| c.stable_id == tdc.stable_id }
+    # pf: lookup direct sur la collection (Champs persistés ou in-memory du
+    # stream courant). Évite project_champs_*_all qui matérialiserait tous les
+    # TDC de la révision pour chaque appel — coût O(N TDC) × O(N formules)
+    # par cascade, alors qu'on n'a besoin que des Champs du tdc en cours.
+    champs_for_tdc = champs.select { |c| c.stable_id == tdc.stable_id && c.stream == stream }
+    return champs_for_tdc if champs_for_tdc.any?
+
+    # pf: aucun Champ persisté pour ce TDC. Pour permettre à
+    # compute_formulas_in_order de matérialiser le Champ via champ_upsert_by!
+    # (cas rebase d'une formule ajoutée à la révision, ou tout flow où le TDC
+    # formule existe sans son Champ), on retourne un Champ in-memory.
+    #
+    # Skip pour les TDC enfants d'une répétition : leur INSERT requiert un
+    # row_id (cf. check_valid_row_id_on_write?) qu'on n'a pas ici. Le Champ
+    # formule sera créé en cascade au moment où une row source change.
+    return [] if tdc.child?(revision)
+
+    [tdc.build_champ(dossier: self, row_id: nil, stream: stream)]
   end
 end
