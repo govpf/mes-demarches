@@ -243,12 +243,12 @@ module DossierChampsConcern
     champs.where(id: changed_main_champ_ids, stream: history_stream)
       .where(type: ['Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp'])
       .with_attached_piece_justificative_file.find_each do |champ|
-        files = champ.piece_justificative_file.map { _1.slice(:filename, :checksum) }
-        if files.present?
-          champ.update_column(:data, files)
-          champ.piece_justificative_file.purge_later
-        end
+      files = champ.piece_justificative_file.map { _1.slice(:filename, :checksum) }
+      if files.present?
+        champ.update_column(:data, files)
+        champ.piece_justificative_file.purge_later
       end
+    end
 
     # update loaded champ instances
     champs.each do |champ|
@@ -434,39 +434,44 @@ module DossierChampsConcern
     end
 
     # Needed when a revision change the champ type in this case, we reset the champ data
+    needs_clone_from_main = false
     if champ.class != type_de_champ.champ_class
       champ = champ.becomes!(type_de_champ.champ_class)
       champ.assign_attributes(value: nil, value_json: nil, external_id: nil, data: nil)
     elsif stream != Champ::MAIN_STREAM && champ.previously_new_record?
-      main_stream_champ = champs.find_by(stable_id: type_de_champ.stable_id, row_id:, stream: Champ::MAIN_STREAM)
-      champ.clone_value_from(main_stream_champ) if main_stream_champ.present?
+      needs_clone_from_main = true
     end
 
-    # If the champ returned from `create_or_find_by` is not the same as the one already loaded in `dossier.champs`, we need to update the association cache
+    # maj de champs
     loaded_champ = champs.find { [_1.stream, _1.public_id] == [champ.stream, champ.public_id] }
     if loaded_champ.nil?
-      # pf: champ fraîchement créé via create_or_find_by! — l'ajouter à
-      # la collection en mémoire pour que les futurs lookups in-memory
-      # (champs.find ligne ~427) le retrouvent. Sans ce push, une seconde
-      # invocation de champ_upsert_by! dans la même requête (cas du double
-      # save dans update_dossier_and_compute_errors) ne trouve pas le Champ
-      # existant et tombe dans create_or_find_by! qui crée un doublon —
-      # la contrainte unique Postgres sur (dossier_id, stable_id, row_id,
-      # stream) ne matche pas avec row_id=NULL (Postgres traite NULL ≠ NULL
-      # dans les UNIQUE par défaut, sans NULLS NOT DISTINCT).
+      # pf for race conditions only, multi-thread update of same champ
       association(:champs).target.push(champ) if champs.loaded?
     elsif loaded_champ.object_id != champ.object_id
       association(:champs).target = champs - [loaded_champ] + [champ]
     end
-
-    # If the dossier instance on champ has changed we need to update the association cache
+    # pf: rattacher le Champ à self AVANT toute opération qui déclenche la
+    # cascade (clone_value_from → save! → refresh_dependent_formulas). Sinon
+    # la cascade lit champ.dossier qui pointe sur l'instance Dossier
+    # fantôme matérialisée par create_or_find_by!, et tous les Champs
+    # formule créés en cascade s'attachent à ce fantôme — invisibles pour
+    # le contrôleur qui retravaille avec self. Au 2e save (re-cascade
+    # via assign_attributes + save), self.champs ne les contient pas et
+    # create_or_find_by! ne détecte pas le doublon en BDD car la contrainte
+    # unique sur (dossier_id, stream, stable_id, row_id) ne matche pas
+    # quand row_id IS NULL → INSERT crée un doublon.
     if champ.dossier.object_id != object_id
       champ.association(:dossier).target = self
     end
-
     reset_champs_cache
 
-    champ.save!
+    if needs_clone_from_main
+      main_stream_champ = champs.find_by(stable_id: type_de_champ.stable_id, row_id:, stream: Champ::MAIN_STREAM)
+      champ.clone_value_from(main_stream_champ) if main_stream_champ.present?
+    else
+      champ.save!
+    end
+
     champ
   end
 
