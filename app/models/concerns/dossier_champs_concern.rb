@@ -259,6 +259,22 @@ module DossierChampsConcern
       end
     end
 
+    # pf: recalcul des formules privées après merge buffer→main. Pendant
+    # que le dossier était en user:buffer, la cascade refresh_dependent_formulas
+    # a explicitement skippé les formules privées (cf. check_valid_stream_on_write?
+    # qui interdit l'écriture privée hors main). Maintenant que les sources
+    # promues sont sur main, on peut les recalculer proprement.
+    #
+    # On cible uniquement les formules privées : les formules publiques ont
+    # été calculées en cascade pendant que le dossier était en buffer (sur
+    # le stream user:buffer), puis promues à main par l'update_all ci-dessus.
+    private_formula_stable_ids = revision.types_de_champ_private
+      .filter(&:formule?)
+      .map(&:stable_id)
+    if private_formula_stable_ids.any?
+      compute_formulas_in_order(only: private_formula_stable_ids)
+    end
+
     reset_champs_cache
   end
 
