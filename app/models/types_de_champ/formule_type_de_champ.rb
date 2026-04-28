@@ -12,6 +12,65 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     0.seconds
   end
 
+  # pf: Une formule est calculée par le système, jamais "remplie" par l'usager.
+  # Elle ne doit donc JAMAIS être considérée comme obligatoirement à remplir
+  # pour le check au dépôt (cf. Dossier#check_mandatory_and_visible_champs qui
+  # appelle mandatory_blank? → champ_blank_or_invalid?). Si la formule plante
+  # (source manquante), c'est la SOURCE qui doit bloquer le dépôt, pas la
+  # formule — sinon l'usager voit deux messages d'erreur dont un absurde.
+  # Defensive : couvre aussi les TDC existants en DB avec mandatory:true issus
+  # d'avant le masquage de la case dans l'éditeur.
+  def champ_blank_or_invalid?(_champ)
+    false
+  end
+
+  # pf: Le storage d'une formule reflète son type :
+  # - nil → la formule n'a pas pu se calculer (Dentaku silent fail, source
+  #   manquante, etc.) → on affiche un marker "—" pour distinguer
+  # - "" → la formule a retourné une chaîne vide intentionnellement
+  #   (ex: SI(cond, "X", "")) → on affiche vide
+  # - boolean → "true"/"false" (cohérence avec yes_no/checkbox)
+  # - date → ISO 8601 ("1989-11-15")
+  # - datetime → ISO 8601 avec heure ("2026-04-24T15:40:00...")
+  # - autres → texte brut
+  # À l'affichage usager (vue dossier), on traduit en valeur lisible française.
+  FORMULA_NOT_COMPUTED_MARKER = '—'
+
+  def champ_value(champ)
+    raw = champ.read_attribute(:value)
+    return FORMULA_NOT_COMPUTED_MARKER if raw.nil?
+    return champ_default_value if raw == ''
+
+    case @type_de_champ.formule_output_type
+    when 'boolean'
+      raw == Champs::BooleanChamp::TRUE_VALUE ? 'Oui' : 'Non'
+    when 'date'
+      format_date_value(raw)
+    when 'datetime'
+      format_datetime_value(raw)
+    else
+      super
+    end
+  end
+
+  def champ_value_for_export(champ, path = :value)
+    raw = champ.read_attribute(:value)
+    # pf: pour l'export, pas de marker — nil et "" ressortent vides (cellule
+    # vide dans CSV/Excel). Le marker "—" est uniquement pour l'affichage UI.
+    return nil if raw.blank?
+
+    case @type_de_champ.formule_output_type
+    when 'boolean'
+      raw == Champs::BooleanChamp::TRUE_VALUE ? 'Oui' : 'Non'
+    when 'date'
+      format_date_value(raw)
+    when 'datetime'
+      format_datetime_value(raw)
+    else
+      super
+    end
+  end
+
   # pf: la colonne d'un champ formule doit porter le type réel de sa sortie
   # (number, boolean, string), pas le :text par défaut de TypeDeChamp.column_type.
   # Ça permet à FormulaCalculationService de dispatcher correctement dans
@@ -39,8 +98,29 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     case @type_de_champ.formule_output_type
     when 'boolean' then :boolean
     when 'number' then :decimal
+    when 'date' then :date
+    when 'datetime' then :datetime
     else :text # 'string' ou nil
     end
+  end
+
+  # pf: Parse une chaîne ISO 8601 ("1989-11-15") et la formate en français
+  # lisible (date sans heure). Fallback sur la valeur brute en cas d'échec.
+  def format_date_value(value)
+    parsed = Time.zone.parse(value.to_s)
+    parsed ? I18n.l(parsed.to_date, format: '%d %B %Y') : value
+  rescue ArgumentError
+    value
+  end
+
+  # pf: Parse une chaîne ISO 8601 ("2026-04-24T15:40:00") et la formate en
+  # français lisible (date + heure, format I18n par défaut). Fallback sur
+  # la valeur brute en cas d'échec.
+  def format_datetime_value(value)
+    parsed = Time.zone.parse(value.to_s)
+    parsed ? I18n.l(parsed) : value
+  rescue ArgumentError
+    value
   end
 
   def validate_expression
@@ -64,6 +144,31 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
 
     if expression.scan(/\{[^}]*\}/).any? { |ref| ref.length < 3 }
       @type_de_champ.errors.add(:formule_expression, :invalid_field_reference)
+      return
+    end
+
+    # pf: Détection STATIQUE de référence circulaire (au lieu d'au runtime
+    # dans FormulaCalculationService#compute_value qui itérait `all_champs`
+    # pour chaque calcul, déclenchant des project_champs cascade en draft
+    # revision). Le cycle est une propriété intrinsèque du graphe de TDCs
+    # de la révision, indépendante du dossier ou des valeurs : on le valide
+    # une fois à la sauvegarde et on n'y revient plus.
+    if circular_reference?
+      @type_de_champ.errors.add(:formule_expression, :circular_reference)
+      return
+    end
+
+    # pf: Détection STATIQUE de référence "forward" (vers un TDC situé à
+    # une position postérieure à la formule courante). L'éditeur frontend
+    # filtre déjà les variables proposées via available_columns_for_formula,
+    # mais on verrouille côté backend : un déplacement de TDC peut transformer
+    # une référence valide en forward reference. Dans ce cas la formule
+    # devient invalide et l'admin doit corriger ou changer l'ordre.
+    #
+    # On s'appuie directement sur la liste de colonnes autorisées par
+    # l'éditeur — garantit la cohérence UI/backend.
+    if forward_reference?
+      @type_de_champ.errors.add(:formule_expression, :forward_reference)
       return
     end
 
@@ -95,10 +200,17 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     # les variables seront résolues au calcul.
   end
 
+  # pf: Inférence du type de sortie depuis l'AST Dentaku.
+  # SI / IF nativement délègue au type de sa branche `left` (cf. Dentaku::AST::If#type),
+  # donc une formule `SI(cond, "OK", "KO")` ressort :string et est correctement
+  # mappée à 'string'. Idem pour les autres fonctions (CONCATENER → :string,
+  # SOMME → :numeric, etc.) via les alias des classes natives.
   def infer_output_type(ast_node)
     case ast_node&.type
     when :logical then 'boolean'
     when :string then 'string'
+    when :datetime then 'datetime'
+    when :date then 'date'
     else 'number' # :numeric, nil, ou inconnu → fallback number
     end
   end
@@ -137,5 +249,79 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     end
     return nil if stable_id.nil?
     revision.types_de_champ.find { |t| t.stable_id == stable_id }
+  end
+
+  # pf: Détecte si l'expression du TDC en cours de save introduit un cycle
+  # dans le graphe des dépendances entre formules. BFS depuis les références
+  # directes du TDC courant ; chaque formule référencée est expansée via sa
+  # formule_expression stockée. Si on revient sur le stable_id du TDC
+  # courant, c'est un cycle.
+  #
+  # Cas couverts :
+  # - Auto-référence : `{Self}` directement dans sa propre formule
+  # - Cycle indirect : A → B → A
+  # - Cycle long : A → B → C → ... → A
+  # Cas non-cycle :
+  # - DAG sans retour
+  # - Référence à un champ non-formule (terminal de la traversée)
+  # - Référence à un champ système (ignoré par extract_dependent_stable_ids)
+  def circular_reference?
+    current_id = @type_de_champ.stable_id
+    return false if current_id.nil?
+
+    revision = @type_de_champ.revisions.last
+    return false if revision.nil?
+
+    # pf: snapshot des TDCs de la révision indexés par stable_id, pour
+    # éviter un find linéaire à chaque expansion.
+    tdcs_by_stable_id = revision.types_de_champ.index_by(&:stable_id)
+
+    visited = Set.new
+    queue = extract_dependent_stable_ids(@type_de_champ.formule_expression)
+
+    until queue.empty?
+      next_id = queue.shift
+      return true if next_id == current_id
+      next if visited.include?(next_id)
+
+      visited.add(next_id)
+      next_tdc = tdcs_by_stable_id[next_id]
+      next unless next_tdc&.formule?
+
+      queue.concat(extract_dependent_stable_ids(next_tdc.formule_expression))
+    end
+
+    false
+  end
+
+  # pf: Extrait les stable_ids référencés dans une expression au format stocké
+  # ({tdc123} ou {tdc123/path}). Les colonnes système ({dossier_number}, etc.)
+  # sont ignorées — elles ne sont jamais des formules donc jamais source de cycle.
+  def extract_dependent_stable_ids(expression)
+    return [] if expression.blank?
+    expression.scan(/\{tdc(\d+)/).map { |m| m[0].to_i }
+  end
+
+  # pf: Vrai si l'expression référence un stable_id qui n'est pas dans la
+  # liste de colonnes autorisées par l'éditeur (= TDC situés à une position
+  # antérieure). Implémenté en réutilisant available_columns_for_formula
+  # plutôt qu'en réécrivant la logique de position : garantit que la règle
+  # backend est exactement celle de l'autocomplete frontend (même cas
+  # répétition, même cas annotation privée référençant des champs publics).
+  def forward_reference?
+    return false if @type_de_champ.stable_id.nil?
+
+    revision = @type_de_champ.revisions.last
+    return false if revision.nil?
+
+    coordinate = revision.coordinate_for(@type_de_champ)
+    return false if coordinate.nil?
+
+    allowed_stable_ids = coordinate.available_columns_for_formula
+      .filter_map { |col| col.stable_id if col.is_a?(Columns::ChampColumn) }
+      .to_set
+
+    extract_dependent_stable_ids(@type_de_champ.formule_expression)
+      .any? { |dep_id| !allowed_stable_ids.include?(dep_id) }
   end
 end

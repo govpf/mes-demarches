@@ -2,7 +2,6 @@
 # frozen_string_literal: true
 
 class FormulaCalculationService
-  class CircularReferenceError < StandardError; end
   class InvalidFieldReferenceError < StandardError; end
   class CalculationError < StandardError; end
 
@@ -31,8 +30,13 @@ class FormulaCalculationService
     @variables = {}
     @var_counter = 0
 
-    # Detect circular references
-    detect_circular_references(formule_champ, expression)
+    # pf: La détection de référence circulaire est faite STATIQUEMENT à la
+    # validation du TDC formule (cf. FormuleTypeDeChamp#validate_expression
+    # → circular_reference?). Un cycle est une propriété intrinsèque du
+    # graphe de TDCs de la révision, pas du dossier ou des valeurs : pas
+    # besoin de la re-vérifier à chaque compute. Avant ce déplacement, le
+    # check runtime déclenchait `all_champs` (= project_champs cascade qui
+    # recompute toutes les formules en draft revision) à chaque calcul.
 
     # Resolve field references using columns
     resolved_expression = resolve_column_references(expression)
@@ -40,10 +44,16 @@ class FormulaCalculationService
     # Calculate with Dentaku
     result = @calculator.evaluate(resolved_expression, @variables)
 
+    # pf: Dentaku.evaluate retourne nil silencieusement quand l'évaluation
+    # échoue (type mismatch, fonction inconnue, source manquante, etc.).
+    # On propage ce nil jusqu'à la couche de stockage pour le distinguer
+    # d'une string vide légitime (ex: SI(cond, "X", "")). À l'affichage,
+    # nil → marker "—", "" → vide. Permet aussi de retirer la validation
+    # presence qui bloquait inutilement le dépôt.
+    return nil if result.nil?
+
     # Format result
     format_result(result)
-  rescue CircularReferenceError
-    "Erreur : référence circulaire détectée"
   rescue InvalidFieldReferenceError => e
     "Erreur : champ '#{e.message}' introuvable"
   rescue Dentaku::ParseError, Dentaku::TokenizerError => e
@@ -56,10 +66,15 @@ class FormulaCalculationService
 
   # pf: Crée un calculator Dentaku avec les fonctions FR, utilisable
   # pour la validation syntaxique sans instancier le service complet.
+  # Le paramètre locale: est conservé pour rétro-compatibilité d'API mais
+  # n'a plus d'effet sur l'enregistrement des fonctions — les noms (SI,
+  # ARRONDI, SOMME…) sont des identifiants d'API stables stockés en DB,
+  # indépendants de la locale d'affichage de l'utilisateur.
   def self.new_calculator(locale: I18n.locale)
+    _ = locale
     calculator = Dentaku::Calculator.new
     new_instance = allocate
-    new_instance.send(:add_french_functions, calculator) if locale.to_s.start_with?('fr')
+    new_instance.send(:add_french_functions, calculator)
     calculator
   end
 
@@ -124,15 +139,37 @@ class FormulaCalculationService
     'Not' => 'NON'
   }.freeze
 
+  # pf: Mapping inverse des classes natives Dentaku vers les noms FR aliasés
+  # (cf. config/initializers/dentaku_french_aliases.rb). Permet aux messages
+  # d'erreur de référencer le nom que l'admin a tapé (`SI`, `SOMME`, ...) au
+  # lieu de la classe interne (If, Sum, ...).
+  NATIVE_TO_FR_NAMES = {
+    'If' => 'SI',
+    'Sum' => 'SOMME',
+    'Avg' => 'MOYENNE',
+    'Round' => 'ARRONDI',
+    'Concat' => 'CONCATENER',
+    'StringFunctions::Concat' => 'CONCATENER',
+    'Left' => 'GAUCHE',
+    'StringFunctions::Left' => 'GAUCHE',
+    'Right' => 'DROITE',
+    'StringFunctions::Right' => 'DROITE',
+    'Mid' => 'STXT',
+    'StringFunctions::Mid' => 'STXT',
+    'Len' => 'NBCAR',
+    'StringFunctions::Len' => 'NBCAR'
+  }.freeze
+
   def self.format_operator(klass)
-    # Fonction custom (SOMME, SI, CONCATENER, ...) : klass.name est un Symbol
-    # ex: :SI → "SI"
+    # Fonction custom (CHERCHE, SUBSTITUE, MAJUSCULE, AGE, ...) : klass.name
+    # est un Symbol — ex: :SI → "SI"
     return klass.name.to_s.upcase if klass.name.is_a?(Symbol)
 
     name = klass.name.to_s
-    # Opérateur built-in : Dentaku::AST::Addition → "+"
+    # Opérateur built-in (Dentaku::AST::Addition → "+") ou fonction native
+    # aliasée (Dentaku::AST::If → "SI")
     short = name.sub('Dentaku::AST::', '')
-    OPERATOR_SYMBOLS[short] || short
+    NATIVE_TO_FR_NAMES[short] || OPERATOR_SYMBOLS[short] || short
   end
 
   # pf: Détecte l'usage du signe '=' seul (confusion fréquente avec '==').
@@ -175,71 +212,63 @@ class FormulaCalculationService
   private
 
   def create_calculator
+    # pf: Les fonctions FR (SI, ARRONDI, SOMME, AGE, ...) sont enregistrées
+    # systématiquement, indépendamment de @locale. Les noms de fonctions sont
+    # des identifiants stables stockés en DB ; l'admin a écrit "SI(...)" et
+    # ce nom doit être résolu au calcul peu importe la langue d'affichage de
+    # l'utilisateur qui consulte le dossier. Sans ça, un instructeur en UI
+    # anglaise voyait toutes les formules retourner nil silencieusement.
     calculator = Dentaku::Calculator.new
-
-    if @locale.to_s.start_with?('fr')
-      add_french_functions(calculator)
-    end
-
+    add_french_functions(calculator)
     calculator
   end
 
   def add_french_functions(calculator)
-    # Add French aliases for common Excel functions
-    # Support both array and variadic arguments: SOMME(1, 2, 3) and SOMME([1, 2, 3])
-    calculator.add_function(:SOMME, :numeric, -> (*args) { args.flatten.sum })
-    calculator.add_function(:MOYENNE, :numeric, -> (*args) {
-      values = args.flatten
-      values.sum.to_f / values.length
-    })
-    calculator.add_function(:SI, :numeric, -> (condition, true_value, false_value) {
-      # Treat 0, false, nil, and empty string as false (Excel-like behavior)
-      truthy = case condition
-      when nil, false, '', 0, 0.0
-        false
-      else
-        true
-      end
-      truthy ? true_value : false_value
-    })
-    calculator.add_function(:MIN, :numeric, -> (*args) { args.flatten.min })
-    calculator.add_function(:MAX, :numeric, -> (*args) { args.flatten.max })
-    calculator.add_function(:ABS, :numeric, -> (value) { value.abs })
-    calculator.add_function(:ARRONDI, :numeric, -> (value, precision = 0) { value.round(precision) })
+    # pf: La majorité des fonctions FR sont des **alias purs des classes
+    # natives Dentaku** déclarés dans config/initializers/dentaku_french_aliases.rb.
+    # L'avantage : l'inférence de type de l'AST suit la classe native (ex: SI
+    # infère le type de ses branches dynamiquement), ce qui évite le bug de
+    # "0.0" affiché pour une formule SI retournant du texte. Aliases couverts :
+    # SI, SOMME, MOYENNE, ABS, ARRONDI, CONCATENER, GAUCHE, DROITE, STXT,
+    # NBCAR, CHERCHE, SUBSTITUE. Ne pas les redéclarer ici : ça écraserait
+    # l'alias par un add_function avec un type figé.
+    #
+    # MIN et MAX sont natifs Dentaku sous le même nom — pas besoin d'alias.
+    #
+    # Restent custom ici uniquement les fonctions qui n'ont pas d'équivalent
+    # natif (MAJUSCULE, MINUSCULE, SUPPRESPACE, VALEUR), les opérateurs
+    # logiques avec sémantique Ruby pure (ET, OU, NON) car les natifs
+    # AND/OR/NOT sont strictement booléens (retournent nil sur 0/""), et les
+    # fonctions de date.
 
-    # Add French aliases for logical operators (Excel-compatible syntax)
+    # pf: Sémantique Ruby pure — seuls false/nil sont falsy. L'admin écrit
+    # ses comparaisons explicitement (`ET({Age} > 18, {Habitant} == "Yes")`).
     calculator.add_function(:ET, :logical, -> (*args) {
-      if args.empty?
-        raise Dentaku::ArgumentError, 'ET() nécessite au moins un argument'
-      end
-      args.all? { |arg| arg == true || (arg != false && arg != nil && arg != 0 && arg != '') }
+      raise Dentaku::ArgumentError, 'ET() nécessite au moins un argument' if args.empty?
+      args.all? { |arg| arg }
     })
     calculator.add_function(:OU, :logical, -> (*args) {
-      if args.empty?
-        raise Dentaku::ArgumentError, 'OU() nécessite au moins un argument'
-      end
-      args.any? { |arg| arg == true || (arg != false && arg != nil && arg != 0 && arg != '') }
+      raise Dentaku::ArgumentError, 'OU() nécessite au moins un argument' if args.empty?
+      args.any? { |arg| arg }
     })
-    calculator.add_function(:NON, :logical, -> (value) {
-      !(value == true || (value != false && value != nil && value != 0 && value != ''))
-    })
+    calculator.add_function(:NON, :logical, -> (value) { !value })
 
-    # pf: French aliases for text functions
-    calculator.add_function(:CONCATENER, :string, -> (*args) { args.flatten.map(&:to_s).join })
-    calculator.add_function(:GAUCHE, :string, -> (text, n) { text.to_s[0, n.to_i] })
-    calculator.add_function(:DROITE, :string, -> (text, n) { text.to_s[(-n.to_i)..] || '' })
-    calculator.add_function(:STXT, :string, -> (text, start, n) { text.to_s[(start.to_i - 1), n.to_i] || '' })
-    calculator.add_function(:NBCAR, :numeric, -> (text) { text.to_s.length })
+    calculator.add_function(:MAJUSCULE, :string, -> (text) { text.to_s.upcase })
+    calculator.add_function(:MINUSCULE, :string, -> (text) { text.to_s.downcase })
+    calculator.add_function(:SUPPRESPACE, :string, -> (text) { text.to_s.strip.gsub(/\s+/, ' ') })
+
+    # pf: CHERCHE custom (case-insensitive, 3e arg start, retourne 0 si non
+    # trouvé) — sémantique Excel utile pour l'admin, divergente de FIND natif.
     calculator.add_function(:CHERCHE, :numeric, -> (search, text, start = 1) {
       pos = text.to_s.downcase.index(search.to_s.downcase, start.to_i - 1)
       pos ? pos + 1 : 0
     })
+
+    # pf: SUBSTITUE custom (gsub — remplace toutes les occurrences). Substitute
+    # natif Dentaku fait sub (première occurrence seulement).
     calculator.add_function(:SUBSTITUE, :string, -> (text, old_str, new_str) {
       text.to_s.gsub(old_str.to_s, new_str.to_s)
     })
-    calculator.add_function(:MAJUSCULE, :string, -> (text) { text.to_s.upcase })
-    calculator.add_function(:MINUSCULE, :string, -> (text) { text.to_s.downcase })
-    calculator.add_function(:SUPPRESPACE, :string, -> (text) { text.to_s.strip.gsub(/\s+/, ' ') })
 
     # pf: conversion explicite texte → nombre (équivalent VALUE/CNUM d'Excel).
     # Gère le séparateur décimal français (virgule) et retourne 0 si non parsable.
@@ -312,31 +341,6 @@ class FormulaCalculationService
   # On normalise vers Date quand l'appelant veut un jour calendrier.
   def to_date(value)
     value.respond_to?(:to_date) ? value.to_date : value
-  end
-
-  def detect_circular_references(formule_champ, expression, visited = Set.new)
-    champ_stable_id = formule_champ.stable_id
-
-    if visited.include?(champ_stable_id)
-      raise CircularReferenceError, "Référence circulaire détectée"
-    end
-
-    visited.add(champ_stable_id)
-
-    # Extract field references from expression (now stable_ids)
-    field_references = extract_field_references(expression)
-
-    field_references.each do |stable_id|
-      referenced_champ = find_champ_by_stable_id(stable_id)
-      next unless referenced_champ&.formule?
-
-      # Recursively check for circular references
-      detect_circular_references(
-        referenced_champ,
-        referenced_champ.type_de_champ.formule_expression,
-        visited.dup
-      )
-    end
   end
 
   def resolve_field_references(expression)
@@ -474,19 +478,6 @@ class FormulaCalculationService
     case type
     when :date, :datetime then nil
     else 0
-    end
-  end
-
-  def extract_field_references(expression)
-    expression.scan(/\{([^}]+)\}/).filter_map do |match|
-      ref = match[0].strip
-      # pf: Support both {123} (old) and {tdc123} / {tdc123/path} (new) formats
-      if /^\d+$/.match?(ref)
-        ref.to_i
-      elsif ref.match?(/^tdc(\d+)/)
-        ref.match(/^tdc(\d+)/)[1].to_i
-      end
-      # System columns (dossier_*, individual_*) are ignored for circular reference detection
     end
   end
 
