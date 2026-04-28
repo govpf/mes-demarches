@@ -46,10 +46,10 @@ module MailerDefaultsConfigurableConcern
     private
 
     def set_currents_for_demarche_numerique_gouv_fr
-      Current.application_name = "demarche.numerique.gouv.fr"
+      Current.application_name = APPLICATION_NAME
       Current.host = ENV["APP_HOST"]
-      Current.contact_email = "contact@demarche.numerique.gouv.fr"
-      Current.no_reply_email = "Démarche Numérique <ne-pas-repondre@demarche.numerique.gouv.fr>"
+      Current.contact_email = CONTACT_EMAIL
+      Current.no_reply_email = NO_REPLY_EMAIL
     end
 
     def derive_from_header

@@ -21,7 +21,7 @@ RSpec.describe AdministrationMailer, type: :mailer do
     describe "when the user is already active" do
       let(:last_sign_in_at) { Time.zone.now }
       it do
-        expect(subject.body).not_to include(admin_activate_path(token: token))
+        expect(subject.body).not_to include(users_activate_path(token: token))
         expect(subject.body).to include(edit_user_password_url(admin_user, reset_password_token: token))
       end
     end
