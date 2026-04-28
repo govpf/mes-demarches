@@ -408,7 +408,7 @@ RSpec.describe DossierMailer, type: :mailer do
 
     it 'includes unsubscribe link' do
       expect(subject.body).to include('Ne plus recevoir de mail')
-      expect(subject.body).to include(notification_preferences_instructeur_procedure_url(dossier.procedure, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).to include(notification_preferences_instructeur_procedure_url(dossier.procedure))
     end
   end
 end
