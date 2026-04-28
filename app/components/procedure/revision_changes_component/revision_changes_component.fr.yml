@@ -13,9 +13,9 @@ fr:
 
   update_referentiel: &update_referentiel
     referentiel_url: "L'URL de l'API du champ « %{label} » a été modifiée. La nouvelle URL est « %{to} »."
+    referentiel_baserow_table: "La table de recherche du champ « %{label} » a été modifiée."
     referentiel_mode: "Le mode d'intérogation du référentiel du champ « %{label} » a été modifié. Le nouveau mode est « %{to} »."
     referentiel_hint: "L'indication à fournir à l'usager concernant le format de saisie attendu du champ « %{label} » a été modifiée. La nouvelle indication est « %{to} »."
-    referentiel_test_data: "L'exemple de saisie valide du champ « %{label} » a été modifié. Le nouvel exemple est « %{to} »."
     referentiel_mapping: "Le mapping des données entre le champ et l'API du champ « %{label} » a été modifié."
 
   public:
@@ -67,6 +67,8 @@ fr:
     update_expression_reguliere_error_message: Le message d’erreur de l’expression régulière du champ « %{label} » a été modifié. Le nouveau message est « %{to} ».
     update_referentiel: "Le référentiel du champ « %{label} » a été modifié."
     update_drop_down_mode: "Le type de liste de choix du champ « %{label} » a été modifié."
+    remove_formule_expression: La formule de calcul du champ « %{label} » a été supprimée.
+    update_formule_expression: La formule de calcul du champ « %{label} » a été modifiée. La nouvelle formule est « %{to} ».
     update_positive_number: "Le champ « %{label} » a été modifié.  %{to} "
     add_positive_constraint: "Le nombre doit désormais être positif"
     remove_positive_constraint: "Le nombre peut désormais être négatif"
@@ -152,6 +154,8 @@ fr:
     remove_max_character_length: Le nombre de caractères maximum pour l'annotation privée « %{label} » a été supprimé.
     update_max_character_length: Le nombre de caractères maximum pour l'annotation privée « %{label} » a été modifié. Le maximum est désormais %{to}.
     update_drop_down_mode: "Le type de liste de choix de l'annotation privée « %{label} » a été modifié."
+    remove_formule_expression: La formule de calcul de l’annotation privée « %{label} » a été supprimée.
+    update_formule_expression: La formule de calcul de l’annotation privée « %{label} » a été modifiée. La nouvelle formule est « %{to} ».
     <<: *update_referentiel
   ineligibilite_rules:
     add: La condition d’inéligibilité « %{new_condition} » a été ajoutée.

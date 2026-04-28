@@ -91,7 +91,7 @@ module Administrateurs
       # cache result to avoid multiple uninterlaced computations
       if @activated_attestation_params.nil?
         @activated_attestation_params = params.require(:attestation_template)
-          .permit(:title, :body, :footer, :activated, :logo, :signature)
+          .permit(:title, :body, :footer, :activated, :logo, :signature, :kind)
       end
 
       @activated_attestation_params
@@ -125,6 +125,7 @@ module Administrateurs
 
       v2_template = @procedure.attestation_templates.build(
         version: 2,
+        kind: v1_template.kind,
         json_body: tiptap_content.deep_stringify_keys,
         activated: v1_template.activated,
         footer: v1_template.footer,

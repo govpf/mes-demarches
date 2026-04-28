@@ -1,3 +1,5 @@
+- content_for(:title, procedure_tab_title(@procedure, "Groupes d’instructeurs"))
+
 - if @procedure.routing_alert
   - content_for(:sticky_header) do
     = render partial: 'administrateurs/groupe_instructeurs/routing_alert_sticky_header', locals: { procedure: @procedure }

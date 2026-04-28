@@ -1,3 +1,4 @@
+- content_for(:title, procedure_tab_title(@procedure))
 = render partial: 'administrateurs/breadcrumbs',
     locals: { steps: [['Démarches', admin_procedures_back_path(@procedure)],
                       ["#{@procedure.libelle.truncate_words(10)}"]],
@@ -41,7 +42,7 @@
         = link_to 'Clore', admin_procedure_close_path(procedure_id: @procedure.id), class: 'fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-calendar-close-fill', id: "close-procedure-link"
 
 .fr-container
-  - if @procedure.api_entreprise_token_expired_or_expires_soon?
+  - if @procedure.api_entreprise_token.expired_or_expires_soon?
     = render Dsfr::AlertComponent.new(state: :error, title: t(:technical_issues, scope: [:administrateurs, :procedures]), extra_class_names: 'fr-mb-2w') do |c|
       - c.with_body do
         %ul.fr-mb-0
@@ -101,7 +102,8 @@
 
   %h3.fr-h6 Autres paramètres
   .fr-grid-row.fr-grid-row--gutters.fr-mb-5w
-    = render Procedure::Card::AttestationComponent.new(procedure: @procedure)
+    = render Procedure::Card::AttestationComponent.new(procedure: @procedure, kind: AttestationTemplate.kinds.fetch(:acceptation))
+    = render Procedure::Card::AttestationComponent.new(procedure: @procedure, kind: AttestationTemplate.kinds.fetch(:refus))
     = render Procedure::Card::ExpertsComponent.new(procedure: @procedure)
     = render Procedure::Card::EmailsComponent.new(procedure: @procedure)
     = render Procedure::Card::AnnotationsComponent.new(procedure: @procedure)

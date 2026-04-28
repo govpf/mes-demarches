@@ -1,2 +1,11 @@
 en:
-  value: Valeur
+  value: Value
+  operator: Operator
+  operators:
+    match: On
+    before: Before
+    after: After
+    this_week: This week
+    this_month: This month
+    this_year: This year
+  update: Update

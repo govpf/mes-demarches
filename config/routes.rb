@@ -100,9 +100,7 @@ Rails.application.routes.draw do
 
     resources :team_accounts, only: [:index, :show]
 
-    resources :email_events, only: [:index, :show] do
-      post :generate_dolist_report, on: :collection
-    end
+    resources :email_events, only: [:index, :show]
 
     resources :dubious_procedures, only: [:index]
     resources :published_procedures, only: [:index]
@@ -276,6 +274,7 @@ Rails.application.routes.draw do
   post "webhooks/helpscout", to: "webhook#helpscout"
   post "webhooks/helpscout_support_dev", to: "webhook#helpscout_support_dev"
   match "webhooks/helpscout", to: lambda { |_| [204, {}, nil] }, via: :head
+  post "webhooks/crisp", to: "webhook#crisp"
 
   get '/preremplir/:path', to: 'prefill_descriptions#edit', as: :preremplir
   get '/preremplir/:path/schema', to: 'api/public/v1/json_description_procedures#show', as: :prefill_json_description, defaults: { format: :json }
@@ -290,6 +289,7 @@ Rails.application.routes.draw do
     # pf referentiel configurable
     get 'referentiel_de_polynesie/:table/search', to: 'referentiel_de_polynesie#search', as: :rdp_search
 
+    post :referentiel, to: 'referentiel#search', as: :data_source_referentiel
     get :adresse, to: 'adresse#search', as: :data_source_adresse
     get :commune, to: 'commune#search', as: :data_source_commune
     get :education, to: 'education#search', as: :data_source_education
@@ -320,6 +320,7 @@ Rails.application.routes.draw do
     get 'activate' => '/users/activate#new'
     patch 'activate' => '/users/activate#create'
     get 'confirm_email/:token' => '/users/activate#confirm_email', as: :confirm_email
+    post 'resend_verification_email', to: '/users/activate#resend_verification_email', as: :resend_confirmation_email
   end
 
   # order matters: we don't want those routes to match /admin/procedures/:id
@@ -342,6 +343,7 @@ Rails.application.routes.draw do
   resources :invites, only: [:show, :destroy] do
     collection do
       post 'dossier/:dossier_id', to: 'invites#create', as: :dossier
+      get 'dossier/:dossier_id/invites', to: 'invites#index', as: :dossier_index
     end
   end
 
@@ -397,6 +399,7 @@ Rails.application.routes.draw do
       get '/:path/sign_up', action: 'sign_up', as: :sign_up
       get '/:path/france_connect', action: 'france_connect', as: :france_connect
       get '/:path/:provider', action: 'openid_connect', as: :openid_connect, constraints: { :provider => /google|microsoft|yahoo|tatou/ }
+      # get '/:path/pro_connect', action: 'pro_connect', as: :pro_connect
     end
 
     resources :dossiers, only: [:index, :show, :destroy, :new] do
@@ -426,6 +429,8 @@ Rails.application.routes.draw do
         get 'transferer', to: 'dossiers#transferer'
         get 'papertrail', format: :pdf
         get 'set_accuse_lecture_agreement_at'
+        get 'corbeille', to: 'dossiers#show_in_trash'
+        get 'supprime', to: 'dossiers#show_deleted'
       end
 
       collection do
@@ -508,7 +513,11 @@ Rails.application.routes.draw do
 
     resources :procedure_presentation, only: [:update] do
       member do
-        patch 'refresh_column_filter'
+        post 'refresh_column_filter'
+        post 'add_filter'
+        post 'update_filter'
+        delete 'remove_filter'
+        post 'toggle_filters_expanded'
       end
     end
 
@@ -565,6 +574,7 @@ Rails.application.routes.draw do
           resources :batch_operations, only: [:create], path: "(:statut)/dossiers", defaults: { statut: 'a-suivre' } do
             collection do
               post 'create_batch_avis' => 'batch_operations#create_batch_avis'
+              post 'create_batch_commentaire' => 'batch_operations#create_batch_commentaire'
             end
           end
         end
@@ -597,7 +607,7 @@ Rails.application.routes.draw do
             post 'add_instructeur'
             delete 'remove_instructeur'
             post 'add_signature'
-            get 'preview_attestation'
+            get 'preview_attestation_acceptation'
           end
         end
 
@@ -609,13 +619,14 @@ Rails.application.routes.draw do
         get 'stats'
         get 'exports'
         get 'export_templates'
-        get 'email_notifications'
+        get 'notification_preferences'
         get 'administrateurs'
         get 'history', as: :procedure_history
         patch 'update_email_notifications'
+        patch 'update_badge_notifications'
         get 'deleted_dossiers'
         get 'email_usagers'
-        post 'create_multiple_commentaire'
+        post 'create_multiple_commentaire_for_brouillons'
       end
     end
   end
@@ -755,7 +766,7 @@ Rails.application.routes.draw do
           get 'reaffecter_dossiers'
           post 'reaffecter'
           post 'add_signature'
-          get 'preview_attestation'
+          get 'preview_attestation_acceptation'
         end
 
         collection do
@@ -815,6 +826,9 @@ Rails.application.routes.draw do
 
       resources :referentiels, only: [:new, :create, :edit, :update], path: ':stable_id', constraints: { stable_id: /\d+/ } do
         member do
+          get :configuration_error
+          patch :update_autocomplete_configuration
+          get :autocomplete_configuration
           get :mapping_type_de_champ
           patch :update_mapping_type_de_champ
           patch :update_prefill_and_display_type_de_champ

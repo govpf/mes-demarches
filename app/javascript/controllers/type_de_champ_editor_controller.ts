@@ -59,13 +59,31 @@ export class TypeDeChampEditorController extends ApplicationController {
           this.requestSubmitForm(target.form);
         }
       },
-      changeable: (target) => this.save(target.form)
+      changeable: (target) => this.save(target.form),
+      // pf: les éléments "inputable" (textarea, input text) ne déclenchent
+      // normalement pas de save dans onChange — ils sont pris en charge par
+      // onInput. Mais pour les champs opt-out autosave (formule), on utilise
+      // l'événement `change` (firé au blur) comme seul point de sauvegarde.
+      inputable: (target) => {
+        if (
+          (target as HTMLElement).dataset?.autosaveOnBlurOnly === 'true' &&
+          target.form
+        ) {
+          this.save(target.form);
+        }
+      }
     });
   }
 
   private onInput(event: Event) {
     matchInputElement(event.target, {
       inputable: (target) => {
+        // pf: opt-out — certains champs ne doivent pas déclencher l'autosave
+        // à chaque frappe (ex: formule, où une expression en cours de saisie
+        // est intrinsèquement invalide). Le `change` handler s'en charge au blur.
+        if ((target as HTMLElement).dataset?.autosaveOnBlurOnly === 'true')
+          return;
+
         if (target.form) {
           this.#dirtyForms.add(target.form);
           this.debounce(this.save, AUTOSAVE_DEBOUNCE_DELAY);

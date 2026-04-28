@@ -25,7 +25,7 @@ RSpec.describe DossierStateConcern do
       procedure.draft_revision.remove_type_de_champ(91)
       procedure.draft_revision.remove_type_de_champ(95)
       procedure.draft_revision.remove_type_de_champ(942)
-      procedure.publish_revision!
+      procedure.publish_revision!(procedure.administrateurs.first)
       perform_enqueued_jobs
       dossier.reload
       champ_repetition = dossier.project_champs_public.find { _1.stable_id == 94 }
@@ -55,6 +55,28 @@ RSpec.describe DossierStateConcern do
       expect(dossier.champs.filter { _1.stable_id.in?([90, 92, 93, 97, 961, 951]) }.size).to eq(0)
       expect(dossier.submitted_revision_id).to eq(dossier.revision_id)
     end
+
+    context "when procedure is sva/svr or declarative" do
+      before do
+        procedure.defaut_groupe_instructeur.add_instructeurs(ids: create_list(:instructeur, 2).map(&:id))
+      end
+
+      it 'does not create notification when procedure is sva/svr', :slow do
+        procedure.update!(sva_svr: { 'decision' => 'sva' }, declarative_with_state: nil)
+        dossier.procedure.reload
+        dossier.passer_en_construction!
+
+        expect(DossierNotification.count).to eq(0)
+      end
+
+      it 'does not create notification when procedure is declarative', :slow do
+        procedure.update!(declarative_with_state: "accepte", sva_svr: {})
+        dossier.procedure.reload
+        dossier.passer_en_construction!
+
+        expect(DossierNotification.count).to eq(0)
+      end
+    end
   end
 
   describe 'submit en construction' do
@@ -77,6 +99,26 @@ RSpec.describe DossierStateConcern do
       expect(dossier.champs.filter { _1.stable_id.in?([92, 93, 97, 961, 951]) }.size).to eq(0)
       expect(dossier.submitted_revision_id).to eq(dossier.revision_id)
     end
+
+    context "when there are instructeurs wish to be notified" do
+      let(:instructeur_follower) { create(:instructeur, followed_dossiers: [dossier]) }
+      let(:instructeur_not_follower) { create(:instructeur) }
+      let!(:instructeur_not_follower_procedure) { create(:instructeurs_procedure, instructeur: instructeur_not_follower, procedure:, display_dossier_modifie_notifications: 'all') }
+
+      before do
+        procedure.defaut_groupe_instructeur.add_instructeurs(ids: [instructeur_follower, instructeur_not_follower].map(&:id))
+      end
+
+      it "create dossier_modifie notification only for instructeur wish to be notified" do
+        dossier.submit_en_construction!
+
+        expect(DossierNotification.count).to eq(2)
+
+        expect(DossierNotification.distinct.pluck(:dossier_id)).to eq([dossier.id])
+        expect(DossierNotification.pluck(:instructeur_id)).to match_array([instructeur_follower.id, instructeur_not_follower.id])
+        expect(DossierNotification.distinct.pluck(:notification_type)).to eq(["dossier_modifie"])
+      end
+    end
   end
 
   describe 'accepter' do
@@ -93,6 +135,17 @@ RSpec.describe DossierStateConcern do
       expect(dossier.champs.size).to eq(15)
       expect(dossier.champs.filter { _1.row? && _1.stable_id == 94 }.size).to eq(1)
       expect(dossier.champs.filter { _1.stable_id.in?([93, 98]) }.size).to eq(0)
+    end
+
+    context "when dossier has attente_avis notification" do
+      let(:instructeur) { create(:instructeur) }
+      let!(:notification) { create(:dossier_notification, dossier:, instructeur:, notification_type: :attente_avis) }
+
+      it "destroy the notification" do
+        dossier.accepter!(motivation: 'test')
+
+        expect(DossierNotification.count).to eq(0)
+      end
     end
   end
 
@@ -111,12 +164,23 @@ RSpec.describe DossierStateConcern do
       expect(dossier.champs.filter { _1.row? && _1.stable_id == 94 }.size).to eq(1)
       expect(dossier.champs.filter { _1.stable_id.in?([93, 98]) }.size).to eq(0)
     end
+
+    context "when dossier has attente_avis notification" do
+      let(:instructeur) { create(:instructeur) }
+      let!(:notification) { create(:dossier_notification, dossier:, instructeur:, notification_type: :attente_avis) }
+
+      it "destroy the notification" do
+        dossier.refuser!(motivation: 'test')
+
+        expect(DossierNotification.count).to eq(0)
+      end
+    end
   end
 
   describe 'classer_sans_suite' do
     let(:dossier_state) { :en_instruction }
 
-    it do
+    it '', :slow do
       expect(dossier.champs.size).to eq(20)
       expect(dossier.champs.filter { _1.row? && _1.stable_id == 94 }.size).to eq(2)
       expect(dossier.champs.filter { _1.stable_id.in?([93, 98]) }.size).to eq(2)
@@ -127,6 +191,17 @@ RSpec.describe DossierStateConcern do
       expect(dossier.champs.size).to eq(15)
       expect(dossier.champs.filter { _1.row? && _1.stable_id == 94 }.size).to eq(1)
       expect(dossier.champs.filter { _1.stable_id.in?([93, 98]) }.size).to eq(0)
+    end
+
+    context "when dossier has attente_avis notification" do
+      let(:instructeur) { create(:instructeur) }
+      let!(:notification) { create(:dossier_notification, dossier:, instructeur:, notification_type: :attente_avis) }
+
+      it "destroy the notification" do
+        dossier.classer_sans_suite!(motivation: 'test')
+
+        expect(DossierNotification.count).to eq(0)
+      end
     end
   end
 
@@ -153,7 +228,8 @@ RSpec.describe DossierStateConcern do
     describe 'en_instruction' do
       context "when dossier has a dossier_depose notification" do
         let(:auto_archive_on) { 1.day.from_now }
-        let!(:notification) { create(:dossier_notification, :for_groupe_instructeur, groupe_instructeur_id: dossier.groupe_instructeur_id, dossier:) }
+        let(:instructeur) { create(:instructeur) }
+        let!(:notification) { create(:dossier_notification, dossier:, instructeur:) }
 
         it "destroy the notification" do
           travel_to(2.days.from_now)
@@ -161,6 +237,71 @@ RSpec.describe DossierStateConcern do
 
           expect(DossierNotification.count).to eq(0)
         end
+      end
+    end
+  end
+
+  describe 'warm_pj_previews' do
+    let(:procedure) { create(:procedure, :published, :for_individual, types_de_champ_public: [{ type: :piece_justificative, stable_id: 100 }], declarative_with_state: nil, auto_archive_on: nil) }
+    let(:dossier) { create(:dossier, :en_instruction, :with_individual, procedure:) }
+    let(:champ_pj) { dossier.project_champs_public.find { _1.stable_id == 100 } }
+
+    before do
+      champ_pj.piece_justificative_file.attach(
+        io: StringIO.new(Rails.root.join('spec/fixtures/files/logo_test_procedure.png').read(mode: 'rb')),
+        filename: 'logo_test_procedure.png',
+        content_type: 'image/png'
+      )
+    end
+
+    it 'generates variants for image attachments' do
+      attachment = champ_pj.piece_justificative_file.attachments.first
+      expect(attachment.variant(resize_to_limit: [400, 400]).key).to be_nil
+
+      expect { dossier.send(:warm_pj_previews) }.to change { ActiveStorage::VariantRecord.count }.by(1)
+
+      expect(attachment.variant(resize_to_limit: [400, 400]).key).not_to be_nil
+    end
+
+    it 'does not raise when variant processing fails' do
+      attachment = champ_pj.piece_justificative_file.attachments.first
+      allow(attachment).to receive(:variant).and_raise(StandardError.new('S3 upload failed'))
+
+      expect { dossier.send(:warm_pj_previews) }.not_to raise_error
+    end
+
+    context 'when a VariantRecord is orphaned (no S3 file)' do
+      it 'cleans up the orphan variant record' do
+        attachment = champ_pj.piece_justificative_file.attachments.first
+        blob = attachment.blob
+
+        # Create an orphan VariantRecord with an image blob that has no backing file in storage.
+        # We insert records directly to simulate the Rails bug (VariantRecord committed before S3 upload).
+        orphan_blob = ActiveStorage::Blob.create_before_direct_upload!(
+          filename: 'variant.png',
+          byte_size: 100,
+          checksum: 'abc123',
+          content_type: 'image/png'
+        )
+        orphan_variant = ActiveStorage::VariantRecord.create!(blob: blob, variation_digest: 'orphan_digest')
+        # Directly create the attachment record without triggering file validation
+        ActiveStorage::Attachment.create!(
+          name: 'image',
+          record_type: 'ActiveStorage::VariantRecord',
+          record_id: orphan_variant.id,
+          blob_id: orphan_blob.id
+        )
+        orphan_variant.reload
+
+        # Make variant processing raise to trigger cleanup
+        allow(attachment).to receive(:variant).and_raise(StandardError.new('processing failed'))
+
+        # The orphan blob key does not exist in storage
+        expect(orphan_blob.service.exist?(orphan_blob.key)).to be false
+
+        expect {
+          dossier.send(:warm_pj_previews)
+        }.to change { ActiveStorage::VariantRecord.where(id: orphan_variant.id).count }.from(1).to(0)
       end
     end
   end

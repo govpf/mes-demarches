@@ -15,7 +15,7 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
   end
 
   def find_attestation_card(v2: true, with_nested_selector: nil)
-    attestation_path = v2 ? edit_admin_procedure_attestation_template_v2_path(procedure)
+    attestation_path = v2 ? edit_admin_procedure_attestation_template_v2_path(procedure, attestation_kind: :acceptation)
                           : edit_admin_procedure_attestation_template_path(procedure)
 
     full_selector = [
@@ -29,7 +29,7 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
     let(:procedure) do
       create(:procedure, :published,
         administrateurs: [administrateur],
-        attestation_template: build(:attestation_template))
+        attestation_acceptation_template: build(:attestation_template))
     end
 
     scenario do
@@ -104,7 +104,7 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
 
         first_content == [
           { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision", "mentionSuggestionChar" => "@" } }, # added by click above
-          { "text" => " ", "type" => "text" },
+          { "type" => "text", "text" => " " },
           { "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service", "mentionSuggestionChar" => "@" } } # defaut initial content
         ]
       }
@@ -134,16 +134,16 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
       accept_alert do
         click_on "Publier les modifications"
       end
-      expect(procedure.reload.attestation_template.label_direction).to eq("plop")
+      expect(procedure.reload.attestation_acceptation_template.label_direction).to eq("plop")
       expect(page).to have_text(/La nouvelle version de l’attestation/)
     end
 
     context "tag in error" do
       before do
         tdc = procedure.active_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'age')
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
 
-        attestation = procedure.build_attestation_template(version: 2, json_body: AttestationTemplate::TIPTAP_BODY_DEFAULT, label_logo: "test")
+        attestation = procedure.attestation_templates.build(version: 2, json_body: AttestationTemplate::TIPTAP_BODY_DEFAULT, label_logo: "test", kind: "acceptation")
         attestation.json_body["content"] << { type: :mention, attrs: { id: "tdc#{tdc.stable_id}", label: tdc.libelle } }
         attestation.save!
 
@@ -151,7 +151,7 @@ describe 'As an administrateur, I want to manage the procedure’s attestation',
       end
 
       scenario do
-        visit edit_admin_procedure_attestation_template_v2_path(procedure)
+        visit edit_admin_procedure_attestation_template_v2_path(procedure, attestation_kind: :acceptation)
         expect(page).to have_content("Le champ « Contenu de l’attestation » contient la balise \"age\"")
 
         click_on "date de décision"

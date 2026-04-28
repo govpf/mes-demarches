@@ -1,24 +1,36 @@
 - if @search_terms.present?
   - content_for(:title, t(".title_search", scope: :metas, terms: @search_terms))
 - else
-  - content_for(:title, t(".title", scope: :metas))
+  - if @statut == 'en-cours'
+    - content_for(:title, t(".title_statut_in_progress", scope: :metas))
+  - elsif @statut == 'traites'
+    - content_for(:title, t(".title_statut_finished", scope: :metas))
+  - elsif @statut == 'dossiers-invites'
+    - content_for(:title, t(".title_statut_invited", scope: :metas))
+  - elsif @statut == 'dossiers-expirant'
+    - content_for(:title, t(".title_statut_expiring", scope: :metas))
+  - elsif @statut == 'dossiers-supprimes'
+    - content_for(:title, t(".title_statut_trash", scope: :metas))
+  - elsif @statut == 'dossiers-transferes'
+    - content_for(:title, t(".title_statut_transfered", scope: :metas))
+  - else
+    - content_for(:title, t(".title", scope: :metas))
 
 .dossiers-headers.sub-header
   .fr-container
     %h1.fr-h3= t('views.users.dossiers.index.dossiers')
 
-    - if current_user.dossiers.count > 2 || current_user.dossiers_invites.count > 2  || @procedures_for_select.size > 1
+    - if current_user.dossiers.size > 2 || current_user.dossiers_invites.size > 2  || @procedures_for_select.size > 1
       .fr-grid-row.fr-grid-row--gutters
-        - if current_user.dossiers.count > 2 || current_user.dossiers_invites.count > 2
-          .fr-col-12.fr-col-md
-            #search-2.fr-search-bar
-              = form_tag dossiers_path, method: :get, :role => "search", class: "width-100 fr-mb-5w" do
-                = hidden_field_tag :procedure_id, params[:procedure_id]
-                = label_tag "q", t('views.users.dossiers.search.label'), class: 'fr-label fr-mb-1w'
-                .flex
-                  = text_field_tag "q", "#{@search_terms if @search_terms.present?}", placeholder: t('views.users.dossiers.search.prompt'), class: "fr-input"
-                  %button.fr-btn.fr-btn--sm
-                    = t('views.users.dossiers.search.label')
+        - if current_user.dossiers.size > 2 || current_user.dossiers_invites.size > 2
+          #search-2.fr-search-bar.fr-col-12.fr-col-md
+            = form_tag dossiers_path, method: :get, :role => "search", class: "width-100 fr-mb-5w", "aria-label": t('views.users.dossiers.dossiers_menu') do
+              = hidden_field_tag :procedure_id, params[:procedure_id]
+              = label_tag "q", t('views.users.dossiers.search.label'), class: 'fr-label fr-mb-1w'
+              .flex
+                = text_field_tag "q", "#{@search_terms if @search_terms.present?}", placeholder: t('views.users.dossiers.search.placeholder'), class: "fr-input"
+                %button.fr-btn.fr-btn--sm
+                  = t('views.users.dossiers.search.button')
         - if @procedures_for_select.size > 1
           .fr-col-12.fr-col-md
             = render Dossiers::UserProcedureFilterComponent.new(procedures_for_select: @procedures_for_select)
@@ -54,7 +66,7 @@
                   badge: number_with_html_delimiter(@dossiers_close_to_expiration.count))
 
               - if @dossiers_supprimes.present?
-                = tab_item(t('pluralize.dossiers_supprimes', count: @dossiers_supprimes.count),
+                = tab_item(t('pluralize.dossiers_supprimes_html', count: @dossiers_supprimes.count),
                 dossiers_path(statut: 'dossiers-supprimes', procedure_id: params[:procedure_id]),
                 active: @statut == 'dossiers-supprimes',
                 badge: number_with_html_delimiter(@dossiers_supprimes.count))
@@ -72,9 +84,15 @@
         - if @first_brouillon_recently_updated.present?
           = render Dsfr::CalloutComponent.new(title: t('users.dossiers.header.callout.first_brouillon_recently_updated_title'), heading_level: 'h2') do |c|
             - c.with_body do
-              %p
-                = t('users.dossiers.header.callout.first_brouillon_recently_updated_text', time_ago: time_ago_in_words(@first_brouillon_recently_updated.created_at), libelle: @first_brouillon_recently_updated.procedure.libelle  )
-              = link_to t('users.dossiers.header.callout.first_brouillon_recently_updated_button'), url_for_dossier(@first_brouillon_recently_updated), class: 'fr-btn'
+              = t('users.dossiers.header.callout.first_brouillon_recently_updated_text', time_ago: time_ago_in_words(@first_brouillon_recently_updated.created_at), libelle: @first_brouillon_recently_updated.procedure.libelle  )
+              %br
+              = link_to url_for_dossier(@first_brouillon_recently_updated), class: 'fr-btn' do
+                = t('users.dossiers.header.callout.first_brouillon_recently_updated_button')
+                %span.visually-hidden= t('utils.file')
+
+      - if @statut == "dossiers-supprimes" && @search_terms.blank?
+        .fr-mb-3w.text-right
+          = link_to t('views.users.dossiers.index.see_deleted_dossiers_history'), deleted_dossiers_path, class: "fr-link"
 
       - if @search_terms.present?
         %h2.page-title

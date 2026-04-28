@@ -13,8 +13,10 @@ module Users
 
     ACTIONS_ALLOWED_TO_ANY_USER = [:index, :new, :deleted_dossiers] + INSTANCE_ACTIONS_ALLOWED_TO_ANY_USER
     ACTIONS_ALLOWED_TO_OWNER_OR_INVITE = [:show, :destroy, :demande, :messagerie, :brouillon, :modifier, :update, :create_commentaire, :papertrail, :restore, :champ] + INSTANCE_ACIONS_ALLOWED_TO_OWNER_OR_INVITE
+    TRASH_ACTIONS = [:show_in_trash, :show_deleted]
 
-    before_action :ensure_ownership!, except: ACTIONS_ALLOWED_TO_ANY_USER + ACTIONS_ALLOWED_TO_OWNER_OR_INVITE
+    before_action :ensure_ownership!, except: ACTIONS_ALLOWED_TO_ANY_USER + ACTIONS_ALLOWED_TO_OWNER_OR_INVITE + TRASH_ACTIONS
+    before_action :redirect_if_hidden_or_deleted_dossier, only: [:show]
     before_action :ensure_ownership_or_invitation!, only: ACTIONS_ALLOWED_TO_OWNER_OR_INVITE
     before_action :ensure_dossier_can_be_updated, only: [:update_identite, :update_siret, :brouillon, :submit_brouillon, :submit_en_construction, :modifier, :update, :champ]
     before_action :ensure_dossier_can_be_filled, only: [:brouillon, :modifier, :submit_brouillon, :submit_en_construction, :update]
@@ -22,7 +24,6 @@ module Users
     before_action :ensure_editing_brouillon, only: [:brouillon]
     before_action :forbid_closed_submission!, only: [:submit_brouillon]
     before_action :ensure_dossier_has_changes, only: [:submit_en_construction], if: :update_with_stream?
-    before_action :set_dossier_as_editing_fork, only: [:submit_en_construction], if: :update_with_fork?
     before_action :set_dossier_stream, only: [:modifier, :update, :submit_en_construction, :champ], if: :update_with_stream?
     before_action :show_demarche_en_test_banner
     before_action :store_user_location!, only: :new
@@ -32,11 +33,13 @@ module Users
     end
 
     def index
-      ordered_dossiers = Dossier.includes(:procedure).order_by_depose_at
+      ordered_dossiers = Dossier.includes(:pending_corrections, procedure: :procedure_paths).order_by_depose_at
 
-      user_revisions = ProcedureRevision.where(dossiers: current_user.dossiers.visible_by_user)
-      invite_revisions = ProcedureRevision.where(dossiers: current_user.dossiers_invites.visible_by_user)
-      all_dossier_procedures = Procedure.where(revisions: user_revisions.or(invite_revisions))
+      user_revision_ids = current_user.dossiers.visible_by_user.select(:revision_id).to_sql
+      invite_revision_ids = current_user.dossiers_invites.select(:revision_id).to_sql
+      all_revision_id = "(#{user_revision_ids}) UNION (#{invite_revision_ids})"
+
+      all_dossier_procedures = Procedure.where(id: ProcedureRevision.where("id IN (#{all_revision_id})").select(:procedure_id))
 
       @procedures_for_select = all_dossier_procedures
         .distinct(:procedure_id)
@@ -95,7 +98,7 @@ module Users
           render(template: 'dossiers/show', formats: [:pdf])
         end
         format.all do
-          @dossier = dossier
+          @dossier = dossier_with_champs
         end
       end
     end
@@ -107,11 +110,12 @@ module Users
     def messagerie
       @dossier = dossier
       @commentaire = Commentaire.new
+      Commentaire.mark_instructeur_messages_as_seen(@dossier)
     end
 
     def rendez_vous
       @dossier = dossier
-      @rdv = @dossier.rdvs.booked.by_starts_at.last
+      @rdv = @dossier.last_booked_rdv
     end
 
     def attestation
@@ -125,7 +129,7 @@ module Users
 
     def qrcode
       if dossier&.match_encoded_date?(:created_at, params[:created_at]) && dossier&.attestation&.pdf&.attached?
-        attestation_template = dossier.attestation_template
+        attestation_template = dossier.attestation_acceptation_template
         if attestation_template&.activated
           @attestation = attestation_template.render_attributes_for(dossier: dossier)
           render 'qrcode'
@@ -135,6 +139,16 @@ module Users
       else
         render 'qrcode'
       end
+    end
+
+    def show_in_trash
+      @hidden_dossier = hidden_dossier_for(params[:id])
+      raise ActiveRecord::RecordNotFound if @hidden_dossier.nil?
+    end
+
+    def show_deleted
+      @deleted_dossier = deleted_dossier_for(params[:id])
+      raise ActiveRecord::RecordNotFound if @deleted_dossier.nil?
     end
 
     def papertrail
@@ -174,11 +188,11 @@ module Users
         end
 
         @dossier.update!(autorisation_donnees: true, identity_updated_at: Time.zone.now)
-        DossierNotification.create_notification(dossier, :dossier_modifie)
 
         flash.notice = t('.identity_saved')
 
         if dossier.en_construction?
+          DossierNotification.create_notification(dossier, :dossier_modifie)
           redirect_to demande_dossier_path(@dossier)
         else
           redirect_to brouillon_dossier_path(@dossier)
@@ -204,18 +218,15 @@ module Users
       # This is the only remaining use of User#siret: it could be refactored away.
       # However some existing users have a siret but no associated etablissement,
       # so we would need to analyze the legacy data and decide what to do with it.
-      siret = siret_params[:siret]
 
-      current_user.siret = siret
-
-      siret_model = Siret.new(siret: siret)
-      if !siret_model.valid?
+      siret_model = Siret.new(siret: siret_params[:siret])
+      valid = siret_model.valid?
+      current_user.siret = sanitized_siret = siret_model.siret
+      if !valid
         return render_siret_error(siret_model.errors.full_messages)
       end
 
-      sanitized_siret = siret_model.siret
-
-      # PF: Handle ambiguous TAHITI numbers (< 9 chars)
+      # pf: Handle ambiguous TAHITI numbers (< 9 chars)
       if sanitized_siret.length < 9
         @etablissements = begin
           APIEntrepriseService.list_etablissements(sanitized_siret, @dossier.procedure.id)
@@ -279,12 +290,12 @@ module Users
       end
 
       @etablissements = begin
-        APIEntrepriseService.list_etablissements(@siret_prefix, @dossier.procedure.id)
+              APIEntrepriseService.list_etablissements(@siret_prefix, @dossier.procedure.id)
                         rescue => error
                           Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: @siret_prefix })
                           flash.alert = t('errors.messages.siret_network_error')
                           return redirect_to siret_dossier_path(@dossier)
-      end
+            end
 
       if @etablissements.blank?
         flash.alert = t('errors.messages.siret_unknown')
@@ -330,12 +341,22 @@ module Users
       submit_dossier_and_compute_errors
 
       if @dossier.errors.blank? && @dossier.can_passer_en_construction?
-        @dossier.passer_en_construction!
-        DossierNotification.create_notification(@dossier, :dossier_depose)
-        redirect_to merci_dossier_path(@dossier)
-      else
-        render :brouillon
+        begin
+          @dossier.passer_en_construction!
+          redirect_to merci_dossier_path(@dossier)
+          return
+        rescue ActiveRecord::RecordInvalid
+          Sentry.capture_message(
+            "422: Dossier failed to pass en construction",
+            extra: {
+              errors: @dossier.errors.full_messages
+            }
+          )
+          # Continue to render brouillon below
+        end
       end
+
+      render :brouillon
     end
 
     def extend_conservation
@@ -352,54 +373,28 @@ module Users
 
     def modifier
       @dossier = dossier_with_champs
-
-      if update_with_stream?
-        @dossier_for_editing = dossier
-      else
-        # TODO remove when all forks are gone
-        @dossier_for_editing = dossier.owner_editing_fork
-        DossierPreloader.load_one(@dossier_for_editing)
-      end
     end
 
     def submit_en_construction
-      @dossier = dossier_with_champs(pj_template: false)
-      editing_fork_origin = dossier.editing_fork_origin
-      dossier_en_construction = editing_fork_origin || dossier
+      dossier.with_champs
 
       if cast_bool(params.dig(:dossier, :pending_correction))
-        dossier_en_construction.resolve_pending_correction
+        dossier.resolve_pending_correction
       end
 
       submit_dossier_and_compute_errors
 
       if dossier.errors.blank? && dossier.can_passer_en_construction?
-        if editing_fork_origin.present?
-          # TODO remove when all forks are gone
-          editing_fork_origin.merge_fork(dossier)
-          # merge_fork do a `reload`, the preloader is used to reload the whole tree
-          DossierPreloader.load_one(editing_fork_origin)
-        else
-          dossier.merge_user_buffer_stream!
-        end
+        dossier.merge_user_buffer_stream!
+        dossier.submit_en_construction!
 
-        dossier_en_construction.submit_en_construction!
-
-        DossierNotification.create_notification(dossier_en_construction, :dossier_modifie)
-
-        redirect_to dossier_path(dossier_en_construction)
+        redirect_to dossier_path(dossier)
       else
-        @dossier_for_editing = dossier
-        if editing_fork_origin.present?
-          @dossier = editing_fork_origin
-        end
-
         render :modifier
       end
     end
 
     def update
-      @dossier = update_with_fork? ? dossier.find_editing_fork(dossier.user) : dossier
       @dossier = dossier_with_champs(pj_template: false)
       update_dossier_and_compute_errors
 
@@ -421,7 +416,7 @@ module Users
       type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id], :public)
       champ = dossier.project_champ(type_de_champ, row_id: params[:row_id])
 
-      champ.validate(:champs_public_value) if champ.external_data_fetched?
+      champ.validate(:champs_public_value) if champ.done?
       respond_to do |format|
         format.turbo_stream do
           @to_show, @to_hide = []
@@ -470,9 +465,9 @@ module Users
 
       begin
         procedure = if params[:brouillon]
-          Procedure.publiees.or(Procedure.brouillons).find(params[:procedure_id])
+          Procedure.publiees.or(Procedure.brouillons).with_active_revision.find(params[:procedure_id])
         else
-          Procedure.publiees.find(params[:procedure_id])
+          Procedure.publiees.with_active_revision.find(params[:procedure_id])
         end
       rescue ActiveRecord::RecordNotFound
         flash.alert = t('errors.messages.procedure_not_found')
@@ -616,7 +611,7 @@ module Users
       end
 
       current_user.update!(siret: siret)
-      @dossier.update!(autorisation_donnees: true)
+      @dossier.update!(autorisation_donnees: true, last_champ_updated_at: Time.zone.now)
       redirect_to etablissement_dossier_path
     end
 
@@ -626,6 +621,7 @@ module Users
         :value,
         :value_other,
         :external_id,
+        :data, # pf: blob chiffré pour l'autocomplete Baserow inline
         :code,
         :primary_value,
         :secondary_value,
@@ -651,7 +647,7 @@ module Users
       # Strong attributes do not support records (indexed hash); they only support hashes with
       # static keys. We create a static hash based on the available keys.
       public_ids = params.dig(:dossier, :champs_public_attributes)&.keys || []
-      champs_public_attributes = public_ids.map { [_1, champ_attributes] }.to_h
+      champs_public_attributes = public_ids.index_with { champ_attributes }
       params.require(:dossier).permit(champs_public_attributes:)
     end
 
@@ -661,7 +657,7 @@ module Users
 
     def dossier_scope
       if action_name == 'update' || action_name == 'champ'
-        Dossier.visible_by_user.or(Dossier.for_procedure_preview).or(Dossier.for_editing_fork)
+        Dossier.visible_by_user.or(Dossier.for_procedure_preview)
       elsif action_name == 'restore'
         Dossier.hidden_by_user.or(Dossier.hidden_by_not_modified_for_a_long_time)
       elsif action_name == 'extend_conservation_and_restore' ||
@@ -683,17 +679,8 @@ module Users
       DossierPreloader.load_one(dossier, pj_template:)
     end
 
-    def set_dossier_as_editing_fork
-      @dossier = dossier.find_editing_fork(dossier.user)
-
-      return if @dossier.present?
-
-      flash[:alert] = t('users.dossiers.en_construction_submitted')
-      redirect_to dossier_path(dossier)
-    end
-
     def ensure_dossier_has_changes
-      return if dossier.user_buffer_changes?
+      return if dossier.with_champs.user_buffer_changes?
 
       flash[:alert] = t('users.dossiers.en_construction_submitted')
       redirect_to dossier_path(dossier)
@@ -704,31 +691,36 @@ module Users
     end
 
     def update_with_stream?
-      dossier.update_with_stream?
-    end
-
-    def update_with_fork?
-      dossier.update_with_fork?
+      dossier.en_construction?
     end
 
     def update_dossier_and_compute_errors
       public_id, champ_attributes = champs_public_attributes_params.to_h.first
       champ = dossier.public_champ_for_update(public_id, updated_by: current_user.email)
+      if champ.referentiel? && champ.autocomplete?
+        champ_attributes = champ_attributes.merge(params.require(:dossier).require(:champs_public_attributes).require(public_id).permit(:data).to_h)
+      end
       champ.assign_attributes(champ_attributes)
       champ_changed = champ.changed_for_autosave?
 
       # We save the dossier without validating fields, and if it is successful and the client
       # requests it, we ask for field validation errors.
       if Dossier.no_touching { champ.save }
-        if dossier.brouillon? && champ_changed
-          champ.update_timestamps
-          if champ.used_by_routing_rules?
+        if champ_changed
+          champ.update_timestamps if dossier.brouillon?
+
+          if champ.uses_external_data?
+            champ.reset_external_data!
+            champ.fetch_later! if champ.may_fetch_later?
+          end
+
+          if champ.used_by_routing_rules? && dossier.brouillon?
             @update_contact_information = true
             RoutingEngine.compute(dossier)
           end
         end
 
-        if params[:validate].present? && !champ.waiting_for_external_data?
+        if params[:validate].present? && !champ.pending?
           dossier.validate(:champs_public_value)
         end
       end
@@ -737,14 +729,6 @@ module Users
     def submit_dossier_and_compute_errors
       dossier.validate(:champs_public_value)
       dossier.check_mandatory_and_visible_champs
-
-      # TODO remove when all forks are gone
-      if dossier.editing_fork_origin&.pending_correction?
-        dossier.editing_fork_origin.validate(:champs_public_value)
-        dossier.editing_fork_origin.errors.where(:pending_correction).each do |error|
-          dossier.errors.import(error)
-        end
-      end
     end
 
     def ensure_ownership!
@@ -785,6 +769,26 @@ module Users
 
     def commentaire_params
       params.require(:commentaire).permit(:body, piece_jointe: [])
+    end
+
+    def redirect_if_hidden_or_deleted_dossier
+      dossier_id = params[:id]
+
+      if hidden_dossier_for(dossier_id)
+        return redirect_to corbeille_dossier_path(dossier_id)
+      elsif deleted_dossier_for(dossier_id)
+        return redirect_to supprime_dossier_path(dossier_id)
+      end
+    end
+
+    def hidden_dossier_for(dossier_id)
+      current_user.dossiers
+        .hidden_by_user
+        .find_by(id: dossier_id)
+    end
+
+    def deleted_dossier_for(dossier_id)
+      DeletedDossier.find_by(dossier_id:, user_id: current_user.id)
     end
   end
 end

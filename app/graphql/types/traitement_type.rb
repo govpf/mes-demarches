@@ -21,7 +21,7 @@ module Types
     field :instructeur_email, String, "L'instructeur ayant pris la décision.", null: true
 
     def revision
-      Loaders::Association.for(object.class, :revision).load(object)
+      Loaders::Association.for(object.class, revision: :revision_types_de_champ).load(object)
     end
   end
 end

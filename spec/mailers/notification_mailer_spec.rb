@@ -36,10 +36,12 @@ RSpec.describe NotificationMailer, type: :mailer do
 
     subject { described_class.send_notification_for_tiers(dossier_for_tiers) }
 
-    it { expect(subject.subject).to include("Votre dossier rempli par le mandataire #{dossier_for_tiers.mandataire_first_name} #{dossier_for_tiers.mandataire_last_name} a été mis à jour") }
-    it { expect(subject.to).to eq([dossier_for_tiers.individual.email]) }
-    it { expect(subject.body).to include("a été traité le") }
-    it { expect(subject.body).to include("Pour en savoir plus, veuillez vous rapprocher de\r\n<a href=\"mailto:#{dossier_for_tiers.user.email}\">#{dossier_for_tiers.user.email}</a>.") }
+    it 'sends proper notification for tiers with correct subject, recipient, and body content' do
+      expect(subject.subject).to include("Votre dossier rempli par le mandataire #{dossier_for_tiers.mandataire_first_name} #{dossier_for_tiers.mandataire_last_name} a été mis à jour")
+      expect(subject.to).to eq([dossier_for_tiers.individual.email])
+      expect(subject.body).to include("a été traité le")
+      expect(subject.body).to include("Pour en savoir plus, veuillez vous rapprocher de\r\n<a href=\"mailto:#{dossier_for_tiers.user.email}\">#{dossier_for_tiers.user.email}</a>.")
+    end
   end
 
   describe 'send_accuse_lecture_notification' do
@@ -62,8 +64,8 @@ RSpec.describe NotificationMailer, type: :mailer do
 
     context "without custom template" do
       it 'renders default template' do
-        expect(mail.subject).to eq("Votre dossier nº #{dossier.id} a bien été déposé (#{procedure.libelle})")
-        expect(body).to include("Votre dossier nº&nbsp;#{dossier.id}")
+        expect(mail.subject).to eq("Votre dossier n° #{dossier.id} a bien été déposé (#{procedure.libelle})")
+        expect(body).to include("Votre dossier n°&nbsp;#{dossier.id}")
         expect(body).to include(procedure.service.nom)
         expect(body).to include(procedure.service.adresse)
         expect(body).to include(procedure.service.faq_link)
@@ -102,8 +104,8 @@ RSpec.describe NotificationMailer, type: :mailer do
       end
 
       it 'renders default template' do
-        expect(mail.subject).to eq("Votre dossier nº #{dossier.id} a bien été déposé (#{procedure.libelle})")
-        expect(body).to include("Votre dossier nº&nbsp;#{dossier.id}")
+        expect(mail.subject).to eq("Votre dossier n° #{dossier.id} a bien été déposé (#{procedure.libelle})")
+        expect(body).to include("Votre dossier n°&nbsp;#{dossier.id}")
         expect(body).to include(contact_information.telephone_url)
         expect(body).to include(contact_information.adresse)
       end

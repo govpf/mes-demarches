@@ -14,9 +14,8 @@ describe DossierExportConcern do
         .and_return(['code_postal', 'archipel', 'ile'])
 
       champ.update!(value: 'Papeete', external_id: '12345')
-      champ.update_with_external_data!(data: {
-        'row' => { 'code_postal' => '98714', 'archipel' => 'Iles du Vent', 'ile' => 'Tahiti' },
-        'instructeur_fields' => ['code_postal', 'archipel', 'ile']
+      champ.update_external_data!(data: {
+        'code_postal' => '98714', 'archipel' => 'Iles du Vent', 'ile' => 'Tahiti'
       })
       champ.reload
     end
@@ -24,9 +23,10 @@ describe DossierExportConcern do
     describe '#champ_values_for_export' do
       let(:export_values) { dossier.champ_values_for_export([type_de_champ], format: :csv) }
 
-      it { expect(export_values.size).to eq(4) }
-
-      it { expect(export_values.first).to eq(['Commune', 'Papeete']) }
+      it do
+        expect(export_values.size).to eq(4)
+        expect(export_values.first).to eq(['Commune', 'Papeete'])
+      end
 
       it 'exports custom columns with labels and values' do
         values = export_values.to_h

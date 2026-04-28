@@ -3,8 +3,10 @@
 describe TypeDeChamp do
   describe 'validation' do
     context 'type' do
-      it { is_expected.not_to allow_value(nil).for(:type_champ) }
-      it { is_expected.not_to allow_value('').for(:type_champ) }
+      it do
+        is_expected.not_to allow_value(nil).for(:type_champ)
+        is_expected.not_to allow_value('').for(:type_champ)
+      end
 
       let(:procedure) { create(:procedure, :with_all_champs) }
       let(:dossier) { create(:dossier, procedure:) }
@@ -19,9 +21,11 @@ describe TypeDeChamp do
     end
 
     context 'description' do
-      it { is_expected.to allow_value(nil).for(:description) }
-      it { is_expected.to allow_value('').for(:description) }
-      it { is_expected.to allow_value('blabla').for(:description) }
+      it do
+        is_expected.to allow_value(nil).for(:description)
+        is_expected.to allow_value('').for(:description)
+        is_expected.to allow_value('blabla').for(:description)
+      end
     end
 
     context 'stable_id' do
@@ -84,22 +88,28 @@ describe TypeDeChamp do
       context 'when the target type_champ is not drop_down_list' do
         let(:target_type_champ) { TypeDeChamp.type_champs.fetch(:text) }
 
-        it { expect(tdc.drop_down_options).to be_present }
-        it { expect(tdc.drop_down_options).to eq(["val1", "val2", "val3"]) }
+        it do
+          expect(tdc.drop_down_options).to be_present
+          expect(tdc.drop_down_options).to eq(["val1", "val2", "val3"])
+        end
       end
 
       context 'when the target type_champ is linked_drop_down_list' do
         let(:target_type_champ) { TypeDeChamp.type_champs.fetch(:linked_drop_down_list) }
 
-        it { expect(tdc.drop_down_options).to be_present }
-        it { expect(tdc.drop_down_options).to eq(['--Fromage--', 'bleu de sassenage', 'picodon', '--Dessert--', 'éclair', 'tarte aux pommes']) }
+        it do
+          expect(tdc.drop_down_options).to be_present
+          expect(tdc.drop_down_options).to eq(['--Fromage--', 'bleu de sassenage', 'picodon', '--Dessert--', 'éclair', 'tarte aux pommes'])
+        end
       end
 
       context 'when the target type_champ is multiple_drop_down_list' do
         let(:target_type_champ) { TypeDeChamp.type_champs.fetch(:multiple_drop_down_list) }
 
-        it { expect(tdc.drop_down_options).to be_present }
-        it { expect(tdc.drop_down_options).to eq(["val1", "val2", "val3"]) }
+        it do
+          expect(tdc.drop_down_options).to be_present
+          expect(tdc.drop_down_options).to eq(["val1", "val2", "val3"])
+        end
       end
     end
 
@@ -117,9 +127,8 @@ describe TypeDeChamp do
 
       before { subject.instance_variable_set(:@dynamic_type, dynamic_type) }
 
-      it { is_expected.to be_invalid }
       it do
-        subject.validate
+        is_expected.to be_invalid
         expect(subject.errors.full_messages.to_sentence).to eq("Le champ « Troll » always invalid")
       end
     end
@@ -256,8 +265,10 @@ describe TypeDeChamp do
   end
 
   describe '#normalize_libelle' do
-    it { expect(create(:type_de_champ, :header_section, libelle: " 2.3 Test").libelle).to eq("2.3 Test") }
-    it { expect(create(:type_de_champ, libelle: " fix me ").libelle).to eq("fix me") }
+    it do
+      expect(create(:type_de_champ, :header_section, libelle: " 2.3 Test").libelle).to eq("2.3 Test")
+      expect(create(:type_de_champ, libelle: " fix me ").libelle).to eq("fix me")
+    end
   end
 
   describe '#set_default_libelle' do
@@ -297,7 +308,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'header_section_level' => '1', 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the header_section_level' do
@@ -310,7 +321,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'collapsible_explanation_enabled' => '1', 'collapsible_explanation_text' => 'hello', 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the collapsible_explanation keys' do
@@ -323,7 +334,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'character_limit' => '400', 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the character limit' do
@@ -336,7 +347,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'unesco' => '0', 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the layers' do
@@ -349,7 +360,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'drop_down_other' => '0', 'drop_down_options' => ['Premier choix', 'Deuxième choix'], 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the drop_down_other and drop_down_options' do
@@ -362,7 +373,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'drop_down_options' => ['Premier choix', 'Deuxième choix'], 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the drop_down_options' do
@@ -375,7 +386,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'drop_down_options' => ['--Fromage--', 'bleu de sassenage', 'picodon', '--Dessert--', 'éclair', 'tarte aux pommes'], 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the drop_down_options' do
@@ -388,7 +399,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { "positive_number" => "1", "range_number" => '1', "min_number" => '2', "max_number" => '18' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping the positive number options' do
@@ -401,7 +412,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { "positive_number" => "1", "range_number" => '1', "min_number" => '2.5', "max_number" => '18' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping the positive number options' do
@@ -414,7 +425,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'old_pj' => '123', 'skip_pj_validation' => '1', 'skip_content_type_pj_validation' => '1', 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the old_pj, skip_validation_pj and skip_content_type_pj_validation' do
@@ -427,7 +438,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'accredited_users' => ['user1@example.com', 'user2@example.com'], 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the accredited_users' do
@@ -440,7 +451,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'parcelles' => '1', 'batiments' => '0', 'zones_manuelles' => '1', 'te_fenua_layer' => '1', 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the parcelles, batiments, zones_manuelles and te_fenua_layer' do
@@ -453,7 +464,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'lexpol_modele' => 'modele_1', 'lexpol_mapping' => { 'field1' => 'value1' }, 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the lexpol_modele and lexpol_mapping' do
@@ -466,7 +477,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'formatted_mode' => 'simple', 'letters_accepted' => "1", 'numbers_accepted' => '1', "special_characters_accepted" => "0", 'min_character_length' => "4", 'max_character_length' => "5", "key" => "value" })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the formatted mode, letters_accepted, numbers_accepted, special_characters_accepted' do
@@ -479,7 +490,7 @@ describe TypeDeChamp do
 
       before do
         type_de_champ.update!(options: { 'formatted_mode' => 'advanced', 'expression_reguliere' => '\d{9}', 'expression_reguliere_error_message' => 'error', 'expression_reguliere_exemple_text' => '123456789', 'key' => 'value' })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the expression_reguliere, expression_reguliere_error_message and expression_reguliere_exemple_text' do
@@ -490,12 +501,12 @@ describe TypeDeChamp do
     context 'Champ referentiel' do
       let(:procedure) { create(:procedure, types_de_champ_public:) }
       let(:types_de_champ_public) { [{ type: :referentiel, referentiel: }] }
-      let(:referentiel) { create(:api_referentiel, :configured, :ready) }
+      let(:referentiel) { create(:api_referentiel, :exact_match, :with_exact_match_response) }
       let(:type_de_champ) { procedure.draft_revision.types_de_champ.first }
 
       before do
         type_de_champ.update!(options: { 'referentiel_mapping' => { 'kikoo' => 'lol' } })
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it 'keeping only the expression_reguliere, expression_reguliere_error_message and expression_reguliere_exemple_text' do
@@ -522,7 +533,7 @@ describe TypeDeChamp do
       let(:last_write_type_champ) { :text }
       let(:type_champ) { :integer_number }
 
-      it { expect(subject).to eq('') }
+      it { expect(subject).to eq('hello') }
     end
 
     context 'integer_number -> text' do
@@ -530,7 +541,7 @@ describe TypeDeChamp do
       let(:type_champ) { :text }
       let(:champ_value) { '42' }
 
-      it { expect(subject).to eq('') }
+      it { expect(subject).to eq('42') }
     end
 
     context 'integer_number -> decimal_number' do
@@ -549,6 +560,14 @@ describe TypeDeChamp do
       it { expect(subject).to eq('42.1') }
     end
 
+    context 'decimal_number -> text' do
+      let(:last_write_type_champ) { :decimal_number }
+      let(:type_champ) { :text }
+      let(:champ_value) { '42.1' }
+
+      it { expect(subject).to eq('42.1') }
+    end
+
     context 'drop_down_list -> multiple_drop_down_list' do
       let(:last_write_type_champ) { :drop_down_list }
       let(:type_champ) { :multiple_drop_down_list }
@@ -557,12 +576,28 @@ describe TypeDeChamp do
       it { expect(subject).to eq(champ_value) }
     end
 
+    context 'drop_down_list -> text' do
+      let(:last_write_type_champ) { :drop_down_list }
+      let(:type_champ) { :text }
+      let(:champ_value) { 'val1' }
+
+      it { expect(subject).to eq(champ_value) }
+    end
+
     context 'multiple_drop_down_list -> drop_down_list' do
       let(:last_write_type_champ) { :multiple_drop_down_list }
       let(:type_champ) { :drop_down_list }
-      let(:champ_value) { "[\"#{type_de_champ.drop_down_options.first}\"]" }
+      let(:champ_value) { type_de_champ.drop_down_options.to_json }
 
-      it { expect(subject).to eq('') }
+      it { expect(subject).to eq(type_de_champ.drop_down_options.first) }
+    end
+
+    context 'multiple_drop_down_list -> text' do
+      let(:last_write_type_champ) { :multiple_drop_down_list }
+      let(:type_champ) { :text }
+      let(:champ_value) { '["val1", "val2"]' }
+
+      it { expect(subject).to eq("val1, val2") }
     end
 
     context 'text -> formatted' do
@@ -597,6 +632,295 @@ describe TypeDeChamp do
   describe '#humanized_conditionable_types_by_category' do
     subject { TypeDeChamp.humanized_conditionable_types_by_category }
 
-    it { is_expected.to eq([["« Référentiel des administrations »"], ["« Oui/Non »", "« Case à cocher seule »", "« Choix simple »", "« Choix multiple »"], ["« Nombre entier »", "« Nombre décimal »"], ["« Adresse en France »", "« Communes »", "« EPCI »", "« Départements »", "« Régions »", "« Pays »", "« Commune de Polynésie »", "« Code Postal de Polynésie »"]]) }
+    it { is_expected.to eq([["« Référentiel des administrations »"], ["« Formule »", "« Nombre entier »", "« Nombre décimal »"], ["« Oui/Non »", "« Case à cocher seule »", "« Choix simple »", "« Choix multiple »"], ["« Adresse en France »", "« Communes »", "« EPCI »", "« Départements »", "« Régions »", "« Pays »", "« Commune de Polynésie »", "« Code Postal de Polynésie »"]]) }
+  end
+
+  describe '.referentiel_tables' do
+    it 'retourne les tables triées par ordre alphabétique' do
+      unsorted_tables = [
+        { name: 'Zones', id: 3 },
+        { name: 'Activités', id: 1 },
+        { name: 'Communes', id: 2 }
+      ]
+      allow(ReferentielDePolynesie::API).to receive(:available_tables).and_return(unsorted_tables)
+      Rails.cache.delete("referentiel_tables:#{Rails.env}")
+
+      result = TypeDeChamp.referentiel_tables
+
+      expect(result).to eq([['Activités', 1], ['Communes', 2], ['Zones', 3]])
+    end
+  end
+
+  describe '#table_id' do
+    let(:type_de_champ) { create(:type_de_champ_referentiel_de_polynesie) }
+
+    context 'avec uniquement options legacy (avant harmonisation)' do
+      before { type_de_champ.update_column(:options, { 'table_id' => '24' }) }
+
+      it 'retourne la valeur legacy' do
+        expect(type_de_champ.table_id).to eq('24')
+      end
+    end
+
+    context 'avec uniquement un referentiel Baserow (nouveau flux)' do
+      let(:referentiel) { create(:baserow_referentiel, url: 'baserow://25') }
+      before { type_de_champ.update!(referentiel: referentiel) }
+
+      it 'retourne la valeur du referentiel' do
+        expect(type_de_champ.table_id).to eq('25')
+      end
+    end
+
+    context 'avec options legacy ET un referentiel Baserow (migration)' do
+      let(:referentiel) { create(:baserow_referentiel, url: 'baserow://25') }
+      before do
+        type_de_champ.update_column(:options, { 'table_id' => '24' })
+        type_de_champ.update!(referentiel: referentiel)
+      end
+
+      it 'le referentiel prime sur les options legacy' do
+        expect(type_de_champ.table_id).to eq('25')
+      end
+    end
+  end
+
+  describe 'formula expression methods' do
+    let(:procedure) { build(:procedure) }
+    let(:revision) { procedure.active_revision }
+    let(:montant_tdc) { build(:type_de_champ_integer_number, libelle: 'Montant HT', stable_id: 123) }
+    let(:formule_tdc) { build(:type_de_champ_formule) }
+
+    before do
+      allow(revision).to receive(:types_de_champ).and_return([montant_tdc, formule_tdc])
+      allow(formule_tdc).to receive(:revisions).and_return([revision])
+    end
+
+    describe '#formule_user_expression' do
+      context 'when formule_expression contains stable_ids' do
+        before do
+          formule_tdc.formule_expression = '{123} * 1.2'
+        end
+
+        it 'converts to user-friendly libelles' do
+          expect(formule_tdc.formule_user_expression).to eq('{Montant HT} * 1.2')
+        end
+
+        it 'caches the result' do
+          expect(FormulaExpressionService).to receive(:convert_to_libelles).once.and_return('{Montant HT} * 1.2')
+
+          2.times { formule_tdc.formule_user_expression }
+        end
+      end
+
+      context 'when not a formule type' do
+        let(:text_tdc) { build(:type_de_champ_text) }
+
+        it 'returns empty string' do
+          expect(text_tdc.formule_user_expression).to eq('')
+        end
+      end
+    end
+
+    # pf: Tests for formula order constraints
+    describe '#available_champs_for_formula' do
+      let(:procedure) { create(:procedure, :published) }
+      let(:revision) { procedure.active_revision }
+
+      context 'for a public formule champ' do
+        # Utilise after_stable_id pour maintenir l'ordre: champ1 (0), champ2 (1), formule (2), champ3 (3)
+        let!(:champ1) { procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'Champ 1') }
+        let!(:champ2) { procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Champ 2', after_stable_id: champ1.stable_id) }
+        let!(:formule) { procedure.draft_revision.add_type_de_champ(type_champ: :formule, libelle: 'Formule', after_stable_id: champ2.stable_id) }
+        let!(:champ3) { procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'Champ 3', after_stable_id: formule.stable_id) }
+
+        it 'returns only preceding public champs' do
+          # formule (position 2) peut référencer champ1 (0) et champ2 (1), mais PAS champ3 (3)
+          available = formule.available_champs_for_formula(procedure.draft_revision)
+          expect(available.map(&:libelle)).to contain_exactly('Champ 1', 'Champ 2')
+          expect(available.map(&:libelle)).not_to include('Champ 3')
+        end
+
+        it 'does not include private annotations' do
+          annotation = procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'Annotation', private: true)
+
+          available = formule.available_champs_for_formula(procedure.draft_revision)
+          expect(available.map(&:libelle)).not_to include('Annotation')
+        end
+      end
+
+      context 'for a private formule annotation' do
+        # Ordre: public1 (0), public2 (1) | annot1 (0 private), formule (1 private), annot2 (2 private)
+        let!(:public1) { procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'Public 1') }
+        let!(:public2) { procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Public 2', after_stable_id: public1.stable_id) }
+        let!(:annot1) { procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'Annotation 1', private: true) }
+        let!(:formule) { procedure.draft_revision.add_type_de_champ(type_champ: :formule, libelle: 'Formule Privée', private: true, after_stable_id: annot1.stable_id) }
+        let!(:annot2) { procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'Annotation 2', private: true, after_stable_id: formule.stable_id) }
+
+        it 'returns ALL public champs regardless of position' do
+          available = formule.available_champs_for_formula(procedure.draft_revision)
+          expect(available.map(&:libelle)).to include('Public 1', 'Public 2')
+        end
+
+        it 'returns only preceding private annotations' do
+          # formule (position 1) peut référencer annot1 (position 0), mais PAS annot2 (position 2)
+          available = formule.available_champs_for_formula(procedure.draft_revision)
+          expect(available.map(&:libelle)).to include('Annotation 1')
+          expect(available.map(&:libelle)).not_to include('Annotation 2')
+        end
+      end
+    end
+
+    describe 'formula validation with order constraints' do
+      let(:procedure) { create(:procedure) }
+
+      context 'for a public formule champ' do
+        # Ordre: champ1 (0), formule (1), champ2 (2)
+        let!(:champ1) { procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Montant') }
+        let!(:formule) { procedure.draft_revision.add_type_de_champ(type_champ: :formule, libelle: 'Total', after_stable_id: champ1.stable_id) }
+        let!(:champ2) { procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Taux', after_stable_id: formule.stable_id) }
+
+        it 'validates references to preceding champs' do
+          formule.formule_expression = "{#{champ1.stable_id}} * 2"
+          formule.save(validate: false)
+          expect(procedure.valid?(:types_de_champ_public_editor)).to be_truthy
+        end
+
+        it 'rejects references to following champs' do
+          formule.formule_expression = "{#{champ2.stable_id}} * 2"
+          formule.save(validate: false)
+          expect(procedure.valid?(:types_de_champ_public_editor)).to be_falsey
+          expect(procedure.errors[:draft_types_de_champ_public]).to include(match(/Total.*Taux/))
+        end
+
+        it 'rejects references to private annotations' do
+          annot = procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'Note', private: true)
+
+          formule.formule_expression = "{#{annot.stable_id}}"
+          formule.save(validate: false)
+          expect(procedure.valid?(:types_de_champ_public_editor)).to be_falsey
+        end
+      end
+
+      context 'for a private formule annotation' do
+        # Ordre: public_champ (0) | annot1 (0 private), formule (1 private), annot2 (2 private)
+        let!(:public_champ) { procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Montant') }
+        let!(:annot1) { procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'Note', private: true) }
+        let!(:formule) { procedure.draft_revision.add_type_de_champ(type_champ: :formule, libelle: 'Calcul', private: true, after_stable_id: annot1.stable_id) }
+        let!(:annot2) { procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Score', private: true, after_stable_id: formule.stable_id) }
+
+        it 'validates references to public champs regardless of position' do
+          formule.formule_expression = "{#{public_champ.stable_id}} * 2"
+          formule.save(validate: false)
+          expect(procedure.valid?(:types_de_champ_private_editor)).to be_truthy
+        end
+
+        it 'validates references to preceding private annotations' do
+          formule.formule_expression = "{#{annot1.stable_id}}"
+          formule.save(validate: false)
+          expect(procedure.valid?(:types_de_champ_private_editor)).to be_truthy
+        end
+
+        it 'rejects references to following private annotations' do
+          formule.formule_expression = "{#{annot2.stable_id}}"
+          formule.save(validate: false)
+          expect(procedure.valid?(:types_de_champ_private_editor)).to be_falsey
+          expect(procedure.errors[:draft_types_de_champ_private]).to include(match(/Calcul.*Score/))
+        end
+      end
+    end
+
+    # pf: Tests for formula validations in repetitions
+    describe 'Formula validations in repetitions' do
+      let(:procedure) { create(:procedure, :published) }
+      let(:revision) { procedure.active_revision }
+
+      context 'formula in repetition' do
+        let!(:parent) { procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Parent') }
+        let!(:repetition) { procedure.draft_revision.add_type_de_champ(type_champ: :repetition, libelle: 'Bloc', after_stable_id: parent.stable_id) }
+        let!(:sibling) { procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Sibling', parent_stable_id: repetition.stable_id) }
+        let!(:formula) { procedure.draft_revision.add_type_de_champ(type_champ: :formule, libelle: 'Formule', parent_stable_id: repetition.stable_id, after_stable_id: sibling.stable_id) }
+        let!(:following) { procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Suivant', parent_stable_id: repetition.stable_id, after_stable_id: formula.stable_id) }
+
+        it 'accepts reference to sibling field (preceding position)' do
+          formula.formule_expression = "{tdc#{sibling.stable_id}} * 2"
+          formula.save(validate: false)
+
+          expect(procedure.valid?(:types_de_champ_public_editor)).to be_truthy
+        end
+
+        it 'accepts reference to parent field (outside repetition)' do
+          formula.formule_expression = "{tdc#{parent.stable_id}} * 2"
+          formula.save(validate: false)
+
+          expect(procedure.valid?(:types_de_champ_public_editor)).to be_truthy
+        end
+
+        it 'rejects reference to following sibling field' do
+          formula.formule_expression = "{tdc#{following.stable_id}} * 2"
+          formula.save(validate: false)
+
+          expect(procedure.valid?(:types_de_champ_public_editor)).to be_falsey
+          expect(procedure.errors[:draft_types_de_champ_public]).to include(match(/Formule.*ne peut référencer/))
+        end
+
+        it 'warns about collision between sibling and parent fields' do
+          # Create a collision: parent and sibling with same name
+          parent_prix = procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Prix')
+          repetition_prix = procedure.draft_revision.add_type_de_champ(type_champ: :repetition, libelle: 'Produits', after_stable_id: parent_prix.stable_id)
+          sibling_prix = procedure.draft_revision.add_type_de_champ(type_champ: :integer_number, libelle: 'Prix', parent_stable_id: repetition_prix.stable_id)
+          formula_prix = procedure.draft_revision.add_type_de_champ(type_champ: :formule, libelle: 'Total', parent_stable_id: repetition_prix.stable_id, after_stable_id: sibling_prix.stable_id)
+
+          formula_prix.formule_expression = "{tdc#{sibling_prix.stable_id}} * 2"
+          formula_prix.save(validate: false)
+
+          # Validation should pass despite collision (warning is not blocking)
+          # Note: With FormulaValidator at Procedure level, warnings on individual TypeDeChamp
+          # are not accessible after validation completes. This test verifies that the collision
+          # doesn't block validation (i.e., it's treated as a warning, not an error).
+          expect(procedure.valid?(:types_de_champ_public_editor)).to be_truthy
+        end
+      end
+    end
+
+    # pf: Tests for dependent_stable_ids with new format
+    describe '#dependent_stable_ids with new format' do
+      let(:formule_tdc) { build(:type_de_champ_formule) }
+
+      it 'extracts stable_ids from {tdc456} format' do
+        formule_tdc.formule_expression = '{tdc456} + {tdc789}'
+
+        expect(formule_tdc.dependent_stable_ids).to contain_exactly(456, 789)
+      end
+
+      it 'extracts stable_ids from {tdc456/path} format' do
+        formule_tdc.formule_expression = '{tdc123/commune} + {tdc456/date_de_naissance}'
+
+        expect(formule_tdc.dependent_stable_ids).to contain_exactly(123, 456)
+      end
+
+      it 'supports old format {123} (backward compatibility)' do
+        formule_tdc.formule_expression = '{123} + {456}'
+
+        expect(formule_tdc.dependent_stable_ids).to contain_exactly(123, 456)
+      end
+
+      it 'supports mixed format {123} + {tdc456}' do
+        formule_tdc.formule_expression = '{123} + {tdc456}'
+
+        expect(formule_tdc.dependent_stable_ids).to contain_exactly(123, 456)
+      end
+
+      it 'ignores system columns {dossier_number}' do
+        formule_tdc.formule_expression = '{dossier_number} + {tdc456}'
+
+        expect(formule_tdc.dependent_stable_ids).to contain_exactly(456)
+      end
+
+      it 'extracts from complex expressions with functions' do
+        formule_tdc.formule_expression = 'SI({tdc123} > 10, SOMME({tdc456}, {tdc789}), 0)'
+
+        expect(formule_tdc.dependent_stable_ids).to contain_exactly(123, 456, 789)
+      end
+    end
   end
 end

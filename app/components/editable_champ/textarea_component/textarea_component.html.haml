@@ -1,9 +1,12 @@
-~ @form.text_area(:value, input_opts(id: @champ.input_id, aria: { describedby: "#{@champ.describedby_id} #{@champ.error_id}" }, rows: 6, required: @champ.required?, value: html_escape(@champ.value), data: { controller: 'autoresize' }))
+~ @form.text_area(:value, input_opts(id: @champ.focusable_input_id, aria: { describedby: "#{@champ.describedby_id} #{@champ.error_id}" }, rows: 6, required: @champ.required?, value: html_escape(@champ.value), data: { controller: 'autoresize' }))
 
 %div{ role: 'status' }
   - if @champ.character_limit_info?
     %p.fr-info-text
-      = t('.remaining_characters', remaining_words: @champ.remaining_characters)
+      - if @champ.remaining_characters == 0
+        = t('.character_limit_reached')
+      - else
+        = t('.remaining_characters', remaining_words: @champ.remaining_characters)
 
   - if @champ.character_limit_warning?
     %p.fr-icon--sm.fr-mt-4v.fr-mb-0.fr-hint-text.fr-icon-warning-fill.fr-text-default--warning

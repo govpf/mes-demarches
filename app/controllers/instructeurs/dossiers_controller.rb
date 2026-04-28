@@ -15,7 +15,7 @@ module Instructeurs
     before_action :redirect_on_dossier_in_batch_operation, only: [:archive, :unarchive, :follow, :unfollow, :passer_en_instruction, :repasser_en_construction, :repasser_en_instruction, :terminer, :restore, :destroy, :extend_conservation]
     before_action :set_gallery_attachments, only: [:show, :pieces_jointes, :annotations_privees, :avis, :messagerie, :personnes_impliquees, :reaffectation, :rendez_vous]
     before_action :retrieve_procedure_presentation, only: [:annotations_privees, :avis_new, :avis, :messagerie, :personnes_impliquees, :pieces_jointes, :reaffectation, :rendez_vous, :show, :dossier_labels, :passer_en_instruction, :repasser_en_construction, :repasser_en_instruction, :terminer, :pending_correction, :create_avis, :create_commentaire]
-    before_action :set_notifications, only: [:show, :annotations_privees, :avis, :avis_new, :messagerie, :personnes_impliquees, :pieces_jointes, :reaffectation, :rendez_vous, :dossier_labels, :repasser_en_construction, :repasser_en_instruction, :terminer, :create_avis, :create_commentaire]
+    before_action :set_notifications, only: [:show, :annotations_privees, :avis, :avis_new, :messagerie, :personnes_impliquees, :pieces_jointes, :reaffectation, :rendez_vous, :dossier_labels, :repasser_en_construction, :repasser_en_instruction, :create_avis, :create_commentaire]
 
     after_action :mark_demande_as_read, only: :show
     after_action :mark_messagerie_as_read, only: [:messagerie, :create_commentaire, :pending_correction]
@@ -46,10 +46,11 @@ module Instructeurs
     end
 
     def apercu_attestation
-      send_data dossier.attestation_template.send(:build_pdf, dossier),
-                filename: 'attestation.pdf',
-                type: 'application/pdf',
-                disposition: 'inline'
+      attestation_kind = params[:attestation_kind]
+      send_data dossier.attestation_template_for(attestation_kind).send(:build_pdf, dossier),
+                  filename: 'attestation.pdf',
+                  type: 'application/pdf',
+                  disposition: 'inline'
     end
 
     def bilans_bdf
@@ -115,11 +116,11 @@ module Instructeurs
     end
 
     def rendez_vous
+      return if current_instructeur.rdv_connection.nil?
+
       rdv_service = RdvService.new(rdv_connection: current_instructeur.rdv_connection)
 
-      if current_instructeur.rdv_connection.present?
-        rdv_service.update_pending_rdv_plan!(dossier:)
-      end
+      rdv_service.update_pending_rdv_plan!(dossier:)
 
       @booked_rdvs = rdv_service.list_rdvs(dossier.rdvs.booked.pluck(:rdv_external_id))
     end
@@ -153,7 +154,7 @@ module Instructeurs
     def unfollow
       current_instructeur.unfollow(dossier)
 
-      flash.notice = "Vous ne suivez plus le dossier nº #{dossier.id}"
+      flash.notice = "Vous ne suivez plus le dossier n° #{dossier.id}"
 
       redirect_back(fallback_location: instructeur_procedure_path(procedure))
     end
@@ -255,6 +256,7 @@ module Instructeurs
       end
 
       @dossier = dossier
+      set_notifications
       render :change_state
     end
 
@@ -327,16 +329,25 @@ module Instructeurs
       filtered_params = remove_changes_forbidden_by_visa
       public_id, annotation_attributes = filtered_params.to_h.first
       annotation = dossier.private_champ_for_update(public_id, updated_by: current_user.email)
+      if annotation.referentiel? && annotation.autocomplete?
+        annotation_attributes = annotation_attributes.merge(params.require(:dossier).require(:champs_private_attributes).require(public_id).permit(:data).to_h)
+      end
       annotation.assign_attributes(annotation_attributes)
       annotation_changed = annotation.changed_for_autosave?
 
-      if annotation.save(context: :champs_private_value) && annotation_changed
+      if annotation_changed && annotation.save
         annotation.update_timestamps
+
+        if annotation.uses_external_data?
+          annotation.reset_external_data!
+          annotation.fetch_later! if annotation.may_fetch_later?
+        end
+
         dossier.index_search_terms_later
-        DossierNotification.create_notification(dossier, :annotation_instructeur, except_instructeur: current_instructeur)
+        DossierNotification.create_notification(dossier, :annotation_instructeur, except_instructeur: current_instructeur) if !dossier.brouillon?
       end
 
-      dossier.validate(context: :champs_private_value)
+      dossier.validate(:champs_private_value) if !annotation.pending?
 
       ChampRevision.create_or_update_revision_if_needed(dossier, champs_private_attributes_params, current_instructeur.id)
 
@@ -356,11 +367,12 @@ module Instructeurs
       @dossier = dossier_with_champs
       type_de_champ = @dossier.find_type_de_champ_by_stable_id(params[:stable_id], :private)
       annotation = @dossier.project_champ(type_de_champ, row_id: params[:row_id])
+      annotation.validate(:champs_public_value) if annotation.done?
 
       respond_to do |format|
         format.turbo_stream do
           @to_show, @to_hide = []
-          @to_update = [annotation]
+          @to_update = [annotation].concat(annotation.prefillable_champs)
 
           render :update_annotations
         end
@@ -397,7 +409,7 @@ module Instructeurs
     end
 
     def reaffectation
-      @dossier = current_instructeur.dossiers.find(params[:dossier_id])
+      @dossier = current_instructeur.dossiers.find(params[:dossier_id]).with_champs
 
       @groupe_instructeur = @dossier.groupe_instructeur
 
@@ -507,6 +519,7 @@ module Instructeurs
         :value,
         :value_other,
         :external_id,
+        :data, # pf: blob chiffré pour l'autocomplete Baserow inline (referentiel_de_polynesie)
         :code,
         :primary_value,
         :secondary_value,
@@ -534,7 +547,7 @@ module Instructeurs
       # Strong attributes do not support records (indexed hash); they only support hashes with
       # static keys. We create a static hash based on the available keys.
       public_ids = params.dig(:dossier, :champs_private_attributes)&.keys || []
-      champs_private_attributes = public_ids.map { [_1, champ_attributes] }.to_h
+      champs_private_attributes = public_ids.index_with { champ_attributes }
       params.require(:dossier).permit(champs_private_attributes:)
     end
 
@@ -542,45 +555,17 @@ module Instructeurs
       champs_private_params.fetch(:champs_private_attributes)
     end
 
-    # Trie les champs privés d'un dossier selon l'ordre défini par la révision
-    def ordered_private_champs(dossier_instance)
-      rtdcs = dossier_instance.revision.revision_types_de_champ_private.includes(:type_de_champ, parent: {})
-
-      # Créer des tables de recherche pour un accès plus rapide
-      rtdc_by_stable_id = {}
-      parent_positions = {}
-
-      rtdcs.each do |rtdc|
-        rtdc_by_stable_id[rtdc.type_de_champ.stable_id] = rtdc
-
-        # Pré-calculer les positions des parents
-        if rtdc.parent_id
-          parent_positions[rtdc.id] = rtdcs.find { |r| r.id == rtdc.parent_id }&.position || 0
-        end
-      end
-
-      # Ordonner les champs selon leur position dans la révision
-      champs = dossier_instance.project_champs_private.to_a
-      champs.sort_by! do |champ|
-        rtdc = rtdc_by_stable_id[champ.stable_id]
-        parent_position = rtdc&.parent_id ? parent_positions[rtdc.id] || 0 : 0
-        [parent_position, champ.row_id || ' ', rtdc&.position || 0]
-      end
-    end
-
-    # pf: Vérifie si le dossier contient des champs de type visa validés
+    # pf: Vérifie si le dossier contient des champs de type visa validés (racines + répétitions)
     def has_validated_visa?(dossier_instance)
-      dossier_instance.project_champs_private
-        .filter { _1.type == 'Champs::VisaChamp' }
-        .reject { ["", nil].include?(_1.value) }
-        .any?
+      dossier_instance.project_champs_private_all
+        .any? { _1.type == 'Champs::VisaChamp' && _1.value.present? }
     end
 
     def remove_changes_forbidden_by_visa
       return champs_private_attributes_params unless has_validated_visa?(dossier)
 
-      # Récupérer les champs ordonnés
-      ordered_champs = ordered_private_champs(dossier)
+      # pf: project_champs_private_all retourne les champs dans l'ordre d'affichage (racines + enfants de répétitions)
+      ordered_champs = dossier.project_champs_private_all
 
       params[:dossier][:champs_private_attributes]&.reject! do |k, _v|
         # Trouver le champ modifié
@@ -610,6 +595,7 @@ module Instructeurs
 
     def mark_messagerie_as_read
       current_instructeur.mark_tab_as_seen(dossier, :messagerie)
+      Commentaire.mark_usager_messages_as_seen(dossier)
     end
 
     def mark_avis_as_read

@@ -13,7 +13,7 @@ Dotenv::Rails.load
 module TPS
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
-    config.load_defaults 7.1
+    config.load_defaults 7.2
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
@@ -52,8 +52,6 @@ module TPS
     config.action_view.sanitized_allowed_tags = default_allowed_tags + ['u'] - ['img', 'a'] + pf_allowed_tags
     pf_allowed_attributes = Set.new(['target', 'rel', 'size,', 'face,', 'color', 'src'])
     config.action_view.sanitized_allowed_attributes = ActionView::Base.sanitized_allowed_attributes + pf_allowed_attributes
-
-    config.view_component.capture_compatibility_patch_enabled = true
 
     # ActionDispatch's IP spoofing detection is quite limited, and often rejects
     # legitimate requests from misconfigured proxies (such as mobile telcos).
@@ -106,7 +104,7 @@ module TPS
     config.view_component.generate.preview = true
     config.view_component.show_previews_source = true
     config.view_component.default_preview_layout = 'component_preview'
-    config.view_component.preview_paths << "#{Rails.root}/spec/components/previews"
+    config.view_component.previews.paths << "#{Rails.root}/spec/components/previews"
 
     config.graphql.parser_cache = true
 
@@ -117,8 +115,8 @@ module TPS
     # rubocop:enable Rails/OutputSafety
     #
 
-    config.active_record.encryption.primary_key = Rails.application.secrets.active_record_encryption.fetch(:primary_key)
-    config.active_record.encryption.key_derivation_salt = Rails.application.secrets.active_record_encryption.fetch(:key_derivation_salt)
+    config.active_record.encryption.primary_key = ENV.fetch("AR_ENCRYPTION_PRIMARY_KEY")
+    config.active_record.encryption.key_derivation_salt = ENV.fetch("AR_ENCRYPTION_KEY_DERIVATION_SALT")
     config.active_record.encryption.support_sha1_for_non_deterministic_encryption = true # supports for encrypted attributes encoded in SHA1, before rails 7.1
 
     config.active_record.partial_inserts = false

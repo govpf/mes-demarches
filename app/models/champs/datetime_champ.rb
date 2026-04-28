@@ -2,7 +2,7 @@
 
 class Champs::DatetimeChamp < Champ
   validates_with DateLimitValidator, if: :validate_champ_value?
-  before_validation :convert_to_iso8601_datetime, unless: -> { validation_context == :prefill }
+  normalizes :value, with: -> v { DateDetectionUtils.convert_to_iso8601_datetime(v) }
   validate :iso_8601
 
   def search_terms
@@ -11,14 +11,10 @@ class Champs::DatetimeChamp < Champ
 
   private
 
-  def convert_to_iso8601_datetime
-    self.value = DateDetectionUtils.convert_to_iso8601_datetime(value)
-  end
-
   def iso_8601
     return if DateDetectionUtils.parsable_iso8601_datetime?(value) || value.blank?
 
     # i18n-tasks-use t('errors.messages.not_a_datetime')
-    errors.add :datetime, :not_a_datetime
+    errors.add :value, :not_a_datetime
   end
 end

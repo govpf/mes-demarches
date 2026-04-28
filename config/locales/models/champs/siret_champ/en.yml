@@ -3,12 +3,18 @@ en:
     attributes:
       champs/siret_champ:
         hints:
-          value: 'Expected format: 14 digits. Example: 500 0012 345 6789'
+          value: 'Enter 9 digits (Tahiti) or 14 digits (SIRET). Examples: 002253-001, G33972-001 or 500 001 234 56789'
     errors:
       models:
         champs/siret_champ:
           attributes:
-            value:
-              length: 'must contain exactly 14 numbers. Example: 500 0012 345 6789'
+            external_id:
+              format: '%{message}'
+              wrong_siret_format: 'must contain exactly 14 numbers. Example: 500 0012 345 6789'
+              invalid: 'is invalid. Check for input errors.'
+              # pf: custom SiretValidator error keys
+              length: 'must contain 9 digits (Tahiti) or 14 digits (SIRET)'
               checksum: 'is invalid. Check for input errors.'
               not_found: 'no establishment is linked to this number.'
+              # pf: ambiguous partial Tahiti number awaiting user selection
+              multiple_found: 'matches several establishments. Please pick the one you are looking for.'

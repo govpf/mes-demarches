@@ -15,6 +15,7 @@ module Types
     field :dossier_archiver, mutation: Mutations::DossierArchiver
     field :dossier_desarchiver, mutation: Mutations::DossierDesarchiver
     field :dossier_changer_groupe_instructeur, mutation: Mutations::DossierChangerGroupeInstructeur
+    field :dossier_bascule_suivi, mutation: Mutations::DossierBasculeSuivi
 
     # pf mutations
     field :dossier_modifier_annotation_piece_justificative, mutation: Mutations::DossierModifierAnnotationPieceJustificative

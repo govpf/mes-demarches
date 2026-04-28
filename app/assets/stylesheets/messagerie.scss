@@ -45,13 +45,25 @@ ol.messages-list > li::marker {
   align-items: flex-start;
   margin-bottom: $default-padding;
 
-  h2 {
-    margin-bottom: $default-spacer;
+  blockquote {
+    quotes: '« ' ' »' '“' '”';
+    font-style: italic;
   }
 
-  .date {
-    float: right;
+  blockquote::before {
+    content: open-quote;
+    float: left;
   }
+
+  blockquote::after {
+    content: close-quote;
+    display: inline;
+  }
+}
+
+.messages-list .message .rich-text blockquote p {
+  display: inline;
+  margin-bottom: 0;
 }
 
 .date-header {

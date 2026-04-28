@@ -161,8 +161,8 @@ describe 'As an administrateur I can edit types de champ', js: true do
     fill_in 'Libellé du champ', with: 'Libellé de champ carte', fill_options: { clear: :backspace }
     check 'Cadastres'
 
-    wait_until { procedure.active_revision.types_de_champ_public.first.layer_enabled?(:cadastres) }
-    wait_until { procedure.active_revision.types_de_champ_public.first.libelle == 'Libellé de champ carte' }
+    wait_until { procedure.active_revision.reload.types_de_champ_public.first.layer_enabled?(:cadastres) }
+    wait_until { procedure.active_revision.reload.types_de_champ_public.first.libelle == 'Libellé de champ carte' }
     expect(page).to have_content('Formulaire enregistré')
 
     page.refresh
@@ -182,7 +182,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
     fill_in 'Libellé du champ', with: 'Libellé de champ Te Fenua', fill_options: { clear: :backspace }
     choose 'Marqueur'
 
-    wait_until { procedure.active_revision.types_de_champ_public.first.te_fenua_layer == 'marker' }
+    wait_until { procedure.active_revision.reload.types_de_champ_public.first.te_fenua_layer == 'marker' }
     expect(page).to have_content('Formulaire enregistré')
 
     page.refresh
@@ -201,8 +201,8 @@ describe 'As an administrateur I can edit types de champ', js: true do
     fill_in 'Options de la liste', with: 'Un menu', fill_options: { clear: :backspace }
     check "Proposer une option « autre » avec un texte libre"
 
-    wait_until { procedure.active_revision.types_de_champ_public.first.drop_down_options == ['Un menu'] }
-    wait_until { procedure.active_revision.types_de_champ_public.first.drop_down_other == "1" }
+    wait_until { procedure.active_revision.reload.types_de_champ_public.first.drop_down_options == ['Un menu'] }
+    wait_until { procedure.active_revision.reload.types_de_champ_public.first.drop_down_other == "1" }
     expect(page).to have_content('Formulaire enregistré')
 
     page.refresh
@@ -220,7 +220,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
       fill_in 'Libellé du champ', with: 'Libellé de champ visa', fill_options: { clear: :backspace }
       fill_in 'Mails des personnes accréditées', with: 'boss@company.com', fill_options: { clear: :backspace }
 
-      wait_until { procedure.draft_types_de_champ_public.first.accredited_user_list == ['boss@company.com'] }
+      wait_until { procedure.active_revision.reload.types_de_champ_public.first.accredited_user_list == ['boss@company.com'] }
       expect(page).to have_content('Formulaire enregistré')
 
       page.refresh
@@ -241,7 +241,7 @@ describe 'As an administrateur I can edit types de champ', js: true do
       select('Lexpol', from: 'Type de champ')
       fill_in 'Libellé du champ', with: 'Libellé de champ lexpol', fill_options: { clear: :backspace }
 
-      wait_until { procedure.draft_types_de_champ_public.first.type_champ == TypeDeChamp.type_champs.fetch(:lexpol) }
+      wait_until { procedure.active_revision.reload.types_de_champ_public.first.type_champ == TypeDeChamp.type_champs.fetch(:lexpol) }
       expect(page).to have_content('Formulaire enregistré')
 
       expect(page).to have_content('Sélectionner un modèle Lexpol')
@@ -518,26 +518,18 @@ describe 'As an administrateur I can edit types de champ', js: true do
   context 'referentiel_de_polynesie enabled' do
     before do
       Flipper.enable(:referentiel_de_polynesie, procedure)
-      allow(TypeDeChamp).to receive(:referentiel_tables).and_return([['Stades', 1], ['Salles', 2]])
     end
 
-    scenario "adding a referentiel_de_polynesie champ with drop_down_other option" do
+    scenario "adding a referentiel_de_polynesie champ shows referentiel configuration" do
       add_champ
       hide_autonotice_message
 
       select('Référentiel des administrations', from: 'Type de champ')
       fill_in 'Libellé du champ', with: 'Libellé de champ référentiel', fill_options: { clear: :backspace }
-      select('Stades', from: 'Table de recherche')
-      check 'Proposer une option pour « autre » utilisable dans les conditions'
 
-      wait_until { procedure.active_revision.types_de_champ_public.first.table_id == '1' }
-      wait_until { procedure.active_revision.types_de_champ_public.first.drop_down_other == "1" }
       expect(page).to have_content('Formulaire enregistré')
-
-      page.refresh
-
-      expect(page).to have_select('Table de recherche', selected: 'Stades')
-      expect(page).to have_checked_field('Proposer une option pour « autre » utilisable dans les conditions')
+      expect(page).to have_content('À configurer')
+      expect(page).to have_link('Configurer le champ')
     end
   end
 end

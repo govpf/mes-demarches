@@ -1,4 +1,5 @@
 - content_for(:root_class, 'scroll-margins-for-sticky-footer')
+- content_for(:title, "Modifier · #{@groupe_gestionnaire.name.truncate_words(10)}")
 = render 'main_navigation'
 
 = render partial: 'gestionnaires/breadcrumbs',

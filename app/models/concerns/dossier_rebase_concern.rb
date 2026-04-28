@@ -44,14 +44,25 @@ module DossierRebaseConcern
     champs.where(stable_id: updated_stable_ids).update_all(rebased_at: Time.zone.now)
 
     # add rows for new repetitions
-    repetition_types_de_champ = target_revision
+    target_revision
       .types_de_champ
-      .repetition
-      .where(stable_id: added_stable_ids)
-    repetition_types_de_champ.mandatory
-      .or(repetition_types_de_champ.private_only)
-      .find_each do |type_de_champ|
+      .filter { _1.repetition? && _1.stable_id.in?(added_stable_ids) && (_1.mandatory? || _1.private?) }
+      .each do |type_de_champ|
         self.champs << type_de_champ.build_champ(row_id: ULID.generate, rebased_at: Time.zone.now)
+      end
+
+    # pf: créer et calculer les champs formule ajoutés par la nouvelle révision.
+    # Sans ça, les dossiers rebasés n'ont pas de ligne en BDD pour le nouveau
+    # champ formule → colonne vide dans les tableaux instructeur, et pas de
+    # valeur affichée tant que l'usager ne touche pas une source.
+    target_revision
+      .types_de_champ
+      .filter { _1.formule? && _1.stable_id.in?(added_stable_ids) }
+      .each do |type_de_champ|
+        champ = type_de_champ.build_champ(dossier: self, row_id: nil, rebased_at: Time.zone.now)
+        computed = FormulaCalculationService.new(self).compute_value(champ) rescue nil
+        champ.value = computed
+        self.champs << champ
       end
   end
 end

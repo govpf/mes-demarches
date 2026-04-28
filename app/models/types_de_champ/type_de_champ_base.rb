@@ -3,7 +3,7 @@
 class TypesDeChamp::TypeDeChampBase
   include ActiveModel::Validations
 
-  delegate :description, :libelle, :mandatory, :mandatory?, :stable_id, :fillable?, :public?, :type_champ, :options_for_select, :drop_down_options, :drop_down_other?, :drop_down_advanced?, :referentiel, :table_id, to: :@type_de_champ
+  delegate :description, :libelle, :mandatory, :mandatory?, :stable_id, :fillable?, :public?, :type_champ, :options_for_select, :drop_down_options, :drop_down_other?, :drop_down_advanced?, :referentiel, :RIB?, :table_id, :referentiel_mapping_displayable_for_instructeur, to: :@type_de_champ # pf: :table_id, :referentiel_mapping_displayable_for_instructeur for referentiel_de_polynesie
 
   FILL_DURATION_SHORT  = 10.seconds
   FILL_DURATION_MEDIUM = 1.minute
@@ -67,7 +67,7 @@ class TypesDeChamp::TypeDeChampBase
   end
 
   def champ_value(champ)
-    champ.value.present? ? champ.value.to_s : champ_default_value
+    champ.value.present? ? champ_text_value(champ) : champ_default_value
   end
 
   def champ_value_for_api(champ, version: 2)
@@ -80,7 +80,7 @@ class TypesDeChamp::TypeDeChampBase
   end
 
   def champ_value_for_export(champ, path = :value)
-    path == :value ? champ.value.presence : champ_default_export_value(path)
+    path == :value ? champ_text_value(champ).presence : champ_default_export_value(path)
   end
 
   def champ_value_for_tag(champ, path = :value)
@@ -131,6 +131,19 @@ class TypesDeChamp::TypeDeChampBase
   end
 
   private
+
+  def champ_text_value(champ)
+    if champ.is_type?(TypeDeChamp.type_champs.fetch(:multiple_drop_down_list))
+      values = TypesDeChamp::MultipleDropDownListTypeDeChamp.parse_selected_options(champ)
+      if @type_de_champ.drop_down_list?
+        values.first
+      else
+        values.join(', ')
+      end
+    else
+      champ.value
+    end
+  end
 
   def libelle_with_prefix(prefix)
     # SIRET needs to be explicit in listings for better UI readability

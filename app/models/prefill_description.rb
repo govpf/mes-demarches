@@ -20,7 +20,7 @@ class PrefillDescription < SimpleDelegator
   end
 
   def types_de_champ
-    TypesDeChamp::PrefillTypeDeChamp.wrap(active_revision.types_de_champ_public.fillable.partition(&:prefillable?).flatten, active_revision)
+    TypesDeChamp::PrefillTypeDeChamp.wrap(active_fillable_public_types_de_champ.partition(&:prefillable?).flatten, active_revision)
   end
 
   def include?(entity)
@@ -32,26 +32,26 @@ class PrefillDescription < SimpleDelegator
   end
 
   def prefill_link
-    @prefill_link ||= CGI.unescape(commencer_url({ path: path }.merge(prefilled_champs_as_params).merge(prefilled_identity_as_params)))
+    @prefill_link ||= CGI.unescape(commencer_url({ path: path, host: Current.host || ENV["APP_HOST"] }.merge(prefilled_champs_as_params).merge(prefilled_identity_as_params)))
   end
 
   def prefill_query
     @prefill_query ||=
       <<~TEXT
-        curl --request POST '#{api_public_v1_dossiers_url(self)}' \\
+        curl --request POST '#{api_public_v1_dossiers_url(self, host: Current.host || ENV["APP_HOST"])}' \\
              --header 'Content-Type: application/json' \\
              --data '#{prefilled_identity_as_params.merge(prefilled_champs_as_params).to_json}'
       TEXT
   end
 
   def prefilled_champs
-    @prefilled_champs ||= TypesDeChamp::PrefillTypeDeChamp.wrap(active_fillable_public_types_de_champ.where(id: selected_type_de_champ_ids), active_revision)
+    @prefilled_champs ||= TypesDeChamp::PrefillTypeDeChamp.wrap(active_fillable_public_types_de_champ.filter { _1.id.to_s.in?(selected_type_de_champ_ids) }, active_revision)
   end
 
   private
 
   def active_fillable_public_types_de_champ
-    active_revision.types_de_champ_public.fillable
+    active_revision.types_de_champ_public.filter(&:fillable?)
   end
 
   def prefilled_champs_as_params

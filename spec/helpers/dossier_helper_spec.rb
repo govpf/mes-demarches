@@ -56,7 +56,7 @@ RSpec.describe DossierHelper, type: :helper do
       end
 
       context "when the individual has name information" do
-        it { is_expected.to eq "#{individual.nom} #{individual.prenom}" }
+        it { is_expected.to eq "#{individual.prenom} #{individual.nom}" }
       end
     end
 
@@ -132,13 +132,6 @@ RSpec.describe DossierHelper, type: :helper do
 
     context "when dossier state is en_construction" do
       let(:state) { Dossier.states.fetch(:sans_suite) }
-
-      it_behaves_like "returns false"
-    end
-
-    context "when dossier is an editing fork" do
-      let(:user) { create(:user) }
-      let(:dossier) { create(:dossier, :en_construction, user:).find_or_create_editing_fork(user) }
 
       it_behaves_like "returns false"
     end
@@ -281,9 +274,9 @@ RSpec.describe DossierHelper, type: :helper do
     subject { tags_notification([notification]) }
 
     context "with dossier_depose notification" do
-      let(:groupe_instructeur) { create(:groupe_instructeur) }
-      let(:dossier) { create(:dossier, groupe_instructeur:, depose_at: 10.days.ago) }
-      let!(:notification) { create(:dossier_notification, :for_groupe_instructeur, groupe_instructeur:, dossier:, notification_type: :dossier_depose, display_at: (dossier.depose_at + DossierNotification::DELAY_DOSSIER_DEPOSE)) }
+      let(:instructeur) { create(:instructeur) }
+      let(:dossier) { create(:dossier, depose_at: 10.days.ago) }
+      let!(:notification) { create(:dossier_notification, instructeur:, dossier:, notification_type: :dossier_depose, display_at: (dossier.depose_at + DossierNotification::DELAY_DOSSIER_DEPOSE)) }
 
       it {
         expect(subject).to have_text("Déposé depuis 10 J.")

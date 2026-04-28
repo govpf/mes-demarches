@@ -1110,6 +1110,44 @@ describe API::V2::GraphqlController do
       end
     end
 
+    context 'dossierBasculeSuivi' do
+      let(:dossier) { create(:dossier, :en_instruction, :with_individual, procedure: procedure) }
+      let(:follow) { true }
+      let(:variables) { { input: { dossierId: dossier.to_typed_id, instructeurId: instructeur.to_typed_id, follow: follow } } }
+
+      let(:operation_name) { 'dossierBasculeSuivi' }
+
+      it {
+        expect(gql_errors).to be_nil
+        expect(gql_data[:dossierBasculeSuivi][:errors]).to be_nil
+        expect(gql_data[:dossierBasculeSuivi][:dossier][:id]).to eq(dossier.to_typed_id)
+        expect(gql_data[:dossierBasculeSuivi][:instructeur][:id]).to eq(instructeur.to_typed_id)
+        expect(instructeur.followed_dossiers).to include(dossier)
+      }
+
+      context 'unfollow' do
+        let(:follow) { false }
+
+        before do
+          instructeur.follow(dossier)
+        end
+
+        it {
+          expect(gql_errors).to be_nil
+          instructeur.reload
+          expect(instructeur.followed_dossiers).to_not include(dossier)
+        }
+      end
+
+      context 'read only token' do
+        before { api_token.update(write_access: false) }
+
+        it {
+          expect(gql_data[:dossierBasculeSuivi][:errors].first[:message]).to eq('Le jeton utilisé est configuré seulement en lecture')
+        }
+      end
+    end
+
     context 'dossierRefuser' do
       let(:dossier) { create(:dossier, :en_instruction, :with_individual, procedure: procedure) }
       let(:variables) { { input: { dossierId: dossier.to_typed_id, instructeurId: instructeur.to_typed_id, motivation: 'yolo', disableNotification: } } }
@@ -1154,19 +1192,19 @@ describe API::V2::GraphqlController do
         let(:procedure) { create(:procedure, :published, :with_service, administrateurs: [admin]) }
         let(:dossier) { create(:dossier, :en_instruction, :with_entreprise, procedure:) }
 
-        it {
+        it '', :slow do
           expect(gql_errors).to be_nil
           expect(gql_data[:dossierRefuser][:errors]).to be_nil
           expect(gql_data[:dossierRefuser][:dossier][:id]).to eq(dossier.to_typed_id)
           expect(gql_data[:dossierRefuser][:dossier][:state]).to eq('refuse')
-        }
+        end
 
         context 'when in degraded mode' do
           before { dossier.etablissement.update(adresse: nil) }
 
-          it {
+          it '', :slow do
             expect(gql_data[:dossierRefuser][:errors].first[:message]).to eq('Les informations du SIRET du dossier ne sont pas complètes. Veuillez réessayer plus tard.')
-          }
+          end
         end
       end
     end
@@ -1450,14 +1488,6 @@ describe API::V2::GraphqlController do
 
       it {
         expect(message.discarded?).to be_falsey
-        expect(gql_errors).to be_nil
-        expect(gql_data[:dossierSupprimerMessage][:errors]).to be_nil
-        expect(gql_data[:dossierSupprimerMessage][:message][:id]).to eq(message.to_typed_id)
-        expect(gql_data[:dossierSupprimerMessage][:message][:discardedAt]).not_to be_nil
-        expect(message.reload.discarded?).to be_truthy
-      }
-
-      it {
         expect(dossier_correction.commentaire.discarded?).to be_falsey
         expect(dossier.pending_correction?).to be_truthy
         expect(gql_errors).to be_nil

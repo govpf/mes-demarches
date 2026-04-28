@@ -26,8 +26,7 @@ module Administrateurs
     end
 
     def apercu
-      @dossier = procedure_without_control.draft_revision.dossier_for_preview(current_user)
-      DossierPreloader.load_one(@dossier)
+      @dossier = procedure_without_control.draft_revision.dossier_for_preview(current_user).with_champs
       @tab = apercu_tab
       if @tab == 'dossier'
         @dossier.validate(:champs_public_value)
@@ -71,14 +70,13 @@ module Administrateurs
         .procedures
         .includes(
           published_revision: {
-            types_de_champ: [],
             revision_types_de_champ: { type_de_champ: { piece_justificative_template_attachment: :blob } }
           },
           draft_revision: {
-            types_de_champ: [],
             revision_types_de_champ: { type_de_champ: { piece_justificative_template_attachment: :blob } }
           },
-          attestation_template: [],
+          attestation_acceptation_template: [],
+          attestation_refus_template: [],
           initiated_mail: [],
           received_mail: [],
           closed_mail: [],
@@ -155,7 +153,7 @@ module Administrateurs
     end
 
     def clone
-      procedure = Procedure.find(params[:procedure_id])
+      procedure = Procedure.with_active_revision.find(params[:procedure_id])
 
       if procedure.hidden_as_template? && !current_administrateur.owns?(procedure)
         flash.alert = "Cette démarche n’est pas clonable"
@@ -259,12 +257,13 @@ module Administrateurs
     end
 
     def update_monavis
-      if !@procedure.update(procedure_params)
+      @procedure.assign_attributes(procedure_params)
+      if @procedure.validate(:publication) && @procedure.save
+        flash.notice = 'Le code de Je Donne Mon Avis a bien été mis à jour'
+        redirect_to admin_procedure_path(id: @procedure.id)
+      else
         flash.now.alert = @procedure.errors.full_messages
         render 'monavis'
-      else
-        flash.notice = 'le champ MonAvis a bien été mis à jour'
-        redirect_to admin_procedure_path(id: @procedure.id)
       end
     end
 
@@ -300,21 +299,19 @@ module Administrateurs
     end
 
     def modifications
-      ProcedureRevisionPreloader.new(@procedure.revisions).all
+      ProcedureRevisionPreloader.new(@procedure.revisions.includes(administrateur: :user).reorder(published_at: :desc)).all
     end
 
     def update_jeton
-      token = params[:procedure][:api_entreprise_token]
-      @procedure.api_entreprise_token = token
+      string_token = params[:procedure][:api_entreprise_token]
+      jwt_token = APIEntrepriseToken.new(string_token)
 
-      if @procedure.valid? &&
-          APIEntreprise::PrivilegesAdapter.new(token).valid? &&
-          @procedure.save
+      @procedure.api_entreprise_token = string_token
 
+      if APIEntreprise::PrivilegesAdapter.new(jwt_token).valid? && @procedure.save
         flash.notice = 'Le jeton a bien été mis à jour'
         redirect_to admin_procedure_path(id: @procedure.id)
       else
-
         flash.now.alert = "Mise à jour impossible : le jeton n’est pas valide"
         render 'jeton'
       end
@@ -323,10 +320,8 @@ module Administrateurs
     def publication
       @procedure = current_administrateur
         .procedures
-        .includes(
-          published_revision: :types_de_champ,
-          draft_revision: :types_de_champ
-        ).find(params[:procedure_id])
+        .with_active_revision
+        .find(params[:procedure_id])
 
       if @procedure.auto_archive_on && !@procedure.auto_archive_on.future?
         flash.alert = "La date limite de dépôt des dossiers doit être postérieure à la date du jour pour réactiver la procédure. #{view_context.link_to('Veuillez la modifier', edit_admin_procedure_path(@procedure))}"
@@ -338,7 +333,7 @@ module Administrateurs
     end
 
     def check_path
-      path = params[:path]
+      path = publish_params[:path]
       @path_available = @procedure.path_available?(path)
       @other_procedure = @procedure.other_procedure_with_path(path)
 
@@ -403,7 +398,7 @@ module Administrateurs
     end
 
     def publish_revision
-      @procedure.publish_revision!
+      @procedure.publish_revision!(current_administrateur)
       flash.notice = "Nouvelle version de la démarche publiée"
 
       redirect_to admin_procedure_path(@procedure)
@@ -496,7 +491,7 @@ module Administrateurs
       if params[:stable_id].present?
         _, @type_de_champ = @procedure.draft_revision.coordinate_and_tdc(params[:stable_id])
       elsif params[:stub_type_champ].present?
-        @type_de_champ = @procedure.draft_revision.types_de_champ.build(type_champ: params[:stub_type_champ], libelle: 'Numéro SIRET')
+        @type_de_champ = TypeDeChamp.new(type_champ: params[:stub_type_champ], libelle: 'Numéro SIRET')
       else
         raise ArgumentError.new "either a stable_id or a stub_type_champ, but we should know which one to build"
       end
@@ -644,6 +639,7 @@ module Administrateurs
         :procedure_expires_when_termine_enabled,
         :rdv_enabled,
         :pro_connect_restricted,
+        :robots_indexable,
         { zone_ids: [], procedure_tag_names: [] }
       ]
 
@@ -676,7 +672,7 @@ module Administrateurs
     end
 
     def publish_params
-      params.permit(:path, :lien_site_web)
+      params.require(:procedure).permit(:path, :lien_site_web, :robots_indexable)
     end
 
     def closing_params
@@ -705,7 +701,8 @@ module Administrateurs
         :annotations,
         :administrateurs,
         :instructeurs,
-        :attestation_template,
+        :attestation_acceptation_template,
+        :attestation_refus_template,
         :libelle,
         :zones,
         :service,
@@ -724,7 +721,8 @@ module Administrateurs
         clone_annotations: options[:annotations] == '1',
         clone_administrateurs: options[:administrateurs] == '1',
         clone_instructeurs: options[:instructeurs] == '1',
-        clone_attestation_template: options[:attestation_template] == '1',
+        clone_attestation_acceptation_template: options[:attestation_acceptation_template] == '1',
+        clone_attestation_refus_template: options[:attestation_refus_template] == '1',
         clone_zones: options[:zones] == '1',
         clone_service: options[:service] == '1',
         clone_ineligibilite: options[:ineligibilite] == '1',

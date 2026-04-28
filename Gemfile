@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-source 'https://rubygems.org'
+source 'https://gem.coop'
 
-gem 'rails', '~> 7.1.5' # allows update to security fixes at any time
+gem 'rails', '~> 7.2.2' # allows update to security fixes at any time
 
 gem 'aasm'
 gem 'active_model_serializers'
@@ -12,14 +12,12 @@ gem 'addressable'
 gem 'administrate'
 gem 'administrate-field-enum' # Allow using Field::Enum in administrate
 gem 'after_commit_everywhere'
-gem 'after_party'
 gem 'ancestry'
 gem 'anchored'
 gem 'aws-sdk-s3'
 gem 'bcrypt'
 gem 'bootsnap', '>= 1.4.4', require: false # Reduces boot times through caching; required in config/boot.rb
 gem 'browser'
-gem 'capybara-playwright-driver'
 gem 'charlock_holmes'
 gem 'chartkick'
 gem 'chunky_png'
@@ -30,6 +28,7 @@ gem 'deep_cloneable' # Enable deep clone of active record models
 gem 'delayed_cron_job', require: false # Cron jobs
 gem 'delayed_job_active_record'
 gem 'delayed_job_web'
+gem 'dentaku' # Math and logic formula parser and evaluator
 gem 'devise'
 gem 'devise-i18n'
 gem 'devise-two-factor'
@@ -95,6 +94,7 @@ gem 'rack-attack'
 gem 'rails-i18n' # Locales par défaut
 gem 'rails-pg-extras'
 gem 'rake-progressbar', require: false
+gem 'reactionview'
 gem 'redcarpet'
 gem 'redis'
 gem 'rexml' # add missing gem due to ruby3 (https://github.com/Shopify/bootsnap/issues/325)
@@ -131,6 +131,7 @@ group :test do
   gem 'axe-core-rspec' # accessibility rspec matchers
   gem 'capybara' # Integration testing
   gem 'capybara-email' # Access emails during integration tests
+  gem 'capybara-playwright-driver'
   gem 'capybara-screenshot' # Save a dump of the page when an integration test fails
   gem 'factory_bot'
   gem 'launchy'

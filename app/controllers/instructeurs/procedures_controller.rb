@@ -10,7 +10,6 @@ module Instructeurs
     after_action :mark_latest_revision_as_seen, only: [:history]
 
     ITEMS_PER_PAGE = 100
-    BATCH_SELECTION_LIMIT = 500
 
     def index
       all_procedures = current_instructeur
@@ -29,7 +28,7 @@ module Instructeurs
 
       @procedures = all_procedures.order(closed_at: :desc, unpublished_at: :desc, published_at: :desc, created_at: :desc)
       publiees_or_closes_with_dossiers_en_cours = all_procedures_for_listing.publiees.or(all_procedures.closes.where(id: procedures_dossiers_en_cours))
-      current_instructeur.ensure_instructeur_procedures_for(publiees_or_closes_with_dossiers_en_cours)
+      ensure_instructeur_procedures_for(publiees_or_closes_with_dossiers_en_cours)
       @all_procedures_en_cours = publiees_or_closes_with_dossiers_en_cours.order_by_position_for(current_instructeur)
       @procedures_en_cours = @all_procedures_en_cours.page(params[:page]).per(ITEMS_PER_PAGE)
       closes_with_no_dossier_en_cours = all_procedures.closes.excluding(all_procedures.closes.where(id: procedures_dossiers_en_cours))
@@ -71,12 +70,25 @@ module Instructeurs
     end
 
     def order_positions
-      @procedures = Procedure.where(id: params[:collection_ids]).order_by_position_for(current_instructeur)
+      all_procedures = current_instructeur
+        .procedures
+        .kept
+
+      dossiers = current_instructeur.dossiers
+        .joins(groupe_instructeur: :procedure)
+        .where(procedures: { hidden_at: nil })
+
+      procedures_dossiers_en_cours = dossiers.joins(:revision).en_cours.pluck(ProcedureRevision.arel_table[:procedure_id]).uniq
+
+      publiees_or_closes_with_dossiers_en_cours = all_procedures.publiees.or(all_procedures.closes.where(id: procedures_dossiers_en_cours))
+
+      @procedures = publiees_or_closes_with_dossiers_en_cours.order_by_position_for(current_instructeur)
+
       render layout: "empty_layout"
     end
 
     def update_order_positions
-      current_instructeur.update_instructeur_procedures_positions(ordered_procedure_ids_params)
+      InstructeursProcedure.update_instructeur_procedures_positions(current_instructeur, ordered_procedure_ids_params)
       redirect_to instructeur_procedures_path, notice: "L'ordre des démarches a été mis à jour."
     end
 
@@ -104,8 +116,7 @@ module Instructeurs
       # Technically, procedure_presentation already sets the attribute.
       # Setting it here to make clear that it is used by the view
       @procedure_presentation = procedure_presentation
-
-      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
+      @instructeur_procedure = find_or_create_instructeur_procedure(procedure)
 
       @current_filters = procedure_presentation.filters_for(statut)
       @current_filters.each do |filter|
@@ -131,6 +142,14 @@ module Instructeurs
 
       begin
         @filtered_sorted_ids = DossierFilterService.filtered_sorted_ids(dossiers, statut, procedure_presentation.filters_for(statut), procedure_presentation.sorted_column, current_instructeur, count: dossiers_count)
+
+        @archived_dossiers_count = if statut == 'tous'
+          all_filtered_sorted_ids = DossierFilterService.filtered_sorted_ids(dossiers, statut, procedure_presentation.filters_for(statut), procedure_presentation.sorted_column, current_instructeur, count: dossiers_count, include_archived: true)
+
+          all_filtered_sorted_ids.size - @filtered_sorted_ids.size
+        else
+          0
+        end
       rescue ActiveRecord::StatementInvalid => e
         raise e if !(e.message =~ /PG::UndefinedFunction/) # StatementInvalid is too generic, we'll add more cases if needed
 
@@ -151,11 +170,6 @@ module Instructeurs
       page = params[:page].presence || 1
 
       @dossiers_count = @filtered_sorted_ids.size
-      @archived_dossiers_count = if statut == 'tous'
-        @counts[:archives]
-      else
-        0
-      end
 
       @filtered_sorted_paginated_ids = Kaminari
         .paginate_array(@filtered_sorted_ids)
@@ -173,13 +187,13 @@ module Instructeurs
       @statut_with_notifications = DossierNotification.notifications_sticker_for_instructeur_procedure(groupe_instructeur_ids, current_instructeur)
       @notifications = DossierNotification.notifications_for_instructeur_dossiers(current_instructeur, @filtered_sorted_paginated_ids)
       @has_export_notification = notify_exports?
+      @has_unseen_revision_notification = notify_unseen_revisions?(@instructeur_procedure)
 
       cache_show_procedure_state # don't move in callback, inherited by Instructeurs::DossiersController
     end
 
     def deleted_dossiers
       @procedure = procedure
-      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
       @deleted_dossiers = @procedure
         .deleted_dossiers
         .order(:dossier_id)
@@ -244,23 +258,35 @@ module Instructeurs
       render turbo_stream: turbo_stream.refresh
     end
 
-    def email_notifications
+    def notification_preferences
       @procedure = procedure
-      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
       @assign_to = assign_tos.first
+      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
     end
 
     def update_email_notifications
       assign_tos.each do |assign_to|
         assign_to.update!(assign_to_params)
       end
-      flash.notice = 'Vos notifications sont enregistrées.'
+      flash.notice = t('instructeurs.procedures.email_preferences.flash_notice')
+      redirect_to instructeur_procedure_path(procedure)
+    end
+
+    def update_badge_notifications
+      instructeur_procedure = InstructeursProcedure.find_by!(procedure_id:, instructeur: current_instructeur)
+
+      old_preferences = instructeur_procedure.notification_preferences
+      instructeur_procedure.update!(badge_notification_params)
+      new_preferences = instructeur_procedure.notification_preferences
+
+      instructeur_procedure.refresh_notifications(groupe_instructeur_ids, old_preferences, new_preferences)
+
+      flash.notice = t('instructeurs.procedures.badge_preferences.flash_notice')
       redirect_to instructeur_procedure_path(procedure)
     end
 
     def stats
       @procedure = procedure
-      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
       @usual_traitement_time = @procedure.stats_usual_traitement_time
       @dossiers_funnel = @procedure.stats_dossiers_funnel
       @termines_states = @procedure.stats_termines_states
@@ -270,7 +296,6 @@ module Instructeurs
 
     def exports
       @procedure = procedure
-      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
       @exports = Export.for_groupe_instructeurs(groupe_instructeur_ids).ante_chronological
       cookies.encrypted[cookies_export_key] = {
         value: DateTime.current,
@@ -287,18 +312,16 @@ module Instructeurs
 
     def export_templates
       @procedure = procedure
-      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
-      @export_templates = current_instructeur.export_templates_for(@procedure).includes(:groupe_instructeur)
+      @export_templates = current_instructeur.export_templates_for(procedure)
     end
 
     def email_usagers
       @procedure = procedure
-      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
       @bulk_messages = BulkMessage.where(procedure: procedure)
       @dossiers_count_per_groupe_instructeur = procedure.dossiers.state_brouillon.visible_by_user.group(:groupe_instructeur_id).count
     end
 
-    def create_multiple_commentaire
+    def create_multiple_commentaire_for_brouillons
       @procedure = procedure
       errors = []
       bulk_message = current_instructeur.bulk_messages.build(bulk_message_params)
@@ -334,20 +357,19 @@ module Instructeurs
 
     def administrateurs
       @procedure = procedure
-      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
       @administrateurs = procedure.administrateurs
     end
 
     def apercu
       @procedure = procedure
       @dossier = procedure.active_revision.dossier_for_preview(current_user)
-      @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
-      DossierPreloader.load_one(@dossier)
+      @dossier.with_champs
     end
 
     def history
       @procedure = procedure
       @revisions = @procedure.revisions
+        .includes(administrateur: :user)
         .where.not(published_at: nil)
         .reorder(published_at: :desc)
       @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
@@ -422,6 +444,7 @@ module Instructeurs
     def procedure
       @procedure ||= Procedure
         .with_attached_logo
+        .with_active_revision
         .find(procedure_id)
         .tap { Sentry.set_tags(procedure: _1.id) }
     end
@@ -485,6 +508,14 @@ module Instructeurs
       scope.exists?
     end
 
+    def notify_unseen_revisions?(instructeur_procedure)
+      return false if procedure.published_revision_id.blank?
+
+      return false if instructeur_procedure.last_revision_seen_id.blank?
+
+      instructeur_procedure.last_revision_seen_id < procedure.published_revision_id
+    end
+
     def last_export_for(statut)
       Export.where(user_profile: current_instructeur, statut: statut, updated_at: 1.hour.ago..).last
     end
@@ -501,6 +532,18 @@ module Instructeurs
       cache = Cache::ProcedureDossierPagination.new(procedure_presentation:, statut:)
 
       cache.save_context(ids: @filtered_sorted_paginated_ids, incoming_page: params[:page])
+    end
+
+    def badge_notification_params
+      params.require(:instructeurs_procedure).permit(
+        :display_dossier_depose_notifications,
+        :display_dossier_modifie_notifications,
+        :display_message_notifications,
+        :display_annotation_instructeur_notifications,
+        :display_avis_externe_notifications,
+        :display_attente_correction_notifications,
+        :display_attente_avis_notifications
+      )
     end
   end
 end

@@ -44,3 +44,6 @@ fr:
       procedure_test:
         name: Comment tester ma démarche
         description: Comment tester une nouvelle demarche ?
+      formulas:
+        name: Formules et calculs automatiques
+        description: Comment créer des champs calculés automatiquement dans vos démarches

@@ -3,7 +3,7 @@
 describe Administrateurs::AttestationTemplatesController, type: :controller do
   let(:admin) { administrateurs(:default_admin) }
   let(:attestation_template) { build(:attestation_template) }
-  let(:procedure) { create(:procedure, administrateur: admin, attestation_template: attestation_template) }
+  let(:procedure) { create(:procedure, administrateur: admin, attestation_acceptation_template: attestation_template) }
   let(:logo) { fixture_file_upload('spec/fixtures/files/white.png', 'image/png') }
   let(:logo2) { fixture_file_upload('spec/fixtures/files/white.png', 'image/png') }
   let(:signature) { fixture_file_upload('spec/fixtures/files/black.png', 'image/png') }
@@ -79,8 +79,10 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
     before { get :edit, params: { procedure_id: procedure.id } }
 
     context 'if an attestation template exists on the procedure' do
-      it { expect(subject.status).to eq(200) }
-      it { expect(assigns(:attestation_template)).to eq(attestation_template) }
+      it do
+        expect(subject.status).to eq(200)
+        expect(assigns(:attestation_template)).to eq(attestation_template)
+      end
     end
 
     context 'if an attestation template does not exist on the procedure' do
@@ -96,7 +98,7 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
 
   describe 'POST #create' do
     let(:attestation_template) { nil }
-    let(:attestation_params) { { title: 't', body: 'b', footer: 'f', activated: true } }
+    let(:attestation_params) { { title: 't', body: 'b', footer: 'f', activated: true, kind: 'acceptation' } }
 
     context 'nominal' do
       before do
@@ -108,10 +110,11 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       end
 
       it do
-        expect(procedure.attestation_template).to have_attributes(attestation_params)
-        expect(procedure.attestation_template.activated).to be true
-        expect(procedure.attestation_template.logo.download).to eq(logo2.read)
-        expect(procedure.attestation_template.signature.download).to eq(signature2.read)
+        expect(procedure.attestation_acceptation_template).to have_attributes(attestation_params)
+        expect(procedure.attestation_acceptation_template.activated).to be true
+        expect(procedure.attestation_acceptation_template.logo.download).to eq(logo2.read)
+        expect(procedure.attestation_acceptation_template.signature.download).to eq(signature2.read)
+        expect(procedure.attestation_acceptation_template.kind).to eq('acceptation')
         expect(response).to redirect_to edit_admin_procedure_attestation_template_path(procedure)
         expect(flash.notice).to eq("Le modèle de l’attestation a bien été enregistré")
       end
@@ -131,14 +134,14 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
 
       it do
         expect(flash.alert).to be_present
-        expect(procedure.attestation_template).to be nil
+        expect(procedure.attestation_acceptation_template).to be nil
       end
     end
 
     context 'when procedure is published' do
       let(:procedure) { create(:procedure, :published, administrateur: admin) }
       let(:attestation_template) { nil }
-      let(:attestation_params) { { title: 't', body: 'b', footer: '', activated: true } }
+      let(:attestation_params) { { title: 't', body: 'b', footer: '', activated: true, kind: 'acceptation' } }
       let(:revisions_enabled) { false }
 
       before do
@@ -154,8 +157,8 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       end
 
       it do
-        expect(procedure.attestation_template).to eq(procedure.attestation_template)
-        expect(procedure.attestation_template.title).to eq('t')
+        expect(procedure.attestation_acceptation_template).to eq(procedure.attestation_acceptation_template)
+        expect(procedure.attestation_acceptation_template.title).to eq('t')
       end
     end
   end
@@ -174,16 +177,16 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       end
 
       it do
-        expect(procedure.attestation_template).to have_attributes(attestation_params)
-        expect(procedure.attestation_template.logo.download).to eq(logo2.read)
-        expect(procedure.attestation_template.signature.download).to eq(signature2.read)
+        expect(procedure.attestation_acceptation_template).to have_attributes(attestation_params)
+        expect(procedure.attestation_acceptation_template.logo.download).to eq(logo2.read)
+        expect(procedure.attestation_acceptation_template.signature.download).to eq(signature2.read)
         expect(response).to redirect_to edit_admin_procedure_attestation_template_path(procedure)
         expect(flash.notice).to eq("Le modèle de l’attestation a bien été modifié")
       end
     end
 
     context 'when procedure is published' do
-      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :text }, { type: :text }, { type: :text }], administrateur: admin, attestation_template: attestation_template) }
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :text }, { type: :text }, { type: :text }], administrateur: admin, attestation_acceptation_template: attestation_template) }
       let(:dossier) {}
       let(:attestation_template) { build(:attestation_template, title: 'a') }
       let(:attestation_params) do
@@ -197,17 +200,17 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       let(:type_de_champ) { procedure.draft_revision.types_de_champ_public[0] }
       let(:removed_type_de_champ) { procedure.draft_revision.types_de_champ_public[1] }
       let(:removed_and_published_type_de_champ) { procedure.draft_revision.types_de_champ_public[2] }
-      let(:new_type_de_champ) { procedure.draft_revision.types_de_champ_public.find_by(libelle: 'new type de champ') }
-      let(:draft_type_de_champ) { procedure.draft_revision.types_de_champ_public.find_by(libelle: 'draft type de champ') }
+      let(:new_type_de_champ) { procedure.draft_revision.types_de_champ_public.find { _1.libelle == 'new type de champ' } }
+      let(:draft_type_de_champ) { procedure.draft_revision.types_de_champ_public.find { _1.libelle == 'draft type de champ' } }
       let(:title) { 'title --numéro du dossier--' }
       let(:body) { "body --#{type_de_champ.libelle}-- et --#{new_type_de_champ.libelle}--" }
 
       before do
-        procedure.publish!
+        procedure.publish!(procedure.administrateurs.first)
         procedure.reload
         procedure.draft_revision.remove_type_de_champ(removed_and_published_type_de_champ.stable_id)
         procedure.draft_revision.add_type_de_champ(libelle: 'new type de champ', type_champ: 'text', after_stable_id: procedure.draft_revision.types_de_champ_public.last.stable_id)
-        procedure.publish_revision!
+        procedure.publish_revision!(admin)
         procedure.reload
         procedure.draft_revision.remove_type_de_champ(removed_type_de_champ.stable_id)
         procedure.draft_revision.reload
@@ -225,8 +228,8 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       context 'normal' do
         it do
           expect(response).to redirect_to edit_admin_procedure_attestation_template_path(procedure)
-          expect(procedure.attestation_template.title).to eq(title)
-          expect(procedure.attestation_template.body).to eq(body)
+          expect(procedure.attestation_acceptation_template.title).to eq(title)
+          expect(procedure.attestation_acceptation_template.body).to eq(body)
         end
       end
 
@@ -265,17 +268,19 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
 
   describe 'POST #migrate' do
     context 'Migration v1 vers v2' do
+      let(:procedure) { create(:procedure, administrateur: admin) }
       let(:v1_attestation) do
         create(:attestation_template,
+          procedure: procedure,
           version: 1,
           title: 'Titre avec <b>gras</b> et <i>italique</i>',
           body: 'Corps avec <u>souligné</u> et <strong>strong</strong>',
           footer: 'Pied de page standard',
           activated: true)
       end
-      let(:procedure) { create(:procedure, administrateur: admin, attestation_template: v1_attestation) }
 
       before do
+        v1_attestation
         Flipper.enable(:attestation_v2)
       end
 
@@ -316,6 +321,7 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       context 'avec attachments' do
         let(:v1_attestation) do
           create(:attestation_template,
+            procedure: procedure,
             version: 1,
             title: 'Titre simple',
             body: 'Corps simple',
@@ -438,7 +444,7 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       end
 
       context 'procédure publiée' do
-        let(:procedure) { create(:procedure, :published, administrateur: admin, attestation_template: v1_attestation) }
+        let(:procedure) { create(:procedure, :published, administrateur: admin) }
 
         it 'crée un template draft en v2' do
           post :migrate, params: { procedure_id: procedure.id }
@@ -450,7 +456,7 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
       end
 
       context 'procédure brouillon' do
-        let(:procedure) { create(:procedure, :draft, administrateur: admin, attestation_template: v1_attestation) }
+        let(:procedure) { create(:procedure, :draft, administrateur: admin) }
 
         it 'crée un template draft en v2' do
           post :migrate, params: { procedure_id: procedure.id }

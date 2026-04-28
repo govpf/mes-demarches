@@ -1,2 +1,11 @@
 fr:
   value: Valeur
+  operator: Opérateur
+  operators:
+    match: Le
+    before: Avant le
+    after: Après le
+    this_week: Cette semaine
+    this_month: Ce mois
+    this_year: Cette année
+  update: Mettre à jour

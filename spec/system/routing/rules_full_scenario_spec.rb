@@ -33,14 +33,7 @@ describe 'The routing with rules', js: true do
     expect(page).to have_text('3 groupes')
     expect(page).not_to have_text('à configurer')
 
-    # close modal - ensure it's present and force it to be opened
-    expect(page).to have_selector("#routing-mode-modal")
-    # Force open the modal using JavaScript since DSFR might interfere
-    page.execute_script("document.getElementById('routing-mode-modal').classList.add('fr-modal--opened')")
     within("#routing-mode-modal") { click_on "Fermer" }
-    page.execute_script("document.getElementById('routing-mode-modal').classList.remove('fr-modal--opened')")
-    expect(page).not_to have_selector("#routing-mode-modal.fr-modal--opened")
-
     click_on 'littéraire'
     expect(page).to have_select("groupe_instructeur[condition_form][rows][][targeted_champ]", selected: "Spécialité")
     expect(page).to have_select("groupe_instructeur[condition_form][rows][][value]", selected: "littéraire")
@@ -61,13 +54,10 @@ describe 'The routing with rules', js: true do
     expect(page).to have_text('Gestion des groupes')
     expect(page).to have_text('aucune règle')
 
-    # close modal - ensure it's present and force it to be opened
-    expect(page).to have_selector("#routing-mode-modal")
-    # Force open the modal using JavaScript since DSFR might interfere
-    page.execute_script("document.getElementById('routing-mode-modal').classList.add('fr-modal--opened')")
+    # close modal
+    expect(page).to have_selector("#routing-mode-modal", visible: true)
     within("#routing-mode-modal") { click_on "Fermer" }
-    page.execute_script("document.getElementById('routing-mode-modal').classList.remove('fr-modal--opened')")
-    expect(page).not_to have_selector("#routing-mode-modal.fr-modal--opened")
+    expect(page).to have_selector("#routing-mode-modal", visible: false)
 
     # update defaut groupe
     click_on 'Groupe 1 (à renommer et configurer)'
@@ -147,7 +137,8 @@ describe 'The routing with rules', js: true do
     expect(procedure.groupe_instructeurs.count).to eq(4)
 
     # add contact_information to all groupes instructeur
-    procedure.groupe_instructeurs.each { |gi| gi.update!(contact_information: create(:contact_information)) }
+    # pf: noms explicites pour éviter collision avec procedure.service.nom (même séquence FactoryBot)
+    procedure.groupe_instructeurs.each { |gi| gi.update!(contact_information: create(:contact_information, nom: "Contact #{gi.label}")) }
 
     # publish
     publish_procedure(procedure)
@@ -202,7 +193,7 @@ describe 'The routing with rules', js: true do
     visit new_user_session_path
     sign_in_with litteraire_user.email, password
 
-    click_on litteraire_user.dossiers.first.procedure.libelle
+    click_on litteraire_user.dossiers.first.procedure.libelle, match: :first
     click_on 'Modifier le dossier'
 
     fill_in litteraire_user.dossiers.first.project_champs_public.first.libelle, with: 'some value'
@@ -270,7 +261,7 @@ describe 'The routing with rules', js: true do
   def publish_procedure(procedure)
     click_on procedure.libelle
     find('#publish-procedure-link').click
-    fill_in 'lien_site_web', with: 'http://some.website'
+    fill_in 'procedure[lien_site_web]', with: 'http://some.website'
     within('form') { click_on 'Publier' }
 
     expect(page).to have_text('Votre démarche est désormais publiée !')
@@ -311,7 +302,7 @@ describe 'The routing with rules', js: true do
   def user_update_group(user, new_group)
     login_as user, scope: :user
     visit dossiers_path
-    click_on user.dossiers.first.procedure.libelle
+    click_on user.dossiers.first.procedure.libelle, match: :first
     click_on "Modifier le dossier"
 
     choose(new_group, allow_label_click: true)

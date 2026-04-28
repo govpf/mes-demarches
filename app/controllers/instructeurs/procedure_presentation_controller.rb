@@ -2,7 +2,47 @@
 
 module Instructeurs
   class ProcedurePresentationController < InstructeurController
-    before_action :set_procedure_presentation, only: [:update, :refresh_column_filter]
+    before_action :set_procedure_presentation, only: [:update, :refresh_column_filter, :add_filter, :remove_filter, :update_filter, :toggle_filters_expanded]
+
+    def add_filter
+      statut = params[:statut]
+
+      if filter_params[:id].blank?
+        flash.alert = I18n.t('views.instructeurs.dossiers.filters.missing_column')
+        return redirect_back_or_to([:instructeur, procedure])
+      end
+
+      new_filter = filtered_column_from_params
+
+      if new_filter.valid?
+        @procedure_presentation.add_filter_for_statut!(statut, new_filter)
+        flash.notice = "Filtre ajouté avec succès"
+      else
+        flash.alert = new_filter.errors.full_messages.join(', ')
+      end
+
+      redirect_back_or_to([:instructeur, procedure])
+    end
+
+    def update_filter
+      @procedure_presentation.update_filter_for_statut!(params[:statut], params[:filter_key], filtered_column_from_params)
+
+      render turbo_stream: turbo_stream.refresh
+    end
+
+    def remove_filter
+      @procedure_presentation.remove_filter_for_statut!(params[:statut], filtered_column_from_params)
+
+      render turbo_stream: turbo_stream.refresh
+    end
+
+    def toggle_filters_expanded
+      @procedure_presentation.update!(filters_expanded: params[:filters_expanded])
+
+      editable_filters_component = Instructeurs::EditableFiltersComponent.new(procedure_presentation: @procedure_presentation, instructeur_procedure: @instructeur_procedure, statut: params[:statut])
+
+      render turbo_stream: turbo_stream.replace(editable_filters_component.id, editable_filters_component)
+    end
 
     def update
       if !@procedure_presentation.update(procedure_presentation_params)
@@ -15,24 +55,10 @@ module Instructeurs
     end
 
     def refresh_column_filter
-      # pf: Find the new filter by counting occurrences in params vs existing filters
-      # This handles cases where:
-      # 1. Params order varies (filters grouped separately from ids)
-      # 2. Multiple filters on the same column are allowed
-      statut = params[:statut] || 'tous'
-
-      existing_filter_ids = @procedure_presentation.filters_for(statut).map { |f| f.column.id }
-      param_filter_ids = params['filters'].filter_map { |f| (f['id'].presence) }
-
-      # Count occurrences of each id
-      existing_counts = existing_filter_ids.tally
-      param_counts = param_filter_ids.tally
-
-      # The new filter is the one that appears more times in params than in existing
-      new_filter_id = param_counts.find { |id, count| count > (existing_counts[id] || 0) }&.first
-
-      @column = ColumnType.new.cast(new_filter_id)
+      @filtered_column = filtered_column_from_params
+      @column = @filtered_column.column
       procedure = current_instructeur.procedures.find(@column.h_id[:procedure_id])
+      @instructeur_procedure = InstructeursProcedure.find_by!(procedure:, instructeur: current_instructeur)
 
       if @column.groupe_instructeur?
         @column.options_for_select = current_instructeur.groupe_instructeur_options_for(procedure)
@@ -40,6 +66,13 @@ module Instructeurs
     end
 
     private
+
+    def filtered_column_from_params
+      params_hash = filter_params.to_h.deep_stringify_keys
+      params_hash['filter'] = ValueNormalizer.normalize(params_hash['filter']) if params_hash.key?('filter')
+
+      FilteredColumnType.new.cast(params_hash)
+    end
 
     def procedure = @procedure_presentation.procedure
 
@@ -58,6 +91,14 @@ module Instructeurs
       end
 
       h
+    end
+
+    def filter_params
+      if params[:filter].present? && params[:filter][:filter].is_a?(String) # old format
+        params.require(:filter).permit(:id, :filter)
+      else
+        params.require(:filter).permit(:id, filter: [:operator, value: []])
+      end
     end
 
     def set_procedure_presentation

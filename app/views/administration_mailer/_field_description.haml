@@ -5,9 +5,9 @@
     = champ.libelle
   %td{ style: 'border: 1px solid #0069CC;padding: 5px' }
     = champ.type_champ
-    - if champ.drop_down_list_options?
+    - if champ.any_drop_down_list?
       %ul
-        - champ.drop_down_list_options.each do |o|
+        - champ.drop_down_options.each do |o|
           - if o.present?
             %li= o
   %td{ style: 'border: 1px solid #0069CC;padding: 5px' }

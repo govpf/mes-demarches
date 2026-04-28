@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class TypesDeChampEditor::ChampComponent < ApplicationComponent
-  attr_reader :coordinate, :upper_coordinates
+  attr_reader :coordinate, :upper_coordinates, :errors
 
   def initialize(coordinate:, upper_coordinates:, focused: false, errors: '')
     @coordinate = coordinate
@@ -37,6 +37,113 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
 
   def filtered_upper_tdcs
     @upper_coordinates.map(&:type_de_champ).filter { |tdc| tdc.private? == type_de_champ.private? }
+  end
+
+  # pf: Generate available columns for formula editor
+  def available_columns_for_formula
+    return [] unless type_de_champ.formule?
+
+    # Optimize: create hash map to avoid N+1 queries
+    @types_de_champ_by_stable_id ||= revision.types_de_champ.index_by(&:stable_id)
+
+    coordinate.available_columns_for_formula_editor.map do |col|
+      {
+        id: encode_column_id(col),
+        label: col.label,
+        type: col.type.to_s,
+        category: col.table,
+        paths: extract_sub_paths(col)
+      }.compact
+    end
+  end
+
+  def encode_column_id(column)
+    # Encode column according to attestation v2 pattern
+    if column.is_a?(Columns::ChampColumn) && column.stable_id.present?
+      tdc = @types_de_champ_by_stable_id[column.stable_id]
+      return nil unless tdc
+
+      type_de_champ.encode_column_id(column, tdc)
+    elsif column.is_a?(Columns::DossierColumn)
+      # Map dossier column to semantic tag
+      case [column.table, column.column.to_s]
+      when ['self', 'id']
+        'dossier_number'
+      when ['self', 'state']
+        'dossier_state'
+      when ['self', 'depose_at']
+        'dossier_depose_at'
+      when ['self', 'en_instruction_at']
+        'dossier_en_instruction_at'
+      when ['self', 'processed_at']
+        'dossier_processed_at'
+      when ['individual', 'gender']
+        'individual_gender'
+      when ['individual', 'prenom']
+        'individual_first_name'
+      when ['individual', 'nom']
+        'individual_last_name'
+      when ['etablissement', 'entreprise_siren']
+        'entreprise_siren'
+      when ['etablissement', 'siret']
+        'entreprise_siret'
+      when ['etablissement', 'entreprise_raison_sociale']
+        'entreprise_raison_sociale'
+      else
+        "#{column.table}_#{column.column}"
+      end
+    else
+      nil
+    end
+  end
+
+  # pf: Génère la documentation textuelle à copier dans une IA externe
+  # pour aider à la rédaction d'une formule. Délègue au service dédié.
+  def ai_prompt_for_formula
+    return nil unless type_de_champ.formule?
+
+    FormulaAiPromptService.new(
+      type_de_champ: type_de_champ,
+      coordinate: coordinate
+    ).generate
+  end
+
+  def extract_sub_paths(column)
+    # Return sub-properties for DN, referentiels, etc.
+    return nil unless column.is_a?(Columns::ChampColumn) && column.stable_id.present?
+
+    tdc = @types_de_champ_by_stable_id[column.stable_id]
+    return nil unless tdc
+
+    # Get paths from the type_de_champ
+    paths = case tdc.type_champ
+    when 'numero_dn'
+      [{ path: 'date_de_naissance', label: 'Date de naissance' }]
+    when 'code_postal_polynesie'
+      [
+        { path: 'commune', label: 'Commune' },
+        { path: 'ile', label: 'Île' },
+        { path: 'archipel', label: 'Archipel' }
+      ]
+    when 'referentiel_de_polynesie'
+      # Get columns from referentiel if it exists
+      if tdc.referentiel&.headers.present?
+        tdc.referentiel.headers.map { |header| { path: header, label: header } }
+      else
+        nil
+      end
+    when 'siret', 'rna'
+      # SIRET/RNA have predefined sub-paths
+      [
+        { path: 'code_naf', label: 'Code NAF' },
+        { path: 'raison_sociale', label: 'Raison sociale' },
+        { path: 'adresse', label: 'Adresse' }
+      ]
+    else
+      nil
+    end
+
+    paths
   end
 
   private
@@ -87,8 +194,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   def types_of_type_de_champ
     cat_scope = "activerecord.attributes.type_de_champ.categorie"
     tdc_scope = "activerecord.attributes.type_de_champ.type_champs"
-    TypeDeChamp.type_champs
-      .keys
+    TypeDeChamp.type_champs.keys
       .filter(&method(:filter_type_champ))
       .filter(&method(:filter_featured_type_champ))
       .filter(&method(:filter_block_type_champ))
@@ -98,9 +204,27 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
       .to_h do |cat, tdc|
         [
           t(cat, scope: cat_scope),
-          tdc.map { [t(_1, scope: tdc_scope), _1] }
+          tdc.map { [t(_1, scope: tdc_scope), _1, { disabled: !accepted_type_champs.include?(_1) }] }
         ]
       end
+  end
+
+  ACCEPTED_TYPES = Columns::ChampColumn::CAST.keys.group_by { |(from)| from.to_s }.transform_values { _1.map(&:second).map(&:to_s) }
+
+  def accepted_type_champs
+    @accepted_type_champs ||= if published_type_champ.present?
+      ([published_type_champ] + ACCEPTED_TYPES.fetch(published_type_champ, [])).uniq
+    else
+      TypeDeChamp.type_champs.keys
+    end
+  end
+
+  def published_type_champ
+    @published_type_champ ||= procedure.published_revision&.types_de_champ&.find { _1.stable_id == type_de_champ.stable_id }&.type_champ
+  end
+
+  def disabled_type_de_champ_select?
+    coordinate.used_by_routing_rules? || coordinate.used_by_ineligibilite_rules? || accepted_type_champs.size == 1
   end
 
   def piece_justificative_template_options

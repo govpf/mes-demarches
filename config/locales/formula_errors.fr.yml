@@ -1,0 +1,38 @@
+---
+# pf: traductions françaises des erreurs Dentaku utilisées dans les champs formule.
+# Dentaku ne supporte pas l'i18n nativement (messages hardcodés en anglais),
+# donc on intercepte l'attribut `reason` de l'exception et on traduit nous-mêmes.
+fr:
+  formula_errors:
+    # Erreurs de parsing (Dentaku::ParseError)
+    parse:
+      node_invalid: "'%{operator}' attend des opérandes de type %{expect}, mais a reçu %{actual}"
+      too_few_operands: "'%{operator}' manque d'arguments (%{actual} fourni, %{expect} attendu)"
+      too_many_operands: "'%{operator}' a trop d'arguments (%{actual} fourni, %{expect} attendu)"
+      undefined_function: "La fonction '%{function_name}' n'existe pas"
+      unprocessed_token: "Élément non reconnu : '%{token_name}'"
+      unknown_case_token: "Élément non reconnu dans la condition : '%{token_name}'"
+      unbalanced_bracket: "Crochet '[' ou ']' non équilibré"
+      unbalanced_parenthesis: "Parenthèse '(' ou ')' non équilibrée"
+      unknown_grouping_token: "Élément de regroupement inconnu : '%{token_name}'"
+      not_implemented_token_category: "Type d'élément non supporté : %{token_category}"
+      invalid_statement: "Expression invalide"
+
+    # Erreurs de tokenizer (Dentaku::TokenizerError)
+    tokenizer:
+      parse_error: "L'expression contient un élément mal formé"
+      too_many_closing_parentheses: "Trop de parenthèses fermantes ')'"
+      too_many_opening_parentheses: "Trop de parenthèses ouvrantes '('"
+      unexpected_zero_width_match: "L'expression contient un élément mal formé"
+
+    # Variable non définie (Dentaku::UnboundVariableError).
+    # Cas spécial : si la variable est 'x' ou ressemble à un identifiant simple
+    # alors que l'utilisateur a tapé '=', c'est probablement une confusion
+    # d'opérateur. Ce cas est détecté dans le code avant d'arriver ici.
+    unbound_variable: "La variable '%{variable}' n'est pas définie"
+
+    # Cas détectés avant de propager à Dentaku
+    equals_operator_hint: "Utilisez '==' au lieu de '=' pour tester l'égalité (par exemple : SI({Âge} == 18, ..., ...))"
+
+    # Fallback générique
+    generic: "Erreur dans l'expression : %{message}"

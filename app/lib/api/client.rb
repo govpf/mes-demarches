@@ -5,19 +5,26 @@ class API::Client
 
   TIMEOUT = 10
 
-  def call(url:, params: nil, body: nil, json: nil, headers: nil, method: :get, authorization_token: nil, schema: nil, timeout: TIMEOUT, typhoeus_options: {})
+  def call(url:, params: nil, body: nil, json: nil, headers: nil, method: :get, authorization_token: nil, schema: nil, timeout: TIMEOUT, **typhoeus_options)
     response = case method
     when :get
       Typhoeus.get(url,
-        headers: headers_with_authorization(headers, false, authorization_token),
+        headers: headers_with_authorization(headers, false, authorization_token:),
         params:,
-        timeout: TIMEOUT,
+        timeout:,
         **typhoeus_options)
     when :post
       Typhoeus.post(url,
-        headers: headers_with_authorization(headers, json, authorization_token),
+        headers: headers_with_authorization(headers, json, authorization_token:),
         body: json.nil? ? body : json.to_json,
-        timeout: TIMEOUT)
+        timeout:,
+        **typhoeus_options)
+    when :patch
+      Typhoeus.patch(url,
+        headers: headers_with_authorization(headers, json, authorization_token:),
+        body: json.nil? ? body : json.to_json,
+        timeout:,
+        **typhoeus_options)
     end
     handle_response(response, schema:)
   rescue StandardError => reason
@@ -30,10 +37,14 @@ class API::Client
 
   private
 
-  def headers_with_authorization(headers, json, authorization_token)
-    headers = headers || {}
-    headers['authorization'] = "Bearer #{authorization_token}" if authorization_token.present?
-    headers['content-type'] = 'application/json' if json.present?
+  def headers_with_authorization(headers, json, authorization_token:)
+    headers ||= {}
+
+    if authorization_token.present?
+      headers['authorization'] = "Bearer #{authorization_token}"
+    end
+
+    headers['content-type'] = 'application/json' if !json.nil?
     headers
   end
 
@@ -46,16 +57,33 @@ class API::Client
       if scope.extra.key?(:external_id)
         scope.set_extras(raw_body: response.body.to_s)
       end
-      body = parse_body(response.body)
+
+      # Typhoeus normalize headers key names with [] method.
+      body = if response.headers && response.headers["content-type"] == "text/plain"
+        Success(response.body)
+      else
+        parse_body(response.body)
+      end
+
       case body
-      in Success(body)
-        if !schema || schema.valid?(body.deep_stringify_keys)
-          Success(OK[body, response])
+      when Success
+        value = body.value!
+        case value
+        when Hash
+          if !schema || schema.valid?(value.deep_stringify_keys)
+            Success(OK[value, response])
+          else
+            Failure(Error[:schema, response.code, false, SchemaError.new(schema.validate(value))])
+          end
+        when String
+          Success(OK[value, response])
+        when Array
+          Success(OK[value, response])
         else
-          Failure(Error[:schema, response.code, false, SchemaError.new(schema.validate(body))])
+          Failure(Error[:unexpected_type, response.code, false, "Unexpected body type: #{value.class}"])
         end
-      in Failure(reason)
-        Failure(Error[:json, response.code, false, reason])
+      when Failure
+        Failure(Error[:json, response.code, false, body.failure])
       end
     elsif response.timed_out?
       Failure(Error[:timeout, response.code, true, HTTPError.new(response)])

@@ -1,0 +1,6 @@
+fr:
+  views:
+    shared:
+      champs:
+        formule:
+          no_value: "En attente — remplissez les champs référencés par la formule"

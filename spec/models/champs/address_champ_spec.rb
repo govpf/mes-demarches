@@ -11,8 +11,10 @@ describe Champs::AddressChamp do
   context "with value but no data" do
     let(:value) { 'Paris' }
 
-    it { expect(champ.address_label).to eq('Paris') }
-    it { expect(champ.full_address?).to be_falsey }
+    it do
+      expect(champ.address_label).to eq('Paris')
+      expect(champ.full_address?).to be_falsey
+    end
   end
 
   context "with value and data" do
@@ -34,10 +36,12 @@ describe Champs::AddressChamp do
       }
     end
 
-    it { expect(champ.address_label).to eq('33 Rue Rébeval 75019 Paris') }
-    it { expect(champ.full_address?).to be_truthy }
-    it { expect(champ.commune).to eq({ name: 'Paris 19e Arrondissement', code: '75119', postal_code: '75019' }) }
-    it { expect(champ.commune_name).to eq('Paris 19e Arrondissement (75019)') }
+    it do
+      expect(champ.address_label).to eq('33 Rue Rébeval 75019 Paris')
+      expect(champ.full_address?).to be_truthy
+      expect(champ.commune).to eq({ name: 'Paris 19e Arrondissement', code: '75119', postal_code: '75019' })
+      expect(champ.commune_name).to eq('Paris 19e Arrondissement (75019)')
+    end
   end
 
   context "with wrong code INSEE" do
@@ -55,9 +59,11 @@ describe Champs::AddressChamp do
       }
     end
 
-    it { expect(champ.address_label).to eq('Rue du Bois Charles 27700 Les Trois Lacs') }
-    it { expect(champ.full_address?).to be_truthy }
-    it { expect(champ.commune).to eq({ name: 'Les Trois Lacs', code: '27676', postal_code: '27700' }) }
+    it do
+      expect(champ.address_label).to eq('Rue du Bois Charles 27700 Les Trois Lacs')
+      expect(champ.full_address?).to be_truthy
+      expect(champ.commune).to eq({ name: 'Les Trois Lacs', code: '27676', postal_code: '27700' })
+    end
   end
 
   context "with empty code postal" do
@@ -112,6 +118,27 @@ describe Champs::AddressChamp do
 
       it 'can be printed' do
         expect(champ.to_s).to eq('128 Rue Brancion 75015 Paris')
+      end
+    end
+
+    context "when the address was filled with an international address" do
+      let(:value_json) do
+        {
+          "label" => "18 rue de la gruyere, Lausanne 1010 Suisse",
+          "city_name" => "Lausanne",
+          "not_in_ban" => "true",
+          "postal_code" => "1010",
+          "country_code" => "CH",
+          "street_address" => "18 rue de la gruyere",
+          "department_code" => "99",
+          "department_name" => "Etranger"
+        }
+      end
+
+      it "changes to in ban should reset other filled value, with FR country_code" do
+        champ.not_in_ban = ''
+        champ.save!
+        expect(champ.value_json).to eq("not_in_ban" => "", "country_code" => "FR")
       end
     end
 

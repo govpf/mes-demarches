@@ -57,6 +57,21 @@ class APIEntrepriseService
       etablissement
     end
 
+    # pf: fast path when the partial Tahiti number returned a single candidate via list_etablissements;
+    def create_etablissement_from_pf_candidate(dossier_or_champ, full_siret, candidate)
+      params = candidate.except(:num_entreprise).merge(siret: full_siret)
+      params[:siege_social] = true if candidate[:num_entreprise].to_i == 1
+
+      etablissement = dossier_or_champ.build_etablissement(params)
+      etablissement.save!
+
+      if dossier_or_champ.is_a?(Champ)
+        dossier_or_champ.update!(value_json: APIGeoService.parse_etablissement_address(etablissement))
+      end
+      etablissement.update_champ_value_json!
+      etablissement
+    end
+
     def create_etablissement_as_degraded_mode(dossier_or_champ, siret, user_id = nil)
       etablissement = dossier_or_champ.build_etablissement(siret: siret)
       etablissement.save!

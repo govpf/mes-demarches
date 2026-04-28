@@ -177,32 +177,16 @@ class Champs::AddressChamp < Champs::TextChamp
     end.merge(postal_code:)
   end
 
-  def street_input_id
-    "#{input_id}-street"
-  end
-
-  def city_input_id
-    "#{input_id}-city"
-  end
-
-  def country_input_id
-    "#{input_id}-country"
-  end
-
-  def postal_code_input_id
-    "#{input_id}-postal-code"
-  end
-
   # We know that not ban address where just fulled input without choosing an element from the autocomplete
   def legacy_not_ban?
     value.present? && value_json.blank?
   end
 
-  private
-
   def not_ban?
     not_in_ban == 'true'
   end
+
+  private
 
   def format_label
     if international?
@@ -234,7 +218,7 @@ class Champs::AddressChamp < Champs::TextChamp
 
   def set_full_address
     address_data = self.value_json
-    if become_ban? || become_france? || become_international?
+    if become_france? || become_international?
       address_data.merge!(
         'department_code' => nil,
         'department_name' => nil,
@@ -249,6 +233,8 @@ class Champs::AddressChamp < Champs::TextChamp
         address_data['department_code'] = '99'
         address_data['department_name'] = APIGeoService.departement_name('99')
       end
+    elsif become_ban?
+      address_data = { 'not_in_ban': '', 'country_code': 'FR' }
     elsif become_not_ban?
       address_data = { 'not_in_ban': 'true' }
     end

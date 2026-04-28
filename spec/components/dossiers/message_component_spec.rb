@@ -22,6 +22,42 @@ RSpec.describe Dossiers::MessageComponent, type: :component do
     let(:groupe_gestionnaire) { nil }
 
     subject { render_inline(component).to_html }
+    describe 'read receipt (usager => instructeur)' do
+      let(:connected_user) { dossier.user }
+      let(:dossier) { create(:dossier, :en_construction) }
+      let(:commentaire) { create(:commentaire, dossier: dossier, email: connected_user.email, body: 'msg') }
+
+      context 'when recipient has seen the message' do
+        before { commentaire.update!(seen_by_recipient_at: Time.current) }
+        it { is_expected.to include('Lu') }
+      end
+
+      context 'when recipient has not seen the message' do
+        before { commentaire.update!(seen_by_recipient_at: nil) }
+        it { is_expected.to include('Non lu') }
+      end
+    end
+
+    describe 'read receipt (instructeur => usager)' do
+      let(:instructeur) { create(:instructeur) }
+      let(:dossier) { create(:dossier, :en_construction) }
+      let(:connected_user) { instructeur }
+      let(:commentaire) { create(:commentaire, dossier: dossier, instructeur: instructeur, body: 'msg') }
+
+      context 'when recipient has seen the message' do
+        before { commentaire.update!(seen_by_recipient_at: Time.current) }
+
+        it do
+          is_expected.to include('Lu')
+          is_expected.not_to include('Non lu')
+        end
+      end
+
+      context 'when recipient has not seen the message' do
+        before { commentaire.update!(seen_by_recipient_at: nil) }
+        it { is_expected.to include('Non lu') }
+      end
+    end
 
     context 'escape <img> tag' do
       before { commentaire.update(body: '<img src="demarches-simplifiees.fr" />Hello') }
@@ -34,12 +70,6 @@ RSpec.describe Dossiers::MessageComponent, type: :component do
       it { is_expected.not_to have_css(".highlighted") }
     end
 
-    context 'with a seen_at after commentaire created_at' do
-      let(:seen_at) { commentaire.created_at - 1.hour  }
-
-      it { is_expected.to have_css(".highlighted") }
-    end
-
     context 'with an instructeur message' do
       let(:instructeur) { create(:instructeur) }
       let(:procedure) { create(:procedure, hide_instructeurs_email: true) }
@@ -48,9 +78,11 @@ RSpec.describe Dossiers::MessageComponent, type: :component do
 
       context 'on a procedure with anonymous instructeurs' do
         context 'redacts the instructeur email' do
-          it { is_expected.to have_text(commentaire.body) }
-          it { is_expected.to have_text("Instructeur n° #{instructeur.id}") }
-          it { is_expected.not_to have_text(instructeur.email) }
+          it do
+            is_expected.to have_text(commentaire.body)
+            is_expected.to have_text("Instructeur n° #{instructeur.id}")
+            is_expected.not_to have_text(instructeur.email)
+          end
         end
       end
 
@@ -88,8 +120,10 @@ RSpec.describe Dossiers::MessageComponent, type: :component do
         context 'on a procedure where commentaire had been written by connected instructeur and discarded' do
           let(:commentaire) { create(:commentaire, instructeur: instructeur, body: 'Second message', discarded_at: 2.days.ago) }
 
-          it { is_expected.not_to have_selector("form[action=\"#{form_url}\"]") }
-          it { is_expected.to have_selector(".rich-text", text: component.t('.deleted_body')) }
+          it do
+            is_expected.not_to have_selector("form[action=\"#{form_url}\"]")
+            is_expected.to have_selector(".rich-text", text: component.t('.deleted_body'))
+          end
         end
 
         context 'on a procedure where commentaire had been written by connected an user' do
@@ -159,49 +193,73 @@ RSpec.describe Dossiers::MessageComponent, type: :component do
         travel_to(present_date) { component.send(:commentaire_date) }
       end
 
-      it 'doesn’t include the creation year' do
-        expect(subject).to eq 'le 2 septembre à 10 h 05'
+      it 'formats as numeric date with year' do
+        expect(subject).to eq 'Le 02/09/2018 10:05'
       end
 
       context 'when displaying a commentaire created on a previous year' do
         let(:creation_date) { present_date.prev_year }
-        it 'includes the creation year' do
-          expect(subject).to eq 'le 2 septembre 2017 à 10 h 05'
+        it 'formats as numeric date with previous year' do
+          expect(subject).to eq 'Le 02/09/2017 10:05'
         end
       end
 
       context 'when formatting the first day of the month' do
         let(:present_date) { Time.zone.local(2018, 9, 1, 10, 5, 0) }
-        it 'includes the ordinal' do
-          expect(subject).to eq 'le 1er septembre à 10 h 05'
+        it 'formats as numeric date for first day of month' do
+          expect(subject).to eq 'Le 01/09/2018 10:05'
         end
       end
     end
 
     describe '#correction_badge' do
-      let(:resolved_at) { nil }
+      context "when the correction is not resolved" do
+        let!(:correction) { create(:dossier_correction, commentaire:, dossier:, resolved_at: nil) }
 
-      before do
-        create(:dossier_correction, commentaire:, dossier:, resolved_at:)
-      end
+        it 'returns a badge à corriger' do
+          expect(subject).to have_text('à corriger')
+        end
 
-      it 'returns a badge à corriger' do
-        expect(subject).to have_text('à corriger')
-      end
+        context 'connected as instructeur' do
+          let(:connected_user) { create(:instructeur) }
 
-      context 'connected as instructeur' do
-        let(:connected_user) { create(:instructeur) }
-
-        it 'returns a badge en attente' do
-          expect(subject).to have_text('en attente')
+          it 'returns a badge en attente' do
+            expect(subject).to have_text('en attente')
+          end
         end
       end
 
       context 'when the correction is resolved' do
-        let(:resolved_at) { 1.minute.ago }
+        context "when the dossier has not been modified due to a change en_instruction" do
+          let!(:correction) { create(:dossier_correction, commentaire:, dossier:, resolved_at: 1.minute.ago) }
 
-        it 'returns a badge corrigé' do
-          expect(subject).to have_text("corrigé")
+          it 'returns a badge non modifié' do
+            expect(subject).to have_text("non modifié")
+          end
+        end
+
+        context "when the dossier has been modified" do
+          let!(:correction) { create(:dossier_correction, commentaire:, dossier:, resolved_at: nil) }
+
+          before { dossier.submit_en_construction! }
+
+          it 'returns a badge modifié' do
+            correction.reload
+            expect(subject).to have_text("modifié")
+          end
+        end
+
+        context "when the correction has been discarded by instructeur" do
+          let!(:correction) { create(:dossier_correction, commentaire:, dossier:, resolved_at: nil) }
+
+          before do
+            commentaire.soft_delete!
+          end
+
+          it "returns a badge correction annulée" do
+            correction.reload
+            expect(subject).to have_text("Demande de correction annulée")
+          end
         end
       end
     end
@@ -224,12 +282,6 @@ RSpec.describe Dossiers::MessageComponent, type: :component do
       it { is_expected.not_to have_css(".highlighted") }
     end
 
-    context 'with a seen_at after commentaire created_at' do
-      let(:seen_at) { commentaire.created_at - 1.hour  }
-
-      it { is_expected.to have_css(".highlighted") }
-    end
-
     context 'with an gestionnaire message' do
       let(:gestionnaire) { create(:gestionnaire) }
       let(:commentaire) { create(:commentaire_groupe_gestionnaire, sender: administrateurs(:default_admin), gestionnaire: gestionnaire, body: 'Second message') }
@@ -249,8 +301,10 @@ RSpec.describe Dossiers::MessageComponent, type: :component do
         context 'when commentaire had been written by connected gestionnaire and discarded' do
           let(:commentaire) { create(:commentaire_groupe_gestionnaire, sender: administrateurs(:default_admin), gestionnaire: gestionnaire, body: 'Second message', discarded_at: 2.days.ago) }
 
-          it { is_expected.not_to have_selector("form[action=\"#{form_url}\"]") }
-          it { is_expected.to have_selector(".rich-text", text: component.t('.deleted_body')) }
+          it do
+            is_expected.not_to have_selector("form[action=\"#{form_url}\"]")
+            is_expected.to have_selector(".rich-text", text: component.t('.deleted_body'))
+          end
         end
 
         context 'on a procedure where commentaire had been written another gestionnaire' do
@@ -278,21 +332,21 @@ RSpec.describe Dossiers::MessageComponent, type: :component do
         travel_to(present_date) { component.send(:commentaire_date) }
       end
 
-      it 'doesn’t include the creation year' do
-        expect(subject).to eq 'le 2 septembre à 10 h 05'
+      it 'formats as numeric date with year' do
+        expect(subject).to eq 'Le 02/09/2018 10:05'
       end
 
       context 'when displaying a commentaire created on a previous year' do
         let(:creation_date) { present_date.prev_year }
-        it 'includes the creation year' do
-          expect(subject).to eq 'le 2 septembre 2017 à 10 h 05'
+        it 'formats as numeric date with previous year' do
+          expect(subject).to eq 'Le 02/09/2017 10:05'
         end
       end
 
       context 'when formatting the first day of the month' do
         let(:present_date) { Time.zone.local(2018, 9, 1, 10, 5, 0) }
-        it 'includes the ordinal' do
-          expect(subject).to eq 'le 1er septembre à 10 h 05'
+        it 'formats as numeric date for first day of month' do
+          expect(subject).to eq 'Le 01/09/2018 10:05'
         end
       end
     end

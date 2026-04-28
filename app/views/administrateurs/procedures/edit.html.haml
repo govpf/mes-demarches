@@ -1,4 +1,5 @@
 - content_for(:root_class, 'scroll-margins-for-sticky-footer')
+- content_for(:title, procedure_tab_title(@procedure, "Présentation"))
 
 = render partial: 'administrateurs/breadcrumbs',
   locals: { steps: [['Démarches', admin_procedures_back_path(@procedure)],
@@ -8,7 +9,7 @@
 = render  NestedForms::FormOwnerComponent.new
 = form_for @procedure,
   url: url_for({ controller: 'administrateurs/procedures', action: :update, id: @procedure.id }),
-  html: { class: 'form procedure_tags_combo', multipart: true } do |f|
+  html: { class: 'procedure_tags_combo', multipart: true } do |f|
   .fr-container
     .fr-grid-row
       .fr-col-12.fr-col-offset-md-2.fr-col-md-8

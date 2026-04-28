@@ -48,6 +48,14 @@ grep -r "# pf:" dans les fichiers modifiés
 - **Nouveaux validateurs** → Impact champs spécifiques PF
 - **Changements de dépendances** → Compatibilité avec gems PF
 
+#### D. **Détection des tâches de maintenance upstream**
+- Lister les nouvelles tâches dans `app/tasks/maintenance/` ajoutées par la release
+- Vérifier si `run_on_first_deploy` est commenté ou actif
+- Consulter les release notes upstream pour déterminer si la tâche doit s'exécuter au déploiement
+- **Backfills, fix de données, nettoyages** → signaler comme candidat `run_on_first_deploy`
+- **Migrations volumineuses** → laisser commenté, signaler pour exécution manuelle
+- Inclure un tableau récapitulatif dans le rapport
+
 ### 4. **CLASSIFICATION INTELLIGENTE**
 
 #### 🔴 **CRITIQUE**

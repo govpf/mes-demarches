@@ -85,12 +85,13 @@ describe Instructeurs::ProcedurePresentationController, type: :controller do
   end
 
   describe '#refresh_column_filter' do
-    subject { patch :refresh_column_filter, params: { id: procedure_presentation.id, filters:, statut: 'tous' }, format: :turbo_stream }
+    subject { post :refresh_column_filter, params: { id: procedure_presentation.id, format: :turbo_stream, filter: { id: column.id } } }
 
     render_views
 
     let(:procedure) { create(:procedure, :routee) }
     let(:instructeur) { create(:instructeur) }
+    let!(:instructeur_procedure) { create(:instructeurs_procedure, instructeur:, procedure:) }
     let(:column) { procedure.find_column(label: "Groupe instructeur") }
 
     let(:procedure_presentation) do
@@ -100,43 +101,117 @@ describe Instructeurs::ProcedurePresentationController, type: :controller do
 
     before { sign_in(instructeur.user) }
 
-    context 'with no existing filters' do
-      let(:filters) { [{ id: column.id }] }
+    it 'refreshes the column filter' do
+      subject
 
-      it 'refreshes the column filter' do
+      expect(response).to be_successful
+      procedure.groupe_instructeurs.each do |gi|
+        expect(response.body).to include(gi.label)
+      end
+    end
+  end
+
+  describe '#add_filter' do
+    subject { post :add_filter, params: }
+
+    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :drop_down_list, libelle: 'Votre ville', options: ['Paris', 'Lyon', 'Marseille'] }]) }
+    let(:instructeur) { create(:instructeur) }
+    let(:procedure_presentation) do
+      groupe_instructeur = procedure.defaut_groupe_instructeur
+      assign_to = create(:assign_to, instructeur:, groupe_instructeur:)
+      assign_to.procedure_presentation_or_default_and_errors.first
+    end
+    let(:column) { procedure.find_column(label: 'Votre ville') }
+
+    before { sign_in(instructeur.user) }
+
+    context 'nominal case' do
+      let(:params) { { id: procedure_presentation.id, statut: 'tous', filter: { id: column.id, filter: { operator: 'match', value: ['Paris', 'Lyon'] } } } }
+
+      it 'adds the filter' do
         subject
 
-        expect(response).to be_successful
-        procedure.groupe_instructeurs.each do |gi|
-          expect(response.body).to include(gi.label)
-        end
+        expect(response).to redirect_to(instructeur_procedure_url(procedure))
+
+        expect(procedure_presentation.reload.tous_filters).to eq([FilteredColumn.new(column:, filter: { operator: 'match', value: ['Paris', 'Lyon'] })])
       end
     end
 
-    context 'with existing enum filter and new date filter' do
-      let(:state_column) { procedure.dossier_state_column }
-      let(:depose_at_column) { procedure.find_column(label: 'Date de dépôt') }
-      let(:filters) do
-        [
-          { filter: 'en_construction' },
-          { id: state_column.id, filter: 'accepte' },
-          { id: depose_at_column.id }
-        ]
-      end
+    context 'when the column id is missing' do
+      let(:params) { { id: procedure_presentation.id, statut: 'tous', filter: { filter: { operator: 'match', value: ['Paris'] } } } }
 
-      before do
-        # Create an existing filter so the bug scenario is reproduced
-        procedure_presentation.update(tous_filters: [FilteredColumn.new(column: state_column, filter: 'accepte')])
-      end
+      it 'does not add the filter and sets a flash alert' do
+        expect {
+          subject
+        }.not_to change { procedure_presentation.reload.tous_filters }
 
-      it 'returns the correct filter component for the new date column' do
+        expect(response).to redirect_to(instructeur_procedure_url(procedure))
+        expect(flash.alert).to eq(I18n.t('views.instructeurs.dossiers.filters.missing_column'))
+      end
+    end
+  end
+
+  describe '#remove_filter' do
+    subject { delete :remove_filter, params: }
+
+    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :drop_down_list, libelle: 'Votre ville', options: ['Paris', 'Lyon', 'Marseille'] }]) }
+    let(:instructeur) { create(:instructeur) }
+    let(:procedure_presentation) do
+      groupe_instructeur = procedure.defaut_groupe_instructeur
+      assign_to = create(:assign_to, instructeur:, groupe_instructeur:)
+      assign_to.procedure_presentation_or_default_and_errors.first
+    end
+    let(:column) { procedure.find_column(label: 'Votre ville') }
+
+    before do
+      sign_in(instructeur.user)
+      procedure_presentation.update!(tous_filters: [FilteredColumn.new(column:, filter: { operator: 'match', value: ['Paris', 'Lyon'] })])
+    end
+
+    context 'nominal case' do
+      let(:params) { { id: procedure_presentation.id, statut: 'tous', filter: { id: column.id, filter: { operator: 'match', value: ['Paris', 'Lyon'] } } } }
+
+      it 'removes the filter' do
         subject
 
-        expect(response).to be_successful
-        # Should render a date input, not a select with enum values
-        expect(response.body).to include('type="date"')
-        expect(response.body).not_to include('en_construction')
-        expect(response.body).not_to include('accepte')
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include('<turbo-stream action="refresh">')
+
+        expect(procedure_presentation.reload.tous_filters).to eq([])
+      end
+    end
+  end
+
+  describe '#update_filter' do
+    subject { patch :update_filter, params: }
+
+    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :drop_down_list, libelle: 'Votre ville', options: ['Paris', 'Lyon', 'Marseille'] }]) }
+    let(:instructeur) { create(:instructeur) }
+
+    let(:procedure_presentation) do
+      groupe_instructeur = procedure.defaut_groupe_instructeur
+      assign_to = create(:assign_to, instructeur:, groupe_instructeur:)
+      assign_to.procedure_presentation_or_default_and_errors.first
+    end
+
+    let(:column) { procedure.find_column(label: 'Votre ville') }
+
+    let(:existing_filter) { FilteredColumn.new(column:, filter: { operator: 'in', value: ['Paris', 'Lyon'] }) }
+
+    before do
+      sign_in(instructeur.user)
+      procedure_presentation.update!(tous_filters: [existing_filter])
+    end
+
+    context 'nominal case' do
+      let(:params) { { id: procedure_presentation.id, statut: 'tous', filter_key: existing_filter.id, filter: { id: column.id, filter: { operator: 'in', value: ['Marseille'] } } } }
+      it 'updates the filter' do
+        subject
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include('<turbo-stream action="refresh">')
+
+        expect(procedure_presentation.reload.tous_filters).to eq([FilteredColumn.new(column:, filter: { operator: 'in', value: ['Marseille'] })])
       end
     end
   end

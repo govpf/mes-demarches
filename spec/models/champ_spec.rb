@@ -91,8 +91,10 @@ describe Champ do
       expect(dossier.project_champs_private.count).to eq(1)
     end
 
-    it { expect(champ.public?).to be_truthy }
-    it { expect(champ.private?).to be_falsey }
+    it do
+      expect(champ.public?).to be_truthy
+      expect(champ.private?).to be_falsey
+    end
 
     context 'when a procedure has 2 revisions' do
       it { expect(dossier.procedure.revisions.count).to eq(2) }
@@ -247,14 +249,13 @@ describe Champ do
   describe '#for_tag' do
     # pf displays links for PJs
     context 'when type_de_champ is piece_justificative' do
-      let(:champ) do
-        Champs::PieceJustificativeChamp.new(stable_id: 3, dossier_id: 5, created_at: Time.zone.now).tap do |champ|
-          champ.piece_justificative_file.attach(fixture_file_upload('spec/fixtures/files/logo_test_procedure.png', 'image/png'))
-          champ.piece_justificative_file.first.blob.update(virus_scan_result: ActiveStorage::VirusScanner::SAFE)
-        end
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :piece_justificative }]) }
+      let(:dossier) { create(:dossier, procedure:) }
+      let(:champ) { dossier.project_champs_public.first }
+      before do
+        champ.piece_justificative_file.attach(fixture_file_upload('spec/fixtures/files/logo_test_procedure.png', 'image/png'))
+        champ.piece_justificative_file.first.blob.update(virus_scan_result: ActiveStorage::VirusScanner::SAFE)
       end
-      before { allow(champ).to receive(:type_de_champ).and_return(build(:type_de_champ_piece_justificative)) }
-      before { allow(champ).to receive(:dossier).and_return(build(:dossier)) }
       # pf: mocker la génération de variant pour data URI
       before do
         variant = double('variant')
@@ -267,7 +268,7 @@ describe Champ do
       # pf: nouveau comportement avec data URI pour embedding dans PDF + lien toujours présent
       it 'contains both image and download link' do
         result = champ.type_de_champ.champ_value_for_tag(champ).to_s
-        expect(result).to include('<img src="data:image/')
+        expect(result).to include('src="data:image/')
         expect(result).to include('Télécharger')
         expect(result).to include('<a href=')
       end
@@ -309,16 +310,19 @@ describe Champ do
 
     context 'when type_de_champ and champ.type mismatch' do
       let(:value) { :noop }
-      let(:champ_yes_no) { Champs::YesNoChamp.new(value: 'true') }
+      let(:champ_iban) { Champs::IbanChamp.new(value: 'FR1234') }
       let(:champ_text) { Champs::TextChamp.new(value: 'hello') }
-      let(:type_de_champ_yes_no) { build(:type_de_champ_yes_no) }
+      let(:type_de_champ_iban) { build(:type_de_champ_iban) }
       let(:type_de_champ_text) { build(:type_de_champ_text) }
       before do
-        allow(champ_yes_no).to receive(:type_de_champ).and_return(type_de_champ_yes_no)
+        allow(champ_iban).to receive(:type_de_champ).and_return(type_de_champ_iban)
         allow(champ_text).to receive(:type_de_champ).and_return(type_de_champ_text)
       end
-      it { expect(type_de_champ_text.champ_value_for_export(champ_yes_no)).to eq(nil) }
-      it { expect(type_de_champ_yes_no.champ_value_for_export(champ_text)).to eq('') }
+
+      it do
+        expect(type_de_champ_text.champ_value_for_export(champ_iban)).to eq(nil)
+        expect(type_de_champ_iban.champ_value_for_export(champ_text)).to eq(nil)
+      end
     end
   end
 
@@ -644,7 +648,7 @@ describe Champ do
         expect(subject.piece_justificative_file.first.watermark_pending?).to be_truthy
       end
 
-      it 'watermarks the file' do
+      it 'watermarks the file', :external_deps do
         subject
         perform_enqueued_jobs
         expect(champ.reload.piece_justificative_file.first.watermark_pending?).to be_falsy
@@ -683,43 +687,114 @@ describe Champ do
     let(:types_de_champ_public) { [] }
     let(:champ) { dossier.champs.first }
 
-    subject { champ.clone(fork) }
+    subject { champ.clone }
+
+    context 'when champ referentiel' do
+      let(:referentiel) { create(:api_referentiel, :autocomplete) }
+      let(:types_de_champ_public) { [{ type: :referentiel, referentiel:, mandatory: true }] }
+      let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
+
+      context 'when referentiel' do
+        let(:data) { { 'id' => '123', 'label' => 'foo' } }
+        before { champ.update_columns(data:) }
+        it { expect(subject.data).to eq(data) }
+      end
+    end
 
     context 'when champ public' do
       let(:types_de_champ_public) { [{ type: :piece_justificative }] }
       let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
 
-      context 'when fork' do
-        let(:fork) { true }
-        it do
-          expect(subject.piece_justificative_file).to be_attached
-        end
-      end
-
-      context 'when not fork' do
-        let(:fork) { false }
-        it do
-          expect(subject.piece_justificative_file).to be_attached
-        end
-      end
+      it { expect(subject.piece_justificative_file).to be_attached }
     end
 
     context 'champ private' do
       let(:dossier) { create(:dossier, :with_populated_annotations, procedure:) }
       let(:types_de_champ_private) { [{ type: :piece_justificative }] }
 
-      context 'when fork' do
-        let(:fork) { true }
-        it do
-          expect(subject.piece_justificative_file).to be_attached
-        end
+      it { expect(subject.piece_justificative_file).not_to be_attached }
+    end
+  end
+
+  describe '#dependent_formula_champs' do
+    let(:procedure) { create(:procedure, :published, :with_type_de_champ) }
+    let(:revision) { procedure.active_revision }
+    let(:dossier) { create(:dossier, procedure: procedure) }
+
+    let!(:montant_tdc) { create(:type_de_champ_integer_number, procedure: procedure, libelle: 'Montant HT') }
+    let!(:tva_tdc) { create(:type_de_champ_decimal_number, procedure: procedure, libelle: 'TVA') }
+    let!(:formule_tdc) do
+      create(:type_de_champ_formule,
+        procedure: procedure,
+        libelle: 'Total TTC',
+        formule_expression: "{tdc#{montant_tdc.stable_id}} + {tdc#{tva_tdc.stable_id}}")
+    end
+    let!(:autre_formule_tdc) do
+      create(:type_de_champ_formule,
+        procedure: procedure,
+        libelle: 'Montant x2',
+        formule_expression: "{tdc#{montant_tdc.stable_id}} * 2")
+    end
+
+    let(:montant_champ) { dossier.project_champ(montant_tdc) }
+    let(:tva_champ) { dossier.project_champ(tva_tdc) }
+    let(:formule_champ) { dossier.project_champ(formule_tdc) }
+    let(:autre_formule_champ) { dossier.project_champ(autre_formule_tdc) }
+
+    context 'when champ is referenced by formula champs' do
+      it 'returns all formula champs that depend on this champ' do
+        dependent_champs = montant_champ.dependent_formula_champs
+        dependent_stable_ids = dependent_champs.map(&:stable_id)
+
+        expect(dependent_stable_ids).to include(formule_tdc.stable_id, autre_formule_tdc.stable_id)
       end
 
-      context 'when not fork' do
-        let(:fork) { false }
-        it do
-          expect(subject.piece_justificative_file).not_to be_attached
-        end
+      it 'returns only relevant formula champs' do
+        dependent_champs = tva_champ.dependent_formula_champs
+        dependent_stable_ids = dependent_champs.map(&:stable_id)
+
+        expect(dependent_stable_ids).to include(formule_tdc.stable_id)
+        expect(dependent_stable_ids).not_to include(autre_formule_tdc.stable_id)
+      end
+    end
+
+    context 'when champ is not referenced by any formula' do
+      let!(:text_tdc) { create(:type_de_champ_text, procedure: procedure, libelle: 'Commentaire') }
+      let(:text_champ) { dossier.project_champ(text_tdc) }
+
+      it 'returns empty array' do
+        dependent_champs = text_champ.dependent_formula_champs
+
+        expect(dependent_champs).to be_empty
+      end
+    end
+
+    context 'when there are no formula champs in dossier' do
+      let(:procedure_without_formulas) { create(:procedure, :published) }
+      let(:dossier_without_formulas) { create(:dossier, procedure: procedure_without_formulas) }
+      let!(:simple_montant_tdc) { create(:type_de_champ_integer_number, procedure: procedure_without_formulas, libelle: 'Montant') }
+      let(:simple_montant_champ) { dossier_without_formulas.project_champ(simple_montant_tdc) }
+
+      it 'returns empty array' do
+        dependent_champs = simple_montant_champ.dependent_formula_champs
+
+        expect(dependent_champs).to be_empty
+      end
+    end
+
+    context 'when dependent_stable_ids is nil' do
+      let!(:formule_tdc_without_deps) do
+        create(:type_de_champ_formule,
+          procedure: procedure,
+          libelle: 'Formule vide',
+          formule_expression: '1 + 1') # Expression sans référence à d'autres champs
+      end
+      let(:formule_champ_without_deps) { dossier.project_champ(formule_tdc_without_deps) }
+
+      it 'handles nil gracefully' do
+        dependent_champs = montant_champ.dependent_formula_champs
+
+        expect(dependent_champs).not_to include(formule_champ_without_deps)
       end
     end
   end

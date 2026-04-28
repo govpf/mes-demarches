@@ -18,8 +18,7 @@ module Experts
     def index
       avis = current_expert.avis
         .not_revoked
-        .includes(:dossier)
-        .includes(procedure: { logo_attachment: :blob })
+        .includes(:dossier, :procedure)
         .not_hidden_by_administration
       @avis_by_procedure = avis.to_a.group_by(&:procedure)
     end
@@ -118,7 +117,7 @@ module Experts
 
         if !updated_recently
           @avis.dossier.followers_instructeurs
-            .with_instant_expert_avis_email_notifications_enabled
+            .with_instant_expert_avis_email_notifications_enabled(@avis.dossier.groupe_instructeur)
             .each do |instructeur|
             DossierMailer.notify_new_avis_to_instructeur(@avis, instructeur.email).deliver_later
           end
@@ -142,16 +141,14 @@ module Experts
       procedure_id = params[:procedure_id]
       avis_id = params[:id]
       email = params[:email]
-
+      confirmation_token = params[:user][:confirmation_token]
       avis = Avis.joins(:procedure, expert: :user)
-        .find_by(id: avis_id, procedure: { id: procedure_id }, user: { email: })
-
+        .find_by(id: avis_id, procedure: { id: procedure_id }, user: { email:, confirmation_token: })
       if avis.nil?
         return redirect_to root_path, alert: "Vous n’avez pas accès à cet avis."
       end
 
-      password = params[:user][:password]
-
+      password = params.require(:user).permit(:password)[:password]
       user = User.create_or_promote_to_expert(email, password)
       user.reset_password(password, password)
 

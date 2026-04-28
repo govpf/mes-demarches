@@ -33,15 +33,6 @@ def setup_driver(app, download_path, options)
   end
 end
 
-Capybara.register_driver :playwright do |app|
-  Capybara::Playwright::Driver.new(app,
-    browser_type: (ENV['PLAYWRIGHT_BROWSER'] || 'chromium').to_sym, # :chromium (default) or :firefox, :webkit
-    headless: ENV['NO_HEADLESS'].blank?,
-    locale: Rails.application.config.i18n.default_locale,
-    downloadsPath: Capybara.save_path,
-    playwright_cli_executable_path: 'bun playwright')
-end
-
 Capybara.register_driver :chrome do |app|
   options = Selenium::WebDriver::Chrome::Options.new
   options.add_argument('--no-sandbox') unless ENV['SANDBOX']
@@ -117,7 +108,21 @@ RSpec.configure do |config|
   end
 
   config.before(:each, type: :system, js: true) do
-    driven_by :playwright
+    options = {
+      browser_type: (ENV['PLAYWRIGHT_BROWSER'] || 'chromium').to_sym, # :chromium (default) or :firefox, :webkit
+      headless: ENV['NO_HEADLESS'].blank?,
+      locale: Rails.application.config.i18n.default_locale,
+      downloadsPath: Capybara.save_path,
+      playwright_cli_executable_path: 'bun playwright'
+    }
+
+    driven_by(:playwright, options:)
+
+    if ENV['LOG_WEB_CONSOLE'].present?
+      Capybara.current_session.driver.with_playwright_page do |page|
+        page.on("console", -> (msg) { puts msg.text })
+      end
+    end
   end
 
   config.before(:each, type: :system, chrome: true) do

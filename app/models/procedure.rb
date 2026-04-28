@@ -16,6 +16,8 @@ class Procedure < ApplicationRecord
   include Discard::Model
   self.discard_column = :hidden_at
 
+  self.ignored_columns += ["api_entreprise_token_expires_at"]
+
   default_scope -> { kept }
 
   OLD_MAX_DUREE_CONSERVATION = 36
@@ -31,10 +33,10 @@ class Procedure < ApplicationRecord
   belongs_to :published_revision, class_name: 'ProcedureRevision', optional: true
   has_many :deleted_dossiers, dependent: :destroy
 
-  has_many :draft_types_de_champ_public, through: :draft_revision, source: :types_de_champ_public
-  has_many :draft_types_de_champ_private, through: :draft_revision, source: :types_de_champ_private
-  has_many :published_types_de_champ_public, through: :published_revision, source: :types_de_champ_public
-  has_many :published_types_de_champ_private, through: :published_revision, source: :types_de_champ_private
+  def draft_types_de_champ_public = draft_revision&.types_de_champ_public || []
+  def draft_types_de_champ_private = draft_revision&.types_de_champ_private || []
+  def published_types_de_champ_public = published_revision&.types_de_champ_public || []
+  def published_types_de_champ_private = published_revision&.types_de_champ_private || []
 
   has_one :published_dossier_submitted_message, dependent: :destroy, through: :published_revision, source: :dossier_submitted_message
   has_one :draft_dossier_submitted_message, dependent: :destroy, through: :draft_revision, source: :dossier_submitted_message
@@ -48,9 +50,21 @@ class Procedure < ApplicationRecord
   has_one :module_api_carto, dependent: :destroy
   has_many :attestation_templates, dependent: :destroy
   has_one :attestation_template_v1, -> { AttestationTemplate.v1 }, dependent: :destroy, class_name: "AttestationTemplate", inverse_of: :procedure
-  has_many :attestation_templates_v2, -> { AttestationTemplate.v2 }, dependent: :destroy, class_name: "AttestationTemplate", inverse_of: :procedure
 
-  has_one :attestation_template, -> { published }, dependent: :destroy, inverse_of: :procedure
+  has_many :attestation_acceptation_templates_v2, -> { AttestationTemplate.v2.where(kind: "acceptation") }, dependent: :destroy, class_name: "AttestationTemplate", inverse_of: :procedure
+  has_many :attestation_refus_templates_v2, -> { AttestationTemplate.v2.where(kind: "refus") }, dependent: :destroy, class_name: "AttestationTemplate", inverse_of: :procedure
+
+  has_one :attestation_acceptation_template,
+          -> { published.where(kind: "acceptation") },
+          class_name: "AttestationTemplate",
+          dependent: :destroy,
+          inverse_of: :procedure
+
+  has_one :attestation_refus_template,
+          -> { published.where(kind: "refus") },
+          class_name: "AttestationTemplate",
+          dependent: :destroy,
+          inverse_of: :procedure
 
   belongs_to :parent_procedure, class_name: 'Procedure', optional: true
   belongs_to :canonical_procedure, class_name: 'Procedure', optional: true
@@ -119,7 +133,7 @@ class Procedure < ApplicationRecord
         .state_en_construction_ou_instruction
         .distinct(:revision_id)
         .pluck(:revision_id)
-      ProcedureRevision.includes(revision_types_de_champ: [:type_de_champ]).where(id: ids)
+      ProcedureRevision.includes(:revision_types_de_champ).where(id: ids)
     end
   end
 
@@ -181,30 +195,15 @@ class Procedure < ApplicationRecord
       .where(hidden_at: ...1.month.ago)
   end
 
-  scope :for_api, -> {
-    includes(
-      :administrateurs,
-      :module_api_carto,
-      published_revision: [
-        :types_de_champ_private,
-        :types_de_champ_public
-      ],
-      draft_revision: [
-        :types_de_champ_private,
-        :types_de_champ_public
-      ]
-    )
-  }
-
-  scope :for_api_v2, -> {
-    includes(:draft_revision, :published_revision, administrateurs: :user)
-  }
+  scope :for_api, -> { with_active_revision.includes(:administrateurs, :module_api_carto) }
+  scope :for_api_v2, -> { with_active_revision.includes(administrateurs: :user) }
+  scope :with_active_revision, -> { includes(draft_revision: :revision_types_de_champ, published_revision: :revision_types_de_champ) }
 
   scope :order_by_position_for, -> (instructeur) {
     joins(:instructeurs_procedures)
       .select('procedures.*, instructeurs_procedures.position AS position')
       .where(instructeurs_procedures: { instructeur_id: instructeur.id })
-      .order('position DESC')
+      .order(position: :desc)
   }
 
   enum :declarative_with_state, {
@@ -227,6 +226,7 @@ class Procedure < ApplicationRecord
 
   validates :draft_types_de_champ_public,
     'types_de_champ/condition': true,
+    'types_de_champ/formula': true,
     'types_de_champ/header_section_consistency': true,
     'types_de_champ/no_empty_block': true,
     'types_de_champ/no_empty_drop_down': true,
@@ -237,6 +237,7 @@ class Procedure < ApplicationRecord
 
   validates :draft_types_de_champ_private,
     'types_de_champ/condition': true,
+    'types_de_champ/formula': true,
     'types_de_champ/header_section_consistency': true,
     'types_de_champ/no_empty_block': true,
     'types_de_champ/no_empty_drop_down': true,
@@ -262,7 +263,7 @@ class Procedure < ApplicationRecord
                                                     less_than_or_equal_to: Expired::MAX_DOSSIER_RENTENTION_IN_MONTH
                                                   }
 
-  validates_with MonAvisEmbedValidator
+  validates_with MonAvisEmbedValidator, on: :publication
 
   validate :validates_associated_draft_revision_with_context
   validates_associated :initiated_mail, on: :publication
@@ -271,7 +272,8 @@ class Procedure < ApplicationRecord
   validates_associated :refused_mail, on: :publication
   validates_associated :without_continuation_mail, on: :publication
   validates_associated :re_instructed_mail, on: :publication
-  validates_associated :attestation_template, on: :publication, if: -> { attestation_template&.activated? }
+  validates_associated :attestation_acceptation_template, on: :publication, if: -> { attestation_acceptation_template&.activated? }
+  validates_associated :attestation_refus_template, on: :publication, if: -> { attestation_refus_template&.activated? }
 
   FILE_MAX_SIZE = 20.megabytes
   validates :notice, content_type: [
@@ -506,15 +508,23 @@ class Procedure < ApplicationRecord
     touch(:whitelisted_at)
   end
 
-  def closed_mail_template_attestation_inconsistency_state
-    # As an optimization, don’t check the predefined templates (they are presumed correct)
-    if closed_mail.present?
-      tag_present = closed_mail.body.to_s.include?("--lien attestation--")
-      if attestation_template&.activated? && !tag_present
-        :missing_tag
-      elsif !attestation_template&.activated? && tag_present
-        :extraneous_tag
-      end
+  def mail_template_attestation_inconsistency_state(mail_type)
+    case mail_type
+    when :acceptation
+      mail = closed_mail
+      attestation = attestation_acceptation_template
+    when :refus
+      mail = refused_mail
+      attestation = attestation_refus_template
+    end
+
+    return if mail.nil?
+
+    tag_present = mail.body.to_s.include?('--lien attestation--')
+    if attestation&.activated? && !tag_present
+      :missing_tag
+    elsif !attestation&.activated? && tag_present
+      :extraneous_tag
     end
   end
 
@@ -701,7 +711,7 @@ class Procedure < ApplicationRecord
 
   def self.tags
     unnest = Arel::Nodes::NamedFunction.new('UNNEST', [self.arel_table[:tags]])
-    query = self.select(unnest.as('tags')).publiees.distinct.order('tags')
+    query = self.select(unnest.as('tags')).publiees.distinct.order('tags') # rubocop:disable Rails/OrderArguments
     self.connection.query(query.to_sql).flatten
   end
 
@@ -916,6 +926,14 @@ class Procedure < ApplicationRecord
     !allow_expert_review?
   end
 
+  def attestation_templates_v2_for(kind)
+    public_send("attestation_#{kind}_templates_v2")
+  end
+
+  def published_attestation_template_for(kind)
+    public_send("attestation_#{kind}_template")
+  end
+
   private
 
   def stable_ids_used_by_routing_rules
@@ -945,6 +963,7 @@ class Procedure < ApplicationRecord
     # fetch the more recent procedure_revision_types_de_champ
     # which includes recents_ids
     recents_prtdc = ProcedureRevisionTypeDeChamp
+      .unscope(:eager_load)
       .where(type_de_champ_id: recent_ids)
       .where.not(revision_id: draft_revision_id)
       .group(:type_de_champ_id)

@@ -37,9 +37,7 @@ describe AttestationTemplate, type: :model do
         expect(subject.logo.attachment).not_to eq(attestation_template.logo.attachment)
         expect(subject.logo.blob).to eq(attestation_template.logo.blob)
         expect(subject.logo.attached?).to be_truthy
-      end
 
-      it do
         expect(subject.signature.attachment).not_to eq(attestation_template.signature.attachment)
         expect(subject.signature.blob).to eq(attestation_template.signature.blob)
         expect(subject.signature.attached?).to be_truthy
@@ -60,7 +58,7 @@ describe AttestationTemplate, type: :model do
       create(:procedure,
         types_de_champ_public: types_de_champ,
         types_de_champ_private: types_de_champ_private,
-        attestation_template: attestation_template)
+        attestation_acceptation_template: attestation_template)
     end
     let(:etablissement) { create(:etablissement) }
     let(:types_de_champ) { [] }

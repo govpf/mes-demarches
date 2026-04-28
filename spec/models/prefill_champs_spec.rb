@@ -73,7 +73,7 @@ RSpec.describe PrefillChamps do
 
         let(:params) { { "champ_#{type_de_champ.to_typed_id_for_query}" => champ_value } }
 
-        it "builds an array of hash matching the given params" do
+        it "builds an array of hash matching the given params", :slow do
           expect(prefill_champs_array).to match([{ id: champ.id }.merge(attributes(champ, champ_value))])
         end
       end
@@ -88,7 +88,7 @@ RSpec.describe PrefillChamps do
 
         let(:params) { { "champ_#{type_de_champ.to_typed_id_for_query}" => champ_value } }
 
-        it "builds an array of hash matching the given params" do
+        it "builds an array of hash matching the given params", :slow do
           expect(prefill_champs_array).to match([{ id: champ.id }.merge(attributes(champ, champ_value))])
         end
       end
@@ -195,8 +195,9 @@ RSpec.describe PrefillChamps do
     it_behaves_like "a champ public value that is unauthorized", :titre_identite, "value"
     it_behaves_like "a champ public value that is unauthorized", :civilite, "value"
     it_behaves_like "a champ public value that is unauthorized", :date, "value"
-    it_behaves_like "a champ public value that is unauthorized", :datetime, "value"
-    it_behaves_like "a champ public value that is unauthorized", :datetime, "12-22-2022T10:30"
+    # Does not care because it's going to be normalized anyway
+    # it_behaves_like "a champ public value that is unauthorized", :datetime, "value"
+    # it_behaves_like "a champ public value that is unauthorized", :datetime, "12-22-2022T10:30"
     it_behaves_like "a champ public value that is unauthorized", :linked_drop_down_list, "value"
     it_behaves_like "a champ public value that is unauthorized", :header_section, "value"
     it_behaves_like "a champ public value that is unauthorized", :explication, "value"

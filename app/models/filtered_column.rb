@@ -23,17 +23,26 @@ class FilteredColumn
   end
 
   def ==(other)
-    other&.column == column && other.filter == filter
+    other&.column == column && other.filter_value == filter_value && other.filter_operator == filter_operator
   end
 
   def id
-    column.h_id.merge(filter:).sort.to_json
+    column.h_id.merge(filter: filter.is_a?(Hash) ? filter.to_a.sort : filter).sort.to_json
+  end
+
+  def filter_operator
+    filter.is_a?(Hash) ? filter&.dig(:operator) : nil
+  end
+
+  def filter_value
+    Array(filter.is_a?(String) ? filter : filter&.dig(:value))
   end
 
   private
 
   def check_filter_max_length
-    if @filter.present? && @filter.length > FILTERS_VALUE_MAX_LENGTH
+    if filter.present? &&
+      filter_value.any? { |value| value.is_a?(String) && value.length > FILTERS_VALUE_MAX_LENGTH }
       errors.add(
         :base,
         "Le filtre « #{label} » est trop long (maximum: #{FILTERS_VALUE_MAX_LENGTH} caractères)"
@@ -42,7 +51,8 @@ class FilteredColumn
   end
 
   def check_filter_max_integer
-    if @column.column == 'id' && @filter.to_i > PG_INTEGER_MAX_VALUE
+    if @column.column == 'id' &&
+      (filter_value.any? { |value| value.to_i > PG_INTEGER_MAX_VALUE })
       errors.add(:base, "Le filtre « #{label} » n'est pas un numéro de dossier possible")
     end
   end

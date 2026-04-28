@@ -9,11 +9,14 @@ describe Logic::IncludeOperator do
   let(:champ) { Champs::MultipleDropDownListChamp.new(value: '["val1", "val2"]', stable_id: tdc.stable_id, dossier:) }
 
   describe '#compute' do
-    it { expect(ds_include(champ_value(champ.stable_id), constant('val1')).compute([champ])).to be(true) }
-    it { expect(ds_include(champ_value(champ.stable_id), constant('something else')).compute([champ])).to be(false) }
+    it do
+      expect(ds_include(champ_value(champ.stable_id), constant('val1')).compute([champ])).to be(true)
+      expect(ds_include(champ_value(champ.stable_id), constant('something else')).compute([champ])).to be(false)
+    end
   end
 
   describe '#errors' do
+    # rubocop:disable RSpec/ConsecutiveItBlocks
     it { expect(ds_include(champ_value(champ.stable_id), constant('val1')).errors([champ.type_de_champ])).to be_empty }
     it do
       expected = {
@@ -26,6 +29,7 @@ describe Logic::IncludeOperator do
     end
 
     it { expect(ds_include(constant(1), constant('val1')).errors([])).to eq([{ type: :required_list }]) }
+    # rubocop:enable RSpec/ConsecutiveItBlocks
   end
 
   describe '#==' do

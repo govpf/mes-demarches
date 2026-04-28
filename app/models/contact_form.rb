@@ -13,6 +13,7 @@ class ContactForm < ApplicationRecord
   validates :email, presence: true, strict_email: true, if: :require_email?
   validates :subject, presence: true
   validates :text, presence: true
+  validates :dossier_id, numericality: { only_integer: true }, allow_nil: true
   validates :question_type, presence: true
 
   has_one_attached :piece_jointe
@@ -57,7 +58,7 @@ class ContactForm < ApplicationRecord
   end
 
   def create_conversation_later
-    HelpscoutCreateConversationJob.perform_later(self)
+    CrispCreateConversationJob.perform_later(self)
   end
 
   def require_email? = user.blank?

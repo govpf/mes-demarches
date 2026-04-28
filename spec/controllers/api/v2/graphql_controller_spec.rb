@@ -203,7 +203,7 @@ describe API::V2::GraphqlController do
           "#{type_champ.gsub('regions', 'region').gsub('departements', 'departement').gsub('communes', 'commune').gsub('nationalites', 'nationalite').camelcase}ChampDescriptor"
         end
 
-        it "returns the demarche" do
+        it "returns the demarche", :slow do
           expect(gql_errors).to eq(nil)
           expect(gql_data).to include(demarche: {
             id: procedure.to_typed_id,
@@ -485,7 +485,7 @@ describe API::V2::GraphqlController do
           }"
         end
 
-        it "should be returned" do
+        it "should be returned", :slow do
           expect(gql_errors).to eq(nil)
           expect(gql_data[:dossier]).to include(
             id: dossier.to_typed_id,
@@ -520,7 +520,7 @@ describe API::V2::GraphqlController do
             },
             revision: {
               id: dossier.revision.to_typed_id,
-              champDescriptors: dossier.types_de_champ.map do |tdc|
+              champDescriptors: dossier.types_de_champ_public.map do |tdc|
                 {
                   type: tdc.type_champ
                 }
@@ -633,7 +633,7 @@ describe API::V2::GraphqlController do
         end
 
         context "with links" do
-          let(:dossier) { create(:dossier, :accepte, :with_attestation, procedure: procedure) }
+          let(:dossier) { create(:dossier, :accepte, :with_attestation_acceptation, procedure: procedure) }
           let(:query) do
             "{
               dossier(number: #{dossier.id}) {
@@ -1031,7 +1031,7 @@ describe API::V2::GraphqlController do
           it "should fail" do
             expect(gql_data).to eq(nil)
             expect(gql_errors).not_to eq(nil)
-            expect(body[:errors].first[:message]).to eq("unexpected token at '{'")
+            expect(body[:errors].first[:message]).to eq("expected object key, got EOF at line 1 column 2")
             expect(body[:errors].first.key?(:backtrace)).to be_falsey
           end
         end

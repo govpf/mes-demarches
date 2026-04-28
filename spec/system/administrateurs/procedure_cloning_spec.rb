@@ -58,11 +58,11 @@ describe 'As an administrateur I wanna clone a procedure', js: true do
       # then publish
       find('#publish-procedure-link').click
       # pf default path computed is different
-      expect(find_field('procedure_path').value).to eq Procedure.last.service.suggested_path + '-libelle-de-la-procedure'
-      fill_in 'procedure_path', with: procedure_path
+      expect(find_field('Lien de la démarche à diffuser aux usagers').value).to eq Procedure.last.service.suggested_path + '-libelle-de-la-procedure'
+      fill_in 'Lien de la démarche à diffuser aux usagers', with: procedure_path
       expect(page).to have_content "Si vous publiez cette démarche, le lien ne pointera plus sur l'ancienne démarche."
 
-      fill_in 'lien_site_web', with: 'http://some.website'
+      fill_in 'Où les usagers trouveront-ils le lien vers la démarche ?', with: 'http://some.website'
       click_on 'publish'
 
       page.refresh
@@ -99,10 +99,10 @@ describe 'As an administrateur I wanna clone a procedure', js: true do
       # then publish
       find('#publish-procedure-link').click
       # pf default path computed is different
-      expect(find_field('procedure_path').value).to eq Procedure.last.service.suggested_path + '-libelle-de-la-procedure'
-      fill_in 'procedure_path', with: procedure_path
+      expect(find_field('Lien de la démarche à diffuser aux usagers').value).to eq Procedure.last.service.suggested_path + '-libelle-de-la-procedure'
+      fill_in 'Lien de la démarche à diffuser aux usagers', with: procedure_path
       expect(page).to have_content "Si vous publiez cette démarche, le lien ne pointera plus sur l'ancienne démarche."
-      fill_in 'lien_site_web', with: 'http://some.website'
+      fill_in 'Où les usagers trouveront-ils le lien vers la démarche ?', with: 'http://some.website'
       click_on 'publish'
 
       page.refresh

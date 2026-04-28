@@ -5,7 +5,7 @@ describe ProcedureRevision do
   let(:type_de_champ_public) { draft.types_de_champ_public.first }
   let(:type_de_champ_private) { draft.types_de_champ_private.first }
   let(:type_de_champ_repetition) do
-    repetition = draft.types_de_champ_public.repetition.first
+    repetition = draft.types_de_champ_public.find(&:repetition?)
     repetition.update(stable_id: 3333)
     repetition
   end
@@ -87,7 +87,7 @@ describe ProcedureRevision do
         it do
           expect(draft.revision_types_de_champ_public.map(&:libelle)).to eq(['l1', 'l2'])
           subject
-          expect(draft.revision_types_de_champ_public.reload.map(&:libelle)).to eq(['l1', 'in the middle', 'l2'])
+          expect(draft.revision_types_de_champ_public.map(&:libelle)).to eq(['l1', 'in the middle', 'l2'])
           expect(draft.revision_types_de_champ_public.map(&:position)).to eq([0, 1, 2])
         end
       end
@@ -98,7 +98,7 @@ describe ProcedureRevision do
 
         it do
           subject
-          expect(draft.revision_types_de_champ_public.reload.map(&:libelle)).to eq(['in the middle', 'l1', 'l2'])
+          expect(draft.revision_types_de_champ_public.map(&:libelle)).to eq(['in the middle', 'l1', 'l2'])
         end
       end
     end
@@ -221,14 +221,13 @@ describe ProcedureRevision do
         end
 
         it 'reorders' do
-          children = draft.children_of(type_de_champ_repetition)
-          expect(children.pluck(:position)).to eq([0, 1, 2, 3])
+          children = draft.coordinate_for(type_de_champ_repetition).revision_types_de_champ
+          expect(children.map(&:position)).to eq([0, 1, 2, 3])
 
           draft.remove_type_de_champ(children[1].stable_id)
 
-          children.reload
-
-          expect(children.pluck(:position)).to eq([0, 1, 2])
+          children = draft.coordinate_for(type_de_champ_repetition).revision_types_de_champ
+          expect(children.map(&:position)).to eq([0, 1, 2])
         end
       end
     end
@@ -328,7 +327,7 @@ describe ProcedureRevision do
 
     context 'bug with duplicated repetition child' do
       before do
-        procedure.publish!
+        procedure.publish!(procedure.administrateurs.first)
         procedure.reload
         draft.find_and_ensure_exclusive_use(last_type_de_champ.stable_id).update(libelle: 'new libelle')
         procedure.reload
@@ -737,15 +736,6 @@ describe ProcedureRevision do
             :to => 'Saisissez le code de votre autre reference'
           })
           is_expected.to include({
-            :attribute => :referentiel_test_data,
-            :from => 'PG46YY6YWCX8',
-            :label => "libelle",
-            :op => :update,
-            :private => false,
-            :stable_id => 123,
-            :to => 'une autre'
-          })
-          is_expected.to include({
             :attribute => :referentiel_mapping,
             :from => { "key" => "value1" },
             :label => "libelle",
@@ -771,6 +761,57 @@ describe ProcedureRevision do
           # La normalisation doit ignorer les IDs et ne détecter aucun changement
           drop_down_changes = subject.filter { |change| change[:attribute] == :drop_down_options }
           expect(drop_down_changes).to be_empty
+        end
+      end
+
+      # pf: vérifie la détection du changement de formule_expression
+      # (sinon aucun avertissement de republication quand la formule est modifiée).
+      context 'when formule_expression changes' do
+        let(:procedure) do
+          create(:procedure, types_de_champ_public: [
+            { type: :integer_number, libelle: 'Montant' },
+            { type: :formule, libelle: 'Double', formule_expression: '{Montant} * 2' }
+          ])
+        end
+        let(:formule_tdc) { draft.types_de_champ_public.find(&:formule?) }
+
+        before do
+          updated = new_draft.find_and_ensure_exclusive_use(formule_tdc.stable_id)
+          updated.update(formule_expression: '{Montant} * 3')
+        end
+
+        it 'reports the change' do
+          is_expected.to include({
+            attribute: :formule_expression,
+            from: '{Montant} * 2',
+            to: '{Montant} * 3',
+            label: 'Double',
+            op: :update,
+            private: false,
+            stable_id: formule_tdc.stable_id
+          })
+        end
+      end
+
+      context 'when formule_expression is cleared' do
+        let(:procedure) do
+          create(:procedure, types_de_champ_public: [
+            { type: :integer_number, libelle: 'Montant' },
+            { type: :formule, libelle: 'Double', formule_expression: '{Montant} * 2' }
+          ])
+        end
+        let(:formule_tdc) { draft.types_de_champ_public.find(&:formule?) }
+
+        before do
+          updated = new_draft.find_and_ensure_exclusive_use(formule_tdc.stable_id)
+          updated.update(formule_expression: '')
+        end
+
+        it 'reports the removal' do
+          change = subject.find { |c| c[:attribute] == :formule_expression }
+          expect(change).not_to be_nil
+          expect(change[:from]).to eq('{Montant} * 2')
+          expect(change[:to]).to be_blank
         end
       end
 
@@ -945,7 +986,7 @@ describe ProcedureRevision do
       context 'with multiple revision' do
         let(:new_child) { create(:type_de_champ_text) }
         let(:new_draft) do
-          procedure.publish!
+          procedure.publish!(procedure.administrateurs.first)
           procedure.draft_revision
         end
 
@@ -1273,8 +1314,10 @@ describe ProcedureRevision do
       end
     end
 
-    it { expect(draft.dependent_conditions(first_champ)).to eq([second_champ]) }
-    it { expect(draft.dependent_conditions(second_champ)).to eq([]) }
+    it do
+      expect(draft.dependent_conditions(first_champ)).to eq([second_champ])
+      expect(draft.dependent_conditions(second_champ)).to eq([])
+    end
   end
 
   describe 'only_present_on_draft?' do
@@ -1283,12 +1326,12 @@ describe ProcedureRevision do
 
     it {
       expect(type_de_champ.only_present_on_draft?).to be_truthy
-      procedure.publish!
+      procedure.publish!(procedure.administrateurs.first)
       expect(type_de_champ.only_present_on_draft?).to be_falsey
       procedure.draft_revision.remove_type_de_champ(type_de_champ.stable_id)
       expect(type_de_champ.only_present_on_draft?).to be_falsey
       expect(type_de_champ.revisions.count).to eq(1)
-      procedure.publish_revision!
+      procedure.publish_revision!(procedure.administrateurs.first)
       expect(type_de_champ.only_present_on_draft?).to be_falsey
       expect(type_de_champ.revisions.count).to eq(1)
     }

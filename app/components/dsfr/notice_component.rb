@@ -8,9 +8,15 @@ class Dsfr::NoticeComponent < ApplicationComponent
 
   attr_reader :data_attributes
 
-  def initialize(closable: false, data_attributes: {})
+  def initialize(closable: false, state: 'info', data_attributes: {})
     @closable = closable
     @data_attributes = data_attributes
+    @state = state
+  end
+
+  def options
+    attrs = notice_data_attributes
+    attrs.merge(class: class_names(attrs[:class], "fr-notice", "fr-notice--#{@state}"))
   end
 
   def closable?

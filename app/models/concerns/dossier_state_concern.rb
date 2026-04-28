@@ -3,6 +3,23 @@
 module DossierStateConcern
   extend ActiveSupport::Concern
 
+  # pf: Surcharge accepter! pour pré-générer les variants/previews des PJ
+  # AVANT que la transaction AASM ne démarre.
+  #
+  # Contexte : ActiveStorage en Rails 7.1 diffère l'upload S3 dans after_commit.
+  # Quand un variant est généré dans la transaction AASM, le Tempfile source est
+  # supprimé par image_processing avant que after_commit ne puisse l'uploader.
+  # En pré-générant hors transaction, l'upload S3 s'exécute immédiatement.
+  def accepter!(**args)
+    warm_pj_previews
+    super
+  end
+
+  def accepter_automatiquement!(**args)
+    warm_pj_previews
+    super
+  end
+
   def submit_en_construction!
     self.traitements.submit_en_construction
     self.submitted_revision_id = revision_id
@@ -13,6 +30,7 @@ module DossierStateConcern
     resolve_pending_correction!
     process_sva_svr!
     clean_champs_after_submit!
+    DossierNotification.create_notification(self, :dossier_modifie)
   end
 
   def after_passer_en_construction
@@ -42,6 +60,7 @@ module DossierStateConcern
     groupe_instructeur.instructeurs.with_instant_email_dossier_notifications.each do |instructeur|
       DossierMailer.notify_new_dossier_depose_to_instructeur(self, instructeur.email).deliver_later
     end
+    DossierNotification.create_notification(self, :dossier_depose) if !procedure.declarative? && !procedure.sva_svr_enabled?
 
     clean_champs_after_submit!
   end
@@ -60,6 +79,8 @@ module DossierStateConcern
     save!
 
     reset_user_buffer_stream!
+    with_champs
+
     MailTemplatePresenterService.create_commentaire_for_state(self, Dossier.states.fetch(:en_instruction))
     resolve_pending_correction!
 
@@ -74,9 +95,6 @@ module DossierStateConcern
       InstructionNotificationJob.schedule_for_dossier(self)
       NotificationMailer.send_notification_for_tiers(self).deliver_later if self.for_tiers?
     end
-
-    # TODO remove when all forks are gone
-    editing_forks.each(&:destroy_editing_fork!)
   end
 
   def after_passer_automatiquement_en_instruction
@@ -144,7 +162,7 @@ module DossierStateConcern
     end
 
     if attestation.nil?
-      self.attestation = build_attestation
+      self.attestation = build_attestation_acceptation
     end
 
     save!
@@ -168,6 +186,7 @@ module DossierStateConcern
 
     send_dossier_decision_to_experts(self)
     clean_champs_after_instruction!
+    remove_attente_avis_notification
   end
 
   def after_accepter_automatiquement
@@ -184,7 +203,7 @@ module DossierStateConcern
     save!
 
     if attestation.nil?
-      self.attestation = build_attestation
+      self.attestation = build_attestation_acceptation
     end
 
     save!
@@ -222,6 +241,10 @@ module DossierStateConcern
       self.justificatif_motivation.attach(justificatif)
     end
 
+    if attestation.nil?
+      self.attestation = build_attestation_refus
+    end
+
     save!
 
     MailTemplatePresenterService.create_commentaire_for_state(self, Dossier.states.fetch(:refuse))
@@ -243,6 +266,7 @@ module DossierStateConcern
 
     send_dossier_decision_to_experts(self)
     clean_champs_after_instruction!
+    remove_attente_avis_notification
   end
 
   def after_refuser_automatiquement
@@ -256,6 +280,10 @@ module DossierStateConcern
     self.expired_at = expiration_date
 
     save!
+
+    if attestation.nil?
+      self.attestation = build_attestation_refus
+    end
 
     MailTemplatePresenterService.create_commentaire_for_state(self, Dossier.states.fetch(:refuse))
 
@@ -311,6 +339,7 @@ module DossierStateConcern
 
     send_dossier_decision_to_experts(self)
     clean_champs_after_instruction!
+    remove_attente_avis_notification
   end
 
   def after_repasser_en_instruction(h)
@@ -354,8 +383,6 @@ module DossierStateConcern
     remove_discarded_rows!
     remove_not_visible_rows!
     remove_not_visible_or_empty_champs!
-    # TODO remove when all forks are gone
-    editing_forks.each(&:destroy_editing_fork!)
   end
 
   def clean_champs_after_instruction!
@@ -369,7 +396,7 @@ module DossierStateConcern
     row_to_remove_ids = champs.filter { _1.row? && _1.discarded? }.map(&:row_id)
 
     return if row_to_remove_ids.empty?
-    champs.where(row_id: row_to_remove_ids).destroy_all
+    champs.where(row_id: row_to_remove_ids, stream: Champ::MAIN_STREAM).destroy_all
   end
 
   def remove_not_visible_or_empty_champs!
@@ -386,7 +413,7 @@ module DossierStateConcern
     champs_to_remove += rows_public.reject { repetition_to_keep_stable_ids.member?(_1.stable_id) }
 
     return if champs_to_remove.empty?
-    champs.where(id: champs_to_remove).destroy_all
+    champs.where(id: champs_to_remove, stream: Champ::MAIN_STREAM).destroy_all
   end
 
   def remove_not_visible_rows!
@@ -395,13 +422,53 @@ module DossierStateConcern
       .flat_map(&:row_ids)
 
     return if row_to_remove_ids.empty?
-    champs.where(row_id: row_to_remove_ids).destroy_all
+    champs.where(row_id: row_to_remove_ids, stream: Champ::MAIN_STREAM).destroy_all
   end
 
   def remove_titres_identite!
     champ_to_remove_ids = filled_champs.filter(&:titre_identite?).map(&:id)
 
     return if champ_to_remove_ids.empty?
-    champs.where(id: champ_to_remove_ids).destroy_all
+    champs.where(id: champ_to_remove_ids, stream: Champ::MAIN_STREAM).destroy_all
+  end
+
+  # pf: Pré-génère les variants/previews des PJ hors transaction AASM
+  def warm_pj_previews
+    filled_champs.each do |champ|
+      next unless champ.respond_to?(:piece_justificative_file)
+
+      champ.piece_justificative_file.each do |attachment|
+        Rails.logger.info "warm_pj_previews: traitement #{attachment.filename} (previewable=#{attachment.previewable?}, image=#{attachment.image?}, blob=#{attachment.blob.id})"
+        if attachment.image?
+          attachment.variant(resize_to_limit: [400, 400]).processed
+        elsif attachment.previewable?
+          attachment.preview(resize_to_limit: [400, 400]).processed
+        end
+        Rails.logger.info "warm_pj_previews: #{attachment.filename} OK"
+      rescue StandardError => e
+        Rails.logger.error "warm_pj_previews: ECHEC #{attachment.filename} - #{e.class}: #{e.message}"
+        Rails.logger.error e.backtrace.first(5).join("\n")
+        # pf: nettoyer les variant records orphelins (variant créé en base mais fichier S3 absent)
+        # Bug Rails connu : rails/rails#47047 - l'upload S3 se fait dans after_commit,
+        # un VariantRecord peut être committé sans fichier S3 correspondant.
+        begin
+          preview_blob = attachment.blob.preview_image.attached? ? attachment.blob.preview_image.blob : attachment.blob
+          ActiveStorage::VariantRecord.where(blob_id: preview_blob.id).find_each do |vr|
+            next unless vr.image.attached?
+            unless vr.image.blob.service.exist?(vr.image.blob.key)
+              Rails.logger.warn "warm_pj_previews: suppression variant orphelin #{vr.id} (blob #{vr.image.blob.id}, key=#{vr.image.blob.key})"
+              vr.image.blob.purge
+              vr.destroy!
+            end
+          end
+        rescue StandardError => cleanup_error
+          Rails.logger.error "warm_pj_previews: erreur nettoyage variants - #{cleanup_error.class}: #{cleanup_error.message}"
+        end
+      end
+    end
+  end
+
+  def remove_attente_avis_notification
+    DossierNotification.destroy_notifications_by_dossier_and_type(self, :attente_avis)
   end
 end

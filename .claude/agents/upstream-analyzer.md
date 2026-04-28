@@ -96,7 +96,116 @@ git diff $DERNIER_TAG_PF..$RELEASE_CIBLE -- Gemfile Gemfile.lock
 - 🟡 **MAJEUR** si incohérence gems/packages (dépendances non résolues)
 - 🟢 **MINEUR** si versions CI/CD légèrement différentes (warnings)
 
-#### E. **Détection des régressions de code PF** (IMPORTANT)
+#### E. **Détection des tâches de maintenance upstream** (IMPORTANT)
+
+**⚠️ Vérifier systématiquement les nouvelles tâches de maintenance ajoutées par upstream :**
+
+Les releases upstream ajoutent régulièrement des tâches de maintenance dans `app/tasks/maintenance/`.
+Par défaut, `run_on_first_deploy` est **commenté** dans le template, ce qui signifie que la tâche
+ne s'exécutera pas automatiquement au déploiement. Or, certaines tâches **doivent** s'exécuter
+automatiquement (backfills, corrections de données, nettoyages critiques).
+
+```bash
+# Lister les nouvelles tâches de maintenance ajoutées par la release
+git diff $DERNIER_TAG_PF..$RELEASE_CIBLE --name-only -- app/tasks/maintenance/ | grep -v concerns/
+
+# Pour chaque nouvelle tâche, vérifier le statut de run_on_first_deploy
+for task in $(git diff $DERNIER_TAG_PF..$RELEASE_CIBLE --diff-filter=A --name-only -- app/tasks/maintenance/ | grep -v concerns/); do
+  echo "=== $task ==="
+  grep -n "run_on_first_deploy" "$task" || echo "⚠️ ABSENT : pas de run_on_first_deploy"
+done
+```
+
+**Règle de décision :**
+1. Consulter les **release notes upstream** de la release concernée (`gh release view AAAA-MM-JJ-NN --repo demarches-simplifiees/demarches-simplifiees.fr`)
+2. Si la release note mentionne la tâche comme devant s'exécuter au déploiement → **signaler** que `run_on_first_deploy` doit être décommenté
+3. Si la tâche est un **backfill**, un **fix de données**, ou un **nettoyage** (destroy orphans, fix corrupted data) → **signaler** comme candidat probable au `run_on_first_deploy`
+4. Si la tâche est une migration de données volumineuse ou potentiellement lente → laisser commenté et **signaler** pour exécution manuelle
+
+**Format de signalement dans le rapport :**
+```markdown
+#### 🔧 TÂCHES DE MAINTENANCE
+
+| Tâche | run_on_first_deploy | Recommandation PF |
+|-------|---------------------|-------------------|
+| `T20250721destroyOrphanFollowsTask` | ❌ Commenté | ⚠️ **Décommenter** - nettoyage de données orphelines |
+| `T20250625BackfillXxxTask` | ✅ Actif | ✅ OK |
+| `T20250602FixBadAddressDataTask` | ❌ Commenté | ℹ️ Laisser commenté - migration volumineuse |
+```
+
+#### F. **Détection des conflits migration/maintenance_task multi-releases** (CRITIQUE)
+
+**⚠️ RISQUE MAJEUR quand plusieurs releases upstream sont empaquetées dans une seule PR :**
+
+Upstream déploie une release à la fois. Entre deux déploiements, des maintenance tasks peuvent tourner
+pour backfiller des données. Quand on fusionne plusieurs releases, `db:migrate` exécute toutes les
+migrations d'un coup — les maintenance tasks intercalées ne tournent jamais, ce qui provoque des
+échecs de contraintes (NOT NULL, CHECK, UNIQUE) sur des colonnes non backfillées.
+
+**Pattern dangereux à détecter :**
+1. Migration N ajoute une colonne nullable
+2. Maintenance task backfille la colonne (prévue entre deux déploiements)
+3. Migration N+M ajoute une contrainte NOT NULL / CHECK sur cette colonne
+→ La migration N+M échoue car la maintenance task n'a jamais tourné
+
+```bash
+# ÉTAPE 1 : Lister les nouvelles migrations ET maintenance tasks
+NEW_MIGRATIONS=$(git diff $DERNIER_TAG_PF..$RELEASE_CIBLE --diff-filter=A --name-only -- db/migrate/)
+NEW_TASKS=$(git diff $DERNIER_TAG_PF..$RELEASE_CIBLE --diff-filter=A --name-only -- app/tasks/maintenance/ | grep -v concerns/)
+
+# ÉTAPE 2 : Identifier les migrations qui ajoutent des colonnes
+for migration in $NEW_MIGRATIONS; do
+  if grep -qE "add_column|add_check_constraint|change_column_null|validate_check_constraint" "$migration" 2>/dev/null; then
+    echo "=== $migration ==="
+    grep -nE "add_column|add_check_constraint|change_column_null|validate_check_constraint" "$migration"
+  fi
+done
+
+# ÉTAPE 3 : Identifier les maintenance tasks qui font du backfill
+for task in $NEW_TASKS; do
+  if grep -qE "update_all|update!|backfill|where.*nil" "$task" 2>/dev/null; then
+    echo "=== BACKFILL TASK: $task ==="
+    grep -nE "update_all|update!|where.*nil" "$task"
+  fi
+done
+
+# ÉTAPE 4 : Croiser — chercher le pattern colonne + contrainte sur la même table
+# Pour chaque add_column, vérifier s'il existe une migration ultérieure avec
+# add_check_constraint ou change_column_null sur la même table,
+# ET une maintenance task de backfill entre les deux timestamps
+```
+
+**Analyse temporelle obligatoire :**
+- Extraire le timestamp de chaque migration (préfixe du nom de fichier : YYYYMMDDHHMMSS)
+- Extraire le timestamp de chaque maintenance task (préfixe tYYYYMMDD dans le nom)
+- Vérifier si une maintenance task de backfill se situe **chronologiquement entre** deux migrations liées
+- Si oui → **ALERTE** : la maintenance task ne tournera pas automatiquement lors du `db:migrate`
+
+**Format de signalement :**
+```markdown
+#### 🔴 CONFLIT MIGRATION/MAINTENANCE_TASK MULTI-RELEASES
+
+| Séquence | Timestamp | Fichier | Action |
+|----------|-----------|---------|--------|
+| 1. Migration | 20250908 | `add_kind_to_attestation_templates` | Ajoute colonne `kind` (nullable) |
+| 2. Maintenance task | 20250908 | `t20250908backfill_attestation_templates_kind_task` | Backfill `kind = 'acceptation'` |
+| 3. Migration | 20250930 | `validate_add_default_false_to_attestation_templates_kind` | Valide contrainte `kind IS NOT NULL` |
+
+**⚠️ PROBLÈME** : La maintenance task (étape 2) ne tournera pas entre les migrations 1 et 3.
+La migration 3 échouera avec `PG::CheckViolation`.
+
+**SOLUTION** : Intégrer le backfill directement dans une migration, avant la contrainte :
+```ruby
+safety_assured { execute("UPDATE table SET col = 'default' WHERE col IS NULL") }
+```
+```
+
+**Checklist de validation :**
+- [ ] Toutes les nouvelles migrations qui ajoutent des contraintes NOT NULL / CHECK ont été identifiées
+- [ ] Pour chaque contrainte, vérifier si une maintenance task de backfill existe entre la création de colonne et la contrainte
+- [ ] Si backfill intercalé détecté → signaler comme CRITIQUE et proposer l'intégration du backfill dans la migration
+
+#### G. **Détection des régressions de code PF** (IMPORTANT)
 
 **⚠️ Détecter quand du code PF obsolète réapparaît :**
 
@@ -218,6 +327,11 @@ DraftNotificationJob.schedule_for_dossier(dossier)
 
 #### Risques par raisonnement contextuel
 - **Domaine [X]** : [fichier modifié] → Impact [spécificité PF]
+
+#### Tâches de maintenance upstream
+| Tâche | run_on_first_deploy | Recommandation PF |
+|-------|---------------------|-------------------|
+| `[NomTask]` | ✅/❌ | [Décommenter/OK/Laisser commenté] |
 
 #### Régressions de code PF détectées
 - **[Fichier]** : [description régression] → **Action** : [restaurer/adapter]

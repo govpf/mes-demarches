@@ -34,8 +34,6 @@ require "rack_session_access/capybara"
 Rails.root.glob('spec/support/**/*.rb').each { |f| require f }
 Rails.root.glob('spec/factories/**/*.rb').each { |f| require f }
 
-ActiveSupport::Deprecation.silenced = true
-
 # Checks for pending migrations before tests are run.
 # If you are not using ActiveRecord, you can remove this line.
 begin
@@ -140,4 +138,8 @@ RSpec.configure do |config|
   config.include Devise::Test::IntegrationHelpers, type: :system
   config.include ViewComponent::TestHelpers, type: :component
   config.include Capybara::RSpecMatchers, type: :component
+
+  # early check to ensure redis is available for test
+  redis = Kredis::Connections.connections[:shared]
+  redis.ping
 end

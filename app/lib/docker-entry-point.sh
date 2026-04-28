@@ -7,7 +7,6 @@ if [ -f /app/tmp/pids/server.pid ]; then
 fi
 
 bundle exec rake db:migrate || bundle exec rake db:setup
-bundle exec rake after_party:run || true
 bundle exec rake jobs:schedule
 
 exec bundle exec "$@"

@@ -29,7 +29,7 @@ describe Users::DossiersController, type: :controller do
     end
 
     describe 'ensure setup' do
-      it do
+      it '', :slow do
         preloaded_dossier = DossierPreloader.load_one(dossier)
         expect(preloaded_dossier.valid?).to eq(true)
 
@@ -70,10 +70,9 @@ describe Users::DossiersController, type: :controller do
     describe 'POST #submit_en_construction' do
       before do
         dossier.passer_en_construction!
-        dossier.owner_editing_fork
       end
 
-      it do
+      it '', :slow do
         query_count = 0
 
         ActiveSupport::Notifications.subscribed(lambda { |*_args| query_count += 1 }, "sql.active_record") do

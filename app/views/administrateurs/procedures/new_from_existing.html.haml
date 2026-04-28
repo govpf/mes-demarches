@@ -1,3 +1,5 @@
+- content_for(:title, "Nouvelle démarche")
+
 .container
   - if current_administrateur.procedures.brouillons.count == 0
     = render Dsfr::CalloutComponent.new(title: nil, icon: "fr-icon-information-line", extra_class_names: 'fr-my-4w') do |c|

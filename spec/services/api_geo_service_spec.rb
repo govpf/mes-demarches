@@ -2,10 +2,10 @@
 
 describe APIGeoService do
   describe 'pays' do
-    it 'countrie_code' do
+    it 'countrie_code', :slow do
       countries = JSON.parse(Rails.root.join('spec/fixtures/files/pays_dump.json').read)
       countries_without_code = countries.map { APIGeoService.country_code(_1) }.count(&:nil?)
-      expect(countries_without_code).to eq(67)
+      expect(countries_without_code).to eq(78)
     end
 
     describe 'country_name' do
@@ -46,7 +46,7 @@ describe APIGeoService do
   end
 
   describe 'communes_by_postal_code' do
-    it 'return results' do
+    it 'return results', :slow do
       expect(APIGeoService.communes_by_postal_code('01500').size).to eq(8)
       expect(APIGeoService.communes_by_postal_code('75019').size).to eq(1)
       expect(APIGeoService.communes_by_postal_code('69005').size).to eq(1)
@@ -113,8 +113,10 @@ describe APIGeoService do
         features.first.tap { _1["properties"].delete("postcode") }
       end
 
-      it { expect(subject[:postal_code]).to eq('') }
-      it { expect(subject[:city_name]).to eq('Paris') }
+      it do
+        expect(subject[:postal_code]).to eq('')
+        expect(subject[:city_name]).to eq('Paris')
+      end
     end
   end
 
@@ -151,6 +153,25 @@ describe APIGeoService do
       let(:city_code) { '' }
 
       it { is_expected.to eq('Paris') }
+    end
+  end
+
+  describe 'degraded mode' do
+    before do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('API_GEO_DEGRADED_MODE').and_return('enabled')
+    end
+
+    it 'returns commune results without calling API' do
+      expect(Typhoeus).not_to receive(:get)
+
+      response = APIGeoService.commune_by_name_or_postal_code('stras')
+      results = JSON.parse(response.body)
+      expect(results[0]["nom"]).to eq("Strasbourg")
+
+      response = APIGeoService.commune_by_name_or_postal_code('41000')
+      results = JSON.parse(response.body)
+      expect(results[0]["nom"]).to eq("Blois")
     end
   end
 end

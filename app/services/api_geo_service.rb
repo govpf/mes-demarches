@@ -1,10 +1,18 @@
 # frozen_string_literal: true
 
 class APIGeoService
+  # Excluded from country list (French overseas departments that are not sovereign countries)
+  EXCLUDED_COUNTRY_CODES = %w[GP MQ GF RE YT].freeze
+
   class << self
+    def degraded_mode?
+      ENV.enabled?('API_GEO_DEGRADED_MODE')
+    end
+
     def countries(locale: I18n.locale)
       I18nData.countries(locale)
         .merge(get_localized_additional_countries(locale))
+        .reject { |code, _name| code.in?(EXCLUDED_COUNTRY_CODES) }
         .map { |(code, name)| { name:, code: } }
         .sort_by { I18n.transliterate(_1[:name].tr('î', 'Î')) }
     end
@@ -383,21 +391,38 @@ class APIGeoService
     private
 
     def fetch_by_name(name)
-      Typhoeus.get("#{API_GEO_URL}/communes", params: {
-        type: 'commune-actuelle,arrondissement-municipal',
-        nom: name,
-        boost: 'population',
-        limit: 100
-      }, timeout: 3)
+      if degraded_mode?
+        APIGeoDegradedService.fetch_communes_by_name(name, prepare_departements_data)
+      else
+        Typhoeus.get("#{API_GEO_URL}/communes", params: {
+          type: 'commune-actuelle,arrondissement-municipal',
+          nom: name,
+          boost: 'population',
+          limit: 100
+        }, timeout: 3)
+      end
     end
 
     def fetch_by_postal_code(postal_code)
-      Typhoeus.get("#{API_GEO_URL}/communes", params: {
-        type: 'commune-actuelle,arrondissement-municipal',
-        codePostal: postal_code,
-        boost: 'population',
-        limit: 50
-      }, timeout: 3)
+      if degraded_mode?
+        APIGeoDegradedService.fetch_communes_by_postal_code(postal_code, prepare_departements_data)
+      else
+        Typhoeus.get("#{API_GEO_URL}/communes", params: {
+          type: 'commune-actuelle,arrondissement-municipal',
+          codePostal: postal_code,
+          boost: 'population',
+          limit: 50
+        }, timeout: 3)
+      end
+    end
+
+    def prepare_departements_data
+      Rails.cache.fetch('api_geo_degraded_departements_data', expires_in: 1.day, version: 1) do
+        departements.each_with_object({}) do |departement, data|
+          next if departement[:code] == '99'
+          data[departement[:code]] = get_from_api_geo("communes-#{departement[:code]}")
+        end
+      end
     end
 
     def postal_code?(string)

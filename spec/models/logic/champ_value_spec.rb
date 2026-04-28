@@ -43,8 +43,10 @@ describe Logic::ChampValue do
       let(:champ) { Champs::IntegerNumberChamp.new(value:, stable_id: tdc.stable_id, dossier:) }
       let(:value) { '42' }
 
-      it { expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:number) }
-      it { is_expected.to eq(42) }
+      it do
+        expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:number)
+        is_expected.to eq(42)
+      end
 
       context 'with a blank value' do
         let(:value) { '' }
@@ -58,8 +60,10 @@ describe Logic::ChampValue do
       let(:champ) { Champs::DecimalNumberChamp.new(value:, stable_id: tdc.stable_id, dossier:) }
       let(:value) { '42.01' }
 
-      it { expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:number) }
-      it { is_expected.to eq(42.01) }
+      it do
+        expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:number)
+        is_expected.to eq(42.01)
+      end
     end
 
     context 'dropdown tdc' do
@@ -68,16 +72,20 @@ describe Logic::ChampValue do
       let(:value) { 'val1' }
       let(:other) { nil }
 
-      it { expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:enum) }
-      it { is_expected.to eq('val1') }
-      it { expect(champ_value(champ.stable_id).options([champ.type_de_champ])).to match_array([["val1", "val1"], ["val2", "val2"], ["val3", "val3"]]) }
+      it do
+        expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:enum)
+        is_expected.to eq('val1')
+        expect(champ_value(champ.stable_id).options([champ.type_de_champ])).to match_array([["val1", "val1"], ["val2", "val2"], ["val3", "val3"]])
+      end
 
       context 'with other enabled' do
         let(:tdc_type) { :drop_down_list }
         let(:drop_down_other) { true }
 
-        it { is_expected.to eq('val1') }
-        it { expect(champ_value(champ.stable_id).options([champ.type_de_champ])).to match_array([["val1", "val1"], ["val2", "val2"], ["val3", "val3"], [I18n.t('shared.champs.drop_down_list.other'), "__other__"]]) }
+        it do
+          is_expected.to eq('val1')
+          expect(champ_value(champ.stable_id).options([champ.type_de_champ])).to match_array([["val1", "val1"], ["val2", "val2"], ["val3", "val3"], [I18n.t('shared.champs.drop_down_list.other'), "__other__"]])
+        end
 
         context 'with other filled' do
           let(:other) { true }
@@ -92,8 +100,10 @@ describe Logic::ChampValue do
       let(:champ) { Champs::CheckboxChamp.new(value:, stable_id: tdc.stable_id, dossier:) }
       let(:value) { 'true' }
 
-      it { expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:boolean) }
-      it { is_expected.to eq(true) }
+      it do
+        expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:boolean)
+        is_expected.to eq(true)
+      end
     end
 
     context 'departement tdc' do
@@ -101,8 +111,10 @@ describe Logic::ChampValue do
       let(:champ) { Champs::DepartementChamp.new(value:, stable_id: tdc.stable_id, dossier:) }
       let(:value) { '02' }
 
-      it { expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:departement_enum) }
-      it { is_expected.to eq({ value: '02', code_region: '32' }) }
+      it do
+        expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:departement_enum)
+        is_expected.to eq({ value: '02', code_region: '32' })
+      end
     end
 
     context 'region tdc' do
@@ -159,12 +171,45 @@ describe Logic::ChampValue do
       it { is_expected.to eq({ code_departement: '43', code_region: '84' }) }
     end
 
+    context 'formule tdc (numeric)' do
+      let(:tdc_type) { :formule }
+      let(:champ) { Champs::FormuleChamp.new(value: '42', stable_id: tdc.stable_id, dossier:) }
+
+      before { tdc.update_column(:options, tdc.options.merge('formule_output_type' => 'number')) }
+
+      it do
+        expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:number)
+        is_expected.to eq(42.0)
+      end
+    end
+
+    context 'formule tdc (boolean)' do
+      let(:tdc_type) { :formule }
+      # pf: storage aligné avec Champs::BooleanChamp — "true"/"false"
+      let(:champ) { Champs::FormuleChamp.new(value: 'true', stable_id: tdc.stable_id, dossier:) }
+
+      before { tdc.update_column(:options, tdc.options.merge('formule_output_type' => 'boolean')) }
+
+      it do
+        expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:boolean)
+        is_expected.to eq(true)
+      end
+
+      context 'with false value' do
+        let(:champ) { Champs::FormuleChamp.new(value: 'false', stable_id: tdc.stable_id, dossier:) }
+
+        it { is_expected.to eq(false) }
+      end
+    end
+
     describe 'errors' do
       let(:tdc_type) { :number }
       let(:champ) { Champs::IntegerNumberChamp.new(value: nil, stable_id: tdc.stable_id, dossier:) }
 
-      it { expect(champ_value(champ.stable_id).errors([champ.type_de_champ])).to be_empty }
-      it { expect(champ_value(champ.stable_id).errors([])).to eq([{ type: :not_available }]) }
+      it do
+        expect(champ_value(champ.stable_id).errors([champ.type_de_champ])).to be_empty
+        expect(champ_value(champ.stable_id).errors([])).to eq([{ type: :not_available }])
+      end
     end
 
     describe '#sources' do

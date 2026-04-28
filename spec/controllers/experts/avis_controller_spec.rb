@@ -6,12 +6,13 @@ describe Experts::AvisController, type: :controller do
 
     let(:now) { Time.zone.parse('01/02/2345') }
     let(:instructeur) { create(:instructeur) }
+    let(:instructeur_without_instant_avis_notification) { create(:instructeur) }
     let!(:instructeur_with_instant_avis_notification) { create(:instructeur) }
     let(:another_instructeur) { create(:instructeur) }
     let(:claimant) { create(:expert) }
     let(:expert) { create(:expert) }
     let(:types_de_champ_public) { [] }
-    let(:procedure) { create(:procedure, :published, instructeurs: [instructeur, another_instructeur, instructeur_with_instant_avis_notification], types_de_champ_public:) }
+    let(:procedure) { create(:procedure, :published, instructeurs: [instructeur, another_instructeur, instructeur_with_instant_avis_notification, instructeur_without_instant_avis_notification], types_de_champ_public:) }
     let(:procedure_id) { procedure.id }
     let(:another_procedure) { create(:procedure, :published, instructeurs: [instructeur]) }
     let(:dossier) { create(:dossier, :en_construction, procedure:) }
@@ -278,14 +279,21 @@ describe Experts::AvisController, type: :controller do
 
       context 'without attachment with an instructeur wants to be notified' do
         before do
-          allow(DossierMailer).to receive(:notify_new_avis_to_instructeur).and_return(double(deliver_later: nil))
           AssignTo.find_by(instructeur: instructeur_with_instant_avis_notification).update!(instant_expert_avis_email_notifications_enabled: true)
           instructeur_with_instant_avis_notification.follow(avis_without_answer.dossier)
-          subject
+
+          instructeur_without_instant_avis_notification.follow(avis_without_answer.dossier)
+
+          another_procedure = create(:procedure, instructeurs: [instructeur_without_instant_avis_notification])
+          another_dossier = create(:dossier, :en_construction, procedure: another_procedure)
+          instructeur_without_instant_avis_notification.follow(another_dossier)
+          AssignTo.find_by(instructeur: instructeur_without_instant_avis_notification, groupe_instructeur: another_dossier.groupe_instructeur)
+            .update!(instant_expert_avis_email_notifications_enabled: true)
         end
 
         it 'The instructeur should be notified of the new avis' do
-          expect(DossierMailer).to have_received(:notify_new_avis_to_instructeur).once.with(avis_without_answer, instructeur_with_instant_avis_notification.email)
+          expect(DossierMailer).to receive(:notify_new_avis_to_instructeur).once.with(avis_without_answer, instructeur_with_instant_avis_notification.email).and_return(double(deliver_later: true))
+          subject
         end
       end
 
@@ -317,7 +325,7 @@ describe Experts::AvisController, type: :controller do
       end
 
       context "when dossier had attente_avis notification" do
-        let!(:notification) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: :attente_avis) }
+        let!(:notification) { create(:dossier_notification, dossier:, instructeur:, notification_type: :attente_avis) }
 
         it "destroy notification for all instructeurs" do
           subject
@@ -325,7 +333,7 @@ describe Experts::AvisController, type: :controller do
         end
       end
 
-      context "when there are instructeurs followers" do
+      context "when there are instructeurs wish to be notified" do
         let!(:groupe_instructeur) { create(:groupe_instructeur, instructeurs: [instructeur, another_instructeur]) }
 
         before do
@@ -333,7 +341,7 @@ describe Experts::AvisController, type: :controller do
           instructeur.followed_dossiers << dossier
         end
 
-        it "create avis_externe notification only for instructeur follower" do
+        it "create avis_externe notification" do
           expect { subject }.to change(DossierNotification, :count).by(1)
 
           notification = DossierNotification.last
@@ -641,72 +649,85 @@ describe Experts::AvisController, type: :controller do
       let(:avis_id) { avis.id }
       let(:email) { avis.expert.email }
       let(:password) { SECURE_PASSWORD }
+      let(:valid_confirmation_token) { "1234" }
+      before { avis.expert.user.update(confirmation_token: valid_confirmation_token) }
 
       subject do
-        post :update_expert, params: {
-          id: avis_id,
-          procedure_id:,
-          email:,
-          user: {
-            password:
+          post :update_expert, params: {
+            id: avis_id,
+            procedure_id:,
+            email:,
+            user: {
+              password:,
+              confirmation_token:
+            }
           }
-        }
-      end
+        end
 
-      context 'when the avis is revoked' do
-        before { avis.update(revoked_at: Time.zone.now) }
+      context 'when token is invalid' do
+        let(:confirmation_token) { "kthxbye" }
 
         it { is_expected.to redirect_to(root_path) }
       end
 
-      context 'when the expert hasn’t signed up yet' do
-        before { expert.user.update(last_sign_in_at: nil) }
+      context 'when valid token is provided' do
+        let(:confirmation_token) { valid_confirmation_token }
 
-        it 'saves the expert new password' do
-          subject
-          expect(expert.user.reload.valid_password?(SECURE_PASSWORD)).to be true
+        context 'when the avis is revoked' do
+          before { avis.update(revoked_at: Time.zone.now) }
+
+          it { is_expected.to redirect_to(root_path) }
         end
 
-        it { is_expected.to redirect_to expert_all_avis_path }
-      end
+        context 'when the expert hasn’t signed up yet' do
+          before { expert.user.update(last_sign_in_at: nil) }
 
-      context 'with a random avis, procedure and user' do
-        let(:avis_id) { create(:avis).id }
-        let(:random_user) { create(:user, password: '{Another-$3cure-p4ssWord}') }
-        let(:email) { random_user.email }
+          it 'saves the expert new password' do
+            subject
+            expect(expert.user.reload.valid_password?(SECURE_PASSWORD)).to be true
+          end
 
-        it 'doesn’t change the random user password' do
-          expect(random_user.reload.valid_password?(password)).to be false
-          subject
-          expect(random_user.reload.valid_password?(password)).to be false
-          expect(flash[:alert]).to eq("Vous n’avez pas accès à cet avis.")
-        end
-      end
-
-      context 'with a matching avis procedure, and a random user' do
-        let(:avis) { create(:avis) }
-        let(:avis_id) { avis.id }
-        let(:procedure_id) { avis.procedure.id }
-        let(:random_user) { create(:user, password: '{Another-$3cure-p4ssWord}') }
-        let(:email) { random_user.email }
-
-        it 'doesn’t change the random user password' do
-          expect(random_user.reload.valid_password?(password)).to be false
-          subject
-          expect(random_user.reload.valid_password?(password)).to be false
-          expect(flash[:alert]).to eq("Vous n’avez pas accès à cet avis.")
-        end
-      end
-
-      context 'when the expert has already signed up' do
-        before { expert.user.update(last_sign_in_at: Time.zone.now) }
-
-        it 'doesn’t change the expert password' do
-          subject
-          expect(expert.user.reload.valid_password?('{Another-$3cure-p4ssWord}')).to be false
+          it { is_expected.to redirect_to expert_all_avis_path }
         end
 
-        it { is_expected.to redirect_to new_user_session_url }
+        context 'with a random avis, procedure and user' do
+          let(:avis_id) { create(:avis).id }
+          let(:random_user) { create(:user, password: '{Another-$3cure-p4ssWord}') }
+          let(:email) { random_user.email }
+
+          it 'doesn’t change the random user password' do
+            expect(random_user.reload.valid_password?(password)).to be false
+            subject
+            expect(random_user.reload.valid_password?(password)).to be false
+            expect(flash[:alert]).to eq("Vous n’avez pas accès à cet avis.")
+          end
+        end
+
+        context 'with a matching avis procedure, and a random user' do
+          let(:avis) { create(:avis) }
+          let(:avis_id) { avis.id }
+          let(:procedure_id) { avis.procedure.id }
+          let(:random_user) { create(:user, password: '{Another-$3cure-p4ssWord}') }
+          let(:email) { random_user.email }
+
+          it 'doesn’t change the random user password' do
+            expect(random_user.reload.valid_password?(password)).to be false
+            subject
+            expect(random_user.reload.valid_password?(password)).to be false
+            expect(flash[:alert]).to eq("Vous n’avez pas accès à cet avis.")
+          end
+        end
+
+        context 'when the expert has already signed up' do
+          before { expert.user.update(last_sign_in_at: Time.zone.now) }
+
+          it 'doesn’t change the expert password' do
+            subject
+            expect(expert.user.reload.valid_password?('{Another-$3cure-p4ssWord}')).to be false
+          end
+
+          it { is_expected.to redirect_to new_user_session_url }
+        end
       end
     end
   end

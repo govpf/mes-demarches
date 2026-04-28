@@ -10,6 +10,7 @@ en:
         relance_effectuee_le: "Reminder sent at %{date}"
         reponse_donnee_le: "Response sent at %{date}"
         en_attente: "Waiting for response"
+        avis_non_rendu: "Response not given"
       france_connect_login:
         title: "For people registered with FranceConnect"
         description: "FranceConnect is a solution proposed by the government to secure and simplify the connection to web services."
@@ -27,6 +28,8 @@ en:
         already_user: "I already have an account"
         create: 'Create an account'
         signin: 'Sign in'
+        email_unverified: "Your email address is not verified, so you will not receive messages from %{application_name}. Please check your inbox and click on the verification link. Didn't receive the email?"
+        cta_email_unverified: "Resend verification email"
       messages:
         remove_file: 'Remove file'
       piece_justificative:

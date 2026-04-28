@@ -28,6 +28,10 @@ class Champ < ApplicationRecord
       .find(-> { raise "Type De Champ #{stable_id} not found in Revision #{dossier.revision_id}" }) { _1.stable_id == stable_id }
   end
 
+  def type_de_champ=(type_de_champ)
+    @type_de_champ = type_de_champ
+  end
+
   delegate :libelle,
     :type_champ,
     :description,
@@ -44,12 +48,8 @@ class Champ < ApplicationRecord
     :collapsible_explanation_text,
     :header_section_level_value,
     :current_section_level,
-    :exclude_from_export?,
-    :exclude_from_view?,
     :non_fillable?,
     :fillable?,
-    :te_fenua?,
-    :lexpol?,
     :mandatory?,
     :prefillable?,
     :refresh_after_update?,
@@ -81,7 +81,23 @@ class Champ < ApplicationRecord
   include DateEncodingConcern
 
   # pf champ
-  delegate :accredited_user_list, :visa?, :table_id, to: :type_de_champ
+  delegate :accredited_user_list, :table_id, to: :type_de_champ
+
+  def visa?
+    type_champ == 'visa'
+  end
+
+  def te_fenua?
+    type_champ == 'te_fenua'
+  end
+
+  def lexpol?
+    type_champ == 'lexpol'
+  end
+
+  def formule?
+    type_champ == 'formule'
+  end
 
   delegate(*TypeDeChamp.type_champs.values.map { "#{_1}?".to_sym }, to: :type_de_champ)
   delegate :piece_justificative_or_titre_identite?, :any_drop_down_list?, to: :type_de_champ
@@ -96,6 +112,8 @@ class Champ < ApplicationRecord
   scope :public_only, -> { where(private: false) }
   scope :private_only, -> { where(private: true) }
 
+  # pf: recalcul des formules dépendantes lors de la sauvegarde d'un champ
+  after_save :refresh_dependent_formulas
   def public?
     !private?
   end
@@ -140,7 +158,7 @@ class Champ < ApplicationRecord
   end
 
   def to_s
-    type_de_champ.champ_value(self)
+    type_de_champ.champ_value(self) || ''
   end
 
   def last_write_type_champ
@@ -188,10 +206,6 @@ class Champ < ApplicationRecord
     html_id
   end
 
-  def input_id
-    "#{html_id}-input"
-  end
-
   # A predictable string to use when generating an input name for this champ.
   #
   # Rail's FormBuilder can auto-generate input names, using the form "dossier[champs_public_attributes][5]",
@@ -229,24 +243,24 @@ class Champ < ApplicationRecord
     false
   end
 
-  def clone(fork = false)
+  def clone
     champ_attributes = [:private, :row_id, :type, :stable_id, :stream]
-    value_attributes = fork || !private? ? [:value, :value_json, :data, :external_id] : []
-    relationships = fork || !private? ? [:etablissement, :geo_areas] : []
+    value_attributes = !private? ? [:value, :value_json, :data, :external_id] : []
+    relationships = !private? ? [:etablissement, :geo_areas] : []
 
-    deep_clone(only: champ_attributes + value_attributes, include: relationships, validate: !fork) do |original, kopy|
+    deep_clone(only: champ_attributes + value_attributes, include: relationships, validate: true) do |original, kopy|
       if original.is_a?(Champ)
         kopy.write_attribute(:stable_id, original.stable_id)
         kopy.write_attribute(:stream, 'main')
         # TODO: overwrite row_id "N" with nil
         kopy.write_attribute(:row_id, kopy.row_id)
       end
-      ClonePiecesJustificativesService.clone_attachments(original, kopy) if fork || !private?
+      ClonePiecesJustificativesService.clone_attachments(original, kopy) if !private?
     end
   end
 
-  def focusable_input_id
-    input_id
+  def focusable_input_id(attribute = :value)
+    [input_id, attribute].compact.join('-')
   end
 
   def user_buffer_changes?
@@ -313,12 +327,117 @@ class Champ < ApplicationRecord
       attributes[:brouillon_close_to_expiration_notice_sent_at] = nil
     end
 
+    if dossier.brouillon?
+      attributes[:expired_at] = (updated_at + dossier.duree_totale_conservation_in_months.months)
+    end
+
     dossier.update_columns(attributes)
+  end
+
+  # pf: Formules directement dépendantes de ce champ (1 niveau)
+  def dependent_formula_champs
+    dependent_formula_champs_from(dossier.project_champs_public_all + dossier.project_champs_private_all)
+  end
+
+  # pf: Toutes les formules dépendantes (transitivité : A → B → C)
+  # Construit project_champs UNE SEULE FOIS et résout le graphe de dépendances
+  # via les types_de_champ (metadata) + BFS sur les stable_ids.
+  def all_dependent_formula_champs
+    all_champs = dossier.project_champs_public_all + dossier.project_champs_private_all
+
+    # 1. Construire le graphe de dépendances depuis les types_de_champ (pas les champs)
+    formula_tdcs = dossier.revision.types_de_champ.filter(&:formule?)
+    # stable_id → [stable_ids des formules qui en dépendent]
+    deps_graph = Hash.new { |h, k| h[k] = Set.new }
+    formula_tdcs.each do |tdc|
+      tdc.dependent_stable_ids.each { |dep_sid| deps_graph[dep_sid].add(tdc.stable_id) }
+    end
+
+    # 2. BFS sur le graphe pour trouver tous les stable_ids de formules à recalculer (en ordre topologique)
+    ordered_formula_sids = []
+    visited = Set.new
+    queue = deps_graph[stable_id].to_a
+
+    while (sid = queue.shift)
+      next if visited.include?(sid)
+      visited.add(sid)
+      ordered_formula_sids << sid
+      queue.concat(deps_graph[sid].to_a)
+    end
+
+    return [] if ordered_formula_sids.empty?
+
+    # 3. Résoudre les champs une seule fois, filtrés par row_id
+    ordered_formula_sids.flat_map do |sid|
+      all_champs.filter do |champ|
+        next false unless champ.stable_id == sid
+
+        if row_id.present?
+          champ.row_id == row_id || champ.row_id.nil?
+        else
+          true
+        end
+      end
+    end.uniq(&:public_id)
+  end
+
+  private
+
+  def dependent_formula_champs_from(all_champs)
+    all_champs.filter do |formula_champ|
+      next false if formula_champ.stable_id.nil?
+      next false unless formula_champ.formule? && formula_champ.type_de_champ.dependent_stable_ids&.include?(stable_id)
+
+      if row_id.present?
+        formula_champ.row_id == row_id || formula_champ.row_id.nil?
+      else
+        true
+      end
+    end
+  end
+
+  def refresh_dependent_formulas
+    return if stable_id.nil?
+    return if !saved_change_to_value?
+    # pf: Court-circuit rapide — si la procédure n'a aucun champ formule, rien à faire.
+    # Évite tout accès à type_de_champ / project_champs (coûteux) pour les procédures sans formule.
+    return unless dossier.revision.types_de_champ.any?(&:formule?)
+    # pf: Les champs formule eux-mêmes ne déclenchent pas de recalcul (évite les boucles)
+    return if type_de_champ.formule?
+
+    # pf: Recalcul de toutes les formules dépendantes (transitivité A → B → C).
+    # all_dependent_formula_champs retourne les champs dans l'ordre BFS (B avant C).
+    # value_overrides accumule les valeurs fraîchement calculées pour que chaque
+    # formule suivante dans la chaîne voie les résultats à jour, sans dépendre
+    # des caches AR du dossier.
+    value_overrides = { stable_id => value }
+
+    all_dependent_formula_champs.each do |formula_champ|
+      service = FormulaCalculationService.new(dossier, value_overrides:)
+      new_value = service.compute_value(formula_champ)
+      value_overrides[formula_champ.stable_id] = new_value
+
+      # pf: Utilise champ_upsert_by! pour respecter le stream du dossier.
+      # En mode buffer, ça crée/trouve le champ en user:buffer (pas en main).
+      # En mode main/brouillon, ça crée/trouve le champ en main.
+      # champ_upsert_by! gère aussi le cache AR (association + reset_champs_cache).
+      tdc = formula_champ.type_de_champ
+      target_champ = Dossier.no_touching { dossier.send(:champ_upsert_by!, tdc, formula_champ.row_id) }
+      target_champ.update_column(:value, new_value) if target_champ.read_attribute(:value) != new_value
+    end
   end
 
   class NotImplemented < ::StandardError
     def initialize(method)
       super(":#{method} not implemented")
     end
+  end
+
+  private
+
+  # The input id is used to generate the HTML id of the input element.
+  # It is used to link the label to the input, and for ARIA attributes.
+  def input_id
+    "#{html_id}-input"
   end
 end

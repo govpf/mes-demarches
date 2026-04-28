@@ -105,7 +105,7 @@ describe Instructeurs::DossiersController, type: :controller do
     it do
       subject
       expect(instructeur.followed_dossiers).to match([])
-      expect(flash.notice).to eq("Vous ne suivez plus le dossier nº #{dossier.id}")
+      expect(flash.notice).to eq("Vous ne suivez plus le dossier n° #{dossier.id}")
       expect(response).to redirect_to(instructeur_procedure_path(dossier.procedure))
     end
 
@@ -134,14 +134,18 @@ describe Instructeurs::DossiersController, type: :controller do
       instructeur.follow(dossier)
     end
 
-    it { expect(dossier.archived).to eq(true) }
-    it { expect(response).to redirect_to(instructeur_procedure_path(dossier.procedure)) }
+    it do
+      expect(dossier.archived).to eq(true)
+      expect(response).to redirect_to(instructeur_procedure_path(dossier.procedure))
+    end
 
     context 'with dossier in batch_operation' do
       let(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
-      it { expect(dossier.archived).to eq(false) }
-      it { expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
-      it { expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.") }
+      it do
+        expect(dossier.archived).to eq(false)
+        expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+        expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
+      end
     end
   end
 
@@ -153,14 +157,18 @@ describe Instructeurs::DossiersController, type: :controller do
       patch :unarchive, params: { procedure_id: procedure.id, dossier_id: dossier.id, statut: 'a-suivre' }
     end
 
-    it { expect(dossier.reload.archived).to eq(false) }
-    it { expect(response).to redirect_to(instructeur_procedure_path(dossier.procedure)) }
+    it do
+      expect(dossier.reload.archived).to eq(false)
+      expect(response).to redirect_to(instructeur_procedure_path(dossier.procedure))
+    end
 
     context 'with dossier in batch_operation' do
       let!(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
-      it { expect(dossier.reload.archived).to eq(true) }
-      it { expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
-      it { expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.") }
+      it do
+        expect(dossier.reload.archived).to eq(true)
+        expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+        expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
+      end
     end
   end
 
@@ -173,10 +181,12 @@ describe Instructeurs::DossiersController, type: :controller do
       post :passer_en_instruction, params: { procedure_id: procedure.id, dossier_id: dossier.id, statut: 'a-suivre' }, format: :turbo_stream
     end
 
-    it { expect(dossier.reload.state).to eq(Dossier.states.fetch(:en_instruction)) }
-    it { expect(instructeur.follow?(dossier)).to be true }
-    it { expect(response).to have_http_status(:ok) }
-    it { expect(response.body).to include('header-top') }
+    it do
+      expect(dossier.reload.state).to eq(Dossier.states.fetch(:en_instruction))
+      expect(instructeur.follow?(dossier)).to be true
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include('header-top')
+    end
 
     context 'when the dossier has already been put en_instruction' do
       let(:dossier) { create(:dossier, :en_instruction, procedure: procedure) }
@@ -204,8 +214,10 @@ describe Instructeurs::DossiersController, type: :controller do
     context 'with dossier in batch_operation' do
       let(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
 
-      it { expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
-      it { expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.") }
+      it do
+        expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+        expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
+      end
     end
   end
 
@@ -220,9 +232,11 @@ describe Instructeurs::DossiersController, type: :controller do
         format: :turbo_stream
     end
 
-    it { expect(dossier.reload.state).to eq(Dossier.states.fetch(:en_construction)) }
-    it { expect(response).to have_http_status(:ok) }
-    it { expect(response.body).to include('header-top') }
+    it do
+      expect(dossier.reload.state).to eq(Dossier.states.fetch(:en_construction))
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include('header-top')
+    end
 
     context 'when the dossier has already been put en_construction' do
       let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
@@ -236,9 +250,11 @@ describe Instructeurs::DossiersController, type: :controller do
 
     context 'with dossier in batch_operation' do
       let(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
-      it { expect(dossier.reload.state).to eq('en_instruction') }
-      it { expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
-      it { expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.") }
+      it do
+        expect(dossier.reload.state).to eq('en_instruction')
+        expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+        expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
+      end
     end
   end
 
@@ -256,9 +272,11 @@ describe Instructeurs::DossiersController, type: :controller do
     end
 
     context 'when the dossier is refuse' do
-      it { expect(dossier.reload.state).to eq(Dossier.states.fetch(:en_instruction)) }
-      it { expect(response).to have_http_status(:ok) }
-      it { expect(response.body).to include('header-top') }
+      it do
+        expect(dossier.reload.state).to eq(Dossier.states.fetch(:en_instruction))
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include('header-top')
+      end
     end
 
     context 'when the dossier has already been put en_instruction' do
@@ -291,9 +309,11 @@ describe Instructeurs::DossiersController, type: :controller do
 
     context 'with dossier in batch_operation' do
       let(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
-      it { expect(dossier.reload.state).to eq('refuse') }
-      it { expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
-      it { expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.") }
+      it do
+        expect(dossier.reload.state).to eq('refuse')
+        expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+        expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
+      end
     end
   end
 
@@ -342,12 +362,70 @@ describe Instructeurs::DossiersController, type: :controller do
         it { expect(subject.body).to include('header-top') }
       end
 
+      context 'when the dossier does not have any attestation' do
+        it 'Notification email is sent' do
+          subject { post :terminer, params: { process_action: "refuser", procedure_id: procedure.id, dossier_id: dossier.id, statut: 'a-suivre' }, format: :turbo_stream }
+          subject
+        end
+      end
+
+      context 'when the dossier has an attestation' do
+        before do
+          attestation = Attestation.new
+          allow(attestation).to receive(:pdf).and_return(double(read: 'pdf', size: 2.megabytes, attached?: false))
+          allow(attestation).to receive(:pdf_url).and_return('http://some_document_url')
+          allow_any_instance_of(Dossier).to receive(:build_attestation).and_return(attestation)
+        end
+
+        subject { post :terminer, params: { process_action: "refuser", procedure_id: procedure.id, dossier_id: dossier.id, statut: 'a-suivre' }, format: :turbo_stream }
+
+        it 'The instructeur is sent back to the dossier page' do
+          subject
+          expect(response.body).to include('header-top')
+        end
+
+        context 'and the dossier has already an attestation' do
+          it 'should not crash' do
+            dossier.attestation = Attestation.new
+            dossier.save
+            subject
+            expect(response.body).to include('header-top')
+          end
+        end
+      end
+
+      context 'when the attestation template uses the motivation field' do
+        let(:emailable) { false }
+        let(:template) { create(:attestation_template, kind: :refus) }
+        let(:procedure) { create(:procedure, :published, :for_individual, attestation_refus_template: template, instructeurs: [instructeur]) }
+
+        subject do
+          post :terminer, params: {
+            process_action: "refuser",
+            procedure_id: procedure.id,
+            dossier_id: dossier.id,
+            dossier: { motivation: "Non" },
+            statut: 'a-suivre'
+          }, format: :turbo_stream
+        end
+
+        before do
+          expect_any_instance_of(AttestationTemplate)
+            .to receive(:attestation_for)
+            .with(have_attributes(motivation: "Non"))
+        end
+
+        it { subject }
+      end
+
       context 'with dossier in batch_operation' do
         let!(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
         subject { post :terminer, params: { process_action: "refuser", procedure_id: procedure.id, dossier_id: dossier.id, statut: 'a-suivre' }, format: :turbo_stream }
 
-        it { expect { subject }.not_to change { dossier.reload.state } }
-        it { is_expected.to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
+        it do
+          expect { subject }.not_to change { dossier.reload.state }
+          is_expected.to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+        end
         it 'flashes message' do
           subject
           expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
@@ -514,7 +592,7 @@ describe Instructeurs::DossiersController, type: :controller do
           allow(attestation).to receive(:pdf).and_return(double(read: 'pdf', size: 2.megabytes, attached?: false))
           allow(attestation).to receive(:pdf_url).and_return('http://some_document_url')
 
-          allow_any_instance_of(Dossier).to receive(:build_attestation).and_return(attestation)
+          allow_any_instance_of(Dossier).to receive(:build_attestation_acceptation).and_return(attestation)
         end
 
         it 'The instructeur is sent back to the dossier page' do
@@ -533,7 +611,7 @@ describe Instructeurs::DossiersController, type: :controller do
       context 'when the attestation template uses the motivation field' do
         let(:emailable) { false }
         let(:template) { create(:attestation_template) }
-        let(:procedure) { create(:procedure, :published, :for_individual, attestation_template: template, instructeurs: [instructeur]) }
+        let(:procedure) { create(:procedure, :published, :for_individual, attestation_acceptation_template: template, instructeurs: [instructeur]) }
 
         subject do
           post :terminer, params: {
@@ -725,12 +803,12 @@ describe Instructeurs::DossiersController, type: :controller do
     subject { get :messagerie, params: { procedure_id: procedure.id, dossier_id: dossier.id, statut: 'a-suivre' } }
     it { expect(subject).to have_http_status(:ok) }
 
-    context "when the usager had sent a message" do
+    context "when message notifications exists" do
       let!(:other_instructeur) { create(:instructeur) }
-      let!(:notification_current_instructeur) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: :message) }
-      let!(:notification_other_instructeur) { create(:dossier_notification, :for_instructeur, dossier:, instructeur: other_instructeur, notification_type: :message) }
+      let!(:notification_current_instructeur) { create(:dossier_notification, dossier:, instructeur:, notification_type: :message) }
+      let!(:notification_other_instructeur) { create(:dossier_notification, dossier:, instructeur: other_instructeur, notification_type: :message) }
 
-      it "destroy message notification only for the current_instructeur" do
+      it "destroys notification only for the current_instructeur" do
         subject
 
         expect(
@@ -804,24 +882,37 @@ describe Instructeurs::DossiersController, type: :controller do
       end
     end
 
-    context "when there are others instructeurs followers" do
+    context "when there are others instructeurs" do
       let(:another_instructeur) { create(:instructeur) }
       let(:groupe_instructeur) { create(:groupe_instructeur, instructeurs: [instructeur, another_instructeur]) }
+      let(:dossier) { create(:dossier, :en_construction, groupe_instructeur:, procedure:) }
 
-      before do
-        dossier.assign_to_groupe_instructeur(groupe_instructeur, DossierAssignment.modes.fetch(:auto))
-        instructeur.followed_dossiers << dossier
-        another_instructeur.followed_dossiers << dossier
-        subject
+      context "when others instructeurs are followers" do
+        let!(:instructeur_procedure) { create(:instructeurs_procedure, instructeur: another_instructeur, procedure:, display_message_notifications: 'none') }
+
+        before do
+          another_instructeur.followed_dossiers << dossier
+        end
+
+        it "creates message notification only for instructeurs who have a 'followed' or 'all' preference" do
+          subject
+
+          expect(DossierNotification.count).to eq(0)
+        end
       end
 
-      it "create message notification only for others instructeurs follower" do
-        expect(DossierNotification.count).to eq(1)
+      context "when others instructeurs are not followers" do
+        let!(:instructeur_procedure) { create(:instructeurs_procedure, instructeur: another_instructeur, procedure:, display_message_notifications: 'all') }
 
-        notification = DossierNotification.last
-        expect(notification.dossier_id).to eq(dossier.id)
-        expect(notification.instructeur_id).to eq(another_instructeur.id)
-        expect(notification.notification_type).to eq("message")
+        it "creates message notification only for instructeurs who have an 'all' preference" do
+          subject
+          expect(DossierNotification.count).to eq(1)
+
+          notification = DossierNotification.last
+          expect(notification.dossier_id).to eq(dossier.id)
+          expect(notification.instructeur_id).to eq(another_instructeur.id)
+          expect(notification.notification_type).to eq("message")
+        end
       end
     end
   end
@@ -857,20 +948,24 @@ describe Instructeurs::DossiersController, type: :controller do
         subject
       end
 
-      it { expect(saved_avis.expert.email).to eq('email@a.com') }
-      it { expect(saved_avis.introduction).to eq('intro') }
-      it { expect(saved_avis.confidentiel).to eq(true) }
-      it { expect(saved_avis.dossier).to eq(dossier) }
-      it { expect(saved_avis.claimant).to eq(instructeur) }
-      it { expect(response).to redirect_to(avis_instructeur_dossier_path(dossier.procedure, dossier)) }
+      it do
+        expect(saved_avis.expert.email).to eq('email@a.com')
+        expect(saved_avis.introduction).to eq('intro')
+        expect(saved_avis.confidentiel).to eq(true)
+        expect(saved_avis.dossier).to eq(dossier)
+        expect(saved_avis.claimant).to eq(instructeur)
+        expect(response).to redirect_to(avis_instructeur_dossier_path(dossier.procedure, dossier))
+      end
 
       context "with an invalid email" do
         let(:emails) { ["emaila.com"] }
 
         before { subject }
 
-        it { expect(response).to render_template :avis_new }
-        it { expect(flash.alert).to eq("emaila.com : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com") }
+        it do
+          expect(response).to render_template :avis_new
+          expect(flash.alert).to eq("emaila.com : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com")
+        end
         it { expect { subject }.not_to change(Avis, :count) }
         it { expect(dossier.last_avis_updated_at).to eq(nil) }
       end
@@ -880,10 +975,12 @@ describe Instructeurs::DossiersController, type: :controller do
 
         before { subject }
 
-        it { expect(response).to render_template :avis_new }
-        it { expect(flash.alert).to eq("Le champ « Email » doit être rempli") }
-        it { expect { subject }.not_to change(Avis, :count) }
-        it { expect(dossier.last_avis_updated_at).to eq(nil) }
+        it do
+          expect(response).to render_template :avis_new
+          expect(flash.alert).to eq("Le champ « Email » doit être rempli")
+          expect { subject }.not_to change(Avis, :count)
+          expect(dossier.last_avis_updated_at).to eq(nil)
+        end
       end
 
       context 'with multiple emails' do
@@ -892,11 +989,13 @@ describe Instructeurs::DossiersController, type: :controller do
 
           before { subject }
 
-          it { expect(response).to render_template :avis_new }
-          it { expect(flash.alert).to eq("toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com") }
-          it { expect(flash.notice).to eq("Une demande d’avis a été envoyée à titi@titimail.com") }
-          it { expect(Avis.count).to eq(old_avis_count + 1) }
-          it { expect(saved_avis.expert.email).to eq("titi@titimail.com") }
+          it do
+            expect(response).to render_template :avis_new
+            expect(flash.alert).to eq("toto.fr : Le champ « Email » est invalide. Saisir une adresse électronique valide, exemple : adresse@mail.com")
+            expect(flash.notice).to eq("Une demande d’avis a été envoyée à titi@titimail.com")
+            expect(Avis.count).to eq(old_avis_count + 1)
+            expect(saved_avis.expert.email).to eq("titi@titimail.com")
+          end
         end
 
         context 'with 5 mails' do
@@ -904,8 +1003,10 @@ describe Instructeurs::DossiersController, type: :controller do
 
           before { subject }
 
-          it { expect(flash.notice).to eq("Une demande d’avis a été envoyée à 5 destinataires") }
-          it { expect(Avis.count).to eq(old_avis_count + 5) }
+          it do
+            expect(flash.notice).to eq("Une demande d’avis a été envoyée à 5 destinataires")
+            expect(Avis.count).to eq(old_avis_count + 5)
+          end
         end
       end
 
@@ -1020,9 +1121,11 @@ describe Instructeurs::DossiersController, type: :controller do
         subject
       end
 
-      it { expect(assigns(:acls)).to eq(PiecesJustificativesService.new(user_profile: instructeur, export_template: nil).acl_for_dossier_export(dossier.procedure)) }
-      it { expect(assigns(:is_dossier_in_batch_operation)).to eq(false) }
-      it { expect(response).to render_template 'dossiers/show' }
+      it do
+        expect(assigns(:acls)).to eq(PiecesJustificativesService.new(user_profile: instructeur, export_template: nil).acl_for_dossier_export(dossier.procedure))
+        expect(assigns(:is_dossier_in_batch_operation)).to eq(false)
+        expect(response).to render_template 'dossiers/show'
+      end
 
       context 'empty champs commune' do
         let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :communes }], instructeurs:) }
@@ -1040,12 +1143,12 @@ describe Instructeurs::DossiersController, type: :controller do
       end
     end
 
-    context "when the dossier has been modified by the usager" do
+    context "when dossier_modifie notifications exist" do
       let!(:other_instructeur) { create(:instructeur) }
-      let!(:notification_current_instructeur) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: :dossier_modifie) }
-      let!(:notification_other_instructeur) { create(:dossier_notification, :for_instructeur, dossier:, instructeur: other_instructeur, notification_type: :dossier_modifie) }
+      let!(:notification_current_instructeur) { create(:dossier_notification, dossier:, instructeur:, notification_type: :dossier_modifie) }
+      let!(:notification_other_instructeur) { create(:dossier_notification, dossier:, instructeur: other_instructeur, notification_type: :dossier_modifie) }
 
-      it "destroy dossier_modifie notification only for the current_instructeur" do
+      it "destroys notification only for the current_instructeur" do
         get :show, params: { procedure_id: procedure.id, dossier_id: dossier.id, statut: 'suivis' }
 
         expect(
@@ -1172,8 +1275,6 @@ describe Instructeurs::DossiersController, type: :controller do
           champ_text.reload
         end
 
-        after do
-        end
         let(:champs_private_attributes) do
           {
             champ_multiple_drop_down_list.public_id => {
@@ -1253,6 +1354,41 @@ describe Instructeurs::DossiersController, type: :controller do
             expect(response).to have_http_status(200)
             assert_enqueued_jobs(1, only: DossierIndexSearchTermsJob)
           }
+
+          context 'when one child is referentiel' do
+            let(:referentiel) { create(:api_referentiel, :exact_match, :with_exact_match_response) }
+            let(:types_de_champ_private) do
+              [
+                { type: :multiple_drop_down_list },
+                { type: :linked_drop_down_list },
+                { type: :datetime },
+                {
+                  type: :repetition,
+                  children: [
+                    {
+                      type: :referentiel,
+                      referentiel_id: referentiel.id
+                    }
+                  ]
+                },
+                { type: :drop_down_list, options: [:a, :b, :other] }
+              ]
+            end
+            let(:champs_private_attributes) do
+              {
+                champ_repetition.rows.first.first.public_id => {
+                  external_id: 'text'
+                }
+              }
+            end
+
+            it {
+              expect(champ_text.external_id).to eq('text')
+              expect(response).to have_http_status(200)
+              expect(dossier.last_champ_private_updated_at).to eq(now)
+              assert_enqueued_jobs(1, only: ChampFetchExternalDataJob)
+            }
+          end
         end
 
         context 'drop_down_list' do
@@ -1355,8 +1491,9 @@ describe Instructeurs::DossiersController, type: :controller do
       end
     end
 
-    context "when there are others instructeurs followers" do
-      let!(:groupe_instructeur) { create(:groupe_instructeur, instructeurs: [instructeur, another_instructeur]) }
+    context "when there are others instructeurs" do
+      let(:instructeurs) { [instructeur, another_instructeur] }
+      let!(:other_instructeur_procedure) { create(:instructeurs_procedure, instructeur: another_instructeur, procedure:, display_annotation_instructeur_notifications: 'all') }
       let(:params) do
         {
           procedure_id: procedure.id,
@@ -1372,16 +1509,14 @@ describe Instructeurs::DossiersController, type: :controller do
       end
 
       before do
-        dossier.assign_to_groupe_instructeur(groupe_instructeur, DossierAssignment.modes.fetch(:auto))
         instructeur.followed_dossiers << dossier
-        another_instructeur.followed_dossiers << dossier
         patch :update_annotations, params: params, format: :turbo_stream
       end
 
-      it "create annotation_instructeur notification only for others instructeurs follower" do
+      it "create annotation_instructeur notification only for others instructeurs whish to be notified" do
         expect(DossierNotification.count).to eq(1)
 
-        notification = DossierNotification.last
+        notification = DossierNotification.first
         expect(notification.dossier_id).to eq(dossier.id)
         expect(notification.instructeur_id).to eq(another_instructeur.id)
         expect(notification.notification_type).to eq("annotation_instructeur")
@@ -1389,13 +1524,167 @@ describe Instructeurs::DossiersController, type: :controller do
     end
   end
 
-  describe "#annotations_privees" do
-    context "when the dossier has an annotation_instructeur notification" do
-      let!(:other_instructeur) { create(:instructeur) }
-      let!(:notification_current_instructeur) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: :annotation_instructeur) }
-      let!(:notification_other_instructeur) { create(:dossier_notification, :for_instructeur, dossier:, instructeur: other_instructeur, notification_type: :annotation_instructeur) }
+  # pf: Tests pour la protection des annotations par visa
+  describe '#remove_changes_forbidden_by_visa' do
+    let(:types_de_champ_public) { [] }
 
-      it "destroy annotation_instructeur notification only for the current_instructeur" do
+    context 'avec un visa racine validé' do
+      let(:types_de_champ_private) do
+        [
+          { type: :text, libelle: 'champ_avant_visa' },
+          { type: :visa, libelle: 'mon_visa', accredited_users: [instructeur.email] },
+          { type: :text, libelle: 'champ_apres_visa' }
+        ]
+      end
+      let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
+      let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+
+      let(:champ_avant) { dossier.project_champs_private.first }
+      let(:champ_visa) { dossier.project_champs_private.second }
+      let(:champ_apres) { dossier.project_champs_private.third }
+
+      before do
+        champ_visa.update!(value: 'true')
+      end
+
+      it 'bloque le champ avant le visa mais autorise celui après' do
+        patch :update_annotations, params: {
+          procedure_id: procedure.id,
+          dossier_id: dossier.id,
+          dossier: {
+            champs_private_attributes: {
+              champ_avant.public_id => { value: 'bloqué' },
+                        champ_apres.public_id => { value: 'autorisé' }
+            }
+          }
+        }, format: :turbo_stream
+
+        expect(champ_avant.reload.value).not_to eq('bloqué')
+        expect(champ_apres.reload.value).to eq('autorisé')
+      end
+    end
+
+    context 'sans visa validé' do
+      let(:types_de_champ_private) do
+        [
+          { type: :text, libelle: 'champ_libre' },
+          { type: :visa, libelle: 'visa_non_coche', accredited_users: [instructeur.email] }
+        ]
+      end
+      let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
+      let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+
+      let(:champ_libre) { dossier.project_champs_private.first }
+
+      it 'autorise toutes les modifications' do
+        patch :update_annotations, params: {
+          procedure_id: procedure.id,
+          dossier_id: dossier.id,
+          dossier: { champs_private_attributes: { champ_libre.public_id => { value: 'modifié' } } }
+        }, format: :turbo_stream
+
+        expect(champ_libre.reload.value).to eq('modifié')
+      end
+    end
+
+    context 'avec un visa dans une répétition' do
+      let(:types_de_champ_private) do
+        [
+          {
+            type: :repetition, libelle: 'bloc_repetable', children: [
+              { type: :text, libelle: 'champ_dans_bloc' },
+              { type: :visa, libelle: 'visa_bloc', accredited_users: [instructeur.email] }
+            ]
+          }
+        ]
+      end
+      let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
+      let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+
+      let(:repetition) { dossier.project_champs_private.first }
+
+      before do
+        # Créer deux lignes dans la répétition
+        repetition.add_row(updated_by: instructeur.email)
+        repetition.add_row(updated_by: instructeur.email)
+        dossier.reload
+      end
+
+      let(:rows) { repetition.rows }
+      let(:champ_row1) { rows.first.first }
+      let(:visa_row1) { rows.first.second }
+      let(:champ_row2) { rows.second.first }
+      let(:visa_row2) { rows.second.second }
+
+      it 'un visa validé dans row2 ne bloque pas row1 mais bloque row2' do
+        # Forcer la persistance des champs en les sauvegardant
+        champ_row1.save!
+        champ_row2.save!
+        visa_row2.update!(value: 'true')
+
+        row1_public_id = champ_row1.public_id
+        row2_public_id = champ_row2.public_id
+
+        patch :update_annotations, params: {
+          procedure_id: procedure.id,
+          dossier_id: dossier.id,
+          dossier: {
+            champs_private_attributes: {
+              row1_public_id => { value: 'modifié row1' },
+                        row2_public_id => { value: 'modifié row2' }
+            }
+          }
+        }, format: :turbo_stream
+
+        expect(Champ.find(champ_row1.id).value).to eq('modifié row1')
+        expect(Champ.find(champ_row2.id).value).not_to eq('modifié row2')
+      end
+    end
+
+    context 'avec un header section de niveau 1 entre le champ et le visa' do
+      let(:types_de_champ_private) do
+        [
+          { type: :text, libelle: 'champ_section1' },
+          { type: :header_section, libelle: 'Section 2', header_section_level: 1 },
+          { type: :text, libelle: 'champ_section2' },
+          { type: :visa, libelle: 'visa_section2', accredited_users: [instructeur.email] }
+        ]
+      end
+      let(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: instructeurs) }
+      let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+
+      let(:champ_section1) { dossier.project_champs_private.first }
+      let(:champ_section2) { dossier.project_champs_private.third }
+
+      before do
+        dossier.project_champs_private.fourth.update!(value: 'true') # visa validé
+      end
+
+      it 'le header section de niveau 1 protège section1 du visa de section2' do
+        patch :update_annotations, params: {
+          procedure_id: procedure.id,
+          dossier_id: dossier.id,
+          dossier: {
+            champs_private_attributes: {
+              champ_section1.public_id => { value: 'modifié section1' },
+                        champ_section2.public_id => { value: 'modifié section2' }
+            }
+          }
+        }, format: :turbo_stream
+
+        expect(champ_section1.reload.value).to eq('modifié section1')
+        expect(champ_section2.reload.value).not_to eq('modifié section2')
+      end
+    end
+  end
+
+  describe "#annotations_privees" do
+    context "when annotation_instructeur notifications exist" do
+      let!(:other_instructeur) { create(:instructeur) }
+      let!(:notification_current_instructeur) { create(:dossier_notification, dossier:, instructeur:, notification_type: :annotation_instructeur) }
+      let!(:notification_other_instructeur) { create(:dossier_notification, dossier:, instructeur: other_instructeur, notification_type: :annotation_instructeur) }
+
+      it "destroys notification only for the current_instructeur" do
         get :annotations_privees, params: { procedure_id: procedure.id, dossier_id: dossier.id, statut: 'suivis' }
 
         expect(
@@ -1410,12 +1699,12 @@ describe Instructeurs::DossiersController, type: :controller do
   end
 
   describe "#avis" do
-    context "when the dossier has an avis_externe notification" do
+    context "when avis_externe notifications exist" do
       let!(:other_instructeur) { create(:instructeur) }
-      let!(:notification_current_instructeur) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: :avis_externe) }
-      let!(:notification_other_instructeur) { create(:dossier_notification, :for_instructeur, dossier:, instructeur: other_instructeur, notification_type: :avis_externe) }
+      let!(:notification_current_instructeur) { create(:dossier_notification, dossier:, instructeur:, notification_type: :avis_externe) }
+      let!(:notification_other_instructeur) { create(:dossier_notification, dossier:, instructeur: other_instructeur, notification_type: :avis_externe) }
 
-      it "destroy avis_externe notification only for the current_instructeur" do
+      it "destroys notification only for the current_instructeur" do
         get :avis, params: { procedure_id: procedure.id, dossier_id: dossier.id, statut: 'suivis' }
 
         expect(
@@ -1545,8 +1834,10 @@ describe Instructeurs::DossiersController, type: :controller do
 
     context 'with dossier in batch_operation' do
       let(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
-      it { expect { subject }.not_to change { dossier.reload.hidden_by_administration_at } }
-      it { is_expected.to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
+      it do
+        expect { subject }.not_to change { dossier.reload.hidden_by_administration_at }
+        is_expected.to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+      end
       it 'flashes message' do
        subject
        expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
@@ -1574,8 +1865,10 @@ describe Instructeurs::DossiersController, type: :controller do
 
     context 'with dossier in batch_operation' do
        let!(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
-       it { expect { subject }.not_to change { dossier.reload.conservation_extension } }
-       it { is_expected.to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
+       it do
+         expect { subject }.not_to change { dossier.reload.conservation_extension }
+         is_expected.to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+       end
        it 'flashes message' do
          subject
          expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
@@ -1607,9 +1900,11 @@ describe Instructeurs::DossiersController, type: :controller do
 
     context 'with dossier in batch_operation' do
       let(:batch_operation) { create(:batch_operation, operation: :archiver, dossiers: [dossier], instructeur: instructeur) }
-      it { expect(dossier.hidden_by_administration_at).not_to eq(nil) }
-      it { expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier)) }
-      it { expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.") }
+      it do
+        expect(dossier.hidden_by_administration_at).not_to eq(nil)
+        expect(response).to redirect_to(instructeur_dossier_path(dossier.procedure, dossier))
+        expect(flash.alert).to eq("Votre action n'a pas été effectuée, ce dossier fait parti d'un traitement de masse.")
+      end
     end
   end
 
@@ -1694,7 +1989,7 @@ describe Instructeurs::DossiersController, type: :controller do
 
     it do
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("Vous pouvez réaffecter le dossier nº #{dossier.id} à l’un des groupes d’instructeurs suivants.")
+      expect(response.body).to include("Vous pouvez réaffecter le dossier n° #{dossier.id} à l’un des groupes d’instructeurs suivants.")
       expect(response.body).to include('2 groupes existent')
     end
   end
@@ -1729,7 +2024,7 @@ describe Instructeurs::DossiersController, type: :controller do
       expect(dossier.dossier_assignment.mode).to eq('manual')
       expect(dossier.dossier_assignment.assigned_by).to eq(instructeur.email)
       expect(response).to redirect_to(instructeur_procedure_path(procedure))
-      expect(flash.notice).to eq("Le dossier nº #{dossier.id} a été réaffecté au groupe d’instructeurs « deuxième groupe ».")
+      expect(flash.notice).to eq("Le dossier n° #{dossier.id} a été réaffecté au groupe d’instructeurs « deuxième groupe ».")
     end
   end
 
@@ -1857,6 +2152,30 @@ describe Instructeurs::DossiersController, type: :controller do
 
         expect(dossier.dossier_labels.count).to eq(0)
         expect(subject.body).to include('Ajouter un label')
+      end
+    end
+  end
+
+  describe '#rendez_vous' do
+    let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+
+    render_views
+
+    subject do
+      get :rendez_vous, params: {
+        procedure_id: procedure.id,
+        dossier_id: dossier.id
+      }
+    end
+
+    context 'when current_instructeur has no rdv_connection' do
+      before do
+        allow(instructeur).to receive(:rdv_connection).and_return(nil)
+      end
+
+      it 'should not crash' do
+        expect { subject }.not_to raise_error
+        expect(response).to have_http_status(:ok)
       end
     end
   end

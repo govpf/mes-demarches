@@ -126,8 +126,10 @@ describe PiecesJustificativesService do
           attach_file_to_champ(pj_champ(dossier))
         end
 
-        it { expect(subject.count).to eq(2) }
-        it { expect(subject).to match_array(pj_champ(dossier).piece_justificative_file.attachments) }
+        it do
+          expect(subject.count).to eq(2)
+          expect(subject).to match_array(pj_champ(dossier).piece_justificative_file.attachments)
+        end
       end
 
       context 'with a pj not safe on a champ' do
@@ -211,8 +213,8 @@ describe PiecesJustificativesService do
       end
 
       context 'with an attestation' do
-        let(:dossier) { create(:dossier, :with_attestation) }
-        let!(:witness) { create(:dossier, :with_attestation) }
+        let(:dossier) { create(:dossier, :with_attestation_acceptation) }
+        let!(:witness) { create(:dossier, :with_attestation_acceptation) }
 
         it { expect(subject).to match_array(dossier.attestation.pdf.attachment) }
         it 'uses default name for dossier directory' do

@@ -123,8 +123,17 @@ module Types
           Types::Champs::RNFChampType
         when ::Champs::EngagementJuridiqueChamp
           Types::Champs::EngagementJuridiqueChampType
+        # pf: types spécifiques Polynésie
         when ::Champs::ReferentielDePolynesieChamp
           Types::Champs::ReferentielDePolynesieChampType
+        when ::Champs::FormuleChamp
+          Types::Champs::FormuleChampType
+        when ::Champs::HeaderSectionChamp
+          Types::Champs::HeaderSectionChampType
+        when ::Champs::ExplicationChamp
+          Types::Champs::ExplicationChampType
+        when ::Champs::DropDownListChamp
+          Types::Champs::DropDownListChampType
         else
           Types::Champs::TextChampType
         end

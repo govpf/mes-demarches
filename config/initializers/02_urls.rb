@@ -2,7 +2,7 @@
 
 # rubocop:disable DS/ApplicationName
 # API URLs
-API_ADRESSE_URL = ENV.fetch("API_ADRESSE_URL", "https://api-adresse.data.gouv.fr")
+API_ADRESSE_URL = ENV.fetch("API_ADRESSE_URL", "https://data.geopf.fr/geocodage")
 API_ENTREPRISE_URL = ENV.fetch("API_ENTREPRISE_URL", "https://entreprise.api.gouv.fr")
 API_EDUCATION_URL = ENV.fetch("API_EDUCATION_URL", "https://data.education.gouv.fr/api/records/1.0")
 API_GEO_URL = ENV.fetch("API_GEO_URL", "https://geo.api.gouv.fr")
@@ -41,14 +41,15 @@ LISTE_DES_DEMARCHES_URL = "https://www.service-public.pf/demarches-en-ligne"
 CGU_URL = ENV.fetch("CGU_URL", [DOC_URL, "cgu"].join("/"))
 MENTIONS_LEGALES_URL = ENV.fetch("MENTIONS_LEGALES_URL", "/mentions-legales")
 ACCESSIBILITE_URL = ENV.fetch("ACCESSIBILITE_URL", "/declaration-accessibilite")
-ROUTAGE_URL = ENV.fetch("ROUTAGE_URL", [FR_DOC_URL, "/pour-aller-plus-loin/routage"].join("/"))
-ELIGIBILITE_URL = ENV.fetch("ELIGIBILITE_URL", [FR_DOC_URL, "/pour-aller-plus-loin/eligibilite-des-dossiers"].join("/"))
+ROUTAGE_URL = ENV.fetch("ROUTAGE_URL", [FR_DOC_URL, "pour-aller-plus-loin", "routage"].join("/"))
+ELIGIBILITE_URL = ENV.fetch("ELIGIBILITE_URL", [FR_DOC_URL, "pour-aller-plus-loin", "eligibilite-des-dossiers"].join("/"))
 API_DOC_URL = [FR_DOC_URL, "api-graphql"].join("/")
 WEBHOOK_DOC_URL = [FR_DOC_URL, "pour-aller-plus-loin", "webhook"].join("/")
 WEBHOOK_ALTERNATIVE_DOC_URL = [FR_DOC_URL, "api-graphql", "cas-dusages-exemple-dimplementation", "synchroniser-les-dossiers-modifies-sur-ma-demarche"].join("/")
 ARCHIVAGE_DOC_URL = [FR_DOC_URL, "pour-aller-plus-loin", "archivage-longue-duree-des-demarches"].join("/")
 DOC_INTEGRATION_MONAVIS_URL = [FR_DOC_URL, "tutoriels", "integration-du-bouton-mon-avis"].join("/")
 DOC_PROCEDURE_EXPIRES_URL = [FR_DOC_URL, "expiration-et-suppression-des-dossiers"].join("/")
+DOC_EXPORT_TEMPLATE_URL = [FR_DOC_URL, "tutoriels/tutoriel-instructeur#c.-personnaliser-les-exports"].join("/")
 
 STATUS_PAGE_URL = ENV.fetch("STATUS_PAGE_URL", "https://updown.io/cugq")
 DEMANDE_INSCRIPTION_ADMIN_PAGE_URL = ENV.fetch("DEMANDE_INSCRIPTION_ADMIN_PAGE_URL", "https://www.demarches-simplifiees.fr/commencer/demande-d-inscription-a-demarches-simplifiees")

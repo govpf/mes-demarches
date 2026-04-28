@@ -30,8 +30,18 @@
 # available at http://guides.rubyonrails.org/i18n.html.
 
 en:
+  time:
+    formats:
+      long_date: "%A %d %B %Y"
+      long_datetime: "%A %d %B %Y at %H:%M"
+      short_date: "%d/%m/%Y"
+      short_datetime: "%d/%m/%Y %H:%M"
+  insee_down: INSEE is unavailable, company information will arrive within a few hours.
   invisible_captcha:
     sentence_for_humans: 'If you are a human, ignore this field'
+  clipboard:
+    copy: 'Click to copy'
+    copied: 'Copied'
   help: 'Help'
   help_dropdown:
     procedure_title: "Do you have a question about this procedure?"
@@ -52,6 +62,8 @@ en:
     date: Date
     datetime: Date and time
     array: List of simple elements
+    number: number
+    file: file
 
     email_suggest:
       wanna_say: 'Do you mean to say ?'
@@ -123,7 +135,7 @@ en:
         headquarters_value: "18 av. d'Ariane, 87280 Limoges"
     accessibility_statement:
       title: "Accessibility statement"
-      line_one_html: "DINUM is committed to making its service accessible in accordance with <a href=\"https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000037388867\" hreflang=\"fr\">Article 47 of Law No. 2005-102 of 11 February 2005</a>."
+      line_one_html: "DINUM is committed to making its service accessible in accordance with <a href=\"https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000037388867\" hreflang=\"fr\">Article 47 of Law no. 2005-102 of 11 February 2005</a>."
       line_two_html: "This accessibility statement applies to <a href=\"https://%{host}\">%{app_name}</a> website."
       compliance:
         title: "Compliance status"
@@ -333,9 +345,9 @@ en:
         resent: 'Resend the confirmation email'
     invites:
       create:
-        success: 'An invitation has been sent to %{email}. You can <a href="#invite-content_button">create another one</a>.'
+        success: "An invitation has been sent to %{email}. You can <button type=\"button\" class=\"fr-link\" aria-controls=\"dossier-invites-modal-dialog\" data-fr-opened=\"false\">create another one</button>."
       destroy:
-        success: 'The permission given to %{email} had been revoked. You can <a href="#invite-content_button">create another one</a>.'
+        success: "The permission given to %{email} had been revoked. You can <button type=\"button\" class=\"fr-link\" aria-controls=\"dossier-invites-modal-dialog\" data-fr-opened=\"false\">create another one</button>."
         error: "You can't revoke this invitation"
       dropdown:
         invite_to_edit: Invite someone to edit this file
@@ -343,6 +355,7 @@ en:
         invite_to_view: "Invite someone to view this file"
       form:
         modal_title: Invite someone
+        cancel: Cancel
         modal_highlight: "Invited people can view and edit your file"
         title: Invite someone
         email: Email address
@@ -351,9 +364,9 @@ en:
         withdraw_permission: "Withdraw the permission"
         want_to_withdraw_permission: "Would you like to withdraw the permission of %{email}?"
         edit_dossier_html:
-          zero: '<p><em>No user can view and edit this file at this time.</em></p>'
-          one: '<h3 class="fr-h6">1 user invited</h3>'
-          other: '<h3 class="fr-h6">%{count} users invited</h3>'
+          zero: '<p class="fr-my-2w"><em>No user can view and edit this file at this time.</em></p>'
+          one: '<h3 class="fr-h6 fr-mt-2w fr-mb-1w">1 user invited</h3>'
+          other: '<h3 class="fr-h6 fr-mt-2w fr-mb-1w">%{count} users invited</h3>'
         submit_dossier_yourself: "Once your file is complete, you'll need to submit it yourself."
     pagination:
       next: Next
@@ -390,7 +403,7 @@ en:
           history: "File history"
           en_construction_notice: "Unless otherwise indicated, fields were entered on the date the file was submitted."
           requester_identity: "Identity of the requester"
-          mandataire_identity: "Identity of toe mandatary"
+          mandataire_identity: "Identity of the mandatary"
           requester_identity_updated_at: "updated on %{date}"
           individual_identity: "Your identity"
           form: "Form"
@@ -419,11 +432,15 @@ en:
           rendez_vous: Appointment
         archived_dossier: "This file will be kept for an additional month"
         delete_dossier: "Move file to trash"
+        deleted_reason:
+          user_request: File deleted by the user
+          expired: The file is expired
+          user_removed: The user has deleted his/her account
         acts_on_behalf: "acts for"
-        deleted_by_administration: "File deleted by administration"
         restore: "Restore"
         filters:
           title: Select a filter
+          missing_column: Please select a column before adding a filter
         select_all: Select all
         batch_operation:
           enabled: "Add file %{dossier_id} to the selection for the bulk operation"
@@ -448,8 +465,10 @@ en:
       avis:
         introduction_file_explaination: "File attached to the request for advice"
       search:
-        dossier_not_in_instructor_group: "File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it is attached to the “%{groupe_instructeur_label}” instructor group."
-        deleted_dossier: "The File no. %{dossier_id} of the procedure “%{procedure_libelle}}” matches your search but it was deleted on %{deleted_at}."
+        dossier_not_in_instructor_group: "File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it is attached to the “%{groupe_instructeur_label}” instructor group."
+        deleted_dossier: "The File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it was deleted on %{deleted_at}."
+        hidden_dossier: "The File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it was move to the "
+        hidden_dossier_link: "bin"
     users:
       dossiers:
         archived_dossier: "Your file will be kept %{duree_conservation_dossiers_dans_ds} more months"
@@ -460,6 +479,7 @@ en:
           first_name: First Name
           last_name: Last Name
           birthdate: Birth date
+          # pf: Tahiti number is used instead of SIRET in French Polynesia
           complete_siret: Fill the TAHITI number of your company, administration or association to start the procedure.
           siret_help_html: To find your TAHITI number, use %{annuaire_link} or ask your accounting department.
           siret_placeholder: TAHITI number with 6 or 9 characters
@@ -488,7 +508,7 @@ en:
             request: "Your file"
             mailbox_html: '<span class="fr-hidden fr-unhidden-sm">Administration </span> messaging'
             rendez_vous: "Appointment"
-            dossier_number_html: "File <span class='visually-hidden'>number</span> <span aria-hidden='true'>n.</span> %{dossier_id}"
+            dossier_number: "File no. %{dossier_id}"
             created_date: "- Draft on %{date_du_dossier}"
             submit_date: "- Submit on %{date_du_dossier}"
             download: "file-%{dossier_id}.pdf"
@@ -508,13 +528,13 @@ en:
             motivation: "Motivation :"
             attestation: "Attestation :"
             justificatif: "Justification of decision :"
-            acceptee_html: "Your file had been <strong>accepted</strong>."
+            acceptee: "Your file had been accepted"
             accepte_motivation: "Reason"
             accepte_attestation: "Download the attestation"
-            refuse_html: "Your file had been <strong>rejected</strong>."
+            refuse: "Your file had been rejected"
             refuse_motivation: "Reason"
             refuse_reply: "Send a message to the administration"
-            sans_suite_html: "Your file had been <strong>closed, no further action</strong>."
+            sans_suite: "Your file had been closed, no further action"
             sans_suite_motivation: "Reason"
           latest_message:
             latest_message: "Latest message"
@@ -527,9 +547,10 @@ en:
           edit_dossier: Edit my file
           edit_dossier_title: "Edit my file - You can modify your file as long as it has not been sent for processing"
         search:
-          search_file: Search a file (File number, keywords)
-          prompt: (File number, last name / first name, keywords)
-          label: Search a file
+          search_file: Search a file (by file number, keywords…)
+          label: Search a file (by file number, last name / first name, keywords…)
+          placeholder: Enter your search
+          button: Search a file
           simple: Search
           result_term_title: Search result for « %{search_terms} »
           result_procedure_title: and procedure « %{procedure_libelle} »
@@ -537,31 +558,33 @@ en:
         dossier_menu: "File number %{id}"
         index:
           dossiers: "My files"
+          see_deleted_dossiers_history: Deleted files history
+          administration_no_longer_processes: "The administration will no longer process your request."
         dossiers_list:
-          n_dossier: "File n."
+          n_dossier: "File no."
           no_result_title: No files
           no_result_text_html: "To fill a procedure, contact your administration asking for the procedure link. <br> It should look like %{app_base}/commencer/xxx."
           no_result_text_with_search: found with search terms
           no_result_reset_search: Reset search
           no_result_text_with_filter: found with selected filters
           no_result_reset_filter: Reset filters
-          pending_correction_html: "This file is waiting for your corrections. Consult the changes to be made in the <a href=\"%{link}\">messaging system</a>."
+          pending_correction_html: '<h4 class="card-title fr-mb-1v">This file is waiting for your corrections</h4><p>Consult the changes to be made in the <a href="%{link}" class="fr-link">messaging system <span class="visually-hidden">of file number %{id}</span></a>.</p>'
           depose_at: First submission on %{date}
           created_at: Created at %{date}
           updated_at: updated at %{date}
           shared_with: File shared by %{owner} with
-          deleted_by_user: Deleted on %{date} by user
-          deleted_by_automatic: Deleted on %{date} automatically due to expiration date
+          deleted_by_user: Moved to trash on %{date} by user
+          deleted_by_automatic: Moved to trash on %{date} because of expiration date
           procedure_closed:
             brouillon:
-              internal_procedure_html: This procedure is closed. You cannot submit this file. We invite you to submit a new one on the %{link} which replaces it.
-              other_html: This process is closed. You cannot submit this file, nor submit a new one for this procedure. %{link}
+              internal_procedure_html: <h4 class="card-title fr-mb-1v">This procedure is closed</h4><p>You cannot submit this file. We invite you to submit a new one on the %{link} which replaces it.</p>
+              other_html: <h4 class="card-title fr-mb-1v">This procedure is closed</h4><p>You cannot submit this file, nor submit a new one for this procedure. %{link}</p>
             en_cours:
-              internal_procedure_html: This procedure is closed. Your file has been submitted and can be investigated by the administration. If necessary, you can submit a new file on the %{link} that replaces it.
-              other_html: This procedure is closed. Your file has been submitted and can be processed by the administration. You cannot submit a new file for this procedure. %{link}
+              internal_procedure_html: <h4 class="card-title fr-mb-1v">This procedure is closed</h4><p>Your file has been submitted and can be investigated by the administration. If necessary, you can submit a new file on the %{link} that replaces it.</p>
+              other_html: <h4 class="card-title fr-mb-1v">This procedure is closed</h4><p>Your file has been submitted and can be processed by the administration. You cannot submit a new file for this procedure. %{link}</p>
             termine:
-              internal_procedure_html: This procedure is closed. Your file has been processed by the administration. If necessary, you can submit a new file on the %{link} that replaces it.
-              other_html: This process is closed. Your file has been processed by the administration. You cannot submit a new file for this procedure. %{link}
+              internal_procedure_html: <h4 class="card-title fr-mb-1v">This procedure is closed</h4><p>Your file has been processed by the administration. If necessary, you can submit a new file on the %{link} that replaces it.</p>
+              other_html: <h4 class="card-title fr-mb-1v">This procedure is closed</h4><p>Your file has been processed by the administration. You cannot submit a new file for this procedure. %{link}</p>
             title_new_procedure: New procedure available
             title_closing_details: More information on the closing procedure
             more_details: More information
@@ -569,11 +592,11 @@ en:
             this_procedure: this procedure
         transfers:
           sender_from_support: Technical support
-          sender_demande_en_cours: "A transfer request is pending on file Nº %{id} to %{email}"
-          sender_demande_en_cours_from_support: "A transfer request from technical support is pending on file Nº %{id} to %{email}"
-          receiver_demande_en_cours: "Transfer request on file Nº %{id} sent by %{email}"
-          receiver_demande_en_cours_from_support: "Transfer request from technical support on file Nº %{id} of %{email}"
-          revoke: Revoke this request
+          sender_demande_en_cours_html: '<h4 class="card-title fr-mb-1v">A transfer request is pending on file Nº %{id} to %{email}</h4>'
+          sender_demande_en_cours_from_support_html: '<h4 class="card-title fr-mb-1v">A transfer request from technical support is pending on file Nº %{id} to %{email}</h4>'
+          receiver_demande_en_cours_html: '<h4 class="card-title fr-mb-1v">Transfer request on file Nº %{id} sent by %{email}</h4>'
+          receiver_demande_en_cours_from_support_html: '<h4 class="card-title fr-mb-1v">Transfer request from technical support on file Nº %{id} of %{email}</h4>'
+          revoke_html: 'Revoke this <span class="visually-hidden">transfer</span> request'
           accept: Accept
           reject: Reject
         dossier_action:
@@ -581,10 +604,12 @@ en:
           start_other_dossier: "Start another empty file"
           clone: "Duplicate the file"
           delete_dossier: "Move file to trash"
-          delete_dossier_confirm: "If you continue, you will delete this file and the information it contains. Any deletion will result in the cancellation of the current procedure.\n\nConfirm deletion?"
+          delete_dossier_confirm: "Do you really want to move this file to the trash?"
           delete_dossier_with_transfer_confirm: "If you continue, you will delete this file, the information it contains and its transfer request to %{email}. Any deletion will result in the cancellation of the current procedure.\n\nConfirm deletion?"
           transfer_dossier: "Transfer the file"
           edit_draft: "Keep filling"
+          restore: "Restore"
+          restore_and_extend_conservation_html: 'Restore and extend conservation <span class="visually-hidden">of file number %{id}</span> (%{duree_conservation_dossiers_dans_ds} month)'
           actions: "Actions"
           other_actions: "Other actions"
       sessions:
@@ -692,6 +717,17 @@ en:
         not_a_phone: 'is invalid. Enter a valid phone number. Example: 0612345678'
         url: 'is not a valid link'
         invalid_email_format: 'is invalid. Enter a valid email. Example: address@mail.com'
+        api_response_pending: 'Pending response...'
+        api_response_error: 'Not found.'
+        code_429: 'Too many requests. We are retrying for you.'
+        code_500: 'Server error. We are retrying for you.'
+        code_503: 'Service unavailable. We are retrying for you.'
+        code_408: 'The request took too long. We are retrying for you.'
+        code_502: 'Connection issue. We are retrying for you.'
+        code_404: 'Result not found. Please check your information.'
+        code_400: 'Invalid request. Please check your information.'
+        code_403: 'Access denied. You do not have the necessary permissions.'
+        code_401: 'Unauthorized. Please log in to continue.'
       models:
         attestation_template:
           attributes:
@@ -870,9 +906,9 @@ en:
     dossiers_invites:
       one: guest file
       other: guest files
-    dossiers_supprimes:
-      one: trash
-      other: trash
+    dossiers_supprimes_html:
+      one: '<span class="visually-hidden">in the </span>trash'
+      other: '<span class="visually-hidden">in the </span>trash'
     dossiers_transferes:
       one: transfer request
       other: transfer requests
@@ -925,7 +961,7 @@ en:
       cloned_success: "Your file has been duplicated. Please review it then you can submit it"
       ask_deletion:
         undergoingreview: "Your file is undergoing review. It is no longer possible to delete your file. To cancel the undergoingreview contact the adminitration via the mailbox."
-        soft_deleted_dossier: "Your file has been successfully deleted from your interface"
+        soft_deleted_dossier: "Your file has been successfully moved to the trash"
       restore: "Your file has been successfully restored"
       etablissement:
         no_establishment: "There is no establishment tied to this file"
@@ -937,6 +973,21 @@ en:
         papertrail:
           get_papertrail: "Get a deposit receipt"
           filename: "deposit-receipt_file-%{dossier_id}.pdf"
+      show_in_trash:
+        page_title: "File nº %{numero} - In trash"
+        title: "File n° %{numero} has been moved to trash"
+        explanation_html: "You can find this file from the <a href=\"%{trash_link}\" class=\"fr-link\">trash</a> tab of your account.<br>It is not currently viewable."
+        consult_trash: "View trash"
+        user_request_info_without_if: "This file was moved to trash at your request:<br>You can still <strong>restore</strong> it."
+        user_request_info: "If this file was moved to trash at your request:<br>You can still <strong>restore</strong> it."
+        automatic_info: "If this file was moved to trash automatically because its maximum retention period has been reached:<br>We recommend <strong>downloading</strong> it as soon as possible before it is permanently deleted."
+      show_deleted:
+        page_title: "File nº %{numero} - Permanently deleted"
+        title: "File n° %{numero} has been deleted"
+        explanation: "You can no longer recover this file for one of the following reasons:"
+        reason_user_request: "It was moved to trash at your request, then automatically deleted."
+        reason_automatic: "It was deleted because its maximum retention period has been reached."
+        history_link_html: "You can find all deleted files from your account (except \"DRAFT\") on the <a href=\"%{history_link}\" class=\"fr-link\">Deleted files history</a> page."
       papertrail:
         receipt: "Deposit receipt"
         description: "This document attests that on the %{date}, %{user_name} submitted a file on the procedure “%{procedure}”."

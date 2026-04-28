@@ -10,6 +10,7 @@ fr:
         relance_effectuee_le: "Relance effectuée le %{date}"
         reponse_donnee_le: "Réponse donnée le %{date}"
         en_attente: "En attente d'avis"
+        avis_non_rendu: "Avis non rendu"
       france_connect_login:
         title: 'Pour les personnes enregistrées en métropole'
         description: "FranceConnect est la solution proposée par l’État pour sécuriser et simplifier la connexion à vos services en ligne."
@@ -28,6 +29,8 @@ fr:
         create: 'Créer un compte'
         title: "via un compte %{name}"
         signin: 'Se connecter'
+        email_unverified: "Votre adresse email n'est pas vérifiée, vous ne recevrez donc pas les messages de %{application_name}. Veuillez vérifier votre boîte de réception et cliquer sur le lien de vérification. Vous n'avez pas reçu l'email ?"
+        cta_email_unverified: "Renvoyer l’email de vérification"
       messages:
         remove_file: 'Supprimer le fichier'
         remove_all: "Supprimer tous les fichiers"

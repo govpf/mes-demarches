@@ -60,13 +60,13 @@ describe ContactController, question_type: :controller do
       context "when invisible captcha is ignored" do
         let(:params) { { subject: 'bonjour', text: 'un message', question_type: 'procedure_info' } }
 
-        it 'creates a conversation on HelpScout' do
+        it 'creates a conversation on Crisp' do
           expect { subject }.to \
             change(Commentaire, :count).by(0).and \
             change(ContactForm, :count).by(1)
 
           contact_form = ContactForm.last
-          expect(HelpscoutCreateConversationJob).to have_been_enqueued.with(contact_form)
+          expect(CrispCreateConversationJob).to have_been_enqueued.with(contact_form)
 
           expect(contact_form.subject).to eq("bonjour")
           expect(contact_form.text).to eq("un message")
@@ -89,13 +89,13 @@ describe ContactController, question_type: :controller do
             }
           end
 
-          it 'creates a conversation on HelpScout' do
+          it 'creates a conversation on Crisp' do
             expect { subject }.to \
               change(Commentaire, :count).by(0).and \
               change(ContactForm, :count).by(1)
 
             contact_form = ContactForm.last
-            expect(HelpscoutCreateConversationJob).to have_been_enqueued.with(contact_form)
+            expect(CrispCreateConversationJob).to have_been_enqueued.with(contact_form)
             expect(contact_form.dossier_id).to eq(dossier.id)
 
             expect(flash[:notice]).to match('Votre message a été envoyé.')
@@ -118,7 +118,7 @@ describe ContactController, question_type: :controller do
 
           it 'posts the message to the dossier messagerie' do
             expect { subject }.to change(Commentaire, :count).by(1)
-            assert_no_enqueued_jobs(only: HelpscoutCreateConversationJob)
+            assert_no_enqueued_jobs(only: CrispCreateConversationJob)
 
             expect(Commentaire.last.email).to eq(user.email)
             expect(Commentaire.last.dossier).to eq(dossier)
@@ -139,7 +139,7 @@ describe ContactController, question_type: :controller do
           }
         end
 
-        it 'does not create a conversation on HelpScout' do
+        it 'does not create a conversation on Crisp' do
           expect { subject }.not_to change(Commentaire, :count)
           expect(flash[:alert]).to eq(I18n.t('invisible_captcha.sentence_for_humans'))
         end
@@ -175,13 +175,13 @@ describe ContactController, question_type: :controller do
 
       let(:params) { { subject: 'bonjour', email: "me@rspec.net", text: 'un message', question_type: 'procedure_info' } }
 
-      it 'creates a conversation on HelpScout' do
+      it 'creates a conversation on Crisp' do
         expect { subject }.to \
           change(Commentaire, :count).by(0).and \
         change(ContactForm, :count).by(1)
 
         contact_form = ContactForm.last
-        expect(HelpscoutCreateConversationJob).to have_been_enqueued.with(contact_form)
+        expect(CrispCreateConversationJob).to have_been_enqueued.with(contact_form)
         expect(contact_form.email).to eq("me@rspec.net")
 
         expect(flash[:notice]).to match('Votre message a été envoyé.')
@@ -191,8 +191,8 @@ describe ContactController, question_type: :controller do
       context "when email is invalid" do
         let(:params) { super().merge(email: "me@rspec") }
 
-        it 'creates a conversation on HelpScout' do
-          expect { subject }.not_to have_enqueued_job(HelpscoutCreateConversationJob)
+        it 'creates a conversation on Crisp' do
+          expect { subject }.not_to have_enqueued_job(CrispCreateConversationJob)
           expect(response.body).to include("Le champ « Votre adresse électronique » est invalide")
           expect(response.body).to include("bonjour")
           expect(response.body).to include("un message")
@@ -204,7 +204,7 @@ describe ContactController, question_type: :controller do
 
         it "returns unprocessable entity status" do
           subject
-          expect(response).to have_http_status(:unprocessable_entity)
+          expect(response).to have_http_status(:unprocessable_content)
           expect(response.body).to include("La pièce jointe doit être un fichier")
         end
       end
@@ -229,11 +229,11 @@ describe ContactController, question_type: :controller do
       let(:params) { { for_admin: "true", email: "email@pro.fr", subject: 'bonjour', text: 'un message', question_type: 'admin question', phone: '06' } }
 
       describe "when form is filled" do
-        it "creates a conversation on HelpScout" do
+        it "creates a conversation on Crisp" do
           expect { subject }.to change(ContactForm, :count).by(1)
 
           contact_form = ContactForm.last
-          expect(HelpscoutCreateConversationJob).to have_been_enqueued.with(contact_form)
+          expect(CrispCreateConversationJob).to have_been_enqueued.with(contact_form)
           expect(contact_form.email).to eq(params[:email])
           expect(contact_form.phone).to eq("06")
           expect(contact_form.tags).to match_array(["admin question", "contact form"])
@@ -259,7 +259,7 @@ describe ContactController, question_type: :controller do
           post :create, params: { contact_form: params, InvisibleCaptcha.honeypots.sample => 'boom' }
         end
 
-        it 'does not create a conversation on HelpScout' do
+        it 'does not create a conversation on Crisp' do
           subject
           expect(flash[:alert]).to eq(I18n.t('invisible_captcha.sentence_for_humans'))
         end

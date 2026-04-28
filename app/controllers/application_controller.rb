@@ -29,7 +29,7 @@ class ApplicationController < ActionController::Base
 
   helper_method :multiple_devise_profile_connect?, :instructeur_signed_in?, :current_instructeur, :current_expert, :expert_signed_in?,
     :administrateur_signed_in?, :current_administrateur, :current_account, :localization_enabled?, :set_locale, :current_expert_not_instructeur?,
-    :gestionnaire_signed_in?, :current_gestionnaire
+    :gestionnaire_signed_in?, :current_gestionnaire, :extra_query_params
 
   before_action do
     Current.request_id = request.uuid
@@ -346,12 +346,10 @@ class ApplicationController < ActionController::Base
   end
 
   def sentry_config
-    sentry = Rails.application.secrets.sentry
-
     {
-      key: sentry[:js_client_key],
-      enabled: sentry[:enabled],
-      environment: sentry[:environment],
+      key: ENV["SENTRY_DSN_JS"],
+      enabled: ENV.enabled?("SENTRY"),
+      environment: ENV["SENTRY_CURRENT_ENV"],
       browser: { modern: BrowserSupport.supported?(browser) },
       user: sentry_user,
       release: ApplicationVersion.current
@@ -359,37 +357,23 @@ class ApplicationController < ActionController::Base
   end
 
   def matomo_config
-    matomo = Rails.application.secrets.matomo
-
     {
-      cookieDomain: matomo[:cookie_domain],
-      domain: matomo[:domain],
-      enabled: matomo[:enabled],
-      host: matomo[:host],
-      key: matomo[:client_key]
-    }
+      cookieDomain: ENV['MATOMO_COOKIE_DOMAIN'],
+      domain: ENV['MATOMO_DOMAIN'],
+      enabled: ENV.enabled?('MATOMO'),
+      host: ENV['MATOMO_HOST'],
+      key: ENV['MATOMO_ID']
+    }.compact
   end
 
   def crisp_config
-    crisp = Rails.application.secrets.crisp
-
-    nb_demarches_by_state = if current_administrateur.present?
-      current_administrateur.procedures.group(:aasm_state).count
-    else
-      {}
-    end
+    enabled = ENV.enabled?("CRISP")
 
     {
-      key: crisp[:client_key],
-      enabled: crisp[:enabled],
+      enabled:,
+      websiteId: enabled ? ENV.fetch("CRISP_WEBSITE_ID") : nil,
       administrateur: {
-        email: current_user&.email,
-        DS_SIGN_IN_COUNT: current_user&.sign_in_count,
-        DS_CREATED_AT: current_administrateur&.created_at,
-        DS_ID: current_administrateur&.id,
-        DS_NB_DEMARCHES_BROUILLONS: nb_demarches_by_state['brouillon'] || 0,
-        DS_NB_DEMARCHES_ACTIVES: nb_demarches_by_state['publiee'] || 0,
-        DS_NB_DEMARCHES_ARCHIVES: nb_demarches_by_state['close'] || 0
+        email: current_user&.email
       }
     }
   end

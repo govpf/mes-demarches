@@ -66,9 +66,46 @@ class DossierFilterService
   end
 
   def self.filtered_ids(dossiers, filtered_columns)
-    values_by_column = filtered_columns.group_by(&:column).transform_values { _1.map(&:filter) }
+    filters_by_column_and_operator = group_filters(filtered_columns)
 
-    values_by_column.map { |column, values| column.filtered_ids(dossiers, values) }.reduce(:intersection)
+    filters_by_column_and_operator.flat_map do |group, filters|
+      column, _ = group
+
+      filters.map do |filter|
+        column.filtered_ids(dossiers, filter)
+      end
+    end.reduce(:intersection)
+  end
+
+  def self.group_filters(filtered_columns)
+    filtered_columns
+      .map { |fc| { column: fc.column, filter: normalize_filter(fc.filter) } }
+      .group_by { [it[:column], it[:filter][:operator]] }
+      .transform_values { merge_match_filters(it.map { it[:filter] }) }
+  end
+
+  def self.merge_match_filters(filters)
+    # [{ operator: "match", value: ["Dessert"] }, { operator: "match", value: ["Fromage"] }] => { operator: "match", value: ["Dessert", "Fromage"] }
+    # [{ operator: "in", value: ["A"] }, { operator: "in", value: ["B"] }] => { operator: "in", value: ["A", "B"] }
+    # [{ operator: "before", value: ["2025-02-01"] }, { operator: "before", value: ["2025-01-01"] }] => do not group
+    # Note: "in" operator is deprecated but kept for backward compatibility during migration
+
+    # we assume that all filters have the same operator (grouped by column and operator)
+    operator = filters.first[:operator]
+    return filters if !%w[match in].include?(operator) || filters.size == 1
+
+    [{ operator:, value: filters.flat_map { it[:value] }.uniq }]
+  end
+
+  def self.normalize_filter(filter)
+    case filter
+    in String | Array
+      { operator: 'match', value: Array(filter) }
+    in { operator: String => operator, ** }
+      { operator:, value: Array(filter[:value]) }
+    else
+      { operator: 'match', value: Array(filter[:value]) }
+    end
   end
 
   def self.sanitized_column(association, column)

@@ -50,7 +50,9 @@
                 - elsif (request.path != new_user_session_path && request.path !=pro_connect_path)
                   - if request.path == new_user_registration_path
                     %li.fr-hidden-sm.fr-unhidden-lg.fr-link--sm.fr-mb-2w.fr-mr-1v= t('views.shared.account.already_user_question')
-                  %li= link_to 'Agent', pro_connect_path, class: "fr-btn fr-btn--tertiary fr-icon-government-fill fr-btn--icon-left"
+                  %li= link_to 'Agent',
+                    content_for(:pro_connect_path) || pro_connect_path,
+                    class: "fr-btn fr-btn--tertiary fr-icon-government-fill fr-btn--icon-left"
                   %li= link_to t('views.shared.account.signin'), new_user_session_path, class: "fr-btn fr-btn--tertiary fr-icon-account-circle-fill fr-btn--icon-left"
 
                 %li
@@ -105,5 +107,11 @@
         - elsif is_user_context
           = render 'users/main_navigation'
 
+    - if user_signed_in? && !current_user.email_verified_at?
+      = render Dsfr::NoticeComponent.new(closable: true, state: 'alert') do |c|
+        - c.with_title do
+          = t('views.shared.account.email_unverified', application_name: APPLICATION_NAME)
+          = link_to users_resend_confirmation_email_path, method: :post, class: 'fr-notice__link', form: { class: 'inline'} do
+            = t('views.shared.account.cta_email_unverified')
 
     = yield(:notice_info)

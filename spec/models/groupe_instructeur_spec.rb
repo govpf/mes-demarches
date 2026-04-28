@@ -35,8 +35,10 @@ describe GroupeInstructeur, type: :model do
       subject.reload
     end
 
-    it { is_expected.to be_valid }
-    it { expect(subject.label).to eq("Préfecture de la Marne") }
+    it do
+      is_expected.to be_valid
+      expect(subject.label).to eq("Préfecture de la Marne")
+    end
   end
 
   context 'with a label already used for this procedure' do
@@ -66,6 +68,20 @@ describe GroupeInstructeur, type: :model do
 
       it 'copies notifications settings from a previous group' do
         expect(instructeur.assign_to.last.daily_email_notifications_enabled).to be_truthy
+      end
+    end
+
+    context "when the new instructeur has 'all' preferences for notifications" do
+      let!(:instructeur_procedure) { create(:instructeurs_procedure, instructeur:, procedure:, display_dossier_modifie_notifications: 'all') }
+      let!(:dossier) { create(:dossier, :en_construction, groupe_instructeur: another_groupe_instructeur, procedure:, last_champ_updated_at: Time.zone.now, depose_at: Time.zone.yesterday) }
+
+      it "creates notifications on dossiers of the new groupe" do
+        subject
+        expect(DossierNotification.count).to eq(2)
+
+        expect(DossierNotification.all.map(&:dossier_id).uniq).to eq([dossier.id])
+        expect(DossierNotification.all.map(&:instructeur_id).uniq).to eq([instructeur.id])
+        expect(DossierNotification.all.map(&:notification_type)).to match_array(['dossier_depose', 'dossier_modifie'])
       end
     end
   end
@@ -104,8 +120,8 @@ describe GroupeInstructeur, type: :model do
       let(:groupe_instructeur) { procedure_to_remove.defaut_groupe_instructeur }
       let!(:dossier) { create(:dossier, groupe_instructeur:) }
       let!(:other_instructeur) { create(:instructeur) }
-      let!(:notification_instructeur) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:) }
-      let!(:notification_other_instructeur) { create(:dossier_notification, :for_instructeur, dossier:, instructeur: other_instructeur) }
+      let!(:notification_instructeur) { create(:dossier_notification, dossier:, instructeur:) }
+      let!(:notification_other_instructeur) { create(:dossier_notification, dossier:, instructeur: other_instructeur) }
 
       before { procedure_to_remove.defaut_groupe_instructeur.add(other_instructeur) }
 

@@ -7,14 +7,12 @@ class Siret
   attr_accessor :siret
 
   validates :siret, presence: true
-  validates :siret, siret_format: true
+  validates :siret, siret: true
 
   before_validation :remove_whitespace
 
   def remove_whitespace
-    if siret.present?
-      siret.delete!(' ')
-      siret.delete!('-')
-    end
+    # pf: also strip hyphens since Tahiti numbers may be formatted as "123456-789"
+    self.siret = siret.gsub(/[[:space:]-]/, "") if siret.present?
   end
 end

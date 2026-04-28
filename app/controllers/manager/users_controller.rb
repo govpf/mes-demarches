@@ -77,8 +77,7 @@ module Manager
       @user = User.find(params[:id])
 
       email_services = [
-        Sendinblue::API.new,
-        Dolist::API.new
+        Sendinblue::API.new
       ].filter(&:properly_configured?)
 
       @sent_mails = Concurrent::Array.new
@@ -105,7 +104,7 @@ module Manager
     private
 
     def targeted_email
-      params[:user][:email]
+      params.require(:user).permit(:email)[:email]
     end
 
     def paginate_resources(_resources)

@@ -21,7 +21,7 @@ class Rack::Attack
     end
   end
 
-  throttle('contact/ip', limit: 5, period: 15.seconds) do |req|
+  throttle('contact/ip', limit: 5, period: 30.seconds) do |req|
     if req.path == '/contact' && req.post? && rack_attack_enabled?
       req.remote_ip
     end
@@ -32,6 +32,10 @@ class Rack::Attack
     if req.path == '/api/public/v1/dossiers' && req.post? && rack_attack_enabled?
       req.remote_ip
     end
+  end
+
+  throttle('referentiel_search_per_ip', limit: 60, period: 1.minute) do |req|
+    req.remote_ip if req.post? && req.path.match?(/data_sources\/referentiel/) && rack_attack_enabled?
   end
 
   Rack::Attack.safelist('allow trusted ips') do |req|

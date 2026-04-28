@@ -74,10 +74,12 @@ module Administrateurs
     def update
       attestation_params = editor_params
 
+      attestation_kind = @attestation_template.kind
       # toggle activation
       if @attestation_template.persisted? && @attestation_template.activated? != cast_bool(attestation_params[:activated])
-        @procedure.attestation_templates.v2.update_all(activated: attestation_params[:activated])
-        render :update && return
+        @procedure.attestation_templates_v2_for(attestation_kind).update_all(activated: attestation_params[:activated])
+        render :update
+        return
       end
 
       if @attestation_template.published? && should_edit_draft?
@@ -93,15 +95,17 @@ module Administrateurs
       else
         # - draft just published
         if @attestation_template.published? && should_edit_draft?
-          published = @procedure.attestation_templates.published
+          published_template_v2 = @procedure.attestation_templates_v2_for(attestation_kind).published
+          template_v1 = @procedure.attestation_template_v1
 
           @attestation_template.transaction do
-            were_published = published.destroy_all
+            was_v2_published = published_template_v2.destroy_all
+            was_v1 = template_v1&.destroy
             @attestation_template.save!
-            flash.notice = were_published.any? ? "La nouvelle version de l’attestation a été publiée." : "L’attestation a été publiée."
+            flash.notice = (was_v1.present? || was_v2_published.any?) ? "La nouvelle version de l’attestation a été publiée." : "L’attestation a été publiée."
           end
 
-          redirect_to edit_admin_procedure_attestation_template_v2_path(@procedure)
+          redirect_to edit_admin_procedure_attestation_template_v2_path(@procedure, attestation_kind: @attestation_template.kind)
         else
           # - draft updated
           # - or, attestation already published, without need for publication (draft procedure)
@@ -114,22 +118,24 @@ module Administrateurs
     def create = update
 
     def reset
-      @procedure.attestation_templates_v2.draft&.destroy_all
+      @procedure.attestation_templates_v2_for(@attestation_template.kind).draft&.destroy_all
 
       flash.notice = "Les modifications ont été réinitialisées."
-      redirect_to edit_admin_procedure_attestation_template_v2_path(@procedure)
+      redirect_to edit_admin_procedure_attestation_template_v2_path(@procedure, attestation_kind: @attestation_template.kind)
     end
 
     private
 
     def retrieve_attestation_template
-      v2s = @procedure.attestation_templates_v2
-      @attestation_template = v2s.find(&:draft?) || v2s.find(&:published?) || build_default_attestation
+      attestation_kind = params[:attestation_kind]
+
+      attestation_templates_by_kind = @procedure.attestation_templates_v2_for(attestation_kind)
+      @attestation_template = attestation_templates_by_kind.find(&:draft?) || attestation_templates_by_kind.find(&:published?) || build_default_attestation(attestation_kind)
     end
 
-    def build_default_attestation
+    def build_default_attestation(kind)
       state = should_edit_draft? ? :draft : :published
-      @procedure.attestation_templates.build(version: 2, json_body: AttestationTemplate::TIPTAP_BODY_DEFAULT, activated: true, state:)
+      @procedure.attestation_templates.build(version: 2, json_body: AttestationTemplate::TIPTAP_BODY_DEFAULT, activated: true, state:, kind:)
     end
 
     def should_edit_draft?

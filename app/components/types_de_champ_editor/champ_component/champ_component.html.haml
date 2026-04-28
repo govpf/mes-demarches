@@ -1,8 +1,8 @@
 %li.type-de-champ.flex.column.justify-start.fr-mb-5v{ html_options }
   .type-de-champ-container{ id: dom_id(type_de_champ.stable_self, :editor_error) }
     - if @errors.present?
-      .types-de-champ-errors
-        = @errors
+      .fr-alert.fr-alert--error.fr-alert--sm.fr-mb-2w
+        %p= @errors
 
     .flex.justify-start.section.head
       = form_for(type_de_champ, form_options) do |form|
@@ -10,7 +10,7 @@
           .flex.justify-start.width-33
             .cell.flex.justify-start.column.flex-grow
               = form.label :type_champ, "Type de champ", for: dom_id(type_de_champ, :type_champ)
-              = form.select :type_champ, grouped_options_for_select(types_of_type_de_champ, type_de_champ.type_champ), {}, class: 'fr-select small-margin small inline width-100', id: dom_id(type_de_champ, :type_champ), disabled: coordinate.used_by_routing_rules? || coordinate.used_by_ineligibilite_rules?
+              = form.select :type_champ, grouped_options_for_select(types_of_type_de_champ, type_de_champ.type_champ), {}, class: 'fr-select small-margin small inline width-100', id: dom_id(type_de_champ, :type_champ), disabled: disabled_type_de_champ_select?
 
               - if type_de_champ.siret?
                 .cell.fr-mt-1w
@@ -18,6 +18,10 @@
                     data: { "fr-opened" => "false", "turbo-frame" => "api-champ-columns", action: "lazy-modal#load" },
                     src: api_champ_columns_admin_procedure_path(id: procedure.id, stable_id: type_de_champ.stable_id),
                     "aria-controls" => "api-champ-columns-modal")
+              - if disabled_type_de_champ_select?
+                .cell.fr-mt-1w
+                  %span.fr-icon-lock-fill.fr-icon--sm
+                  Aucun type de champ autorisé pour transformer ce champ
 
           .flex.column.justify-start.flex-grow
             .cell
@@ -29,13 +33,55 @@
                     = form.label :mandatory, "Champ obligatoire", for: dom_id(type_de_champ, :mandatory)
               = form.text_field :libelle, class: 'fr-input small-margin small width-100', id: dom_id(type_de_champ, :libelle), data: input_autofocus
             - if type_de_champ.header_section?
-              %p
-                %small Nous numérotons automatiquement les titres lorsqu’aucun de vos titres ne commence par un chiffre.
+              %p.fr-text--sm
+                Nous numérotons automatiquement les titres lorsqu'aucun de vos titres ne commence par un chiffre.
 
             - if !type_de_champ.header_section? && !type_de_champ.titre_identite?
               .cell.fr-mt-1w
                 = form.label :description, "Description du champ (optionnel)", for: dom_id(type_de_champ, :description)
                 = form.text_area :description, class: 'fr-input small-margin small width-100 resize-y', rows: 3, id: dom_id(type_de_champ, :description)
+
+            - if type_de_champ.formule?
+              -# pf: Get available columns respecting order constraints (public/private rules + repetition context)
+              - columns_data = available_columns_for_formula
+              -# Backward compatibility: also provide old format
+              - available_tdc = type_de_champ.available_champs_for_formula(revision)
+              - available_champs = available_tdc.map { |tdc| { label: tdc.libelle, stable_id: tdc.stable_id } }
+              .cell.fr-mt-1w{ data: { controller: 'formula-editor formula-autocomplete formula-ai-prompt', formula_editor_available_columns_value: columns_data.to_json, formula_editor_champs_value: available_champs.to_json, formula_autocomplete_available_columns_value: columns_data.to_json, formula_ai_prompt_prompt_value: ai_prompt_for_formula } }
+                = form.label :formule_user_expression, for: dom_id(type_de_champ, :formule_user_expression) do
+                  Expression de la formule
+                -# pf: pas d'autosave au fil de l'eau sur la formule — une expression incomplète
+                -# déclencherait des validations erronées en milieu de frappe. Le save se fait
+                -# naturellement via l'événement `change` (au blur) ou à la soumission explicite.
+                = form.text_area :formule_user_expression,
+                  value: type_de_champ.formule_user_expression,
+                  class: "fr-input small-margin small width-100 resize-y",
+                  rows: 3,
+                  id: dom_id(type_de_champ, :formule_user_expression),
+                  placeholder: "Exemple: {Montant HT} * (1 + {Taux TVA})",
+                  data: { formula_editor_target: 'userExpression', formula_autocomplete_target: 'textarea', autosave_on_blur_only: 'true', action: 'input->formula-editor#onInput input->formula-autocomplete#onInput keydown->formula-autocomplete#onKeyDown' }
+                = form.hidden_field :formule_expression,
+                  value: type_de_champ.formule_expression,
+                  id: dom_id(type_de_champ, :formule_expression),
+                  data: { formula_editor_target: 'stableExpression' }
+                -# pf: Bannière d'appel-à-l'action pour déléguer la rédaction de la formule à une IA.
+                -# Variante légère (bloc compact) — si trop discret, basculer vers fr-callout.
+                .formula-ai-prompt-banner.fr-mt-1w.fr-p-2w{ style: 'background: var(--background-alt-blue-france); border-radius: 4px;' }
+                  .flex.align-start.flex-gap
+                    %span.fr-icon-magic-wand-line.fr-icon--sm.fr-mt-1v{ 'aria-hidden': 'true', style: 'color: var(--text-action-high-blue-france); flex-shrink: 0;' }
+                    .flex-grow
+                      %p.fr-mb-1v.fr-text--sm
+                        %strong Besoin d’aide pour écrire cette formule ?
+                      %p.fr-mb-2v.fr-text--xs.fr-text-mention--grey
+                        Une IA peut la rédiger pour vous. Nous préparons une documentation technique adaptée à
+                        %strong ce champ
+                        \. Collez-la dans votre IA puis décrivez-lui le but de la formule.
+                      .flex.align-center.flex-gap
+                        %button.fr-btn.fr-btn--sm.fr-icon-clipboard-line.fr-btn--icon-left{ type: 'button',
+                          data: { formula_ai_prompt_target: 'button', action: 'click->formula-ai-prompt#copy' } }
+                          Préparer la demande pour une IA
+                        = link_to 'Voir la documentation', faq_path(category: 'administrateur', slug: 'les-formules-introduction'), target: '_blank', class: 'fr-link fr-link--sm fr-link--icon-left fr-icon-book-2-line'
+                %p.fr-message{ data: { formula_editor_target: 'validationMessage' }, style: 'display: none;' }
 
             - if type_de_champ.any_drop_down_list? && !type_de_champ.drop_down_list?
               .cell.fr-mt-1w
@@ -161,102 +207,6 @@
                 .cell.width-100
                   = form.label :accredited_user_string, "Mails des personnes accréditées", for: dom_id(type_de_champ, :accredited_user_string)
                   = form.text_area :accredited_user_string, class: 'fr-input small-margin small', rows: 7, id: dom_id(type_de_champ, :accredited_user_string), placeholder: 'Ecrire un email par ligne'
-            - if type_de_champ.referentiel_de_polynesie?
-              .cell.flex.flex-gap
-                .flex.column
-                  .cell.fr-mt-1w
-                    = form.label :table_id, "Table de recherche", for: dom_id(type_de_champ, :table_id)
-                    = form.select :table_id, TypeDeChamp.referentiel_tables,
-                                 { prompt: 'Sélectionnez une table' },
-                                 { id: dom_id(type_de_champ, :table_id),
-                                   class: 'fr-select' }
-                .flex.column
-                  .cell.fr-mt-1w
-                    = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
-                      Proposer une option pour « autre » utilisable dans les conditions
-                    = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
-            - if type_de_champ.formatted?
-              .flex.width-33
-              .flex.column.flex-grow
-                .cell
-                  %fieldset.fr-segmented.fr-segmented
-                    %legend.fr-segmented__legend.fr-mb-1w
-                      Spécifier le format requis
-                    .fr-segmented__elements
-                      .fr-segmented__element
-                        = form.radio_button :formatted_mode, 'simple', id: dom_id(type_de_champ, :simple), data: { action: 'segmented-control#toggle', 'mode-to-show': 'simple' }
-                        = form.label :formatted_mode_simple, t('.kind.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
-                      .fr-segmented__element
-                        = form.radio_button :formatted_mode, 'advanced', id: dom_id(type_de_champ, :advanced), data: { action: 'segmented-control#toggle', "mode-to-show": "advanced" }
-                        = form.label :formatted_mode_advanced, t('.kind.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
-
-                %div{ class: class_names("cell", "formatted_mode_simple", hidden: type_de_champ.formatted_mode ? type_de_champ.formatted_mode == 'advanced' : nil), data: { 'segmented-control-target': 'simple' } }
-                  %fieldset.fr-fieldset{ aria_labelledby: 'checkboxes-inline-legend' }
-                    .fr-fieldset__element.fr-mb-0
-                      %legend.fr-fieldset__legend#checkboxes-inline-legend= t('.simple_mode.labels.accepted_format')
-                    .fr-fieldset__element.fr-fieldset__element--inline.fr-mb-0
-                      .fr-checkbox-group
-                        = form.check_box :numbers_accepted, id: dom_id(type_de_champ, :numbers_accepted)
-                        = form.label :numbers_accepted, class: 'fr-label fr-text--sm fr-mb-3v', for: dom_id(type_de_champ, :numbers_accepted) do
-                          = t('.simple_mode.labels.numbers')
-                    .fr-fieldset__element.fr-fieldset__element--inline.fr-mb-0
-                      .fr-checkbox-group
-                        = form.check_box :letters_accepted, id: dom_id(type_de_champ, :letters_accepted)
-                        = form.label :letters_accepted, class: 'fr-label fr-text--sm fr-mb-3v', for: dom_id(type_de_champ, :letters_accepted) do
-                          = t('.simple_mode.labels.letters')
-                    .fr-fieldset__element.fr-fieldset__element--inline.fr-mb-0
-                      .fr-checkbox-group
-                        = form.check_box :special_characters_accepted, id: dom_id(type_de_champ, :special_characters_accepted)
-                        = form.label :special_characters_accepted, class: 'fr-label fr-text--sm fr-mb-3v', for: dom_id(type_de_champ, :special_characters_accepted) do
-                          = t('.simple_mode.labels.special_characters')
-                    - if (errors = procedure.errors.where(:draft_types_de_champ_public, :invalid_character_rules, type_de_champ:)).any?
-                      .fr-messages-group
-                        %p.fr-message.fr-message--error= errors.map(&:full_message).to_sentence
-
-                  %fieldset.fr-fieldset.fr-mt-2w
-                    .fr-fieldset__element.fr-fieldset__element--inline.fr-mb-0
-                      .fr-input-group
-                        = form.label :min_character_length, for: dom_id(type_de_champ, :min_character_length) do
-                          = t('.simple_mode.labels.min_character_length')
-                        = form.number_field :min_character_length, class: "fr-input", id: dom_id(type_de_champ, :min_character_length)
-
-                    .fr-fieldset__element.fr-fieldset__element--inline.fr-mb-0
-                      .fr-input-group
-                        = form.label :max_character_length, for: dom_id(type_de_champ, :max_character_length) do
-                          = t('.simple_mode.labels.max_character_length')
-                        = form.number_field :max_character_length, class: "fr-input", id: dom_id(type_de_champ, :max_character_length)
-                    - if (errors = procedure.errors.where(:draft_types_de_champ_public, :invalid_character_length, type_de_champ:)).any?
-                      .fr-messages-group
-                        %p.fr-message.fr-message--error= errors.map(&:full_message).to_sentence
-
-                %div{ class: class_names("cell", "formatted_mode_advanced", hidden: type_de_champ.formatted_mode ? type_de_champ.formatted_mode == 'simple' : true), data: { 'segmented-control-target': 'advanced' } }
-                  .fr-input-group
-                    = form.label :expression_reguliere, for: dom_id(type_de_champ, :expression_reguliere), class: "fr-mb-1w" do
-                      = t('.expression_reguliere.labels.regex')
-
-                    .type-de-champ-expression-reguliere
-                      = form.text_field :expression_reguliere, class: "fr-input small-margin small fr-text--monospace", id: dom_id(type_de_champ, :expression_reguliere)
-                    %p.fr-hint-text.fr-mt-1w= t('.expression_reguliere.labels.hint_html')
-
-                  .fr-input-group.fr-mt-2w
-                    = form.label :expression_reguliere_indications, for: dom_id(type_de_champ, :expression_reguliere_indications), class: "fr-mb-0" do
-                      = t('.expression_reguliere.labels.indications')
-                    %p.fr-hint-text.fr-mb-0= t('.expression_reguliere.labels.indications_hint')
-                    = form.text_field :expression_reguliere_indications, class: "fr-input small-margin small", id: dom_id(type_de_champ, :expression_reguliere_indications)
-
-                  .fr-input-group.fr-mt-2w
-                    = form.label :expression_reguliere_exemple_text, for: dom_id(type_de_champ, :expression_reguliere_exemple_text) do
-                      = t('.expression_reguliere.labels.valid_exemple')
-                    = form.text_field :expression_reguliere_exemple_text, class: "fr-input small-margin small", id: dom_id(type_de_champ, :expression_reguliere_exemple_text)
-                    - if type_de_champ.invalid_regexp?
-                      .fr-messages-group
-                        %p.fr-message.fr-message--error
-                          = type_de_champ.errors[:expression_reguliere_exemple_text].join(", ")
-
-                  .fr-input-group.fr-mt-2w
-                    = form.label :expression_reguliere_error_message, for: dom_id(type_de_champ, :expression_reguliere_error_message) do
-                      = t('.expression_reguliere.labels.error_message')
-                    = form.text_field :expression_reguliere_error_message, class: "fr-input small-margin small", id: dom_id(type_de_champ, :expression_reguliere_error_message)
 
             - if type_de_champ.integer_number? || type_de_champ.decimal_number?
               .border-left-dark.fr-mt-2w
@@ -345,32 +295,32 @@
               .cell
                 .carte-options
                   = form.fields_for :editable_options do |form|
-                    - slice.each do |(name, checked)|
+                    - slice.each do |(name, checked, disabled)|
                       = form.label name, for: dom_id(type_de_champ, "layer_#{name}") do
-                        = form.check_box name, checked: checked, class: 'small-margin small', id: dom_id(type_de_champ, "layer_#{name}")
+                        = form.check_box name, checked:, disabled:, class: 'small-margin small', id: dom_id(type_de_champ, "layer_#{name}")
                         = t(".layers.#{name}")
-          - if type_de_champ.textarea?
-            .cell
-              = form.label :character_limit, for: dom_id(type_de_champ, :character_limit) do
-                Spécifier un nombre maximal conseillé de caractères :
-              = form.select :character_limit, options_for_character_limit, {}, { id: dom_id(type_de_champ, :character_limit), class: 'fr-select' }
-          - if type_de_champ.formatted?
-            .flex.justify-start.column.width-33
-              %fieldset.fr-segmented.fr-segmented
-                %legend.fr-segmented__legend.fr-mb-1w
-                  Spécifier le format requis
-                .fr-segmented__elements
-                  .fr-segmented__element
-                    = form.radio_button :formatted_mode, 'simple', checked: type_de_champ.formatted_simple?, id: dom_id(type_de_champ, :simple)
-                    = form.label :formatted_mode_simple, t('.kind.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
-                  .fr-segmented__element
-                    = form.radio_button :formatted_mode, 'advanced', id: dom_id(type_de_champ, :advanced)
-                    = form.label :formatted_mode_advanced, t('.kind.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
+        - if type_de_champ.textarea?
+          .cell
+            = form.label :character_limit, for: dom_id(type_de_champ, :character_limit) do
+              Spécifier un nombre maximal conseillé de caractères :
+            = form.select :character_limit, options_for_character_limit, {}, { id: dom_id(type_de_champ, :character_limit), class: 'fr-select' }
+        - if type_de_champ.formatted?
+          .flex.justify-start.column.width-33
+            %fieldset.fr-segmented.fr-segmented
+              %legend.fr-segmented__legend.fr-mb-1w
+                Spécifier le format requis
+              .fr-segmented__elements
+                .fr-segmented__element
+                  = form.radio_button :formatted_mode, 'simple', checked: type_de_champ.formatted_simple?, id: dom_id(type_de_champ, :simple)
+                  = form.label :formatted_mode_simple, t('.kind.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
+                .fr-segmented__element
+                  = form.radio_button :formatted_mode, 'advanced', id: dom_id(type_de_champ, :advanced)
+                  = form.label :formatted_mode_advanced, t('.kind.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
 
-            = render TypesDeChampEditor::ChampFormattedSimpleComponent.new(type_de_champ:, form:, procedure:)
-            = render TypesDeChampEditor::ChampFormattedAdvancedComponent.new(type_de_champ:, form:, procedure:)
+          = render TypesDeChampEditor::ChampFormattedSimpleComponent.new(type_de_champ:, form:, procedure:)
+          = render TypesDeChampEditor::ChampFormattedAdvancedComponent.new(type_de_champ:, form:, procedure:)
 
-    - if type_de_champ.referentiel?
+    - if type_de_champ.referentiel? || type_de_champ.referentiel_de_polynesie?
       = render(TypesDeChampEditor::InfoReferentielComponent.new(procedure:, type_de_champ:))
 
     - if type_de_champ.repetition?

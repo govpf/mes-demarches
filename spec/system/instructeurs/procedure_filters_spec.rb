@@ -44,6 +44,10 @@ describe "procedure filters" do
   end
 
   scenario "should add be able to add created_at column", js: true do
+    # Hack to force filters combo to be above the menu so Enregistrer button
+    # is clickable. (by default height is 2000+ for playwright driver)
+    Capybara.page.current_window.resize_to(1440, 900)
+
     add_column("Date de création")
     within ".dossiers-table" do
       expect(page).to have_button("Date de création")
@@ -107,10 +111,10 @@ describe "procedure filters" do
       add_filter("Date de passage en construction", "10/10/2010", type: :date)
 
       # use statut dropdown filter
-      add_filter('État du dossier', 'En construction', type: :enum)
+      add_filter('État du dossier', 'En construction', type: :multi_select)
 
       # use choice dropdown filter
-      add_filter('Choix unique', 'val1', type: :enum)
+      add_filter('Choix unique', 'val1', type: :multi_select)
     end
   end
 
@@ -131,7 +135,7 @@ describe "procedure filters" do
         departement_champ.reload
         champ_select_value = "#{departement_champ.external_id} – #{departement_champ.value}"
 
-        add_filter(departement_champ.libelle, champ_select_value, type: :enum)
+        add_filter(departement_champ.libelle, champ_select_value, type: :multi_select)
         expect(page).to have_link(new_unfollow_dossier.id.to_s)
       end
     end
@@ -158,7 +162,7 @@ describe "procedure filters" do
         rna_champ.reload
         champ_select_value = "37 – Indre-et-Loire"
 
-        add_filter("#{rna_champ.libelle} – Département", champ_select_value, type: :enum)
+        add_filter("#{rna_champ.libelle} – Département", champ_select_value, type: :multi_select)
         expect(page).to have_link(new_unfollow_dossier.id.to_s)
       end
     end
@@ -170,7 +174,8 @@ describe "procedure filters" do
         region_champ.update!(value: 'Bretagne', external_id: '53')
         region_champ.reload
 
-        add_filter(region_champ.libelle, region_champ.value, type: :enum)
+        add_filter(region_champ.libelle, region_champ.value, type: :multi_select)
+
         expect(page).to have_link(new_unfollow_dossier.id.to_s)
       end
     end
@@ -179,16 +184,38 @@ describe "procedure filters" do
   describe 'dossier labels' do
     scenario "should be able to filter by dossier labels", js: true do
       DossierLabel.create!(dossier_id: new_unfollow_dossier.id, label_id: procedure.labels.first.id)
-      add_filter('Labels', procedure.labels.first.name, type: :enum)
+      add_filter('Labels', procedure.labels.first.name, type: :multi_select)
       expect(page).to have_link(new_unfollow_dossier.id.to_s)
       expect(page).not_to have_link(new_unfollow_dossier_2.id.to_s, exact: true)
+    end
+
+    scenario "cumule les valeurs ajoutées séquentiellement sur un filtre multi-sélection", js: true do
+      first_label = procedure.labels.first
+      second_label = procedure.labels.second
+
+      DossierLabel.create!(dossier: new_unfollow_dossier, label: first_label)
+      DossierLabel.create!(dossier: new_unfollow_dossier_2, label: second_label)
+
+      add_filter('Labels', first_label.name, type: :multi_select)
+
+      within ".dossiers-table" do
+        expect(page).to have_link(new_unfollow_dossier.id.to_s, exact: true)
+        expect(page).not_to have_link(new_unfollow_dossier_2.id.to_s, exact: true)
+      end
+
+      add_filter('Labels', second_label.name, type: :multi_select)
+
+      within ".dossiers-table" do
+        expect(page).to have_link(new_unfollow_dossier.id.to_s, exact: true)
+        expect(page).to have_link(new_unfollow_dossier_2.id.to_s, exact: true)
+      end
     end
   end
 
   scenario "should be able to add and remove two filters for the same field", js: true do
     add_filter(type_de_champ.libelle, champ.value)
     add_filter(type_de_champ.libelle, champ_2.value)
-    add_filter('Groupe instructeur', procedure.groupe_instructeurs.first.label, type: :enum)
+    add_filter('Groupe instructeur', procedure.groupe_instructeurs.first.label, type: :multi_select)
 
     within ".dossiers-table" do
       expect(page).to have_link(new_unfollow_dossier.id.to_s, exact: true)
@@ -221,20 +248,28 @@ describe "procedure filters" do
   def add_filter(column_name, filter_value, type: :text)
     click_on 'Sélectionner un filtre'
     wait_until { all("#search-filter").size == 1 }
+
     fill_in 'search-filter', with: column_name
     select_combobox('Colonne', column_name)
-    case type
-    when :text
-      fill_in "Valeur", with: filter_value
-    when :date
-      find("input#value[type=date]", visible: true)
-      fill_in "Valeur", with: Date.parse(filter_value)
-    when :enum
-      find("select#value", visible: false)
-      select filter_value, from: "Valeur"
+
+    within "#filter-component" do
+      case type
+      when :text
+        fill_in "Valeur", with: filter_value
+      when :date
+        find("input[type=date]", visible: true)
+        fill_in "Valeur", with: Date.parse(filter_value)
+      when :multi_select
+        # Wait for React component to be ready
+        find('.dom-ready') if page.has_css?('.dom-ready')
+
+        fill_in "Valeur", with: filter_value
+
+        find("#column_filter_value_component input.fr-select", visible: true).send_keys(:down, :enter, :escape)
+      end
+      click_button "Ajouter le filtre"
+      expect(page).to have_no_css("#search-filter", visible: true)
     end
-    click_button "Ajouter le filtre"
-    expect(page).to have_no_css("#search-filter", visible: true)
   end
 
   def remove_filter(filter_value)
@@ -242,14 +277,14 @@ describe "procedure filters" do
   end
 
   def add_column(column_name)
-    click_on 'Personnaliser'
+    click_on 'Personnaliser le tableau'
     scroll_to(find('input[aria-label="Colonne à afficher"]'), align: :center)
     select_combobox('Colonne à afficher', column_name)
     click_button "Enregistrer"
   end
 
   def remove_column(column_name)
-    click_on 'Personnaliser'
+    click_on 'Personnaliser le tableau'
     within '.fr-tag-list' do
       find('.fr-tag', text: column_name).find('button').click
     end

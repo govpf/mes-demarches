@@ -52,7 +52,7 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
             {
               type: :referentiel,
               stable_id: 1,
-              referentiel: create(:api_referentiel, :configured, :ready),
+              referentiel: create(:api_referentiel, :exact_match, :with_exact_match_response),
               referentiel_mapping: {
                 '$.jsonpath' => {
                   'prefill' => '1',
@@ -107,6 +107,54 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
       it 'does not have select to move champs' do
         expect(page).to have_css("select##{ActionView::RecordIdentifier.dom_id(coordinate, :move_and_morph)}")
       end
+    end
+
+    describe 'tdc formule' do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :formule, libelle: 'Calcul TVA', formule_expression: '{Prix HT} * 1.20' }]) }
+      let(:coordinate) { procedure.draft_revision.revision_types_de_champ_public.first }
+
+      it 'displays formula expression field when champ type is formule' do
+        expect(page).to have_field('Expression de la formule', type: 'textarea', with: '{Prix HT} * 1.20')
+      end
+
+      it 'shows the AI helper banner' do
+        expect(page).to have_text('Besoin d’aide pour écrire cette formule ?')
+        expect(page).to have_button('Préparer la demande pour une IA')
+        expect(page).to have_link('Voir la documentation')
+      end
+
+      it 'has proper HTML attributes for accessibility' do
+        expect(page).to have_css('textarea[rows="3"]')
+        expect(page).to have_css('textarea.fr-input')
+        expect(page).to have_css('textarea[placeholder*="Montant HT"]')
+      end
+    end
+  end
+
+  describe 'formule feature flag' do
+    it 'has formule in FEATURE_FLAGS' do
+      expect(TypeDeChamp::FEATURE_FLAGS[:formule]).to eq(:formule)
+    end
+  end
+
+  describe 'ACCEPTED_TYPES' do
+    it 'contains expected conversions' do
+      expect(described_class::ACCEPTED_TYPES).to include(
+        "checkbox" => ["yes_no", "text", "textarea", "formatted"],
+        "civilite" => ["text", "textarea", "formatted"],
+        "date" => ["datetime", "text", "textarea", "formatted"],
+        "datetime" => ["date", "text", "textarea", "formatted"],
+        "decimal_number" => ["integer_number", "text", "textarea", "formatted"],
+        "drop_down_list" => ["multiple_drop_down_list", "text", "textarea", "formatted"],
+        "email" => ["text", "textarea", "formatted"],
+        "formatted" => ["textarea", "text", "email", "phone"],
+        "integer_number" => ["decimal_number", "text", "textarea", "formatted"],
+        "multiple_drop_down_list" => ["drop_down_list", "text", "textarea", "formatted"],
+        "phone" => ["text", "textarea", "formatted"],
+        "text" => ["textarea", "formatted", "email", "phone", "decimal_number", "integer_number"],
+        "textarea" => ["text", "formatted"],
+        "yes_no" => ["checkbox", "text", "textarea", "formatted"]
+      )
     end
   end
 end

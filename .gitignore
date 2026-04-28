@@ -48,6 +48,9 @@ storage/
 # /app/custom_views/*
 # !/app/custom_views/.keep
 
+# Git worktrees
+.worktrees/
+
 # Webpacker
 public/packs
 public/packs-test
@@ -61,3 +64,4 @@ app/graphql/schema.json
 public/graphql/schema
 /docker/
 /config/secrets/
+.claude/settings.local.json

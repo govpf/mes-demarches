@@ -14,8 +14,8 @@ describe Administrateurs::TypesDeChampController, type: :controller do
   end
 
   def first_coordinate = procedure.draft_revision.revision_types_de_champ_public.first
-  def second_coordinate = procedure.draft_revision.revision_types_de_champ_public.reload.second
-  def third_coordinate = procedure.draft_revision.revision_types_de_champ_public.reload.third
+  def second_coordinate = procedure.draft_revision.reload.revision_types_de_champ_public.second
+  def third_coordinate = procedure.draft_revision.revision_types_de_champ_public.third
 
   def extract_libelle(champ_component) = [champ_component.coordinate.libelle, champ_component.upper_coordinates.map(&:libelle)]
 
@@ -118,9 +118,11 @@ describe Administrateurs::TypesDeChampController, type: :controller do
       end
     end
 
-    context 'with referentiel' do
+    context 'with a dropdown list with a referentiel' do
       let(:referentiel_file) { fixture_file_upload('spec/fixtures/files/modele-import-referentiel.csv', 'text/csv') }
-      let(:type_de_champ) { procedure.draft_revision.types_de_champ.last }
+      let(:drop_down_list_type_de_champ) do
+        procedure.draft_revision.types_de_champ_public.third
+      end
 
       let(:params) do
         {
@@ -137,8 +139,8 @@ describe Administrateurs::TypesDeChampController, type: :controller do
       context 'working case with multi column file' do
         it 'creates a valid referentiel' do
           expect { subject }.to change(Referentiel, :count).by(1).and change(ReferentielItem, :count).by(3)
-          expect(type_de_champ.reload.referentiel).to eq Referentiel.last
-          expect(Referentiel.last.types_de_champ).to eq [type_de_champ]
+          expect(drop_down_list_type_de_champ.reload.referentiel).to eq Referentiel.last
+          expect(Referentiel.last.types_de_champ).to eq [drop_down_list_type_de_champ]
           expect(Referentiel.last.name).to eq referentiel_file.original_filename
           expect(Referentiel.last.type).to eq 'Referentiels::CsvReferentiel'
           expect(ReferentielItem.first.data).to eq({ "row" => { "calorie_kcal" => "145", "dessert" => "Éclair au café", "poids_g" => "60" } })
@@ -201,10 +203,49 @@ describe Administrateurs::TypesDeChampController, type: :controller do
 
       context 'when the csv file is iso-8859 format, with CRLF line terminators and special characters (even in header)' do
         let(:referentiel_file) { fixture_file_upload('spec/fixtures/files/modele-import-referentiel-iso-8859-crlf-special-characters.csv', 'text/csv') }
+
         it 'works' do
           expect { subject }.to change(Referentiel, :count).by(1).and change(ReferentielItem, :count).by(2)
           expect(ReferentielItem.first.data).to eq({ "row" => { "adresse" => "115, Boulevard Exelmans, Paris, 75016", "email" => "moha.ali@diplomatie.gouv.fr", "nom" => "Mohamed Ali", "numero" => "UK +447 864 743 320" } })
           expect(Referentiel.first.headers).to eq(["adresse", "nom", "numéro", "email"])
+        end
+      end
+    end
+
+    context 'with a multiple dropdown list with a referentiel' do
+      let(:procedure) do
+        create(:procedure,
+               types_de_champ_public: [
+                 { type: :multiple_drop_down_list, libelle: 'l1' }
+               ])
+      end
+      let(:referentiel_file) { fixture_file_upload('spec/fixtures/files/modele-import-referentiel.csv', 'text/csv') }
+      let(:multiple_drop_down_list_type_de_champ) do
+        procedure.draft_revision.types_de_champ_public.first
+      end
+      let(:coordinate) { procedure.draft_revision.revision_types_de_champ_public.first }
+
+      let(:params) do
+        {
+          procedure_id: procedure.id,
+          stable_id: coordinate.stable_id,
+          referentiel_file:,
+          name: referentiel_file.original_filename,
+          type_de_champ: {
+            libelle: 'updated'
+          }
+        }
+      end
+
+      context 'working case with multi column file' do
+        it 'creates a valid referentiel' do
+          expect { subject }.to change(Referentiel, :count).by(1).and change(ReferentielItem, :count).by(3)
+          expect(multiple_drop_down_list_type_de_champ.reload.referentiel).to eq Referentiel.last
+          expect(Referentiel.last.types_de_champ).to eq [multiple_drop_down_list_type_de_champ]
+          expect(Referentiel.last.name).to eq referentiel_file.original_filename
+          expect(Referentiel.last.type).to eq 'Referentiels::CsvReferentiel'
+          expect(ReferentielItem.first.data).to eq({ "row" => { "calorie_kcal" => "145", "dessert" => "Éclair au café", "poids_g" => "60" } })
+          expect(ReferentielItem.first.referentiel_id).to eq(Referentiel.last.id)
         end
       end
     end
@@ -392,100 +433,137 @@ describe Administrateurs::TypesDeChampController, type: :controller do
         created_champ = assigns(:created).coordinate.type_de_champ
         expect(created_champ.options).to eq({ 'min' => 10, 'max' => 100 })
       end
-    end
 
-    context 'duplicate repetition bloc with children' do
-      let(:procedure_with_repetition) do
-        create(:procedure,
-               types_de_champ_public: [
-                 { type: :integer_number, libelle: 'l1' },
-                 {
-                   type: :repetition,
-                   libelle: 'Vos enfants',
-                   children: [
-                     { type: :text, libelle: 'Nom' },
-                     { type: :text, libelle: 'Prénom' },
-                     { type: :integer_number, libelle: 'Age' }
-                   ]
-                 }
-               ])
-      end
+      context 'duplicate repetition bloc' do
+        let(:procedure) do
+          create(:procedure,
+                 types_de_champ_public: [
+                   {
+                     type: :yes_no,
+                     libelle: 'Destination',
+                     options: ['Local', 'International']
+                   },
+                   {
+                     type: :repetition,
+                     libelle: 'Produits',
+                     children: [
+                       {
+                         type: :drop_down_list,
+                         libelle: 'Type',
+                         options: ['Importation', 'Fabrication']
+                       },
+                       {
+                         type: :text,
+                         libelle: 'Pays'
+                       },
+                       {
+                         type: :text,
+                         libelle: 'Ville'
+                       }
+                     ]
+                   }
+                 ])
+        end
 
-      def repetition_coordinate = procedure_with_repetition.draft_revision.revision_types_de_champ_public.reload.second
-      def first_child_coordinate = procedure_with_repetition.draft_revision.children_of(repetition_coordinate.type_de_champ).first
-      def second_child_coordinate = procedure_with_repetition.draft_revision.children_of(repetition_coordinate.type_de_champ).second
-      def third_child_coordinate = procedure_with_repetition.draft_revision.children_of(repetition_coordinate.type_de_champ).third
+        let(:repetition_coordinate) do
+          procedure.draft_revision.revision_types_de_champ_public.second
+        end
 
-      context 'when duplicating the whole repetition bloc' do
         let(:params) do
           {
-            procedure_id: procedure_with_repetition.id,
+            procedure_id: procedure.id,
             stable_id: repetition_coordinate.stable_id
           }
         end
 
-        it 'duplicates the repetition bloc with its children' do
-          subject
-          duplicated_coordinate = assigns(:created).coordinate
-          children = procedure_with_repetition.draft_revision.children_of(duplicated_coordinate.type_de_champ)
+        subject { post :duplicate, params: params, format: :turbo_stream }
 
-          is_expected.to have_http_status(:ok)
-          expect(flash.alert).to eq(nil)
-          expect(children.count).to eq(3)
+        def destination_coordinate
+          procedure.draft_revision.revision_types_de_champ_public.first
+        end
+
+        def children_coordinates
+          procedure.draft_revision.children_of(repetition_coordinate)
+        end
+
+        context 'duplicate bloc with all children' do
+          it 'duplicates the bloc and all its children' do
+            expect { subject }.to change {
+              procedure.draft_revision.reload.types_de_champ.count { _1.type_champ == 'repetition' }
+            }.by(1).and change {
+              procedure.draft_revision.reload.types_de_champ.count
+            }.by(4)
+
+            expect(flash.alert).to be_nil
+
+            duplicated_bloc = procedure.draft_revision.reload.types_de_champ.filter { _1.type_champ == 'repetition' }.last
+            expect(duplicated_bloc.libelle).to eq('Produits')
+
+            duplicated_children = procedure.draft_revision.children_of(duplicated_bloc)
+            expect(duplicated_children.count).to eq(3)
+            expect(duplicated_children.map(&:libelle)).to eq(['Type', 'Pays', 'Ville'])
+          end
+        end
+
+        context 'duplicate bloc with child having external condition' do
+          before do
+            ville_tdc = children_coordinates.last
+
+            ville_tdc.update!(
+              condition: Logic::Eq.new(
+                Logic::ChampValue.new(destination_coordinate.stable_id),
+                Logic::Constant.new('International')
+              )
+            )
+          end
+
+          it 'duplicates the bloc and keeps external condition unchanged' do
+            original_destination_stable_id = destination_coordinate.stable_id
+
+            expect { subject }.to change {
+              procedure.draft_revision.reload.types_de_champ.count
+            }.by(4)
+
+            duplicated_bloc_coordinate = procedure.draft_revision.revision_types_de_champ_public.last
+            duplicated_ville = procedure.draft_revision.children_of(duplicated_bloc_coordinate).last
+
+            expect(duplicated_ville.condition).to be_present
+            expect(duplicated_ville.condition.sources).to eq([original_destination_stable_id])
+          end
+        end
+
+        context 'duplicate bloc with child having internal condition' do
+          before do
+            type_tdc = children_coordinates.first
+            pays_tdc = children_coordinates.second
+
+            pays_tdc.update!(
+              condition: Logic::Eq.new(
+                Logic::ChampValue.new(type_tdc.stable_id),
+                Logic::Constant.new('Importation')
+              )
+            )
+          end
+
+          it 'duplicates the bloc and transforms internal condition stable_id' do
+            original_type_stable_id = children_coordinates.first.stable_id
+
+            expect { subject }.to change {
+              procedure.draft_revision.reload.types_de_champ.count
+            }.by(4)
+
+            procedure.draft_revision.reload
+            duplicated_bloc_coordinate = procedure.draft_revision.revision_types_de_champ_public.last
+            duplicated_type = procedure.draft_revision.children_of(duplicated_bloc_coordinate).first
+            duplicated_pays = procedure.draft_revision.children_of(duplicated_bloc_coordinate).second
+
+            expect(duplicated_pays.condition).to be_present
+
+            expect(duplicated_pays.condition.sources.first).to eq(duplicated_type.stable_id)
+            expect(duplicated_pays.condition.sources.first).not_to eq(original_type_stable_id)
+          end
         end
       end
-
-      context 'when duplicating a child inside the repetition bloc' do
-          let(:params) do
-            {
-              procedure_id: procedure_with_repetition.id,
-              stable_id: second_child_coordinate.stable_id
-            }
-          end
-
-          it 'duplicates the child' do
-              subject
-
-              is_expected.to have_http_status(:ok)
-              expect(flash.alert).to eq(nil)
-
-              duplicated_coordinate = assigns(:created).coordinate
-              expect(duplicated_coordinate.libelle).to eq('Prénom')
-              expect(duplicated_coordinate.parent_id).to eq(repetition_coordinate.id)
-            end
-
-          context 'when duplicating a repetition bloc fails' do
-            let(:params) do
-              {
-                procedure_id: procedure_with_repetition.id,
-                stable_id: repetition_coordinate.stable_id
-              }
-            end
-
-            before do
-              allow_any_instance_of(ProcedureRevision).to receive(:add_type_de_champ).and_wrap_original do |method, *args|
-                result = method.call(*args)
-
-                if args.first[:parent_stable_id].nil? && args.first[:type_champ] == 'repetition'
-                  allow(result).to receive(:valid?).and_return(false)
-                  allow(result).to receive_message_chain(:errors, :full_messages).and_return(['Erreur lors de la duplication'])
-                end
-                result
-              end
-            end
-            it 'does not duplicate children when parent is invalid' do
-              initial_count = procedure_with_repetition.draft_revision.revision_types_de_champ_public.count
-
-              subject
-
-              is_expected.to have_http_status(:ok)
-              expect(flash.alert).to eq(['Erreur lors de la duplication'])
-              final_count = procedure_with_repetition.draft_revision.revision_types_de_champ_public.reload.count
-
-              expect(final_count).to eq(initial_count + 1)
-            end
-          end
-        end
     end
   end
 end

@@ -9,6 +9,12 @@ en:
         index:
           title: Files
           title_search: "Search: %{terms}"
+          title_statut_in_progress: "Files in progress"
+          title_statut_finished: "Finished files"
+          title_statut_invited: "Guest files"
+          title_statut_expiring: "Expiring files"
+          title_statut_trash: "Deleted files "
+          title_statut_transfered: "Transfer request"
         identite:
           title: "New file (%{procedure_label}) - Step 1: Identity"
         show:
@@ -18,10 +24,17 @@ en:
         messagerie:
           title: "Administration messaging · File %{number} (%{procedure_label})"
         brouillon:
-          title: "File %{number} in draft (%{procedure_label}) - Step 2: Form"
+          title: "Draft · %{number} (%{procedure_label})"
         merci:
           title: "File submitted (%{procedure_label})"
         rendez_vous:
           title: "Rendez-vous · File %{number} (%{procedure_label})"
+        modifier:
+          title: "Edit · File %{number} (%{procedure_label})"
+        siret:
+          title: "New file (%{procedure_label})"
+        qrcode:
+          title: "Certificate nº %{number} (%{procedure_label})"
+          title_fallback: "Certificate"
       activate:
         title: Activate my account on %{application_name}

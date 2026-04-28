@@ -1,5 +1,4 @@
-= @form.text_field(:value, input_opts(id: @champ.input_id, aria: { describedby: "#{@champ.describedby_id} #{@champ.error_id}" }, data: { controller: 'turbo-input format', format: 'siret', turbo_input_load_on_connect_value: @champ.prefilled? && @champ.value.present? && @champ.etablissement.blank?, turbo_input_url_value: update_path }, required: @champ.required?, class: "width-33-desktop"))
-.siret-info{ id: dom_id(@champ, :siret_info) }
-  - siret = @champ.value&.sub('-', "") || ""
-  - if @champ.etablissement.present? && @champ.etablissement.siret == siret
-    = render EditableChamp::EtablissementTitreComponent.new(etablissement: @champ.etablissement)
+= @form.text_field(:external_id, input_opts(value: pretty_siret(@champ.external_id), id: @champ.focusable_input_id, aria: { describedby: "#{@champ.describedby_id} #{@champ.error_id}" }, data: { controller: 'format', format: 'siret' }, required: @champ.required?, class: "width-33-desktop"))
+-# pf: ambiguous partial Tahiti number (6-8 chars) matched several etablissements: render the list for user selection
+- if @champ.multiple_found?
+  = render EditableChamp::EtablissementsListComponent.new(champ: @champ)

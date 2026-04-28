@@ -112,7 +112,7 @@ describe 'user access to the list of their dossiers', js: true do
       expect(page).to have_select 'Statut', selected: 'Refusé', options: ['Sélectionner un statut', 'Accepté', 'Refusé', 'Classé sans suite']
 
       click_on('Sélectionner un filtre')
-      click_on('Annuler')
+      click_on('Réinitialiser')
 
       click_on('Sélectionner un filtre')
       expect(page).to have_select 'Statut', selected: 'Sélectionner un statut', options: ['Sélectionner un statut', 'Accepté', 'Refusé', 'Classé sans suite']
@@ -123,7 +123,7 @@ describe 'user access to the list of their dossiers', js: true do
       expect(page).to have_select 'Statut', selected: 'Accepté', options: ['Sélectionner un statut', 'Accepté', 'Refusé', 'Classé sans suite']
 
       click_on('Sélectionner un filtre')
-      click_on('Annuler')
+      click_on('Réinitialiser')
       expect(page).to have_text('3 dossiers')
       expect(page).to have_select 'Statut', selected: 'Sélectionner un statut', options: ['Sélectionner un statut', 'Accepté', 'Refusé', 'Classé sans suite']
     end
@@ -169,7 +169,7 @@ describe 'user access to the list of their dossiers', js: true do
 
   context 'when user clicks on a projet in list' do
     before do
-      page.click_on(dossier_en_construction.procedure.libelle)
+      page.click_on(dossier_en_construction.procedure.libelle, match: :first)
     end
 
     scenario 'user is redirected to dossier page' do
@@ -189,12 +189,12 @@ describe 'user access to the list of their dossiers', js: true do
         expect(page).to have_content(dossier_en_construction.procedure.libelle)
         within(:css, "#dossier_#{dossier_en_construction.id}", match: :first) do
           click_on 'Autres actions'
-          accept_alert('Confirmer la suppression ?') do
+          accept_alert('Voulez-vous vraiment mettre à la corbeille ce dossier') do
             click_on 'Mettre à la corbeille'
           end
         end
 
-        expect(page).to have_content('Votre dossier a bien été supprimé')
+        expect(page).to have_content('Votre dossier a bien été mis à la corbeille')
         expect(page).not_to have_content(dossier_en_construction.procedure.libelle)
       end
     end
@@ -211,7 +211,7 @@ describe 'user access to the list of their dossiers', js: true do
       scenario 'the dossier is cloned' do
         within(:css, ".card", match: :first) do
           click_on 'Autres actions'
-          expect { click_on 'Dupliquer ce dossier' }.to change { dossier_brouillon.user.dossiers.count }.by(1)
+          expect { click_on 'Dupliquer le dossier' }.to change { dossier_brouillon.user.dossiers.count }.by(1)
         end
 
         expect(page).to have_content("Votre dossier a bien été dupliqué. Vous pouvez maintenant le vérifier, l’adapter puis le déposer.")
@@ -231,7 +231,7 @@ describe 'user access to the list of their dossiers', js: true do
       scenario 'the dossier is restored' do
         within('.fr-tabs__list') { click_on "corbeille" }
         expect(page).to have_content(dossier_en_construction_supprime.procedure.libelle)
-        click_on 'Restaurer'
+        click_on 'Restaurer le dossier'
 
         expect(page).to have_content('Votre dossier a bien été restauré')
       end
@@ -346,7 +346,7 @@ describe 'user access to the list of their dossiers', js: true do
       it "can filter by procedure" do
         expect(page).to have_text('7 en cours')
         expect(page).to have_text('3 traités')
-        expect(page).to have_select('procedure_id', selected: 'Sélectionner une démarche')
+        expect(page).to have_select('procedure_id', selected: 'Sélectionnez une démarche')
         select dossier_brouillon.procedure.libelle, from: 'procedure_id'
         click_on 'Afficher'
         expect(page).to have_text('1 en cours')

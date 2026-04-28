@@ -44,7 +44,7 @@ class Champs::PieceJustificativeController < Champs::ChampController
   end
 
   def template
-    redirect_to @champ.type_de_champ.piece_justificative_template.blob
+    redirect_to rails_blob_url(@champ.type_de_champ.piece_justificative_template.blob, disposition: 'attachment')
   end
 
   private
@@ -66,7 +66,13 @@ class Champs::PieceJustificativeController < Champs::ChampController
 
     @champ.dossier.update(last_champ_updated_at: Time.zone.now.utc) if save_succeed
     if save_succeed
+      @champ.fetch_later! if @champ.uses_external_data?
+
       @champ.update_timestamps
+
+      dossier = DossierPreloader.load_one(@champ.dossier, pj_template: true)
+      # because preloader reassigns new champ instances champs, we have to reassign it
+      @champ = dossier.champs.find { it.id == @champ.id }
     end
 
     save_succeed
@@ -76,13 +82,9 @@ class Champs::PieceJustificativeController < Champs::ChampController
     h = params[:h]
     return super if h.blank?
 
-    dossier = Dossier.includes(:champs, revision: [:types_de_champ]).find(params[:dossier_id])
+    dossier = Dossier.includes(:champs, revision: [:revision_types_de_champ]).find(params[:dossier_id])
     type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
     champ = dossier.project_champ(type_de_champ, row_id: params_row_id)
     champ&.match_encoded_date?(:created_at, h) ? champ : nil
-  end
-
-  def dossier
-    @champ.dossier
   end
 end

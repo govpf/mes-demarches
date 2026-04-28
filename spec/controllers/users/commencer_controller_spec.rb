@@ -2,15 +2,17 @@
 
 describe Users::CommencerController, type: :controller do
   let(:user) { create(:user) }
-  let(:published_procedure) { create(:procedure, :for_individual, :published, types_de_champ_public:) }
+  let(:published_procedure) { create(:procedure, :for_individual, :published, types_de_champ_public:, robots_indexable:) }
   let(:types_de_champ_public) { [] }
   let(:draft_procedure) { create(:procedure, :with_path) }
+  let(:robots_indexable) { true }
 
   describe '#commencer' do
     subject { get :commencer, params: { path: path } }
 
     context 'when the path is for a published procedure' do
       let(:path) { published_procedure.path }
+      render_views
 
       it 'renders the view' do
         expect(subject.status).to eq(200)
@@ -18,6 +20,18 @@ describe Users::CommencerController, type: :controller do
         expect(assigns(:procedure)).to eq published_procedure
         expect(controller.stored_location_for(:user)).to eq(commencer_path(path: published_procedure.path))
         expect(assigns(:revision)).to eq published_procedure.published_revision
+        expect(response.body).to include("index,follow")
+      end
+    end
+
+    context "when procedure is not indexable" do
+      render_views
+      let(:robots_indexable) { false }
+      let(:path) { published_procedure.path }
+
+      it "apply robots directives" do
+        subject
+        expect(response.body).to include("noindex,nofollow")
       end
     end
 
@@ -40,12 +54,14 @@ describe Users::CommencerController, type: :controller do
 
     context 'when the path is for a draft procedure' do
       let(:path) { draft_procedure.path }
+      render_views
 
       it 'renders the view' do
         expect(subject.status).to eq(200)
         expect(subject).to render_template('show')
         expect(assigns(:procedure)).to eq draft_procedure
         expect(assigns(:revision)).to eq draft_procedure.draft_revision
+        expect(response.body).to include("noindex,nofollow")
       end
     end
 
@@ -94,6 +110,10 @@ describe Users::CommencerController, type: :controller do
       subject { get :commencer, params: { path: path, prefill_token: dossier.prefill_token } }
 
       shared_examples 'a prefilled brouillon dossier retriever' do
+        it 'stores the prefill token in session' do
+          expect { subject }.to change { controller.stored_location_for(:user) }.to(commencer_path(dossier.procedure.path, prefill_token: dossier.prefill_token))
+        end
+
         context 'when the dossier is a prefilled brouillon and the prefill token is present' do
           it 'retrieves the dossier' do
             subject
@@ -127,6 +147,15 @@ describe Users::CommencerController, type: :controller do
         let(:user) { nil }
 
         it_behaves_like 'a prefilled brouillon dossier retriever'
+
+        context 'when rendered view' do
+          render_views
+          it 'includes the prefill token in Pro Connect link' do
+            subject
+            # pf: nous n'affichons pas pro_connect
+            expect(response.body).not_to be_empty
+          end
+        end
       end
 
       context 'when the user is authenticated' do

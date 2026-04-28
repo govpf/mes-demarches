@@ -40,7 +40,7 @@ module Maintenance
 
       champ_pjs = blob_champ_pjs.map(&:second).uniq.sort_by(&:id)
 
-      dossier_id_champs = champ_pjs.group_by { it.dossier_id }
+      dossier_id_champs = champ_pjs.group_by(&:dossier_id)
 
       en_instruction = Dossier.visible_by_administration.en_instruction.where(id: dossier_id_champs.keys)
 
@@ -88,7 +88,7 @@ module Maintenance
           Rails.application.routes.url_helpers.instructeur_dossier_url(dossier.procedure.id, dossier)
         end
 
-        dossier_link = tag.a("dossier Nº #{number_with_delimiter(dossier.id)}", href: url)
+        dossier_link = tag.a("dossier n° #{number_with_delimiter(dossier.id)}", href: url)
         "#{safe_champs_libelles(champs).join(', ')} du #{dossier_link} sur la démarche #{dossier.procedure.libelle}"
       end
     end

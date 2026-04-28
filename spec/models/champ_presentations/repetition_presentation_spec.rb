@@ -171,6 +171,11 @@ describe ChampPresentations::RepetitionPresentation do
       let(:representation_with_files) { described_class.new("Documents", champ_with_files.rows) }
 
       before do
+        # pf: forcer l'évaluation de champ_with_files (procédure + dossier) AVANT le stub Base64
+        # car la factory :procedure appelle JWT.encode → Base64.strict_encode64 avec le header JWT
+        # ce qui entre en conflit avec le stub strict ci-dessous
+        champ_with_files
+
         # pf: mocker la génération de variant pour éviter erreur IOError avec fake image
         variant = double('variant')
         processed_variant = double('processed_variant')

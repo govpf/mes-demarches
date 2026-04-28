@@ -1,10 +1,11 @@
 import { Controller } from '@hotwired/stimulus';
 
 export class HideTargetController extends Controller {
-  static targets = ['source', 'toHide', 'reveal'];
+  static targets = ['source', 'toHide', 'reveal', 'focus'];
   declare readonly toHideTargets: HTMLDivElement[];
   declare readonly sourceTargets: HTMLInputElement[];
   declare readonly revealTargets: HTMLElement[];
+  declare readonly focusTargets: HTMLElement[];
 
   connect() {
     this.sourceTargets.forEach((source) => {
@@ -25,6 +26,14 @@ export class HideTargetController extends Controller {
     const shouldHideSource = source.dataset.hideTargetHideSource === 'true';
     if (shouldHideSource) {
       source.classList.add('fr-hidden');
+    }
+
+    if (this.focusTargets.length > 0) {
+      const elementToFocus = this.focusTargets[0];
+
+      if (typeof elementToFocus.focus === 'function') {
+        setTimeout(() => elementToFocus.focus(), 0);
+      }
     }
 
     const footer = document.querySelector('.fixed-footer') as HTMLElement;

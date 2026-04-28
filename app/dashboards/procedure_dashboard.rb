@@ -30,7 +30,7 @@ class ProcedureDashboard < Administrate::BaseDashboard
     updated_at: Field::DateTime,
     for_individual: Field::Boolean,
     auto_archive_on: Field::DateTime,
-    api_entreprise_token: JwtField,
+    api_entreprise_token: APIEntrepriseTokenField,
     published_at: Field::DateTime,
     unpublished_at: Field::DateTime,
     hidden_at: Field::DateTime,
@@ -44,7 +44,8 @@ class ProcedureDashboard < Administrate::BaseDashboard
     refuser_email_template: MailTemplateField,
     classer_sans_suite_email_template: MailTemplateField,
     repasser_en_instruction_email_template: MailTemplateField,
-    attestation_template: AttestationTemplateField,
+    attestation_acceptation_template: AttestationTemplateField,
+    attestation_refus_template: AttestationTemplateField,
     procedure_expires_when_termine_enabled: Field::Boolean,
     duree_conservation_dossiers_dans_ds: Field::Number,
     max_duree_conservation_dossiers_dans_ds: Field::Number,
@@ -56,7 +57,8 @@ class ProcedureDashboard < Administrate::BaseDashboard
     template: Field::Boolean,
     opendata: Field::Boolean,
     hide_instructeurs_email: Field::Boolean,
-    dossiers_count: Field::Number
+    dossiers_count: Field::Number,
+    no_gender: Field::Boolean
   }.freeze
 
   # COLLECTION_ATTRIBUTES
@@ -114,7 +116,8 @@ class ProcedureDashboard < Administrate::BaseDashboard
     :refuser_email_template,
     :classer_sans_suite_email_template,
     :repasser_en_instruction_email_template,
-    :attestation_template,
+    :attestation_acceptation_template,
+    :attestation_refus_template,
     :procedure_expires_when_termine_enabled,
     :duree_conservation_dossiers_dans_ds,
     :max_duree_conservation_dossiers_dans_ds,
@@ -137,7 +140,8 @@ class ProcedureDashboard < Administrate::BaseDashboard
     :piece_justificative_multiple,
     :for_tiers_enabled,
     :hide_instructeurs_email,
-    :replaced_by_procedure_id
+    :replaced_by_procedure_id,
+    :no_gender
   ].freeze
 
   # Overwrite this method to customize how procedures are displayed

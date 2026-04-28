@@ -4,7 +4,6 @@ module Administrateurs
   class APITokensController < AdministrateurController
     include ActionView::RecordIdentifier
 
-    before_action :authenticate_administrateur!
     before_action :set_api_token, only: [:edit, :update, :destroy, :remove_procedure]
 
     def nom
@@ -77,7 +76,7 @@ module Administrateurs
     def remove_procedure
       procedure_id = params[:procedure_id].to_i
       @api_token.allowed_procedure_ids =
-        @api_token.allowed_procedure_ids - [procedure_id]
+        (@api_token.allowed_procedure_ids || @api_token.procedure_ids) - [procedure_id]
       @api_token.save!
 
       render turbo_stream: turbo_stream.remove("authorized_procedure_#{procedure_id}")

@@ -259,7 +259,7 @@ ul.dropdown-items {
   content: none;
 }
 
-.help-content.fr-menu ul.fr-menu__list {
+.help-content.fr-menu .fr-menu__list {
   --text-decoration: underline;
   text-align: left;
   font-size: 1rem;
@@ -275,18 +275,19 @@ ul.dropdown-items {
   padding: 0.75rem 1rem;
 
   @media (min-width: 62em) {
-    padding-right: 2.5rem;
+    padding-right: 1rem;
     padding-left: 1rem;
   }
 }
 
-.help-content.fr-menu ul.fr-menu__list > li:not(:last-child) {
+.help-content.fr-menu .fr-menu__list > div:last-child,
+.help-content.fr-menu .fr-menu__list > li:last-child {
   @media (min-width: 62em) {
-    border-bottom: 1px solid $border-grey;
+    border-top: 1px solid $border-grey;
   }
 }
 
-.help-content.fr-menu ul.fr-menu__list {
+.help-content.fr-menu .fr-menu__list {
   h1,
   p {
     font-size: inherit;
@@ -433,4 +434,49 @@ ul.dropdown-items {
 
 .back-btn {
   line-height: 1.75rem;
+}
+
+.copy-zone {
+  cursor: pointer;
+
+  .copy-btn {
+    background-color: var(--background-action-low-blue-france);
+    color: var(--text-active-blue-france);
+    font-weight: normal;
+    text-transform: none;
+
+    &.fr-icon-check-line {
+      color: var(--text-default-success);
+    }
+
+    border: 0 !important;
+    clip: rect(1px, 1px, 1px, 1px) !important;
+    -webkit-clip-path: inset(50%) !important;
+    clip-path: inset(50%) !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    width: 1px !important;
+    white-space: nowrap !important;
+  }
+
+  &:hover .copy-btn,
+  .copy-btn:focus-visible {
+    background-color: var(--background-action-low-blue-france);
+    color: var(--text-active-blue-france);
+
+    &.fr-icon-check-line {
+      color: var(--text-default-success);
+    }
+
+    border: none !important;
+    clip: auto !important;
+    -webkit-clip-path: none !important;
+    clip-path: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+    width: auto !important;
+    white-space: normal !important;
+  }
 }

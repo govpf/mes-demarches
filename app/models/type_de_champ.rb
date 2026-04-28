@@ -5,12 +5,12 @@ class TypeDeChamp < ApplicationRecord
   FEATURE_FLAGS = {
     visa: :visa,
     tefenua: :tefenua,
-    referentiel: :referentiel_type_de_champ,
     engagement_juridique: :engagement_juridique_type_de_champ,
     cojo: :cojo_type_de_champ,
     lexpol: :lexpol,
     expression_reguliere: :expression_reguliere_type_de_champ,
-    referentiel_de_polynesie: :referentiel_de_polynesie
+    referentiel_de_polynesie: :referentiel_de_polynesie,
+    formule: :formule
   }
 
   MINIMUM_TEXTAREA_CHARACTER_LIMIT_LENGTH = 400
@@ -23,7 +23,8 @@ class TypeDeChamp < ApplicationRecord
     referentiel_de_polynesie: 'referentiel_de_polynesie',
     te_fenua: 'te_fenua',
     lexpol: 'lexpol',
-    visa: 'visa'
+    visa: 'visa',
+    formule: 'formule'
   }
 
   STRUCTURE = :structure
@@ -45,7 +46,8 @@ class TypeDeChamp < ApplicationRecord
     te_fenua: REFERENTIEL_EXTERNE,
     lexpol: REFERENTIEL_EXTERNE,
     referentiel_de_polynesie: REFERENTIEL_EXTERNE,
-    visa: STRUCTURE
+    visa: STRUCTURE,
+    formule: STANDARD
   }
 
   TYPE_DE_CHAMP_TO_CATEGORIE = {
@@ -140,13 +142,13 @@ class TypeDeChamp < ApplicationRecord
     decimal_number: [:positive_number, :min_number, :max_number, :range_number],
     integer_number: [:positive_number, :min_number, :max_number, :range_number],
     date: [], # Options gérées par OPTS_BY_TYPE (date_in_past, range_date, start_date, end_date)
-    referentiel_de_polynesie: [:table_id, :drop_down_other],
+    referentiel_de_polynesie: [:table_id, :drop_down_other, :referentiel_mapping],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
-    visa: [:accredited_users]
+    visa: [:accredited_users],
+    formule: [:formule_expression, :dependent_stable_ids, :formule_output_type, :clock_dependent, :state_dependent]
   }
   INSTANCE_OPTIONS = INSTANCE_OPTIONS_BY_TYPE.values.reduce(&:+).uniq
-
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
 
   enum :nature, { RIB: 'RIB' }
@@ -245,19 +247,7 @@ class TypeDeChamp < ApplicationRecord
   validates :piece_justificative_template, content_type: AUTHORIZED_CONTENT_TYPES, on: :update
 
   has_one_attached :notice_explicative
-  validates :notice_explicative, content_type: [
-    "application/msword",
-    "application/pdf",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.oasis.opendocument.presentation",
-    "application/vnd.oasis.opendocument.text",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "text/plain"
-  ], size: { less_than: 20.megabytes }, on: :update
+  validates :notice_explicative, content_type: AUTHORIZED_CONTENT_TYPES, size: { less_than: 20.megabytes }, on: :update
 
   validates :type_champ, presence: true, allow_blank: false, allow_nil: false
   validates :character_limit, numericality: {
@@ -348,6 +338,7 @@ class TypeDeChamp < ApplicationRecord
 
   def params_for_champ
     {
+      type_de_champ: self,
       private: private?,
       type: champ_class.name,
       stable_id:,
@@ -460,36 +451,68 @@ class TypeDeChamp < ApplicationRecord
     ])
   end
 
-  def exclude_from_view?
-    type_champ == TypeDeChamp.type_champs.fetch(:explication)
+  # pf: méthodes spécifiques au type formule (les prédicats type_champ sont générés par l'enum)
+  def formule_user_expression
+    return '' unless formule?
+    @formule_user_expression ||= (
+      if revisions.any?
+        FormulaExpressionService.convert_to_libelles(formule_expression, revisions.first)
+      else
+        formule_expression
+      end
+    )
   end
 
-  def integer_number?
-    type_champ == TypeDeChamp.type_champs.fetch(:integer_number)
+  def dependent_stable_ids
+    return [] unless formule?
+    # pf: Extract stable_ids from column references in the expression
+    stable_ids = []
+
+    formule_expression.to_s.scan(/\{([^}]+)\}/).each do |match|
+      ref = match[0].strip
+
+      if ref.match?(/^tdc(\d+)/)
+        stable_ids << ref.match(/^tdc(\d+)/)[1].to_i
+      elsif ref.match?(/^\d+$/)
+        stable_ids << ref.to_i
+      end
+    end
+
+    stable_ids.uniq
   end
 
-  def decimal_number?
-    type_champ == TypeDeChamp.type_champs.fetch(:decimal_number)
+  # pf: Returns champs that can be referenced by this formula field
+  def available_champs_for_formula(revision)
+    return [] unless formule?
+
+    coordinate = revision.coordinate_for(self)
+    return [] unless coordinate
+
+    current_position = coordinate.position
+
+    if private?
+      public_champs = revision.types_de_champ_public.filter(&:fillable?)
+      preceding_private_champs = revision.types_de_champ_private
+        .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < current_position }
+
+      public_champs + preceding_private_champs
+    else
+      revision.types_de_champ_public
+        .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < current_position }
+    end
   end
 
-  def date?
-    type_champ == TypeDeChamp.type_champs.fetch(:date)
-  end
-
-  def visa?
-    type_champ == TypeDeChamp.type_champs.fetch(:visa)
-  end
-
-  def referentiel_de_polynesie?
-    type_champ == TypeDeChamp.type_champs.fetch(:referentiel_de_polynesie)
-  end
-
-  def te_fenua?
-    type_champ == TypeDeChamp.type_champs.fetch(:te_fenua)
-  end
-
-  def lexpol?
-    type_champ == TypeDeChamp.type_champs.fetch(:lexpol)
+  def encode_column_id(column, tdc)
+    if column.is_a?(Columns::ChampColumn) && !column.is_a?(Columns::JSONPathColumn) && !column.is_a?(Columns::LinkedDropDownColumn)
+      "tdc#{tdc.stable_id}"
+    elsif column.is_a?(Columns::JSONPathColumn)
+      path_name = column.jsonpath.split('.').last
+      "tdc#{tdc.stable_id}/#{path_name}"
+    elsif column.is_a?(Columns::LinkedDropDownColumn)
+      "tdc#{tdc.stable_id}/#{column.path}"
+    else
+      column.send(:column_id)
+    end
   end
 
   def public?
@@ -523,11 +546,11 @@ class TypeDeChamp < ApplicationRecord
   end
 
   def drop_down_simple?
-    drop_down_list? && drop_down_mode != 'advanced'
+    (drop_down_list? || multiple_drop_down_list?) && drop_down_mode != 'advanced'
   end
 
   def drop_down_advanced?
-    drop_down_list? && drop_down_mode == 'advanced'
+    (drop_down_list? || multiple_drop_down_list?) && drop_down_mode == 'advanced'
   end
 
   def drop_down_options
@@ -662,8 +685,11 @@ class TypeDeChamp < ApplicationRecord
     self.accredited_users = value.blank? ? [] : value.split(/\s*[\r\n]+\s*/).map(&:downcase)
   end
 
+  # pf: table_id depuis le referentiel lié (nouveau flux) ou options (legacy, avant harmonisation)
+  # Le referentiel prime : quand l'admin change la table via le formulaire referentiel,
+  # seul referentiel.test_data est mis à jour, pas options['table_id'].
   def table_id
-    options['table_id'] || 0
+    referentiel&.try(:table_id)&.to_s.presence || options['table_id'].presence&.to_s || ''
   end
 
   def accredited_user_list?
@@ -676,7 +702,7 @@ class TypeDeChamp < ApplicationRecord
 
   def self.referentiel_tables
     Rails.cache.fetch("referentiel_tables:#{Rails.env}", expires_in: 5.minutes) do
-      ReferentielDePolynesie::API.available_tables.map { [_1[:name], _1[:id]] }
+      ReferentielDePolynesie::API.available_tables.map { [_1[:name], _1[:id]] }.sort_by { |name, _| name }
     end
   end
 
@@ -697,7 +723,15 @@ class TypeDeChamp < ApplicationRecord
       []
     end
     layers = layers.map do |layer|
-      [layer, layer_enabled?(layer)]
+      disabled = case layer
+      when :cadastres
+        layer_enabled?(:rpg)
+      when :rpg
+        layer_enabled?(:cadastres)
+      else
+        false
+      end
+      [layer, layer_enabled?(layer), disabled]
     end
     layers.each_slice((layers.size / 2.0).round).to_a
   end
@@ -729,14 +763,14 @@ class TypeDeChamp < ApplicationRecord
 
   def self.refresh_after_update?(type_champ)
     # We should refresh all champs after update except for champs using react or custom refresh
-    # logic (RNA, SIRET, etc.)
+    # logic (RNA, etc.). SIRET now uses the generic state machine + turbo-poll flow.
     case type_champ
     when type_champs.fetch(:carte),
       type_champs.fetch(:titre_identite),
       type_champs.fetch(:rna),
-      type_champs.fetch(:siret),
+      # pf: custom react-based widgets
       type_champs.fetch(:numero_dn),
-      type_champs.fetch(:te_fenua),
+      type_champs.fetch(:te_fenua)
       false
     else
       true
@@ -806,7 +840,7 @@ class TypeDeChamp < ApplicationRecord
     type_champs.fetch(:datetime) => [:date_in_past, :start_date, :end_date, :range_date],
     type_champs.fetch(:carte) => TypesDeChamp::CarteTypeDeChamp::LAYERS,
     type_champs.fetch(:drop_down_list) => [:drop_down_other, :drop_down_options, :drop_down_mode],
-    type_champs.fetch(:multiple_drop_down_list) => [:drop_down_options],
+    type_champs.fetch(:multiple_drop_down_list) => [:drop_down_options, :drop_down_mode],
     type_champs.fetch(:linked_drop_down_list) => [:drop_down_options, :drop_down_secondary_libelle, :drop_down_secondary_description],
     type_champs.fetch(:piece_justificative) => [:old_pj, :skip_pj_validation, :skip_content_type_pj_validation],
     type_champs.fetch(:titre_identite) => [:old_pj, :skip_pj_validation, :skip_content_type_pj_validation],
@@ -899,7 +933,7 @@ class TypeDeChamp < ApplicationRecord
     end
   end
 
-  CHAMP_TYPE_TO_TYPE_CHAMP = type_champs.values.map { [type_champ_to_champ_class_name(_1), _1] }.to_h
+  CHAMP_TYPE_TO_TYPE_CHAMP = type_champs.values.index_by { type_champ_to_champ_class_name(_1) }
 
   def piece_justificative_or_titre_identite?
     type_champ.in?([
@@ -919,20 +953,7 @@ class TypeDeChamp < ApplicationRecord
   private
 
   def castable_on_change?(from_type, to_type)
-    case [from_type, to_type]
-    when ['integer_number', 'decimal_number'], # recast numbers automatically
-      ['decimal_number', 'integer_number'], # may lose some data, but who cares ?
-      ['text', 'textarea'], # allow short text to long text
-      ['text', 'formatted'], # plain text can become formatted text
-      ['formatted', 'text'], # formatted text can become plain text
-      ['formatted', 'textarea'], # formatted text can become long text
-      ['drop_down_list', 'multiple_drop_down_list'], # single list can become multi
-      ['date', 'datetime'], # date <=> datetime
-      ['datetime', 'date'] # may lose some data, but who cares ?
-      true
-    else
-      false
-    end
+    Columns::ChampColumn::CAST.key?([from_type.to_sym, to_type.to_sym])
   end
 
   def populate_stable_id

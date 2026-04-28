@@ -19,9 +19,9 @@ describe 'The user', js: true do
     # fill data
     fill_in('text', with: 'super texte', match: :first)
     fill_in('textarea', with: 'super textarea')
-    fill_in('date', with: Date.parse('2012-12-12'), match: :first)
-    fill_in('datetime', with: Time.zone.parse('2023-01-06T07:05'))
-    find("input[type=datetime-local]").send_keys('ArrowUp').send_keys('ArrowDown') # triggers onChange
+    fill_in('date', with: '2012-12-12', match: :first)
+
+    fill_in('datetime', with: '2023-01-06T07:05')
     # fill_in('number', with: '42'), deadchamp, should be migrated to textchamp
     fill_in('decimal_number', with: '17')
     fill_in('integer_number', with: '12')
@@ -38,13 +38,10 @@ describe 'The user', js: true do
     select('bravo', from: form_id_for('simple_choice_drop_down_list_long'))
 
     scroll_to(find_field('multiple_choice_drop_down_list_long'), align: :center)
-    fill_in('multiple_choice_drop_down_list_long', with: 'alpha')
-    find('.fr-menu__item', text: 'alpha').click
-    wait_for_autosave
+    select_combobox('multiple_choice_drop_down_list_long', 'alpha')
     wait_until { champ_value_for('multiple_choice_drop_down_list_long') == ['alpha'].to_json }
-    fill_in('multiple_choice_drop_down_list_long', with: 'charly')
-    find('.fr-menu__item', text: 'charly').click
-    wait_for_autosave
+
+    select_combobox('multiple_choice_drop_down_list_long', 'charly')
     wait_until { champ_value_for('multiple_choice_drop_down_list_long') == ['alpha', 'charly'].to_json }
 
     select('Australie', from: form_id_for('pays'))
@@ -241,7 +238,7 @@ describe 'The user', js: true do
   end
 
   scenario 'fill address not in BAN' do
-    stub_request(:get, "https://api-adresse.data.gouv.fr/search?limit=10&q=2%20rue%20de%20la%20paix,%2092094%20Belgique")
+    stub_request(:get, "https://data.geopf.fr/geocodage/search?limit=10&q=2%20rue%20de%20la%20paix,%2092094%20Belgique")
       .to_return(body: '{"type":"FeatureCollection","version":"draft","features":[]}')
     stub_request(:get, "https://geo.api.gouv.fr/communes?boost=population&codePostal=60400&limit=50&type=commune-actuelle,arrondissement-municipal")
       .to_return(body: '[{"nom":"Brétigny","code":"60105","codeDepartement":"60","codeRegion":"32","codesPostaux":["60400"]}]')
@@ -262,11 +259,12 @@ describe 'The user', js: true do
     # Becomes international
     select('Bolivie', from: form_id_for('Pays'))
     wait_until { champ_for('address').country_code == 'BO' }
-    expect(page).to have_content("Renseigner la ville")
+    # wait for the form to become international
+    expect(page).to have_content('12 Main Street')
+
     fill_in('Ville', with: 'La Paz')
     wait_until { champ_for('address').city_name == 'La Paz' }
 
-    expect(page).to have_content("Renseigner un code postal")
     fill_in('Code postal', with: '123')
     wait_until { champ_for('address').postal_code == '123' }
     expect(champ_for('address').full_address?).to be_truthy
@@ -358,6 +356,31 @@ describe 'The user', js: true do
       find('#test-user-repousser-expiration').click
       expect(page).to have_no_selector('#test-user-repousser-expiration')
     end
+  end
+
+  let(:procedure_with_referentiel_pf) do
+    create(:procedure, :published, :for_individual, types_de_champ_public: [
+      { type: :referentiel_de_polynesie, libelle: 'Commune PF', mandatory: false, table_id: '24' }
+    ])
+  end
+
+  scenario 'fill referentiel_de_polynesie field' do
+    allow(ReferentielDePolynesie::API).to receive(:search_with_data)
+      .with('24', 'Papeete', drop_down_other: anything)
+      .and_return([
+        { label: '43916 - Commune de Papeete', value: '24:20', row_data: { 'Nom' => '43916 - Commune de Papeete' } },
+        { label: '46397 - JEUNESSE DE PAPEETE', value: '24:31', row_data: { 'Nom' => '46397 - JEUNESSE DE PAPEETE' } }
+      ])
+
+    log_in(user, procedure_with_referentiel_pf)
+    fill_individual
+
+    find('.dom-ready')
+
+    fill_in('Commune PF', with: 'Papeete')
+    find('.fr-menu__item', text: '43916 - Commune de Papeete').click
+    wait_for_autosave
+    wait_until { champ_value_for('Commune PF') == '43916 - Commune de Papeete' }
   end
 
   let(:procedure_with_pj) { create(:procedure, :published, :for_individual, types_de_champ_public: [{ type: :piece_justificative, mandatory: true, libelle: 'Pièce justificative' }]) }
@@ -741,7 +764,7 @@ describe 'The user', js: true do
   end
 
   def champ_id_for(libelle)
-    champ_for(libelle).input_id
+    champ_for(libelle).focusable_input_id
   end
 
   def champ_past_value_for(libelle, value)

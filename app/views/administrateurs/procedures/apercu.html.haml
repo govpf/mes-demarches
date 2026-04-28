@@ -1,3 +1,4 @@
+- content_for(:title, procedure_tab_title(@dossier.procedure, "Aperçu"))
 .dossiers-headers.sub-header
   .fr-container
     %h1.page-title Prévisualisation de la démarche «&nbsp;#{@dossier.procedure.libelle}&nbsp;»
@@ -13,6 +14,6 @@
             active: @tab == 'annotations-privees')
 
 - if @tab == 'dossier'
-  = render partial: "shared/dossiers/edit", locals: { dossier: @dossier, dossier_for_editing: @dossier }
+  = render partial: "shared/dossiers/edit", locals: { dossier: @dossier }
 - else
   = render partial: "shared/dossiers/edit_annotations", locals: { dossier: @dossier, seen_at: nil }

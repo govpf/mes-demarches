@@ -36,7 +36,6 @@ module DossierHelper
   end
 
   def dossier_submission_is_closed?(dossier)
-    return false if dossier.editing_fork?
     dossier.brouillon? && dossier.procedure.close?
   end
 
@@ -119,8 +118,8 @@ module DossierHelper
       ))
   end
 
-  def correction_resolved_badge(html_class: nil)
-    tag.span(Dossier.human_attribute_name("pending_correction.resolved"), class: ['fr-badge fr-badge--sm fr-badge--success', html_class])
+  def correction_resolved_badge(type, html_class: nil)
+    tag.span(Dossier.human_attribute_name("pending_correction.#{type}"), class: ['fr-badge fr-badge--sm', html_class])
   end
 
   def tags_label(labels)
@@ -191,7 +190,14 @@ module DossierHelper
       if generic[:generic]
         t("activerecord.attributes.notification.#{type}.generic")
       else
-        t("activerecord.attributes.notification.#{type}.specific", days: (Time.current.to_date - (notification.display_at - DossierNotification::DELAY_DOSSIER_DEPOSE).to_date).to_i)
+        days =
+          if notification.respond_to?(:display_at) && notification.display_at.present?
+            (Time.current.to_date - (notification.display_at - DossierNotification::DELAY_DOSSIER_DEPOSE).to_date).to_i
+          else
+            'X'
+          end
+
+        t("activerecord.attributes.notification.#{type}.specific", days: days)
       end
     else
       t("activerecord.attributes.notification.#{type}")
@@ -204,7 +210,7 @@ module DossierHelper
     end
 
     if dossier.procedure.for_individual?
-      return "#{dossier&.individual&.nom} #{dossier&.individual&.prenom}"
+      return "#{dossier&.individual&.prenom} #{dossier&.individual&.nom}"
     end
 
     return "" if dossier.etablissement.blank?

@@ -25,7 +25,7 @@ describe Columns::DossierColumn do
         let(:dossier) { create(:dossier, :en_instruction, :with_entreprise, procedure:) }
 
         it 'retrieve entreprise information' do
-          expect(procedure.find_column(label: "Nº dossier").value(dossier)).to eq(dossier.id)
+          expect(procedure.find_column(label: "N° dossier").value(dossier)).to eq(dossier.id)
           expect(procedure.find_column(label: "Adresse électronique").value(dossier)).to eq(dossier.user_email_for(:display))
           expect(procedure.find_column(label: "France connecté ?").value(dossier)).to eq(false)
           expect(procedure.find_column(label: "Entreprise forme juridique").value(dossier)).to eq("SA à conseil d'administration (s.a.i.)")
@@ -100,16 +100,130 @@ describe Columns::DossierColumn do
     end
   end
 
-  describe 'filtered_ids' do
+  describe '#filtered_ids' do
     context 'for an integer etablissement column' do
       let(:procedure) { create(:procedure, for_individual: false) }
       let!(:dossier) { create(:dossier, :en_instruction, :with_entreprise, procedure:) }
       let(:capital) { dossier.etablissement.entreprise_capital_social }
       let(:integer_column) { procedure.find_column(label: "Entreprise capital social") }
 
-      subject { integer_column.filtered_ids(procedure.dossiers, [capital.to_s]) }
+      subject { integer_column.filtered_ids(procedure.dossiers, { operator: 'match', value: [capital.to_s] }) }
 
       it { is_expected.to eq([dossier.id]) }
+    end
+
+    context 'for a dossier state column' do
+      let(:procedure) { create(:procedure, for_individual: false) }
+      let!(:dossier_en_instruction) { create(:dossier, :en_instruction, procedure:) }
+      let!(:dossier_en_construction) { create(:dossier, :en_construction, procedure:) }
+      let!(:dossier_accepte) { create(:dossier, :accepte, procedure:) }
+
+      let(:state_column) { procedure.find_column(label: "État du dossier") }
+
+      subject { state_column.filtered_ids(procedure.dossiers, search_terms) }
+
+      context 'when searching for en_construction' do
+        let(:search_terms) { { operator: 'match', value: ["en_construction"] } }
+
+        it { is_expected.to contain_exactly(dossier_en_construction.id) }
+      end
+
+      context 'when searching for accepte' do
+        let(:search_terms) { { operator: 'match', value: ["accepte"] } }
+        it { is_expected.to contain_exactly(dossier_accepte.id) }
+      end
+
+      context 'when searching for en_instruction' do
+        let(:search_terms) { { operator: 'match', value: ["en_instruction"] } }
+        it { is_expected.to contain_exactly(dossier_en_instruction.id) }
+      end
+
+      context 'when searching for multiple states' do
+        let(:search_terms) { { operator: 'match', value: ["en_construction", "accepte"] } }
+
+        it { is_expected.to contain_exactly(dossier_en_construction.id, dossier_accepte.id) }
+      end
+    end
+
+    context 'for a datetime column' do
+      let(:procedure) { create(:procedure, for_individual: false) }
+      let(:date_column) { procedure.find_column(label: "Date de création") }
+
+      subject { date_column.filtered_ids(procedure.dossiers, search_terms) }
+
+      context 'when searching with before operator' do
+        let!(:dossier) { travel_to(Time.zone.parse("12/02/2025 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier2) { travel_to(Time.zone.parse("15/02/2025 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+
+        let(:search_terms) { { operator: 'before', value: ["2025-02-13"] } }
+
+        it { is_expected.to contain_exactly(dossier.id) }
+      end
+
+      context 'when searching with after operator' do
+        let!(:dossier) { travel_to(Time.zone.parse("12/02/2025 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier2) { travel_to(Time.zone.parse("15/02/2025 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+
+        let(:search_terms) { { operator: 'after', value: ["2025-02-13"] } }
+
+        it { is_expected.to contain_exactly(dossier2.id) }
+
+        context "for updated_since column (special case)" do
+          let(:date_column) { procedure.find_column(label: "Dernier évènement depuis") }
+          it { is_expected.to contain_exactly(dossier2.id) }
+        end
+      end
+
+      context 'when searching with this_week operator' do
+        let(:search_terms) { { operator: 'this_week' } }
+
+        let!(:dossier_at_the_beginning_of_the_week) { travel_to(Time.zone.parse("2025-02-03 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier_at_the_end_of_the_week) { travel_to(Time.zone.parse("2025-02-09 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier_week_before) { travel_to(Time.zone.parse("2025-02-02 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier_week_after) { travel_to(Time.zone.parse("2025-02-10 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+
+        before do
+          travel_to(Time.zone.parse("2025-02-08"))
+        end
+
+        it "returns dossiers from this week" do
+          expect(subject).to match_array([dossier_at_the_beginning_of_the_week.id, dossier_at_the_end_of_the_week.id])
+        end
+      end
+
+      context 'when searching with this_month operator' do
+        let(:search_terms) { { operator: 'this_month' } }
+
+        let!(:dossier_at_the_beginning_of_the_month) { travel_to(Time.zone.parse("2025-02-01 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier_at_the_end_of_the_month) { travel_to(Time.zone.parse("2025-02-28 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier_month_before) { travel_to(Time.zone.parse("2025-01-13 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier_month_after) { travel_to(Time.zone.parse("2025-03-13 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+
+        before do
+          travel_to(Time.zone.parse("2025-02-13"))
+        end
+
+        it "returns dossiers from this month" do
+          expect(subject).to match_array([dossier_at_the_beginning_of_the_month.id, dossier_at_the_end_of_the_month.id])
+        end
+      end
+
+      context 'when searching with this_year operator' do
+        let(:search_terms) { { operator: 'this_year' } }
+
+        let!(:dossier_at_the_beginning_of_the_year) { travel_to(Time.zone.parse("2024-01-01 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier_at_the_end_of_the_year) { travel_to(Time.zone.parse("2024-12-31 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier_year_before) { travel_to(Time.zone.parse("2023-12-31 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+        let!(:dossier_year_after) { travel_to(Time.zone.parse("2025-01-01 09:19")) { create(:dossier, :en_instruction, procedure:) } }
+
+        before do
+          travel_to(Time.zone.parse("2024-02-13"))
+        end
+
+        it "returns dossiers from this year" do
+          expect(subject).to match_array([dossier_at_the_beginning_of_the_year.id, dossier_at_the_end_of_the_year.id])
+        end
+      end
     end
   end
 end

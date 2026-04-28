@@ -1,7 +1,7 @@
 .sub-header
   .fr-container.flex.column
     - if @procedure.routing_enabled?
-      - content_for(:title, "Instructeurs du groupe #{@groupe_instructeur.label}")
+      - content_for(:title, procedure_tab_title(@procedure, "Instructeurs · #{@groupe_instructeur.label.truncate_words(10)}"))
 
       = render partial: 'instructeurs/breadcrumbs',
         locals: { steps: [[@procedure.libelle.truncate_words(10), instructeur_procedure_path(@procedure)],
@@ -9,7 +9,7 @@
                           [@groupe_instructeur.label]] }
 
     - else
-      - content_for(:title, "Instructeurs de la démarche #{@procedure.libelle}")
+      - content_for(:title, procedure_tab_title(@procedure, "Instructeurs"))
 
       = render partial: 'instructeurs/breadcrumbs',
         locals: { steps: [[@procedure.libelle, instructeur_procedure_path(@procedure)],
@@ -37,6 +37,6 @@
     locals: { procedure: @procedure,
       groupe_instructeur: @groupe_instructeur }
 
-    - if @procedure.attestation_template&.activated?
+    - if @procedure.attestation_acceptation_template&.activated?
       = render partial: "shared/groupe_instructeurs/signature_form", locals: { groupe_instructeur: @groupe_instructeur,
-        preview_path: preview_attestation_instructeur_groupe_path(@groupe_instructeur.procedure, @groupe_instructeur) }
+        preview_path: preview_attestation_acceptation_instructeur_groupe_path(@groupe_instructeur.procedure, @groupe_instructeur) }

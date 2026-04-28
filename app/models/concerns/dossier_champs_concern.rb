@@ -6,14 +6,46 @@ module DossierChampsConcern
   def project_champ(type_de_champ, row_id: nil)
     check_valid_row_id_on_read?(type_de_champ, row_id)
     champ = champs_by_public_id[type_de_champ.public_id(row_id)]
-    if champ.nil? || !champ.is_type?(type_de_champ.type_champ)
+    projected = if champ.nil? || !champ.is_type?(type_de_champ.type_champ)
       value = type_de_champ.champ_blank?(champ) ? nil : champ.value
       updated_at = champ&.updated_at || depose_at || created_at
       rebased_at = champ&.rebased_at
       type_de_champ.build_champ(dossier: self, row_id:, updated_at:, rebased_at:, value:, stream:)
     else
+      champ.type_de_champ = type_de_champ
       champ
     end
+
+    # pf: recalcul en mémoire des champs formule dans deux situations :
+    #
+    # 1. Révision brouillon (preview, dossier de test) : la révision mute en
+    #    permanence — l'admin édite la procédure en direct. Les valeurs
+    #    persistées peuvent être obsolètes (expression modifiée, source
+    #    ajoutée/supprimée). On recalcule systématiquement.
+    #
+    # 2. Champ non encore persisté (new_record?) : après un rebase ou une
+    #    création lazy, le champ formule n'a pas de ligne en BDD. On calcule
+    #    sa valeur à la lecture pour que l'affichage soit correct, même si
+    #    le rebase n'a pas créé le champ (filet de sécurité pour les dossiers
+    #    rebasés avant le fix du rebase).
+    #
+    # Les dossiers sur révision publiée avec champ déjà persisté ne sont pas
+    # concernés : refresh_dependent_formulas garde leur valeur à jour.
+    #
+    # Garde contre la récursion : FormulaCalculationService passe par
+    # project_champs_*_all → project_champ pour construire sa vue du dossier.
+    # Sans garde, le recalcul déclencherait un nouveau recalcul sur les mêmes
+    # champs, à l'infini. On ne recalcule que pour le premier appel entrant.
+    if type_de_champ.formule? && !Thread.current[:dossier_champs_formule_recomputing] && (revision&.draft? || projected.new_record?) && projected.respond_to?(:compute_value_from_formula)
+      Thread.current[:dossier_champs_formule_recomputing] = true
+      begin
+        projected.value = projected.compute_value_from_formula
+      ensure
+        Thread.current[:dossier_champs_formule_recomputing] = nil
+      end
+    end
+
+    projected
   end
 
   def project_champs_public
@@ -92,12 +124,12 @@ module DossierChampsConcern
   def find_type_de_champ_by_stable_id(stable_id, scope = nil)
     case scope
     when :public
-      revision.types_de_champ.public_only
+      revision.types_de_champ.filter(&:public?)
     when :private
-      revision.types_de_champ.private_only
+      revision.types_de_champ.filter(&:private?)
     else
       revision.types_de_champ
-    end.find_by!(stable_id:)
+    end.find { _1.stable_id == stable_id.to_i }
   end
 
   def champs_for_prefill(stable_ids)
@@ -181,23 +213,42 @@ module DossierChampsConcern
 
     return if buffer_champ_ids_h.empty?
 
+    discarded_row_ids = champs.where(stream: Champ::USER_BUFFER_STREAM, stable_id: revision_stable_ids)
+      .where.not(row_id: nil)
+      .where.not(discarded_at: nil)
+      .pluck(:row_id)
+
     changed_main_champ_ids_h = champs.where(stream: Champ::MAIN_STREAM, stable_id: revision_stable_ids)
       .pluck(:id, :stable_id, :row_id)
       .index_by { |(_, stable_id, row_id)| TypeDeChamp.public_id(stable_id, row_id) }
       .transform_values(&:first)
 
     buffer_champ_ids = buffer_champ_ids_h.values
-    changed_main_champ_ids = changed_main_champ_ids_h.filter_map { |public_id, id| id if buffer_champ_ids_h.key?(public_id) }
+    changed_main_champ_ids = changed_main_champ_ids_h.filter_map { |public_id, id| id if buffer_champ_ids_h.key?(public_id) }.to_set
 
     now = Time.zone.now
     history_stream = "#{Champ::HISTORY_STREAM}#{now}"
     changed_champs = champs.filter { _1.id.in?(buffer_champ_ids) }
+
+    if discarded_row_ids.present?
+      changed_main_champ_ids += champs.where(stream: Champ::MAIN_STREAM, row_id: discarded_row_ids).pluck(:id)
+    end
 
     transaction do
       champs.where(id: changed_main_champ_ids, stream: Champ::MAIN_STREAM).update_all(stream: history_stream)
       champs.where(id: buffer_champ_ids, stream: Champ::USER_BUFFER_STREAM).update_all(stream: Champ::MAIN_STREAM, updated_at: now)
       update_champs_timestamps(changed_champs)
     end
+
+    champs.where(id: changed_main_champ_ids, stream: history_stream)
+      .where(type: ['Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp'])
+      .with_attached_piece_justificative_file.find_each do |champ|
+        files = champ.piece_justificative_file.map { _1.slice(:filename, :checksum) }
+        if files.present?
+          champ.update_column(:data, files)
+          champ.piece_justificative_file.purge_later
+        end
+      end
 
     # update loaded champ instances
     champs.each do |champ|
@@ -212,7 +263,7 @@ module DossierChampsConcern
   end
 
   def reset_user_buffer_stream!
-    champs.where(stream: Champ::USER_BUFFER_STREAM).delete_all
+    champs.where(stream: Champ::USER_BUFFER_STREAM).destroy_all
 
     # update loaded champ instances
     association(:champs).target = champs.filter { _1.stream != Champ::USER_BUFFER_STREAM }
@@ -221,21 +272,15 @@ module DossierChampsConcern
   end
 
   def user_buffer_changes?
-    # TODO remove when all forks are gone
-    return true if forked_with_changes?
-
     champs_on_user_buffer_stream.present?
   end
 
   def user_buffer_changes_on_champ?(champ)
-    # TODO remove when all forks are gone
-    return true if champ_forked_with_changes?(champ)
-
     champs_on_user_buffer_stream.any? { _1.public_id == champ.public_id }
   end
 
   def with_update_stream(user, &block)
-    if update_with_stream? && user.owns_or_invite?(self)
+    if en_construction? && user.owns_or_invite?(self)
       with_stream(Champ::USER_BUFFER_STREAM, &block)
     else
       with_stream(Champ::MAIN_STREAM, &block)
@@ -256,14 +301,6 @@ module DossierChampsConcern
 
   def history
     champs_in_revision.filter(&:history_stream?)
-  end
-
-  def update_with_stream?
-    en_construction? && procedure.feature_enabled?(:user_buffer_stream) && !with_editing_fork?
-  end
-
-  def update_with_fork?
-    en_construction? && !procedure.feature_enabled?(:user_buffer_stream)
   end
 
   # pf: méthode publique nécessaire pour éviter boucle infinie dans les conditions
@@ -404,10 +441,8 @@ module DossierChampsConcern
       if stream != Champ::MAIN_STREAM
         raise "Can not write a private champ to \"#{stream}\" stream"
       end
-    elsif !with_editing_fork?
-      if stream == Champ::MAIN_STREAM && en_construction?
-        raise 'Can not write to "main" stream on a dossier "en construction"'
-      end
+    elsif stream == Champ::MAIN_STREAM && en_construction?
+      raise 'Can not write to "main" stream on a dossier "en construction"'
     end
   end
 

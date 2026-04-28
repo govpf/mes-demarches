@@ -70,8 +70,14 @@ describe Administrateurs::ProceduresController, type: :controller do
       duree_conservation_dossiers_dans_ds: duree_conservation_dossiers_dans_ds,
       monavis_embed: monavis_embed,
       zone_ids: zone_ids,
-      lien_site_web: lien_site_web,
       procedure_tag_names: ['Aao', 'Accompagnement']
+    }
+  }
+
+  let(:procedure_params_not_creatable) {
+    {
+      lien_site_web: lien_site_web,
+      robots_indexable: "0"
     }
   }
 
@@ -119,14 +125,10 @@ describe Administrateurs::ProceduresController, type: :controller do
       end
     end
 
-    it 'display published or closed procedures' do
+    it 'displays published/closed procedures but not draft procedures' do
       subject
       expect(assigns(:procedures).any? { |p| p.id == published_procedure.id }).to be_truthy
       expect(assigns(:procedures).any? { |p| p.id == closed_procedure.id }).to be_truthy
-    end
-
-    it 'doesn’t display draft procedures' do
-      subject
       expect(assigns(:procedures).any? { |p| p.id == draft_procedure.id }).to be_falsey
     end
 
@@ -443,10 +445,8 @@ describe Administrateurs::ProceduresController, type: :controller do
       it 'is case insentivite and unaccented' do
         expect(response_procedures).to include(matching_procedure)
         expect(response_procedures).not_to include(unmatching_procedure)
-      end
 
-      it 'hide procedure if it is hidden as template' do
-        expect(response_procedures).to include(matching_procedure)
+        # hide procedure if it is hidden as template
         expect(response_procedures).not_to include(unmatching_procedure_cause_hidden_as_template)
       end
     end
@@ -490,20 +490,15 @@ describe Administrateurs::ProceduresController, type: :controller do
     let(:procedure) { create(:procedure, administrateur: admin) }
     let(:procedure_id) { procedure.id }
 
-    let(:last_zone) { create(:zone, labels: [{ designated_on: '1981-05-08', name: 'Autre' }]) }
-    let(:other_zone_1) { create(:zone, labels: [{ designated_on: '1981-05-08', name: 'Zone 1' }]) }
-    let(:other_zone_2) { create(:zone, labels: [{ designated_on: '1981-05-08', name: 'Zone 2' }]) }
+    let(:last_zone) { create(:zone, labels: [{ designated_on: '1981-05-08', name: 'Autre' }], acronym: "OTHER") }
+    let(:other_zone_1) { create(:zone, labels: [{ designated_on: '1981-05-08', name: 'Zone 1' }], acronym: "Z1") }
+    let(:other_zone_2) { create(:zone, labels: [{ designated_on: '1981-05-08', name: 'Zone 2' }], acronym: "Z2") }
 
     before do
       procedure.zones << [last_zone, other_zone_1, other_zone_2]
     end
 
     subject { get :zones, params: { id: procedure_id } }
-
-    it 'returns a successful response' do
-      subject
-      expect(response).to have_http_status(:success)
-    end
 
     it 'assigns @zones with the correct order' do
       subject
@@ -536,9 +531,8 @@ describe Administrateurs::ProceduresController, type: :controller do
           expect(subject.procedure_tags.pluck(:name)).to match_array(['Aao', 'Accompagnement'])
           expect(response).to redirect_to(champs_admin_procedure_path(Procedure.last))
           expect(flash[:notice]).to be_present
-        end
 
-        it "create generic labels" do
+          # creates generic labels
           expect(subject.labels.size).to eq(5)
           expect(subject.labels.first.name).to eq('À examiner')
         end
@@ -579,23 +573,17 @@ describe Administrateurs::ProceduresController, type: :controller do
     context 'when many attributs are not valid' do
       let(:libelle) { '' }
       let(:description) { '' }
+      subject { post :create, params: { procedure: procedure_params } }
 
       describe 'no new procedure in database' do
-        subject { post :create, params: base_params.merge({ procedure: procedure_params }) }
-
-        it { expect { subject }.to change { Procedure.count }.by(0) }
+        it do
+          expect { subject }.to change { Procedure.count }.by(0)
+          expect(flash[:alert]).to be_present
+        end
 
         describe 'no new module api carto in database' do
           it { expect { subject }.to change { ModuleAPICarto.count }.by(0) }
         end
-      end
-
-      describe 'flash message is present' do
-        before do
-          post :create, params: base_params.merge({ procedure: procedure_params })
-        end
-
-        it { expect(flash[:alert]).to be_present }
       end
     end
   end
@@ -615,7 +603,7 @@ describe Administrateurs::ProceduresController, type: :controller do
 
     context 'when administrateur is connected' do
       def update_procedure
-        put :update, params: base_params.merge({ id: procedure.id, procedure: procedure_params.merge(procedure_expires_when_termine_enabled: true) })
+        put :update, params: { id: procedure.id, procedure: procedure_params.merge(procedure_params_not_creatable).merge(procedure_expires_when_termine_enabled: true) }
         procedure.reload
       end
 
@@ -632,12 +620,14 @@ describe Administrateurs::ProceduresController, type: :controller do
           subject { procedure }
 
           it "update attributes" do
-          expect(subject.libelle).to eq(libelle)
-          expect(subject.description).to eq(description)
-          expect(subject.organisation).to eq(organisation)
-          expect(subject.duree_conservation_dossiers_dans_ds).to eq(duree_conservation_dossiers_dans_ds)
-          expect(subject.procedure_expires_when_termine_enabled).to eq(true)
-        end
+            expect(subject.libelle).to eq(libelle)
+            expect(subject.description).to eq(description)
+            expect(subject.organisation).to eq(organisation)
+            expect(subject.duree_conservation_dossiers_dans_ds).to eq(duree_conservation_dossiers_dans_ds)
+            expect(subject.procedure_expires_when_termine_enabled).to eq(true)
+            expect(subject.lien_site_web).to eq(lien_site_web)
+            expect(subject.robots_indexable?).to eq(false)
+          end
         end
 
         it do
@@ -687,7 +677,7 @@ describe Administrateurs::ProceduresController, type: :controller do
 
   describe 'GET #clone_settings' do
     render_views
-    let(:procedure) { create(:procedure, :with_service, administrateur: admin, instructeurs: [admin.instructeur]) }
+    let(:procedure) { create(:procedure, :with_service, administrateur: admin, instructeurs: [admin.instructeur], api_entreprise_token: nil) }
     let(:params) { { procedure_id: procedure.id } }
 
     subject do
@@ -753,7 +743,8 @@ describe Administrateurs::ProceduresController, type: :controller do
         monavis_embed:,
         administrateurs: [admin, administrateur_2],
         instructeurs: [admin.instructeur, instructeur_2],
-        attestation_template: build(:attestation_template),
+        attestation_acceptation_template: build(:attestation_template),
+        attestation_refus_template: build(:attestation_template, kind: 'refus'),
         accuse_lecture: true,
         api_entreprise_token:,
         initiated_mail:,
@@ -844,7 +835,8 @@ describe Administrateurs::ProceduresController, type: :controller do
                 instructeurs: '1',
                 champs: '1',
                 annotations: '1',
-                attestation_template: '1',
+                attestation_acceptation_template: '1',
+                attestation_refus_template: '1',
                 zones: '1',
                 service: '1',
                 monavis_embed: '1',
@@ -861,16 +853,17 @@ describe Administrateurs::ProceduresController, type: :controller do
           }
         end
 
-        it 'clones everything' do
+        it 'clones everything', :slow do
           expect(Procedure.last.notice.attached?).to be_truthy
           expect(Procedure.last.deliberation.attached?).to be_truthy
           expect(Procedure.last.logo.attached?).to be_truthy
           expect(Procedure.last.administrateurs).to include(administrateur_2)
-          expect(Procedure.last.defaut_groupe_instructeur.instructeurs).to eq([admin.instructeur, instructeur_2])
+          expect(Procedure.last.defaut_groupe_instructeur.instructeurs).to match_array([admin.instructeur, instructeur_2])
           expect(Procedure.last.instructeurs_self_management_enabled).to be_truthy
           expect(Procedure.last.draft_revision.types_de_champ_public.count).to eq 1
           expect(Procedure.last.draft_revision.types_de_champ_private.count).to eq 1
-          expect(Procedure.last.attestation_template).not_to be_nil
+          expect(Procedure.last.attestation_acceptation_template).not_to be_nil
+          expect(Procedure.last.attestation_refus_template).not_to be_nil
           expect(Procedure.last.zones).not_to be_blank
           expect(Procedure.last.service).not_to be_nil
           expect(Procedure.last.monavis_embed).not_to be_nil
@@ -906,7 +899,8 @@ describe Administrateurs::ProceduresController, type: :controller do
                 instructeurs: '0',
                 champs: '0',
                 annotations: '0',
-                attestation_template: '0',
+                attestation_acceptation_template: '0',
+                attestation_refus_template: '0',
                 zones: '0',
                 service: '0',
                 monavis_embed: '0',
@@ -936,7 +930,8 @@ describe Administrateurs::ProceduresController, type: :controller do
           expect(Procedure.last.instructeurs_self_management_enabled).to be_falsey
           expect(Procedure.last.draft_revision.types_de_champ_public.count).to eq 0
           expect(Procedure.last.draft_revision.types_de_champ_private.count).to eq 0
-          expect(Procedure.last.attestation_template).to be_nil
+          expect(Procedure.last.attestation_acceptation_template).to be_nil
+          expect(Procedure.last.attestation_refus_template).to be_nil
           expect(Procedure.last.zones).to be_blank
           expect(Procedure.last.service).to be_nil
           expect(Procedure.last.monavis_embed).to be_nil
@@ -1301,39 +1296,46 @@ describe Administrateurs::ProceduresController, type: :controller do
   describe 'PATCH #jeton' do
     let(:procedure) { create(:procedure, administrateur: admin) }
     let(:token) { "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" }
+    let(:api_response_body) { nil }
 
     subject { patch :update_jeton, params: { id: procedure.id, procedure: { api_entreprise_token: token } } }
 
     before do
-      allow_any_instance_of(APIEntreprise::PrivilegesAdapter).to receive(:valid?).and_return(token_is_valid)
-      subject
+      if api_response_body
+        stub_request(:get, "https://entreprise.api.gouv.fr/privileges")
+          .to_return(body: api_response_body, status: api_response_status)
+      end
     end
 
     context 'when jeton is valid' do
-      let(:token_is_valid) { true }
+      let(:api_response_status) { 200 }
+      let(:api_response_body) { File.read('spec/fixtures/files/api_entreprise/privileges.json') }
 
       it do
+        subject
         expect(flash.alert).to be_nil
         expect(flash.notice).to eq('Le jeton a bien été mis à jour')
-        expect(procedure.reload.api_entreprise_token).to eq(token)
+        expect(procedure.reload.api_entreprise_token.jwt_token).to eq(token)
       end
     end
 
     context 'when jeton is invalid' do
-      let(:token_is_valid) { false }
+      let(:api_response_status) { 403 }
+      let(:api_response_body) { '' }
 
       it do
-      expect(flash.alert).to eq("Mise à jour impossible : le jeton n’est pas valide")
-      expect(flash.notice).to be_nil
-      expect(procedure.reload.api_entreprise_token).not_to eq(token)
-    end
+        subject
+        expect(flash.alert).to eq("Mise à jour impossible : le jeton n’est pas valide")
+        expect(flash.notice).to be_nil
+        expect(procedure.reload.api_entreprise_token).not_to eq(token)
+      end
     end
 
     context 'when jeton is not a jwt' do
       let(:token) { "invalid" }
-      let(:token_is_valid) { true } # just to check jwt format by procedure model
 
       it do
+        subject
         expect(flash.alert).to eq("Mise à jour impossible : le jeton n’est pas valide")
         expect(flash.notice).to be_nil
         expect(procedure.reload.api_entreprise_token).not_to eq(token)
@@ -1346,7 +1348,7 @@ describe Administrateurs::ProceduresController, type: :controller do
 
     let(:procedure) { create(:procedure, :published, administrateur: admin) }
 
-    subject(:perform_request) { get :check_path, params: { procedure_id: procedure.id, path: path }, format: :turbo_stream }
+    subject(:perform_request) { get :check_path, params: { procedure_id: procedure.id, procedure: { path: } }, format: :turbo_stream }
 
     context 'when path is not used' do
       let(:path) { SecureRandom.uuid }
@@ -1476,8 +1478,10 @@ describe Administrateurs::ProceduresController, type: :controller do
     let(:procedure2) { create(:procedure, :published, administrateur: admin, lien_site_web: lien_site_web) }
     let(:procedure3) { create(:procedure, :published, :new_administrateur, lien_site_web: lien_site_web) }
     let(:lien_site_web) { 'http://some.administration/' }
+    let(:robots_indexable) { "0" }
+    let(:tdc_attributes) { { type_champ: :number, libelle: 'libelle 1' } }
 
-    subject(:perform_request) { put :publish, params: { procedure_id: procedure.id, path: path, lien_site_web: lien_site_web } }
+    subject(:perform_request) { put :publish, params: { procedure_id: procedure.id, procedure: { path:, lien_site_web:, robots_indexable: } } }
 
     context 'when admin is the owner of the procedure' do
       context 'procedure path does not exist' do
@@ -1495,6 +1499,7 @@ describe Administrateurs::ProceduresController, type: :controller do
           expect(procedure.publiee?).to be_truthy
           expect(procedure.path).to eq(path)
           expect(procedure.lien_site_web).to eq(lien_site_web)
+          expect(procedure.robots_indexable?).to be(false)
 
           expect(response).to redirect_to(admin_procedure_confirmation_path(procedure))
         end
@@ -1515,11 +1520,13 @@ describe Administrateurs::ProceduresController, type: :controller do
 
         let(:path) { procedure2.path }
         let(:lien_site_web) { 'http://mon-site.gouv.fr' }
+        let(:robots_indexable) { '1' }
 
         it 'publishes the procedure, unpublishes the old one and redirects to confirmation page' do
           expect(procedure.publiee?).to be_truthy
           expect(procedure.path).to eq(path)
           expect(procedure.lien_site_web).to eq(lien_site_web)
+          expect(procedure.robots_indexable?).to be(true)
 
           expect(procedure2.depubliee?).to be_truthy
 
@@ -1529,22 +1536,24 @@ describe Administrateurs::ProceduresController, type: :controller do
 
       context 'procedure was closed and is re opened' do
         before do
-          procedure.publish!
+          procedure.publish!(procedure.administrateurs.first)
           procedure.update!(closing_reason: 'internal_procedure', replaced_by_procedure_id: procedure2.id)
           procedure.close!
           procedure.update!(closing_notification_brouillon: true, closing_notification_en_cours: true)
+          procedure.draft_revision.add_type_de_champ(tdc_attributes)
           perform_request
           procedure.reload
           procedure2.reload
         end
 
-        it 'publish the given procedure and reset closing params' do
+        it 'publish the given procedure, reset closing params and publish revision if procedure changed' do
           expect(procedure.publiee?).to be_truthy
           expect(procedure.path).to eq(path)
           expect(procedure.closing_reason).to be_nil
           expect(procedure.replaced_by_procedure_id).to be_nil
           expect(procedure.closing_notification_brouillon).to be_falsy
           expect(procedure.closing_notification_en_cours).to be_falsy
+          expect(procedure.published_revision.types_de_champ_public.first.libelle).to eq('libelle 1')
         end
       end
 
@@ -1802,9 +1811,11 @@ describe Administrateurs::ProceduresController, type: :controller do
       context 'when enabling pro_connect_restricted' do
         let(:pro_connect_restricted) { true }
 
-        it { expect(procedure.reload.pro_connect_restricted).to be true }
-        it { expect(flash.notice).to eq("La démarche est restreinte aux comptes @administration.gov.pf") }
-        it { expect(response).to redirect_to(pro_connect_restricted_admin_procedure_path(procedure)) }
+        it do
+          expect(procedure.reload.pro_connect_restricted).to be true
+          expect(flash.notice).to eq("La démarche est restreinte aux comptes @administration.gov.pf")
+          expect(response).to redirect_to(pro_connect_restricted_admin_procedure_path(procedure))
+        end
       end
 
       context 'when disabling pro_connect_restricted' do
@@ -1812,9 +1823,11 @@ describe Administrateurs::ProceduresController, type: :controller do
 
         let(:pro_connect_restricted) { false }
 
-        it { expect(procedure.reload.pro_connect_restricted).to be false }
-        it { expect(flash.notice).to eq("La démarche n'est plus restreinte aux comptes @administration.gov.pf") }
-        it { expect(response).to redirect_to(pro_connect_restricted_admin_procedure_path(procedure)) }
+        it do
+          expect(procedure.reload.pro_connect_restricted).to be false
+          expect(flash.notice).to eq("La démarche n'est plus restreinte aux comptes @administration.gov.pf")
+          expect(response).to redirect_to(pro_connect_restricted_admin_procedure_path(procedure))
+        end
       end
     end
   end

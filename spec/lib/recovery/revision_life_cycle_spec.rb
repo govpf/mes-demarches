@@ -15,7 +15,7 @@ describe 'Recovery::Revision::LifeCycle' do
 
     before do
       cleanup_export_file
-      procedure.publish!
+      procedure.publish!(procedure.administrateurs.first)
       exporter.dump
     end
 
@@ -28,11 +28,11 @@ describe 'Recovery::Revision::LifeCycle' do
       end
 
       it do
-        expect { DossierPreloader.load_one(dossier) }.not_to raise_error(ArgumentError)
+        expect { DossierPreloader.load_one(dossier) }.not_to raise_error
         expect(dossier.project_champs_public.size).to eq(1)
         expect(dossier.champs.size).to eq(2)
         importer.load
-        expect { DossierPreloader.load_one(dossier) }.not_to raise_error(ArgumentError)
+        expect { DossierPreloader.load_one(dossier) }.not_to raise_error
         expect(dossier.project_champs_public.size).to eq(2)
       end
     end

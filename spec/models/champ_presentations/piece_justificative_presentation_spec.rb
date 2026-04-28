@@ -65,10 +65,8 @@ describe ChampPresentations::PieceJustificativePresentation do
       end
     end
 
-    context 'pour un PDF previewable' do
+    context 'pour un PDF (non previewable dans attestation)' do
       let(:pdf_blob) { double('blob', id: 999, filename: double('filename', to_s: 'document.pdf'), content_type: 'application/pdf') }
-      let(:preview) { double('preview') }
-      let(:processed_preview) { double('processed_preview') }
       let(:pdf_attachment) do
         double('attachment',
           id: 124,
@@ -79,23 +77,14 @@ describe ChampPresentations::PieceJustificativePresentation do
           previewable?: true)
       end
 
-      before do
-        # Mock la génération de preview pour PDF
-        allow(pdf_attachment).to receive(:preview).with(resize_to_limit: [400, 400]).and_return(preview)
-        allow(preview).to receive(:processed).and_return(processed_preview)
-        allow(processed_preview).to receive(:download).and_return("fake_preview_data")
-        allow(Base64).to receive(:strict_encode64).with("fake_preview_data").and_return("ZmFrZV9wcmV2aWV3X2RhdGE=")
-      end
+      # pf: les PDF ne génèrent plus de preview inline (bug Rails Tempfile GC)
+      subject { described_class.new(pdf_attachment, is_previewable: false) }
 
-      subject { described_class.new(pdf_attachment, is_previewable: true) }
-
-      it 'génère un nœud attachmentImage avec preview en PNG' do
+      it 'génère un nœud attachmentLink (pas de preview inline pour PDF)' do
         node = subject.to_tiptap_node
-        expect(node[:type]).to eq('attachmentImage')
-        # pf: les previews sont toujours en PNG
-        expect(node[:attrs][:src]).to eq('data:image/png;base64,ZmFrZV9wcmV2aWV3X2RhdGE=')
-        expect(node[:attrs][:alt]).to eq('document.pdf')
-        expect(node[:attrs][:display]).to eq('Télécharger')
+        expect(node[:type]).to eq('attachmentLink')
+        expect(node[:attrs][:href]).to eq('http://example.com/document.pdf')
+        expect(node[:content]).to eq([{ type: 'text', text: 'Télécharger document.pdf' }])
       end
     end
   end
@@ -162,8 +151,6 @@ describe ChampPresentations::PieceJustificativePresentation do
 
     context 'avec un PDF previewable' do
       let(:pdf_blob) { double('blob', id: 222, filename: double('filename', to_s: 'document.pdf'), content_type: 'application/pdf') }
-      let(:pdf_preview) { double('preview') }
-      let(:pdf_processed) { double('processed') }
       let(:pdf_attachment) do
         double('attachment',
           id: 111,
@@ -174,16 +161,10 @@ describe ChampPresentations::PieceJustificativePresentation do
           previewable?: true)
       end
 
-      before do
-        allow(pdf_attachment).to receive(:preview).with(resize_to_limit: [400, 400]).and_return(pdf_preview)
-        allow(pdf_preview).to receive(:processed).and_return(pdf_processed)
-        allow(pdf_processed).to receive(:download).and_return("preview_data")
-        allow(Base64).to receive(:strict_encode64).with("preview_data").and_return("cHJldmlld19kYXRh")
-      end
-
-      it 'crée une présentation previewable même pour PDF' do
+      # pf: les PDF ne génèrent plus de preview inline (bug Rails Tempfile GC)
+      it 'crée une présentation non-previewable pour PDF' do
         presentation = described_class.from_attachment(pdf_attachment)
-        expect(presentation.instance_variable_get(:@is_previewable)).to be true
+        expect(presentation.instance_variable_get(:@is_previewable)).to be false
       end
     end
 

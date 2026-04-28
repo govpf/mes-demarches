@@ -8,7 +8,7 @@ describe Columns::ChampColumn do
       let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
       let(:types_de_champ) { procedure.all_revisions_types_de_champ }
 
-      it 'extracts values for columns and type de champ' do
+      it 'extracts values for columns and type de champ', :slow do
         expect_type_de_champ_values('civilite', eq(["M."]))
         expect_type_de_champ_values('email', eq(['yoda@beta.gouv.fr']))
         expect_type_de_champ_values('phone', eq(['0666666666']))
@@ -145,13 +145,15 @@ describe Columns::ChampColumn do
         it do
           expect(column('simple_drop_down_list').value(champ)).to eq('val1')
           expect(column('text').value(champ)).to eq('val1, val2')
+          expect(column('formatted').value(champ)).to eq('val1, val2')
+          expect(column('textarea').value(champ)).to eq("val1\nval2")
         end
       end
     end
   end
 
   describe '#filtered_ids' do
-    subject { column.filtered_ids(dossiers, search_terms) }
+    subject { column.filtered_ids(dossiers, { operator: 'match', value: search_terms }) }
 
     context "with a yes no champ not mandatory" do
       let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :yes_no, mandatory: false, libelle: "oui/non" }]) }
@@ -172,7 +174,7 @@ describe Columns::ChampColumn do
         let(:search_terms) { ["true"] }
 
         it "returns the correct ids" do
-          expect(subject).to eq([dossier_with_yes.id])
+          expect(subject).to match_array([dossier_with_yes.id])
         end
       end
 
@@ -180,7 +182,7 @@ describe Columns::ChampColumn do
         let(:search_terms) { ["false"] }
 
         it "returns the correct ids" do
-          expect(subject).to eq([dossier_with_no.id])
+          expect(subject).to match_array([dossier_with_no.id])
         end
       end
 
@@ -188,7 +190,7 @@ describe Columns::ChampColumn do
         let(:search_terms) { [Column::NOT_FILLED_VALUE] }
 
         it "returns the correct ids" do
-          expect(subject).to eq([dossier_not_filled.id])
+          expect(subject).to match_array([dossier_not_filled.id])
         end
       end
     end
@@ -210,7 +212,7 @@ describe Columns::ChampColumn do
         let(:search_terms) { ["true"] }
 
         it "returns the correct ids" do
-          expect(subject).to eq([dossier_with_checked.id])
+          expect(subject).to match_array([dossier_with_checked.id])
         end
       end
 
@@ -218,7 +220,283 @@ describe Columns::ChampColumn do
         let(:search_terms) { ["false"] }
 
         it "returns the correct ids" do
-          expect(subject).to eq([dossier_not_checked.id])
+          expect(subject).to match_array([dossier_not_checked.id])
+        end
+      end
+    end
+
+    context "with a checkbox champ not mandatory" do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :checkbox, mandatory: false, libelle: "checkbox" }]) }
+      let(:dossier_with_checked) { create(:dossier, :en_instruction, procedure:) }
+      let(:dossier_not_checked) { create(:dossier, :en_instruction, procedure:) }
+
+      before do
+        dossier_with_checked.champs.first.update!(value: "true")
+        dossier_not_checked.champs.first.destroy!
+      end
+
+      let(:column) { procedure.find_column(label: "checkbox") }
+      let(:dossiers) { procedure.dossiers }
+
+      context "when searching for a checked" do
+        let(:search_terms) { ["true"] }
+
+        it "returns the correct ids" do
+          expect(subject).to match_array([dossier_with_checked.id])
+        end
+      end
+
+      context "when searching for a not checked" do
+        let(:search_terms) { ["false"] }
+
+        it "returns the correct ids" do
+          expect(subject).to match_array([dossier_not_checked.id])
+        end
+      end
+    end
+
+    context "with a drop_down_list champ" do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :drop_down_list, libelle: "drop_down_list", options: ["Fromage", "Dessert", "Chocolat"] }]) }
+      let(:dossier_with_fromage) { create(:dossier, :en_instruction, procedure:) }
+      let(:dossier_with_dessert) { create(:dossier, :en_instruction, procedure:) }
+      let(:dossier_with_chocolat) { create(:dossier, :en_instruction, procedure:) }
+
+      before do
+        dossier_with_fromage.champs.first.update!(value: "Fromage")
+        dossier_with_dessert.champs.first.update!(value: "Dessert")
+        dossier_with_chocolat.champs.first.update!(value: "Chocolat")
+      end
+
+      let(:column) { procedure.find_column(label: "drop_down_list") }
+      let(:dossiers) { procedure.dossiers }
+
+      context "when searching for fromage" do
+        let(:search_terms) { ["Fromage"] }
+
+        it "returns the correct ids" do
+          expect(subject).to match_array([dossier_with_fromage.id])
+        end
+      end
+
+      context "when searching for fromage OR dessert" do
+        let(:search_terms) { ["Fromage", "Dessert"] }
+
+        it "returns the correct ids" do
+          expect(subject).to match_array([dossier_with_fromage.id, dossier_with_dessert.id])
+        end
+      end
+    end
+
+    context "with a date champ" do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :date, libelle: "date" }]) }
+
+      subject { column.filtered_ids(dossiers, filter) }
+
+      let(:column) { procedure.find_column(label: "date") }
+      let(:dossiers) { procedure.dossiers }
+
+      context "when searching with before operator" do
+        let(:dossier) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier2) { create(:dossier, :en_instruction, procedure:) }
+
+        before do
+          dossier.champs.first.update!(value: "2025-02-13")
+          dossier2.champs.first.update!(value: "2025-02-15")
+        end
+
+        let(:filter) { { operator: 'before', value: ["2025-02-14"] } }
+
+        it "returns the correct ids" do
+          expect(subject).to eq([dossier.id])
+        end
+      end
+
+      context "when searching with after operator" do
+        let(:dossier) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier2) { create(:dossier, :en_instruction, procedure:) }
+
+        before do
+          dossier.champs.first.update!(value: "2025-02-13")
+          dossier2.champs.first.update!(value: "2025-02-15")
+        end
+
+        let(:filter) { { operator: 'after', value: ["2025-02-14"] } }
+
+        it "returns the correct ids" do
+          expect(subject).to eq([dossier2.id])
+        end
+      end
+
+      context "when searching with this_month operator" do
+        let(:filter) { { operator: 'this_month' } }
+
+        let(:dossier_at_the_beginning_of_the_month) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_at_the_end_of_the_month) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_month_before) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_month_after) { create(:dossier, :en_instruction, procedure:) }
+
+        before do
+          dossier_at_the_beginning_of_the_month.champs.first.update!(value: "2025-02-01")
+          dossier_at_the_end_of_the_month.champs.first.update!(value: "2025-02-28")
+          dossier_month_before.champs.first.update!(value: "2025-01-13")
+          dossier_month_after.champs.first.update!(value: "2025-03-13")
+
+          travel_to(Time.zone.parse("2025-02-13"))
+        end
+
+        it "returns dossiers from this month" do
+          expect(subject).to match_array([dossier_at_the_beginning_of_the_month.id, dossier_at_the_end_of_the_month.id])
+        end
+      end
+
+      context "when searching with this_week operator" do
+        let(:filter) { { operator: 'this_week' } }
+
+        let(:dossier_at_the_beginning_of_the_week) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_at_the_end_of_the_week) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_week_before) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_week_after) { create(:dossier, :en_instruction, procedure:) }
+
+        before do
+          dossier_at_the_beginning_of_the_week.champs.first.update!(value: "2025-02-03")
+          dossier_at_the_end_of_the_week.champs.first.update!(value: "2025-02-09")
+          dossier_week_before.champs.first.update!(value: "2025-02-02")
+          dossier_week_after.champs.first.update!(value: "2025-02-10")
+
+          travel_to(Time.zone.parse("2025-02-08"))
+        end
+
+        it "returns dossiers from this week" do
+          expect(subject).to match_array([dossier_at_the_beginning_of_the_week.id, dossier_at_the_end_of_the_week.id])
+        end
+      end
+
+      context "when searching with this_year operator" do
+        let(:filter) { { operator: 'this_year' } }
+
+        let(:dossier_at_the_beginning_of_the_year) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_at_the_end_of_the_year) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_year_before) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_year_after) { create(:dossier, :en_instruction, procedure:) }
+
+        before do
+          dossier_at_the_beginning_of_the_year.champs.first.update!(value: "2024-01-01")
+          dossier_at_the_end_of_the_year.champs.first.update!(value: "2024-12-31")
+          dossier_year_before.champs.first.update!(value: "2023-12-31")
+          dossier_year_after.champs.first.update!(value: "2025-01-01")
+
+          travel_to(Time.zone.parse("2024-02-13"))
+        end
+
+        it "returns dossiers from this year" do
+          expect(subject).to match_array([dossier_at_the_beginning_of_the_year.id, dossier_at_the_end_of_the_year.id])
+        end
+      end
+    end
+
+    context "with a datetime champ" do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :datetime, libelle: "datetime" }]) }
+
+      subject { column.filtered_ids(dossiers, filter) }
+
+      let(:column) { procedure.find_column(label: "datetime") }
+      let(:dossiers) { procedure.dossiers }
+
+      context "when searching with before operator" do
+        let(:dossier) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier2) { create(:dossier, :en_instruction, procedure:) }
+
+        before do
+          dossier.champs.first.update!(value: "2025-02-13T12:00:00+01:00")
+          dossier2.champs.first.update!(value: "2025-02-15T12:00:00+01:00")
+        end
+
+        let(:filter) { { operator: 'before', value: ["2025-02-14"] } }
+
+        it "returns the correct ids" do
+          expect(subject).to eq([dossier.id])
+        end
+      end
+
+      context "when searching with after operator" do
+        let(:dossier) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier2) { create(:dossier, :en_instruction, procedure:) }
+
+        before do
+          dossier.champs.first.update!(value: "2025-02-13T12:00:00+01:00")
+          dossier2.champs.first.update!(value: "2025-02-15T12:00:00+01:00")
+        end
+
+        let(:filter) { { operator: 'after', value: ["2025-02-14"] } }
+
+        it "returns the correct ids" do
+          expect(subject).to eq([dossier2.id])
+        end
+      end
+
+      context "when searching with this_week operator" do
+        let(:filter) { { operator: 'this_week' } }
+
+        let(:dossier_at_the_beginning_of_the_week) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_at_the_end_of_the_week) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_week_before) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_week_after) { create(:dossier, :en_instruction, procedure:) }
+
+        before do
+          dossier_at_the_beginning_of_the_week.champs.first.update!(value: "2025-02-03T12:00:00+01:00")
+          dossier_at_the_end_of_the_week.champs.first.update!(value: "2025-02-09T12:00:00+01:00")
+          dossier_week_before.champs.first.update!(value: "2025-02-02T12:00:00+01:00")
+          dossier_week_after.champs.first.update!(value: "2025-02-10T12:00:00+01:00")
+
+          travel_to(Time.zone.parse("2025-02-08"))
+        end
+
+        it "returns dossiers from this week" do
+          expect(subject).to match_array([dossier_at_the_beginning_of_the_week.id, dossier_at_the_end_of_the_week.id])
+        end
+      end
+
+      context "when searching with this_month operator" do
+        let(:filter) { { operator: 'this_month' } }
+
+        let(:dossier_at_the_beginning_of_the_month) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_at_the_end_of_the_month) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_month_before) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_month_after) { create(:dossier, :en_instruction, procedure:) }
+
+        before do
+          dossier_at_the_beginning_of_the_month.champs.first.update!(value: "2025-02-01T12:00:00+01:00")
+          dossier_at_the_end_of_the_month.champs.first.update!(value: "2025-02-28T12:00:00+01:00")
+          dossier_month_before.champs.first.update!(value: "2025-01-13T12:00:00+01:00")
+          dossier_month_after.champs.first.update!(value: "2025-03-13T12:00:00+01:00")
+
+          travel_to(Time.zone.parse("2025-02-13"))
+        end
+
+        it "returns dossiers from this month" do
+          expect(subject).to match_array([dossier_at_the_beginning_of_the_month.id, dossier_at_the_end_of_the_month.id])
+        end
+      end
+
+      context "when searching with this_year operator" do
+        let(:filter) { { operator: 'this_year' } }
+
+        let(:dossier_at_the_beginning_of_the_year) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_at_the_end_of_the_year) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_year_before) { create(:dossier, :en_instruction, procedure:) }
+        let(:dossier_year_after) { create(:dossier, :en_instruction, procedure:) }
+
+        before do
+          dossier_at_the_beginning_of_the_year.champs.first.update!(value: "2024-01-01T12:00:00+01:00")
+          dossier_at_the_end_of_the_year.champs.first.update!(value: "2024-12-31T12:00:00+01:00")
+          dossier_year_before.champs.first.update!(value: "2023-12-31T12:00:00+01:00")
+          dossier_year_after.champs.first.update!(value: "2025-01-01T12:00:00+01:00")
+
+          travel_to(Time.zone.parse("2024-02-13"))
+        end
+
+        it "returns dossiers from this year" do
+          expect(subject).to match_array([dossier_at_the_beginning_of_the_year.id, dossier_at_the_end_of_the_year.id])
         end
       end
     end

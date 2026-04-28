@@ -4,9 +4,13 @@ module ProcedurePublishConcern
   extend ActiveSupport::Concern
 
   def publish_or_reopen!(administrateur, path)
-    Procedure.transaction do
+    new_revision = false
+    transaction do
       if brouillon?
         reset!
+      elsif draft_changed?
+        new_revision = true
+        publish_new_revision(administrateur)
       end
 
       other_procedure = other_procedure_with_path(path)
@@ -14,18 +18,24 @@ module ProcedurePublishConcern
       if other_procedure.present?
         other_procedure.unpublish! if other_procedure.may_unpublish?
 
-        publish!(other_procedure.canonical_procedure || other_procedure)
+        publish!(administrateur, other_procedure.canonical_procedure || other_procedure)
       else
-        publish!
+        publish!(administrateur, nil)
       end
       AdministrationMailer.procedure_published(self).deliver_later
     end
+
+    if new_revision
+      dossiers
+        .state_not_termine
+        .find_each(&:rebase_later)
+    end
   end
 
-  def publish_revision!
+  def publish_revision!(administrateur)
     reset!
 
-    transaction { publish_new_revision }
+    transaction { publish_new_revision(administrateur) }
 
     dossiers
       .state_not_termine
@@ -58,14 +68,14 @@ module ProcedurePublishConcern
     assign_attributes(closed_at: nil, unpublished_at: nil)
   end
 
-  def after_publish(canonical_procedure = nil)
+  def after_publish(administrateur, canonical_procedure = nil)
     self.canonical_procedure = canonical_procedure
 
     touch(:published_at)
-    publish_new_revision
+    publish_new_revision(administrateur)
   end
 
-  def after_republish(canonical_procedure = nil)
+  def after_republish(administrateur, canonical_procedure = nil)
     touch(:published_at)
   end
 
@@ -82,13 +92,10 @@ module ProcedurePublishConcern
       new_revision = (revision || draft_revision)
         .deep_clone(include: [:revision_types_de_champ])
         .tap { |revision| revision.published_at = nil }
+        .tap { |revision| revision.administrateur_id = nil }
         .tap(&:save!)
 
       move_new_children_to_new_parent_coordinate(new_revision)
-
-      # they are not aware of the new tdcs
-      new_revision.types_de_champ_public.reset
-      new_revision.types_de_champ_private.reset
 
       new_revision
     end
@@ -96,14 +103,14 @@ module ProcedurePublishConcern
 
   private
 
-  def publish_new_revision
+  def publish_new_revision(administrateur)
     cleanup_types_de_champ_options!
     cleanup_types_de_champ_children!
     nullify_unused_referentiels
     self.published_revision = draft_revision
     self.draft_revision = create_new_revision
     save!(context: :publication)
-    published_revision.touch(:published_at)
+    published_revision.update_columns(published_at: Time.current, administrateur_id: administrateur.id)
   end
 
   def move_new_children_to_new_parent_coordinate(new_draft)
@@ -134,7 +141,8 @@ module ProcedurePublishConcern
 
   def nullify_unused_referentiels
     draft_revision.types_de_champ
-      .reject { _1.drop_down_list? || _1.referentiel? }
+      # pf: referentiel_de_polynesie utilise aussi referentiel_id depuis la migration vers Referentiel — sans cette whitelist, chaque publication efface l'association
+      .reject { _1.drop_down_list? || _1.multiple_drop_down_list? || _1.referentiel? || _1.referentiel_de_polynesie? }
       .each do |type_de_champ|
         type_de_champ.update!(referentiel_id: nil)
       end

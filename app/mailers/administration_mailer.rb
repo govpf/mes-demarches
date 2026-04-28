@@ -36,6 +36,9 @@ class AdministrationMailer < ApplicationMailer
     @dubious_champs = get_dubious_champs(procedure) if @is_dubious
 
     subject = "Une nouvelle démarche vient d'être publiée"
+
+    bypass_unverified_mail_protection!
+
     mail(to: EQUIPE_EMAIL, subject: subject)
   end
 
@@ -47,6 +50,8 @@ class AdministrationMailer < ApplicationMailer
 
     @status = S3Synchronization.blob_status
     @log = log
+
+    bypass_unverified_mail_protection!
 
     mail(to: CONTACT_EMAIL, subject: "Statistiques de synchronisation")
   end

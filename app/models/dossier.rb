@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Dossier < ApplicationRecord
-  self.ignored_columns += [:search_terms, :private_search_terms]
+  self.ignored_columns += [:search_terms, :private_search_terms, :editing_fork_origin_id]
 
   include DossierCloneConcern
   include DossierCorrectableConcern
@@ -14,6 +14,7 @@ class Dossier < ApplicationRecord
   include DossierStateConcern
   include DossierChampsConcern
   include DossierExportConcern
+  include DossierFormulaRefreshConcern
 
   enum :state, {
     brouillon:       'brouillon',
@@ -53,8 +54,8 @@ class Dossier < ApplicationRecord
   has_many :preloaded_commentaires, -> { includes(:dossier_correction, piece_jointe_attachments: :blob).order(created_at: :desc) }, class_name: 'Commentaire', inverse_of: :dossier
 
   has_many :invites, dependent: :destroy
-  has_many :follows, -> { active }, inverse_of: :dossier
-  has_many :previous_follows, -> { inactive }, class_name: 'Follow', inverse_of: :dossier
+  has_many :follows, -> { active }, inverse_of: :dossier, dependent: :destroy
+  has_many :previous_follows, -> { inactive }, class_name: 'Follow', inverse_of: :dossier, dependent: :destroy
   has_many :followers_instructeurs, through: :follows, source: :instructeur
   has_many :previous_followers_instructeurs, -> { distinct }, through: :previous_follows, source: :instructeur
   has_many :avis, -> { order(:created_at) }, inverse_of: :dossier, dependent: :destroy
@@ -138,9 +139,10 @@ class Dossier < ApplicationRecord
   has_many :batch_operations, through: :dossier_batch_operations
 
   has_one :procedure, through: :revision
-  has_one :attestation_template, through: :procedure
-  has_many :types_de_champ, through: :revision, source: :types_de_champ_public
-  has_many :types_de_champ_private, through: :revision
+  has_one :attestation_acceptation_template, through: :procedure
+  has_one :attestation_refus_template, through: :procedure
+
+  delegate :types_de_champ_public, :types_de_champ_private, to: :revision
 
   belongs_to :transfer, class_name: 'DossierTransfer', foreign_key: 'dossier_transfer_id', optional: true, inverse_of: :dossiers
   has_many :transfer_logs, class_name: 'DossierTransferLog', dependent: :destroy
@@ -233,7 +235,7 @@ class Dossier < ApplicationRecord
   scope :hidden_by_administration,  -> { where.not(hidden_by_administration_at: nil) }
   scope :hidden_by_expired,         -> { where.not(hidden_by_expired_at: nil) }
   scope :hidden_by_not_modified_for_a_long_time, -> { hidden_by_expired.where(hidden_by_reason: :not_modified_for_a_long_time) }
-  scope :visible_by_user,           -> { where(for_procedure_preview: false, hidden_by_user_at: nil, editing_fork_origin_id: nil, hidden_by_expired_at: nil) }
+  scope :visible_by_user,           -> { where(for_procedure_preview: false, hidden_by_user_at: nil, hidden_by_expired_at: nil) }
   scope :visible_by_administration, -> {
     state_not_brouillon
       .where(hidden_by_administration_at: nil)
@@ -245,7 +247,6 @@ class Dossier < ApplicationRecord
     state_not_brouillon.hidden_by_administration.or(state_en_construction.hidden_by_user)
   }
   scope :for_procedure_preview, -> { where(for_procedure_preview: true) }
-  scope :for_editing_fork, -> { where.not(editing_fork_origin_id: nil) }
   scope :for_groupe_instructeur, -> (groupe_instructeurs) { where(groupe_instructeur: groupe_instructeurs) }
   scope :order_by_updated_at,            -> (order = :desc) { order(updated_at: order, id: order) }
   scope :order_by_depose_at,             -> (order = :desc) { order(depose_at: order, id: order) }
@@ -303,18 +304,18 @@ class Dossier < ApplicationRecord
   scope :interval_brouillon_close_to_expiration, -> do
     state_brouillon
       .visible_by_user
-      .where("dossiers.updated_at + dossiers.conservation_extension + (LEAST(procedures.duree_conservation_dossiers_dans_ds, #{Expired::MONTHS_BEFORE_BROUILLON_EXPIRATION}) * INTERVAL '1 month') - INTERVAL :expires_in < :now", { now: Time.zone.now, expires_in: INTERVAL_BEFORE_EXPIRATION })
+      .where("dossiers.updated_at + dossiers.conservation_extension + (LEAST(procedures.duree_conservation_dossiers_dans_ds, #{Expired::MONTHS_BEFORE_BROUILLON_EXPIRATION}) * INTERVAL '1 month') - INTERVAL '#{INTERVAL_BEFORE_EXPIRATION}' < :now", { now: Time.current })
   end
   scope :interval_en_construction_close_to_expiration, -> do
     state_en_construction
       .visible_by_user_or_administration
-      .where("dossiers.en_construction_at + dossiers.conservation_extension + (procedures.duree_conservation_dossiers_dans_ds * INTERVAL '1 month') - INTERVAL :expires_in < :now", { now: Time.zone.now, expires_in: INTERVAL_BEFORE_EXPIRATION })
+      .where("dossiers.en_construction_at + dossiers.conservation_extension + (procedures.duree_conservation_dossiers_dans_ds * INTERVAL '1 month') - INTERVAL '#{INTERVAL_BEFORE_EXPIRATION}' < :now", { now: Time.current })
   end
   scope :interval_termine_close_to_expiration, -> do
     state_termine
       .visible_by_user_or_administration
       .where(procedures: { procedure_expires_when_termine_enabled: true })
-      .where("dossiers.processed_at + dossiers.conservation_extension + (procedures.duree_conservation_dossiers_dans_ds * INTERVAL '1 month') - INTERVAL :expires_in < :now", { now: Time.zone.now, expires_in: INTERVAL_BEFORE_EXPIRATION })
+      .where("dossiers.processed_at + dossiers.conservation_extension + (procedures.duree_conservation_dossiers_dans_ds * INTERVAL '1 month') - INTERVAL '#{INTERVAL_BEFORE_EXPIRATION}' < :now", { now: Time.current })
   end
 
   scope :brouillon_close_to_expiration, -> do
@@ -346,17 +347,17 @@ class Dossier < ApplicationRecord
   scope :brouillon_expired, -> do
     state_brouillon
       .visible_by_user
-      .where("brouillon_close_to_expiration_notice_sent_at + INTERVAL :expires_in < :now", { now: Time.zone.now, expires_in: INTERVAL_EXPIRATION })
+      .where("brouillon_close_to_expiration_notice_sent_at + INTERVAL '#{INTERVAL_EXPIRATION}' < :now", { now: Time.current })
   end
   scope :en_construction_expired, -> do
     state_en_construction
       .visible_by_user_or_administration
-      .where("en_construction_close_to_expiration_notice_sent_at + INTERVAL :expires_in < :now", { now: Time.zone.now, expires_in: INTERVAL_EXPIRATION })
+      .where("en_construction_close_to_expiration_notice_sent_at + INTERVAL '#{INTERVAL_EXPIRATION}' < :now", { now: Time.current })
   end
   scope :termine_expired, -> do
     state_termine
       .visible_by_user_or_administration
-      .where("termine_close_to_expiration_notice_sent_at + INTERVAL :expires_in < :now", { now: Time.zone.now, expires_in: INTERVAL_EXPIRATION })
+      .where("termine_close_to_expiration_notice_sent_at + INTERVAL '#{INTERVAL_EXPIRATION}' < :now", { now: Time.current })
   end
 
   scope :without_brouillon_expiration_notice_sent, -> { where(brouillon_close_to_expiration_notice_sent_at: nil) }
@@ -381,15 +382,19 @@ class Dossier < ApplicationRecord
     state_brouillon
       .visible_by_user
       .with_notifiable_procedure
-      .where("procedures.auto_archive_on - INTERVAL :before_closing = :now", { now: Time.zone.today, before_closing: INTERVAL_BEFORE_CLOSING })
+      .where("procedures.auto_archive_on - INTERVAL '#{INTERVAL_BEFORE_CLOSING}' = :today", { today: Time.zone.today })
       .where.not(user: users_who_submitted)
   end
 
-  scope :for_api_v2, -> { includes(:attestation_template, revision: [procedure: [:administrateurs]], etablissement: [], individual: [], traitement: [], procedure: [], user: [:france_connect_informations]) }
+  scope :with_revision, -> { includes(revision: :revision_types_de_champ) }
+  scope :for_api_v2, -> {
+    with_revision
+      .includes(:attestation_acceptation_template, :etablissement, :individual, :traitement, procedure: [:administrateurs], user: [:france_connect_informations])
+  }
 
   scope :with_notifications, -> (instructeur) {
     joins(:dossier_notifications)
-      .where(dossier_notifications: { instructeur_id: [instructeur.id, nil] })
+      .where(dossier_notifications: { instructeur_id: instructeur.id })
       .merge(DossierNotification.to_display)
       .distinct
   }
@@ -429,6 +434,18 @@ class Dossier < ApplicationRecord
 
   scope :not_having_batch_operation, -> { where(batch_operation_id: nil) }
 
+  def with_revision
+    ::ActiveRecord::Associations::Preloader.new(
+      records: [self],
+      associations: { revision: :revision_types_de_champ }
+    ).call
+    self
+  end
+
+  def with_champs(blob: false)
+    DossierPreloader.load_one(self, pj_template: blob)
+  end
+
   delegate :siret, :siren, to: :etablissement, allow_nil: true
   delegate :france_connected_with_one_identity?, to: :user, allow_nil: true
 
@@ -440,10 +457,6 @@ class Dossier < ApplicationRecord
   validates :mandataire_first_name, presence: true, if: :for_tiers?
   validates :mandataire_last_name, presence: true, if: :for_tiers?
   validates :for_tiers, inclusion: { in: [true, false] }, if: -> { revision&.procedure&.for_individual? }
-
-  def types_de_champ_public
-    types_de_champ
-  end
 
   def self.downloadable_sorted_batch
     DossierPreloader.new(includes(
@@ -477,6 +490,10 @@ class Dossier < ApplicationRecord
 
   def user_email_for_display
     user_email_for(:display)
+  end
+
+  def last_booked_rdv
+    rdvs.booked.by_starts_at.last
   end
 
   def expiration_started?
@@ -515,7 +532,7 @@ class Dossier < ApplicationRecord
   end
 
   def can_transition_to_en_construction?
-    brouillon? && procedure.dossier_can_transition_to_en_construction? && !for_procedure_preview? && !editing_fork?
+    brouillon? && procedure.dossier_can_transition_to_en_construction? && !for_procedure_preview?
   end
 
   def can_terminer?
@@ -702,9 +719,8 @@ class Dossier < ApplicationRecord
 
     if !brouillon?
       unfollow_stale_instructeurs
-      if previous_groupe_instructeur.present?
-        DossierNotification.update_notifications_groupe_instructeur(previous_groupe_instructeur, groupe_instructeur)
-      end
+      update_notifications(previous_groupe_instructeur, groupe_instructeur) if previous_groupe_instructeur.present?
+
       if author.present?
         log_dossier_operation(author, :changer_groupe_instructeur, self)
       end
@@ -744,7 +760,8 @@ class Dossier < ApplicationRecord
   def avis_for_expert(expert)
     Avis
       .where(dossier_id: id, confidentiel: false)
-      .or(Avis.where(id: expert.avis, dossier_id: id))
+      .or(Avis.where(id: expert.avis, dossier_id: id)) # avis's asked to expert
+      .or(Avis.where(claimant: expert, dossier_id: id)) # avis's claimed by expert
       .order(created_at: :asc)
   end
 
@@ -753,6 +770,17 @@ class Dossier < ApplicationRecord
       etablissement.entreprise_raison_sociale
     elsif individual.present?
       "#{individual.nom} #{individual.prenom}"
+    end
+  end
+
+  # pf: libellé court du propriétaire pour le titre d'onglet
+  # RGPD : évite la fuite du nom complet dans les outils analytics
+  # Retourne le prénom (individu) ou la raison sociale tronquée (établissement)
+  def owner_short_label
+    if etablissement.present?
+      etablissement.entreprise_raison_sociale&.truncate_words(3)
+    elsif individual.present?
+      individual.prenom
     end
   end
 
@@ -819,7 +847,8 @@ class Dossier < ApplicationRecord
     { lon: lon, lat: lat, zoom: zoom }
   end
 
-  def unspecified_attestation_champs
+  def unspecified_attestation_champs(kind)
+    attestation_template = attestation_template_for(kind)
     if attestation_template&.activated?
       attestation_template.unspecified_champs_for_dossier(self)
     else
@@ -827,13 +856,19 @@ class Dossier < ApplicationRecord
     end
   end
 
-  def unspecified_champs
-    (unspecified_attestation_champs + procedure.closed_mail_template.unspecified_champs_for_dossier(self)).uniq
+  def attestation_template_for(kind)
+    public_send("attestation_#{kind}_template")
   end
 
-  def build_attestation
-    if attestation_template&.activated?
-      attestation_template.attestation_for(self)
+  def build_attestation_acceptation
+    if attestation_acceptation_template&.activated?
+      attestation_acceptation_template.attestation_for(self)
+    end
+  end
+
+  def build_attestation_refus
+    if attestation_refus_template&.activated?
+      attestation_refus_template.attestation_for(self)
     end
   end
 
@@ -866,8 +901,13 @@ class Dossier < ApplicationRecord
     end
 
     if en_construction? && !hidden_by_administration?
-      administration_emails = followers_instructeurs.present? ? followers_instructeurs.map(&:email) : procedure.administrateurs.map(&:email)
-      administration_emails.each do |email|
+      followers_emails = followers_instructeurs.map(&:email)
+      admin_emails = procedure.administrateurs.map(&:email)
+      instructeurs_emails = procedure.groupe_instructeurs.flat_map { |g| g.instructeurs.map(&:email) }
+      admin_instructeur_emails = admin_emails.filter { |email| instructeurs_emails.include?(email) }
+      emails = (followers_emails + admin_instructeur_emails).uniq
+
+      emails.each do |email|
         DossierMailer.notify_en_construction_deletion_to_administration(self, email).deliver_later
       end
     end
@@ -1118,6 +1158,14 @@ class Dossier < ApplicationRecord
     submitted_revision_id.present? && submitted_revision_id != revision_id
   end
 
+  def enqueue_fetch_external_data_jobs
+    project_champs_public_all.each do |champ|
+      if champ.uses_external_data? && champ.may_fetch_later?
+        champ.fetch_later!
+      end
+    end
+  end
+
   private
 
   def build_default_champs
@@ -1158,7 +1206,9 @@ class Dossier < ApplicationRecord
   end
 
   def deleted_dossier
-    @deleted_dossier ||= DeletedDossier.find_by(dossier_id: id)
+    return @deleted_dossier if defined?(@deleted_dossier)
+
+    @deleted_dossier = DeletedDossier.find_by(dossier_id: id)
   end
 
   def defaut_groupe_instructeur?
@@ -1215,6 +1265,7 @@ class Dossier < ApplicationRecord
         end
       end
     end
+    followers_instructeurs.reset
   end
 
   def self.notify_draft_not_submitted
@@ -1268,5 +1319,15 @@ class Dossier < ApplicationRecord
         dossier_id: self.id
       }
     )
+  end
+
+  def update_notifications(previous_groupe_instructeur, new_groupe_instructeur)
+    previous_instructeur_ids = previous_groupe_instructeur.instructeurs.ids
+    new_instructeur_ids = new_groupe_instructeur.instructeurs.ids
+    instructeur_removed_ids = previous_instructeur_ids - new_instructeur_ids
+    instructeur_added_ids = new_instructeur_ids - previous_instructeur_ids
+
+    DossierNotification.destroy_notifications_instructeurs_of_old_dossier(instructeur_removed_ids, self) if instructeur_removed_ids.any?
+    DossierNotification.refresh_notifications_new_instructeurs_for_dossier(instructeur_added_ids, self) if instructeur_added_ids.any?
   end
 end

@@ -137,7 +137,7 @@ module TagsSubstitutionConcern
       id: 'dossier_url',
       libelle: 'lien dossier',
       description: '',
-      lambda: -> (d) { external_link(dossier_url(d)) },
+      lambda: -> (d) { external_link(dossier_url(d, host:)) },
       available_for_states: Dossier::SOUMIS,
       escapable: false
     },
@@ -145,8 +145,8 @@ module TagsSubstitutionConcern
       id: 'dossier_attestation_url',
       libelle: 'lien attestation',
       description: '',
-      lambda: -> (d) { external_link(attestation_dossier_url(d)) },
-      available_for_states: [Dossier.states.fetch(:accepte)],
+      lambda: -> (d) { external_link(attestation_dossier_url(d, host:)) },
+      available_for_states: [Dossier.states.fetch(:accepte), Dossier.states.fetch(:refuse)],
       escapable: false
     },
     {
@@ -352,7 +352,7 @@ module TagsSubstitutionConcern
 
   def url_for_justificatif_motivation(dossier)
     if dossier.justificatif_motivation.attached?
-      Rails.application.routes.url_helpers.url_for(dossier.justificatif_motivation)
+      Rails.application.routes.url_helpers.rails_blob_url(dossier.justificatif_motivation, host:)
     end
   end
 
@@ -363,8 +363,18 @@ module TagsSubstitutionConcern
 
   def contextual_dossier_tags
     tags = []
-    tags << DOSSIER_SVA_SVR_DECISION_DATE_TAG if respond_to?(:procedure) && procedure.sva_svr_enabled?
-    tags << CONTACT_INFORMATION_NAME_TAG if respond_to?(:procedure) && procedure.routing_enabled? && procedure.groupe_instructeurs.any? { _1.contact_information.present? }
+
+    return tags unless respond_to?(:procedure)
+
+    tags << DOSSIER_SVA_SVR_DECISION_DATE_TAG if procedure.sva_svr_enabled?
+
+    if procedure.routing_enabled?
+      has_contact_info = procedure.groupe_instructeurs
+        .includes(:contact_information)
+        .any? { |gi| gi.contact_information.present? }
+      tags << CONTACT_INFORMATION_NAME_TAG if has_contact_info
+    end
+
     tags
   end
 
@@ -501,4 +511,6 @@ module TagsSubstitutionConcern
       ENTREPRISE_TAGS
     ]
   end
+
+  def host = Current.host || ENV["APP_HOST"]
 end

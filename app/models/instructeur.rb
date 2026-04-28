@@ -18,8 +18,8 @@ class Instructeur < ApplicationRecord
   has_many :commentaires, inverse_of: :instructeur, dependent: :nullify
   has_many :dossiers, -> { state_not_brouillon }, through: :unordered_groupe_instructeurs
   has_many :all_follows, class_name: 'Follow', inverse_of: :instructeur
-  has_many :follows, -> { active }, inverse_of: :instructeur
-  has_many :previous_follows, -> { inactive }, class_name: 'Follow', inverse_of: :instructeur
+  has_many :follows, -> { active }, inverse_of: :instructeur, dependent: :destroy
+  has_many :previous_follows, -> { inactive }, class_name: 'Follow', inverse_of: :instructeur, dependent: :destroy
   has_many :followed_dossiers, through: :follows, source: :dossier
   has_many :previously_followed_dossiers, -> { distinct }, through: :previous_follows, source: :dossier
   has_many :trusted_device_tokens, dependent: :destroy
@@ -33,16 +33,25 @@ class Instructeur < ApplicationRecord
 
   belongs_to :user
 
-  scope :with_instant_email_message_notifications, -> {
-    includes(:assign_to).where(assign_tos: { instant_email_message_notifications_enabled: true })
+  validates :user_id, uniqueness: true
+
+  scope :with_instant_email_message_notifications, -> (groupe_instructeur) {
+    includes(:assign_to)
+      .where(assign_tos: {
+        groupe_instructeur_id: groupe_instructeur.id,
+        instant_email_message_notifications_enabled: true
+      })
+  }
+
+  scope :with_instant_expert_avis_email_notifications_enabled, -> (groupe_instructeur) {
+    includes(:assign_to).where(assign_tos: {
+      groupe_instructeur_id: groupe_instructeur.id,
+      instant_expert_avis_email_notifications_enabled: true
+    })
   }
 
   scope :with_instant_email_dossier_notifications, -> {
     includes(:assign_to).where(assign_tos: { instant_email_dossier_notifications_enabled: true })
-  }
-
-  scope :with_instant_expert_avis_email_notifications_enabled, -> {
-    includes(:assign_to).where(assign_tos: { instant_expert_avis_email_notifications_enabled: true })
   }
 
   default_scope { eager_load(:user) }
@@ -55,8 +64,7 @@ class Instructeur < ApplicationRecord
     begin
       followed_dossiers << dossier
 
-      DossierNotification.destroy_notifications_by_dossier_and_type(dossier, :dossier_depose)
-      DossierNotification.refresh_notifications_instructeur_for_dossier(self, dossier)
+      DossierNotification.refresh_notifications_instructeur_for_followed_dossier(self, dossier)
 
       # If the user tries to follow a dossier she already follows,
       # we just fail silently: it means the goal is already reached.
@@ -72,7 +80,7 @@ class Instructeur < ApplicationRecord
     f = follows.find_by(dossier: dossier)
     if f.present?
       f.update(unfollowed_at: Time.zone.now)
-      DossierNotification.destroy_notifications_instructeur_of_dossier(self, dossier)
+      DossierNotification.destroy_notifications_instructeur_of_unfollowed_dossier(self, dossier)
     end
   end
 
@@ -111,26 +119,6 @@ class Instructeur < ApplicationRecord
         start_date: start_date,
         procedure_overviews: active_procedure_overviews
       }
-    end
-  end
-
-  def ensure_instructeur_procedures_for(procedures)
-    current_instructeur_procedures = instructeurs_procedures.where(procedure_id: procedures.map(&:id))
-    top_position = current_instructeur_procedures.map(&:position).max || 0
-    missing_instructeur_procedures = procedures.sort_by(&:published_at).map(&:id).filter_map do |procedure_id|
-      if !procedure_id.in?(current_instructeur_procedures.map(&:procedure_id))
-        { instructeur_id: id, procedure_id:, position: top_position += 1 }
-      end
-    end
-    InstructeursProcedure.insert_all(missing_instructeur_procedures) if missing_instructeur_procedures.size.positive?
-  end
-
-  def update_instructeur_procedures_positions(ordered_procedure_ids)
-    procedure_id_position = ordered_procedure_ids.reverse.each.with_index.to_h
-    InstructeursProcedure.transaction do
-      procedure_id_position.each do |procedure_id, position|
-        InstructeursProcedure.where(procedure_id:, instructeur_id: id).update(position:)
-      end
     end
   end
 
@@ -219,10 +207,10 @@ class Instructeur < ApplicationRecord
         COUNT(DISTINCT dossiers.id) FILTER (where dossiers.hidden_by_administration_at IS NULL AND dossiers.hidden_by_expired_at IS NULL AND procedures.procedure_expires_when_termine_enabled
           AND (
             dossiers.state in ('accepte', 'refuse', 'sans_suite')
-              AND dossiers.processed_at + dossiers.conservation_extension + (procedures.duree_conservation_dossiers_dans_ds * INTERVAL '1 month') - INTERVAL :expires_in < :now
+              AND dossiers.processed_at + dossiers.conservation_extension + (procedures.duree_conservation_dossiers_dans_ds * INTERVAL '1 month') - INTERVAL '#{Dossier::INTERVAL_BEFORE_EXPIRATION}' < :now
           ) OR (
             dossiers.state in ('en_construction') AND dossiers.hidden_by_expired_at IS NULL
-              AND dossiers.en_construction_at + dossiers.conservation_extension + (duree_conservation_dossiers_dans_ds * INTERVAL '1 month') - INTERVAL :expires_in < :now
+              AND dossiers.en_construction_at + dossiers.conservation_extension + (duree_conservation_dossiers_dans_ds * INTERVAL '1 month') - INTERVAL '#{Dossier::INTERVAL_BEFORE_EXPIRATION}' < :now
           )
         ) AS expirant
       FROM dossiers
@@ -242,8 +230,7 @@ class Instructeur < ApplicationRecord
       query,
       instructeur_id: id,
       groupe_instructeur_ids: groupe_instructeur_ids,
-      now: Time.zone.now,
-      expires_in: Dossier::INTERVAL_BEFORE_EXPIRATION
+      now: Time.current
     ])
 
     Dossier.connection.select_all(sanitized_query).first
@@ -287,7 +274,27 @@ class Instructeur < ApplicationRecord
   end
 
   def export_templates_for(procedure)
-    procedure.export_templates.where(groupe_instructeur: groupe_instructeurs).order(:name)
+    procedure.export_templates
+      .where(groupe_instructeur: groupe_instructeurs)
+      .includes(:groupe_instructeur)
+      .order(:name)
+      .to_a
+  end
+
+  TemplateExportGroup = Data.define(:name, :templates)
+  def export_template_options_for(procedure)
+    shareable_export_templates = procedure.export_templates
+      .shareable
+      .where.not(groupe_instructeur: groupe_instructeurs)
+      .includes(:groupe_instructeur)
+      .order(:name).to_a
+    my_export_templates = export_templates_for(procedure)
+
+    if shareable_export_templates.present?
+      [TemplateExportGroup['Mes modèles d’export', my_export_templates], TemplateExportGroup['Modèles d’export partagés', shareable_export_templates]]
+    else
+      my_export_templates
+    end
   end
 
   def groupe_instructeur_options_for(procedure)

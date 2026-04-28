@@ -1,0 +1,6 @@
+en:
+  views:
+    shared:
+      champs:
+        formule:
+          no_value: "Pending — fill in the fields referenced by the formula"

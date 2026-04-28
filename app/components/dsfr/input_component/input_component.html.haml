@@ -1,12 +1,12 @@
 = content_tag(:div, input_group_opts) do
-  = @form.label @attribute, class: label_class_names do
+  = @form.label @attribute, label_opts do
     - capture do
       = label
 
       - if required?
         = render EditableChamp::AsteriskMandatoryComponent.new
 
-      - if hint?
+      - if hint_renderable?
         %span.fr-hint-text= hint
 
   = @form.public_send(@input_type, @attribute, input_opts)

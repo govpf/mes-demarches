@@ -2,21 +2,24 @@
 
 class WebhookController < ActionController::Base
   before_action :verify_helpscout_signature!, only: [:helpscout, :helpscout_support_dev]
+  before_action :verify_crisp_signature!, only: [:crisp]
   skip_before_action :verify_authenticity_token
 
   def sendinblue
-    if Rails.application.secrets.dig(:mattermost, :send_in_blue_outage_webhook_url).present?
+    webhook_url = ENV["SEND_IN_BLUE_OUTAGE_WEBHOOK_URL"]
+    if webhook_url.present?
       send_mattermost_notification(
-        Rails.application.secrets.dig(:mattermost, :send_in_blue_outage_webhook_url),
+        webhook_url,
         message_to_mattermost_send_in_blue_channel
       )
     end
   end
 
   def helpscout_support_dev
-    if tagged_dev? && status_active? && Rails.application.secrets.dig(:mattermost, :support_webhook_url).present?
+    webhook_url = ENV["SUPPORT_WEBHOOK_URL"]
+    if webhook_url.present? && tagged_dev? && status_active?
       send_mattermost_notification(
-        Rails.application.secrets.dig(:mattermost, :support_webhook_url),
+        webhook_url,
         message_to_mattermost_support_channel
       )
     end
@@ -42,15 +45,20 @@ class WebhookController < ActionController::Base
         url = manager_instructeur_url(instructeur)
         html << link_to_manager(instructeur, url)
 
-        disabled_notifications = instructeur.assign_to.filter do |assign_to|
-          !assign_to.instant_email_dossier_notifications_enabled ||
-          !assign_to.instant_email_message_notifications_enabled ||
-          !assign_to.instant_expert_avis_email_notifications_enabled
-        end
+        disabled_notifications = instructeur.assign_to
+          .group_by { it.groupe_instructeur.procedure_id }
+          .filter_map do |procedure_id, assign_tos|
+            first_assign_to = assign_tos.first
+            if !first_assign_to.instant_email_dossier_notifications_enabled ||
+               !first_assign_to.instant_email_message_notifications_enabled ||
+               !first_assign_to.instant_expert_avis_email_notifications_enabled
+              [procedure_id, first_assign_to]
+            end
+          end
 
         html << "Notifications activées" if disabled_notifications.empty?
-        disabled_notifications.each do |assign_to|
-          html << "Notifs désactivées Procedure##{assign_to.groupe_instructeur.procedure_id}"
+        disabled_notifications.each do |procedure_id, _|
+          html << "Notifs désactivées Procedure##{procedure_id}"
         end
 
       end
@@ -64,6 +72,12 @@ class WebhookController < ActionController::Base
 
       render json: { html: html.join('<br>') }
     end
+  end
+
+  def crisp
+    # Note: always respond with 200 or webhooks will be suspended.
+    Crisp::WebhookProcessor.new(params).process
+    head :ok
   end
 
   private
@@ -129,14 +143,26 @@ les composant suivants sont affectés : #{params["components"].map { _1['name'] 
   end
 
   def verify_helpscout_signature!
-    if generate_body_signature(request.body.read) != request.headers['X-Helpscout-Signature']
+    expected_signature =  Base64.strict_encode64(OpenSSL::HMAC.digest('sha1',
+      ENV.fetch("HELPSCOUT_WEBHOOK_SECRET"),
+      request.body.read))
+
+    if expected_signature != request.headers['X-Helpscout-Signature']
       request_http_token_authentication
     end
   end
 
-  def generate_body_signature(body)
-    Base64.strict_encode64(OpenSSL::HMAC.digest('sha1',
-      Rails.application.secrets.helpscout[:webhook_secret],
-      body))
+  def verify_crisp_signature!
+    timestamp = request.headers['X-Crisp-Request-Timestamp']
+    signature = request.headers['X-Crisp-Signature']
+
+    body = request.body.read
+    concatenated_string = "[#{timestamp};#{body}]"
+
+    expected_signature = OpenSSL::HMAC.hexdigest('sha256',
+      ENV.fetch("CRISP_WEBHOOK_SECRET"),
+      concatenated_string)
+
+    head :bad_request unless signature == expected_signature
   end
 end

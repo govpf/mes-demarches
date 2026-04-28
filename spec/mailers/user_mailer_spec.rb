@@ -101,6 +101,29 @@ RSpec.describe UserMailer, type: :mailer do
     end
   end
 
+  describe '.omniauth_merge_confirmation' do
+    let(:email) { 'user@exemple.fr' }
+    let(:email_merge_token) { SecureRandom.uuid }
+    let(:email_merge_token_created_at) { Time.current }
+    let(:provider) { 'tatou' }
+
+    subject { described_class.omniauth_merge_confirmation(email, email_merge_token, email_merge_token_created_at, provider) }
+
+    it 'renders the email with correct merge link and expiration date' do
+      expect(subject.to).to eq([email])
+      expect(subject.body).to include(email_merge_token)
+      expect(subject.body).to include(email_merge_token_created_at.strftime("%d-%m-%Y"))
+    end
+
+    context 'with wrong argument order (token and timestamp swapped)' do
+      subject { described_class.omniauth_merge_confirmation(email, 'wrong@email.com', email_merge_token, provider) }
+
+      it 'raises because strftime is called on a String' do
+        expect { subject.body }.to raise_error(ActionView::Template::Error, /strftime/)
+      end
+    end
+  end
+
   describe '#custom_confirmation_instructions' do
     let(:user) { create(:user, email: 'user@example.com') }
     let(:token) { 'confirmation_token_123' }

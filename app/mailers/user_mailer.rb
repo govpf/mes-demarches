@@ -50,6 +50,8 @@ class UserMailer < ApplicationMailer
   # pf: paramètre provider_type pour supporter OmniAuth (Tatou, Microsoft)
   def custom_confirmation_instructions(user, token, provider_type = :france_connect)
     @user = user
+    configure_defaults_for_user(@user)
+
     @token = token
     @provider_type = provider_type
     mail(to: @user.email, subject: 'Confirmez votre adresse électronique')

@@ -8,6 +8,7 @@ import type {
 import isEqual from 'react-fast-compare';
 import { useAsyncList, type AsyncListOptions } from 'react-stately';
 import { useEvent } from 'react-use-event-hook';
+import { fire, httpRequest } from '@utils';
 import * as s from 'superstruct';
 import { useDebounceCallback } from 'usehooks-ts';
 
@@ -421,22 +422,27 @@ export function useRemoteList({
   });
 
   // add to items list current selected item if it's not in the list
-  const items =
-    selectedItem && !list.getItem(selectedItem.value)
+  const items = list.error
+    ? []
+    : selectedItem && !list.getItem(selectedItem.value)
       ? [selectedItem, ...list.items]
       : list.items;
 
   const shouldShowPopover = useMemo(() => {
+    if (!isExplicitlySelected && list.error) {
+      return true;
+    }
+
     if (isExplicitlySelected || list.items.length == 0) {
       return false;
     }
-
     // Visible while loading new items or when loaded but explicit selection not yet done
     return list.loadingState == 'filtering' || !list.isLoading;
   }, [
     list.isLoading,
     list.loadingState,
     list.items.length,
+    list.error,
     isExplicitlySelected
   ]);
 
@@ -467,7 +473,8 @@ export function useRemoteList({
     items,
     onReset,
     isLoading: list.isLoading,
-    shouldShowPopover
+    shouldShowPopover,
+    error: list.error
   };
 }
 
@@ -481,7 +488,7 @@ const AnnuaireEducationPayload = s.type({
       fields: s.type({
         identifiant_de_l_etablissement: s.string(),
         nom_etablissement: s.string(),
-        nom_commune: s.string()
+        nom_commune: s.optional(s.string())
       })
     })
   )
@@ -494,43 +501,64 @@ const Coerce = {
     AnnuaireEducationPayload,
     ({ records }) =>
       records.map((record) => ({
-        label: `${record.fields.nom_etablissement}, ${record.fields.nom_commune} (${record.fields.identifiant_de_l_etablissement})`,
+        label: `${record.fields.nom_etablissement}${record.fields.nom_commune ? `, ${record.fields.nom_commune}` : ''} (${record.fields.identifiant_de_l_etablissement})`,
         value: record.fields.identifiant_de_l_etablissement,
         data: record
       }))
   )
 };
 
-export const createLoader: (
+export const createLoader = (
   source: string,
   options?: {
     minimumInputLength?: number;
     limit?: number;
     param?: string;
     coerce?: keyof typeof Coerce;
+    usePost?: boolean;
+    errorMessage?: string;
   }
-) => Loader =
-  (source, options) =>
-  async ({ signal, filterText }) => {
+): Loader => {
+  return async ({ signal, filterText }) => {
     const url = new URL(source, location.href);
     const minimumInputLength = options?.minimumInputLength ?? 2;
     const param = options?.param ?? 'q';
     const limit = options?.limit ?? 10;
+    const usePost = options?.usePost ?? false;
+    const coerceKey = options?.coerce ?? 'Default';
 
     if (!filterText || filterText.length < minimumInputLength) {
       return { items: [] };
     }
-    url.searchParams.set(param, filterText);
+
     try {
-      const response = await fetch(url.toString(), {
-        headers: { accept: 'application/json' },
-        signal
-      });
-      if (response.ok) {
-        const json = await response.json();
-        const struct = Coerce[options?.coerce ?? 'Default'];
-        const [err, items] = s.validate(json, struct, { coerce: true });
-        if (!err) {
+      const requestOptions: {
+        method: 'GET' | 'POST';
+        csrf: boolean;
+        signal: AbortSignal | undefined;
+        json?: unknown;
+      } = { method: 'GET', csrf: false, signal };
+
+      if (usePost) {
+        requestOptions.method = 'POST';
+        requestOptions.csrf = true;
+        requestOptions.json = { [param]: filterText };
+      } else {
+        url.searchParams.set(param, filterText);
+      }
+
+      const requestUrl = url.toString();
+
+      const json = await httpRequest(requestUrl, requestOptions).json();
+
+      if (json) {
+        const struct = Coerce[coerceKey];
+        const [err, items] = s.validate(json, struct, {
+          coerce: true
+        });
+        if (err) {
+          fire(document, 'sentry:capture-exception', err);
+        } else {
           const filteredItems = matchSorter(items, filterText, {
             keys: [
               (item) => item.label.replace(/[_ -]/g, ' '), // accept filter to match saint martin => "Saint-Martin"
@@ -546,10 +574,12 @@ export const createLoader: (
         }
       }
       return { items: [] };
-    } catch {
-      return { items: [] };
+    } catch (error) {
+      console.error(error);
+      throw new Error(options?.errorMessage ?? 'An error occurred');
     }
   };
+};
 
 export function useOnFormReset(onReset?: () => void) {
   const ref = useRef<HTMLInputElement>(null);

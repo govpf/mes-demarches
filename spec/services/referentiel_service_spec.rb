@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe ReferentielService, type: :service do
-  let(:api_referentiel) { create(:api_referentiel, :configured, url:, test_data:) }
+  let(:api_referentiel) { create(:api_referentiel, :exact_match, url:, test_data:) }
   let(:url) { "https://rnb-api.beta.gouv.fr/api/alpha/buildings/{id}/" }
   let(:test_data) { "PG46YY6YWCX8" }
   let(:stub_api_call) do
@@ -79,7 +79,7 @@ RSpec.describe ReferentielService, type: :service do
       let(:body) { nil }
       it "returns a not retryable Failure" do
         expect(subject).to be_failure
-        expect(subject.failure).to include(retryable: false, reason: StandardError.new('Not retryable: 404, 400, 403, 401'), code: 404)
+        expect(subject.failure).to include(retryable: false, reason: StandardError.new('Not retryable: 404'), code: 404)
       end
     end
 
@@ -88,7 +88,7 @@ RSpec.describe ReferentielService, type: :service do
       let(:body) { nil }
       it "returns a retryable Failure" do
         expect(subject).to be_failure
-        expect(subject.failure).to include(retryable: true, reason: StandardError.new('Retryable: 429, 500, 503, 408, 502'), code: 429)
+        expect(subject.failure).to include(retryable: true, reason: StandardError.new('Retryable: 429'), code: 429)
       end
     end
 
@@ -102,7 +102,7 @@ RSpec.describe ReferentielService, type: :service do
     end
 
     context 'when referentiel has authentication' do
-      let(:api_referentiel) { create(:api_referentiel, :configured, url:, test_data:, authentication_method: 'header_token', authentication_data: { header: 'Authorization', value: 'Bearer kthxbye' }) }
+      let(:api_referentiel) { create(:api_referentiel, :exact_match, url:, test_data:, authentication_method: 'header_token', authentication_data: { header: 'Authorization', value: 'Bearer kthxbye' }) }
       let(:status) { 200 }
       let(:body) { { body: :ok } }
       let(:stub_api_call) do

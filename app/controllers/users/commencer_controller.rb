@@ -14,6 +14,7 @@ module Users
       @revision = params[:test] ? @procedure.draft_revision : @procedure.active_revision
 
       if params[:prefill_token].present? || commencer_page_is_reloaded?
+        store_user_location!(@procedure)
         retrieve_prefilled_dossier(params[:prefill_token] || session[:prefill_token])
       elsif prefill_params_present?
         build_prefilled_dossier
@@ -77,6 +78,14 @@ module Users
       redirect_to france_connect_path
     end
 
+    def pro_connect
+      @procedure = retrieve_procedure
+      return procedure_not_found if @procedure.blank?
+
+      store_user_location!(@procedure)
+      redirect_to pro_connect_path
+    end
+
     def procedure_for_help
       retrieve_procedure
     end
@@ -95,10 +104,6 @@ module Users
 
     private
 
-    def extra_query_params
-      params.slice(:prefill_token, :test).to_unsafe_h.compact
-    end
-
     def commencer_page_is_reloaded?
       session[:prefill_token].present? && session[:prefill_params_digest] == PrefillChamps.digest(params)
     end
@@ -108,11 +113,11 @@ module Users
     end
 
     def retrieve_procedure
-      Procedure.publiees.or(Procedure.brouillons).find_with_path(params[:path]).first
+      Procedure.publiees.or(Procedure.brouillons).with_active_revision.find_with_path(params[:path]).first
     end
 
     def retrieve_procedure_with_closed
-      Procedure.publiees.or(Procedure.brouillons).or(Procedure.closes).order(published_at: :desc).find_with_path(params[:path]).first
+      Procedure.publiees.or(Procedure.brouillons).or(Procedure.closes).with_active_revision.order(published_at: :desc).find_with_path(params[:path]).first
     end
 
     def build_prefilled_dossier

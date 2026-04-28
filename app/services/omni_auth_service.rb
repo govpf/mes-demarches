@@ -15,7 +15,7 @@ class OmniAuthService
     if provider.blank?
       raise "provider should not be nil"
     end
-    client = OmniAuthClient.new(Rails.application.secrets[provider])
+    client = OmniAuthClient.new(PF_OMNIAUTH_PROVIDERS[provider])
     scope = provider == 'yahoo' ? [:'sdpp-w'] : [:profile, :email]
 
     client.authorization_uri(
@@ -36,7 +36,7 @@ class OmniAuthService
     if provider.blank?
       raise "provider should not be nil"
     end
-    client = OmniAuthClient.new(Rails.application.secrets[provider], code)
+    client = OmniAuthClient.new(PF_OMNIAUTH_PROVIDERS[provider], code)
 
     user_info = client.access_token!(client_auth_method: :secret)
       .userinfo!

@@ -118,9 +118,11 @@ describe API::V1::DossiersController do
         describe 'pagination' do
           subject { body[:pagination] }
 
-          it { expect(subject[:page]).to eq(2) }
-          it { expect(subject[:resultats_par_page]).to eq(1) }
-          it { expect(subject[:nombre_de_page]).to eq(3) }
+          it do
+            expect(subject[:page]).to eq(2)
+            expect(subject[:resultats_par_page]).to eq(1)
+            expect(subject[:nombre_de_page]).to eq(3)
+          end
         end
       end
     end
@@ -163,7 +165,7 @@ describe API::V1::DossiersController do
       context 'when dossier (with attestation) exists and belongs to procedure' do
         let(:procedure_id) { procedure.id }
         let(:dossier_id) { dossier.id }
-        let!(:dossier) { create(:dossier, :with_entreprise, :with_attestation, :accepte, procedure: procedure, motivation: "Motivation") }
+        let!(:dossier) { create(:dossier, :with_entreprise, :with_attestation_acceptation, :accepte, procedure: procedure, motivation: "Motivation") }
         let(:body) { JSON.parse(retour.body, symbolize_names: true) }
         subject { body[:dossier] }
 
@@ -245,8 +247,10 @@ describe API::V1::DossiersController do
           describe 'first champ' do
             subject { super().first }
 
-            it { expect(subject.key?(:value)).to be_truthy }
-            it { expect(subject.key?(:type_de_champ)).to be_truthy }
+            it do
+              expect(subject.key?(:value)).to be_truthy
+              expect(subject.key?(:type_de_champ)).to be_truthy
+            end
 
             describe 'type de champ' do
               let(:field_list) {
@@ -307,8 +311,10 @@ describe API::V1::DossiersController do
           describe 'first champs' do
             subject { super().first }
 
-            it { expect(subject.key?(:value)).to be_truthy }
-            it { expect(subject.key?(:type_de_champ)).to be_truthy }
+            it do
+              expect(subject.key?(:value)).to be_truthy
+              expect(subject.key?(:type_de_champ)).to be_truthy
+            end
 
             describe 'type de champ' do
               let(:field_list) {

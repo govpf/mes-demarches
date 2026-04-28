@@ -139,13 +139,122 @@ RSpec.describe DossierChampsConcern do
         end
       end
     end
+
+    # pf: sur un dossier de preview, la draft_revision mute en direct via
+    # l'éditeur. On doit donc systématiquement recalculer les formules à
+    # la lecture pour refléter : TDC formule nouvellement ajouté, expression
+    # modifiée, source ajoutée/supprimée/changée.
+    context 'formule field on a preview dossier' do
+      let(:procedure) do
+        create(:procedure, types_de_champ_public: [
+          { type: :integer_number, libelle: 'Montant', stable_id: 10 },
+          { type: :formule, libelle: 'Double', stable_id: 11, formule_expression: '' }
+        ])
+      end
+      let(:dossier) { procedure.draft_revision.dossier_for_preview(create(:user)) }
+      let(:montant_tdc) { dossier.find_type_de_champ_by_stable_id(10) }
+      let(:formule_tdc) { dossier.find_type_de_champ_by_stable_id(11) }
+
+      before do
+        dossier.project_champ(montant_tdc).update!(value: '7')
+        # Convertit l'expression en stable_ids avant de l'injecter dans le TDC
+        expr, _deps = FormulaExpressionService.convert_to_stable_ids('{Montant} * 2', procedure.draft_revision)
+        formule_tdc.update!(formule_expression: expr)
+      end
+
+      context 'when the formule champ is not yet persisted' do
+        before { dossier.champs.where(type: 'Champs::FormuleChamp').destroy_all; dossier.reload }
+
+        it 'computes the value in memory on read' do
+          projected = dossier.project_champ(formule_tdc)
+          expect(projected.new_record?).to be_truthy
+          expect(projected.value).to eq('14')
+        end
+      end
+
+      context 'when the persisted formule value is stale' do
+        before do
+          persisted = dossier.champs.find_or_initialize_by(stable_id: 11, row_id: nil)
+          persisted.type = 'Champs::FormuleChamp'
+          persisted.value = '999' # valeur périmée
+          persisted.save(validate: false)
+          dossier.reload
+        end
+
+        it 'recomputes on read using the current formule_expression' do
+          projected = dossier.project_champ(formule_tdc)
+          expect(projected.value).to eq('14')
+        end
+      end
+    end
+
+    # pf: un dossier de test (non preview) sur une démarche brouillon est lui
+    # aussi attaché à la draft_revision qui mute en direct — il doit bénéficier
+    # du même recalcul que les previews.
+    context 'formule field on a test dossier (non preview) on a brouillon procedure' do
+      let(:procedure) do
+        create(:procedure, types_de_champ_public: [
+          { type: :integer_number, libelle: 'Montant', stable_id: 30 },
+          { type: :formule, libelle: 'Double', stable_id: 31, formule_expression: '' }
+        ])
+      end
+      let(:dossier) { create(:dossier, procedure: procedure) }
+      let(:montant_tdc) { dossier.find_type_de_champ_by_stable_id(30) }
+      let(:formule_tdc) { dossier.find_type_de_champ_by_stable_id(31) }
+
+      before do
+        expect(dossier.for_procedure_preview).to be_falsey # sanity check
+        expect(dossier.revision.draft?).to be_truthy
+
+        dossier.project_champ(montant_tdc).update!(value: '5')
+        expr, _deps = FormulaExpressionService.convert_to_stable_ids('{Montant} * 3', procedure.draft_revision)
+        formule_tdc.update!(formule_expression: expr)
+      end
+
+      it 'recomputes on read like a preview dossier' do
+        dossier.champs.where(type: 'Champs::FormuleChamp').destroy_all
+        dossier.reload
+        projected = dossier.project_champ(formule_tdc)
+        expect(projected.value).to eq('15')
+      end
+    end
+
+    # pf: sur un dossier soumis à une révision publiée (figée), on ne force
+    # pas le recalcul : refresh_dependent_formulas a déjà fait son travail
+    # au moment du save d'une source, et la révision ne bougera plus.
+    context 'formule field on a dossier attached to a published revision' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :integer_number, libelle: 'Montant', stable_id: 40 },
+          { type: :formule, libelle: 'Double', stable_id: 41, formule_expression: '1 + 1' }
+        ])
+      end
+      # Dossier sur la révision publiée (figée)
+      let(:dossier) { create(:dossier, procedure: procedure, revision: procedure.published_revision) }
+      let(:formule_tdc) { dossier.find_type_de_champ_by_stable_id(41) }
+
+      it 'does not recompute — trusts the persisted value' do
+        expect(dossier.revision.draft?).to be_falsey # sanity check
+
+        persisted = dossier.champs.find_or_initialize_by(stable_id: 41, row_id: nil)
+        persisted.type = 'Champs::FormuleChamp'
+        persisted.value = 'persisted-value'
+        persisted.save(validate: false)
+        dossier.reload
+
+        projected = dossier.project_champ(formule_tdc)
+        expect(projected.value).to eq('persisted-value')
+      end
+    end
   end
 
   describe '#project_champs_public' do
     subject { dossier.project_champs_public }
 
-    it { expect(subject.size).to eq(4) }
-    it { expect(subject.find { _1.libelle == 'Nom' }).to be_falsey }
+    it do
+      expect(subject.size).to eq(4)
+      expect(subject.find { _1.libelle == 'Nom' }).to be_falsey
+    end
   end
 
   describe '#project_champs_private' do
@@ -168,8 +277,10 @@ RSpec.describe DossierChampsConcern do
     let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
     subject { dossier.filled_champs_public }
 
-    it { expect(subject.size).to eq(5) }
-    it { expect(subject.filter { _1.libelle == 'Nom' }.size).to eq(2) }
+    it do
+      expect(subject.size).to eq(5)
+      expect(subject.filter { _1.libelle == 'Nom' }.size).to eq(2)
+    end
   end
 
   describe '#filled_champs_private' do
@@ -194,7 +305,7 @@ RSpec.describe DossierChampsConcern do
     context 'given a type de champ repetition in another revision' do
       before do
         procedure.draft_revision.remove_type_de_champ(type_de_champ_repetition.stable_id)
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
       end
 
       it { expect { subject }.not_to raise_error }
@@ -205,8 +316,10 @@ RSpec.describe DossierChampsConcern do
     let(:type_de_champ_repetition) { dossier.find_type_de_champ_by_stable_id(993) }
     subject { dossier.project_rows_for(type_de_champ_repetition) }
 
-    it { expect(subject.size).to eq(1) }
-    it { expect(subject.first.size).to eq(1) }
+    it do
+      expect(subject.size).to eq(1)
+      expect(subject.first.size).to eq(1)
+    end
   end
 
   describe '#repetition_add_row' do
@@ -214,8 +327,10 @@ RSpec.describe DossierChampsConcern do
     let(:row_ids) { dossier.repetition_row_ids(type_de_champ_repetition) }
     subject { dossier.repetition_add_row(type_de_champ_repetition, updated_by: 'test') }
 
-    it { expect { subject }.to change { dossier.repetition_row_ids(type_de_champ_repetition).size }.by(1) }
-    it { expect(subject).to be_in(row_ids) }
+    it do
+      expect { subject }.to change { dossier.repetition_row_ids(type_de_champ_repetition).size }.by(1)
+      expect(subject).to be_in(row_ids)
+    end
   end
 
   describe '#repetition_remove_row' do
@@ -231,8 +346,10 @@ RSpec.describe DossierChampsConcern do
   describe "#champ_values_for_export" do
     subject { dossier.champ_values_for_export(dossier.revision.types_de_champ_public, format: :xlsx) }
 
-    it { expect(subject.size).to eq(4) }
-    it { expect(subject.first).to eq(["Un champ text", nil]) }
+    it do
+      expect(subject.size).to eq(4)
+      expect(subject.first).to eq(["Un champ text", nil])
+    end
   end
 
   describe "#champs_for_prefill" do
@@ -307,7 +424,7 @@ RSpec.describe DossierChampsConcern do
         before do
           tdc = dossier.procedure.draft_revision.find_and_ensure_exclusive_use(99)
           tdc.update!(type_champ: TypeDeChamp.type_champs.fetch(:checkbox))
-          dossier.procedure.publish_revision!
+          dossier.procedure.publish_revision!(procedure.administrateurs.first)
           perform_enqueued_jobs
           dossier.reload
         end
@@ -335,7 +452,6 @@ RSpec.describe DossierChampsConcern do
           let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
 
           before do
-            Flipper.enable(:user_buffer_stream, procedure)
             dossier.with_update_stream(dossier.user)
           end
 
@@ -427,7 +543,7 @@ RSpec.describe DossierChampsConcern do
         before do
           tdc = dossier.procedure.draft_revision.find_and_ensure_exclusive_use(99)
           tdc.update!(type_champ: TypeDeChamp.type_champs.fetch(:linked_drop_down_list), drop_down_options: ["--primary--", "secondary"])
-          dossier.procedure.publish_revision!
+          dossier.procedure.publish_revision!(procedure.administrateurs.first)
           perform_enqueued_jobs
           dossier.reload
         end
@@ -452,7 +568,7 @@ RSpec.describe DossierChampsConcern do
         before do
           tdc = dossier.procedure.draft_revision.find_and_ensure_exclusive_use(99)
           tdc.update!(type_champ: TypeDeChamp.type_champs.fetch(:text))
-          dossier.procedure.publish_revision!
+          dossier.procedure.publish_revision!(procedure.administrateurs.first)
           perform_enqueued_jobs
           dossier.reload
         end
@@ -477,7 +593,7 @@ RSpec.describe DossierChampsConcern do
         before do
           tdc = dossier.procedure.draft_revision.find_and_ensure_exclusive_use(99)
           tdc.update!(type_champ: TypeDeChamp.type_champs.fetch(:checkbox))
-          dossier.procedure.publish_revision!
+          dossier.procedure.publish_revision!(procedure.administrateurs.first)
           perform_enqueued_jobs
           dossier.reload
         end
@@ -502,7 +618,7 @@ RSpec.describe DossierChampsConcern do
         before do
           tdc = dossier.procedure.draft_revision.find_and_ensure_exclusive_use(99)
           tdc.update!(type_champ: TypeDeChamp.type_champs.fetch(:text))
-          dossier.procedure.publish_revision!
+          dossier.procedure.publish_revision!(procedure.administrateurs.first)
           perform_enqueued_jobs
           dossier.reload
         end
@@ -562,8 +678,6 @@ RSpec.describe DossierChampsConcern do
     let(:dossier) { create(:dossier, :en_construction, procedure:) }
 
     describe "#public_champ_for_update" do
-      before { Flipper.enable(:user_buffer_stream, procedure) }
-
       let(:type_de_champ_repetition) { dossier.find_type_de_champ_by_stable_id(993) }
       let(:row_ids) { dossier.project_champ(type_de_champ_repetition).row_ids }
       let(:row_id) { row_ids.first }
@@ -579,7 +693,7 @@ RSpec.describe DossierChampsConcern do
       let(:new_attributes) do
         {
           "99" => { value: "Hello!!!" },
-          "994-#{row_id}" => { value: "Greer is the best" }
+          "994-#{row_id}" => { value: "Greer is the best, for sure !" }
         }
       end
 
@@ -657,7 +771,7 @@ RSpec.describe DossierChampsConcern do
         end
 
         expect(main_champ_99.value).to eq("Hello!!!")
-        expect(main_champ_994.value).to eq("Greer is the best")
+        expect(main_champ_994.value).to eq("Greer is the best, for sure !")
         expect(dossier.history.size).to eq(4)
 
         travel_to(2.hours.from_now) do
@@ -671,7 +785,7 @@ RSpec.describe DossierChampsConcern do
         dossier.reset_user_buffer_stream!
         expect(draft_champ_99.value).to eq("Hello!!!")
         expect(draft_champ_991.value).to eq("World")
-        expect(draft_champ_994.value).to eq("Greer is the best")
+        expect(draft_champ_994.value).to eq("Greer is the best, for sure !")
       }
 
       context "missing champs" do
@@ -694,6 +808,97 @@ RSpec.describe DossierChampsConcern do
           expect(dossier.history.size).to eq(0)
         }
       end
+
+      context "piece_justificative or titre_identite" do
+        let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
+        let(:types_de_champ_public) do
+          [
+            { type: :piece_justificative, libelle: "Un champ pj", stable_id: 98 },
+            { type: :titre_identite, libelle: "Un champ titre identite", stable_id: 99 }
+          ]
+        end
+
+        subject do
+          dossier.with_update_stream(dossier.user) do
+            champ = dossier.public_champ_for_update('98', updated_by: dossier.user.email)
+            champ.piece_justificative_file.attach({ io: Rails.root.join('spec/fixtures/files/Contrat.pdf').open, filename: 'Contrat.pdf' })
+            champ.save!
+            champ = dossier.public_champ_for_update('99', updated_by: dossier.user.email)
+            champ.piece_justificative_file.purge
+          end
+        end
+
+        it {
+          subject
+
+          expect(dossier.history.size).to eq(0)
+          dossier.merge_user_buffer_stream!
+          perform_enqueued_jobs
+          dossier.reload
+          expect(dossier.history.size).to eq(2)
+          expect(dossier.history.map(&:piece_justificative_file).map(&:attached?)).to eq([false, false])
+          expect(dossier.history.map(&:data)).to match_array([
+            [
+              { "checksum" => "6kFu0HWdRqjeWPY6WQd0mQ==", "filename" => "toto.txt" }
+            ], [
+              { "checksum" => "9x2+UmKKP4OnerSUgXUlxg==", "filename" => "toto.png" }
+            ]
+          ])
+
+          dossier.clean_champs_after_instruction!
+          dossier.reload
+
+          expect(dossier.history.size).to eq(2)
+
+          pj_champ = dossier.project_champ(dossier.find_type_de_champ_by_stable_id(98), row_id: nil)
+          expect(pj_champ.piece_justificative_file.size).to eq(2)
+          expect(pj_champ.piece_justificative_file.map(&:filename).map(&:to_s)).to eq(['toto.txt', 'Contrat.pdf'])
+        }
+      end
+    end
+
+    describe "#repetition_remove_row" do
+      let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
+      let(:type_de_champ_repetition) { dossier.find_type_de_champ_by_stable_id(993) }
+      let(:row_ids) { dossier.project_champ(type_de_champ_repetition).row_ids }
+      let(:row_id) { row_ids.first }
+
+      def main_row(stable_id, row_id)
+        dossier.with_main_stream do
+          dossier.send(:champs_on_stream).find { _1.stable_id == stable_id && _1.row_id == row_id }
+        end
+      end
+
+      def draft_row(stable_id, row_id)
+        dossier.with_update_stream(dossier.user) do
+          dossier.send(:champs_on_stream).find { _1.stable_id == stable_id && _1.row_id == row_id }
+        end
+      end
+
+      def main_champ_993 = main_row(993, row_id)
+      def draft_champ_993 = draft_row(993, row_id)
+
+      subject do
+        dossier.with_update_stream(dossier.user) { dossier.repetition_remove_row(type_de_champ_repetition, row_id, updated_by: 'test') }
+      end
+
+      it {
+        expect(main_champ_993.discarded_at).to be_nil
+        subject
+        expect(main_champ_993.discarded_at).to be_nil
+        expect(draft_champ_993.discarded_at).not_to be_nil
+
+        dossier.reload
+        dossier.merge_user_buffer_stream!
+        dossier.reload
+
+        expect(dossier.history.size).to eq(2)
+
+        dossier.clean_champs_after_submit!
+        dossier.reload
+
+        expect(dossier.history.map(&:public_id)).to match_array(["993-#{row_id}", "994-#{row_id}"])
+      }
     end
   end
 end

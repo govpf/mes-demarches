@@ -83,10 +83,10 @@ class APICps::API
   def auth_body
     {
       grant_type:    'password',
-      client_id:     Rails.application.secrets.api_cps[:client_id],
-      client_secret: Rails.application.secrets.api_cps[:client_secret],
-      username:      Rails.application.secrets.api_cps[:username],
-      password:      Rails.application.secrets.api_cps[:password],
+      client_id:     ENV['API_CPS_CLIENT_ID'],
+      client_secret: ENV['API_CPS_CLIENT_SECRET'],
+      username:      ENV['API_CPS_USERNAME'],
+      password:      ENV['API_CPS_PASSWORD'],
       scope:         'openid'
     }
   end

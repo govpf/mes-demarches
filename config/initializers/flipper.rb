@@ -25,26 +25,27 @@ features = [
   :cojo_type_de_champ,
   :dossier_pdf_vide,
   :engagement_juridique_type_de_champ,
+  :export_avec_horodatage,
   :export_order_by_revision,
   :export_template,
-  :referentiel_type_de_champ,
   :groupe_instructeur_api_hack,
+  :notification,
   :ocr,
   :qrcoded_pdf,
-  :rdv,
   :pro_connect_restricted,
+  :rdv,
+  :referentiel_type_de_champ,
   :sva,
-  :switch_domain,
-  :export_avec_horodatage,
-  :notification,
   # :lexpol,
   :visa,
+  :formule,
   # pf: feature flag pour la navigation contextuelle entre personas
-  :contextual_persona_navigation
+  :contextual_persona_navigation,
+  :switch_domain
 ]
 
 def database_exists?
-  ActiveRecord::Base.connection
+  ActiveRecord::Base.connection.verify!
   true
 rescue ActiveRecord::ConnectionNotEstablished, ActiveRecord::NoDatabaseError, PG::ConnectionBad
   false

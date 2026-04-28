@@ -3,13 +3,6 @@
 class DossierNotification < ApplicationRecord
   DELAY_DOSSIER_DEPOSE = 7.days
 
-  belongs_to :groupe_instructeur, optional: true
-  belongs_to :instructeur, optional: true
-  belongs_to :dossier
-
-  validates :groupe_instructeur_id, presence: true, if: -> { instructeur_id.nil? }
-  validates :instructeur_id, presence: true, if: -> { groupe_instructeur_id.nil? }
-
   enum :notification_type, {
     dossier_depose: 'dossier_depose',
     dossier_modifie: 'dossier_modifie',
@@ -20,66 +13,134 @@ class DossierNotification < ApplicationRecord
     attente_avis: 'attente_avis'
   }
 
+  belongs_to :instructeur
+  belongs_to :dossier
+
   scope :to_display, -> { where(display_at: ..Time.current) }
 
   scope :order_by_importance, -> {
-    self.sort_by { |notif| notification_types.keys.index(notif.notification_type) }
+    self.sort_by { |notif| notification_types.keys.index(notif.notification_type) || notification_types.keys.length }
   }
 
   scope :type_news, -> { where(notification_type: [:dossier_modifie, :message, :annotation_instructeur, :avis_externe]) }
 
-  def self.create_notification(dossier, notification_type, instructeur: nil, except_instructeur: nil)
-    case notification_type
-    when :dossier_depose
-      if !dossier.procedure.declarative? && !dossier.procedure.sva_svr_enabled?
-        groupe_instructeur_id = dossier.groupe_instructeur_id
-        display_at = dossier.depose_at + DELAY_DOSSIER_DEPOSE
+  def self.create_notification(dossier, notification_type, except_instructeur: nil)
+    instructeur_ids = instructeur_to_notify_ids(dossier, notification_type, except_instructeur)
 
-        find_or_create_notification(dossier, notification_type, groupe_instructeur_id:, display_at:)
-      end
+    create_notifications_by_type_for_dossier_instructeurs(dossier, notification_type, instructeur_ids) if instructeur_ids.any?
+  end
 
-    when :dossier_modifie, :message, :attente_correction, :attente_avis, :annotation_instructeur, :avis_externe
-      instructeur_ids = Array(instructeur&.id.presence || dossier.followers_instructeur_ids)
-      instructeur_ids -= [except_instructeur.id] if except_instructeur.present?
+  def self.refresh_notifications_instructeur_for_followed_dossier(instructeur, dossier)
+    destroy_notifications_by_dossier_and_type(dossier, :dossier_depose)
 
-      instructeur_ids.each do |instructeur_id|
-        find_or_create_notification(dossier, notification_type, instructeur_id:)
-      end
+    instructeur_preferences = instructeur_preferences(instructeur, dossier.procedure)
+
+    notification_types_followed = notification_types.keys.map(&:to_sym).filter do |notification_type|
+      instructeur_preferences[notification_type] == 'followed'
+    end
+
+    return if notification_types_followed.empty?
+
+    notification_types_to_refresh = notification_types_followed.filter do |notification_type|
+      instructeur_ids_to_notify_by_notification_type(dossier, notification_type, [instructeur.id]).any?
+    end
+
+    create_notifications_for_dossier_instructeur(dossier, notification_types_to_refresh, instructeur.id)
+  end
+
+  def self.refresh_notifications_instructeur_for_dossiers(groupe_instructeur_ids, instructeur_id, notification_type, old_preference, new_preference)
+    # We use the scope state_not_brouillon rather than visible_by_administration in order to keep notifications up to date
+    # on hidden dossiers, so that there is no need to refresh notifications if the dossier is restored.
+    all_dossiers = Dossier.where(groupe_instructeur_id: groupe_instructeur_ids).state_not_brouillon
+    followed_dossiers = all_dossiers.joins(:follows).where(follows: { instructeur_id: }).distinct
+    non_followed_dossiers = all_dossiers.where.not(id: followed_dossiers)
+
+    case [old_preference, new_preference]
+    when ['all', 'none'], ['followed', 'none']
+      destroy_notifications_by_type_for_instructeur_dossiers(all_dossiers, notification_type, instructeur_id)
+    when ['all', 'followed']
+      destroy_notifications_by_type_for_instructeur_dossiers(non_followed_dossiers, notification_type, instructeur_id)
+    when ['none', 'all']
+      all_dossiers_to_notify = dossiers_to_notify(all_dossiers, notification_type, instructeur_id)
+      create_notifications_by_type_for_instructeur_dossiers(all_dossiers_to_notify, notification_type, instructeur_id) if all_dossiers_to_notify.any?
+    when ['followed', 'all']
+      non_followed_dossiers_to_notify = dossiers_to_notify(non_followed_dossiers, notification_type, instructeur_id)
+      create_notifications_by_type_for_instructeur_dossiers(non_followed_dossiers_to_notify, notification_type, instructeur_id) if non_followed_dossiers_to_notify.any?
+    when ['none', 'followed']
+      followed_dossiers_to_notify = dossiers_to_notify(followed_dossiers, notification_type, instructeur_id)
+      create_notifications_by_type_for_instructeur_dossiers(followed_dossiers_to_notify, notification_type, instructeur_id) if followed_dossiers_to_notify.any?
     end
   end
 
-  def self.update_notifications_groupe_instructeur(previous_groupe_instructeur, new_groupe_instructeur)
-    DossierNotification
-      .where(groupe_instructeur: previous_groupe_instructeur)
-      .update_all(groupe_instructeur_id: new_groupe_instructeur.id)
+  def self.refresh_notifications_new_instructeur_for_dossiers(groupe_instructeur, instructeur)
+    instructeur_preferences = instructeur_preferences(instructeur, groupe_instructeur.procedure)
+
+    notification_types_to_refresh = notification_types.keys.map(&:to_sym).filter do |notification_type|
+      instructeur_preferences[notification_type] == 'all'
+    end
+
+    return if notification_types_to_refresh.empty?
+
+    dossiers = groupe_instructeur.dossiers.state_not_brouillon
+
+    notification_types_to_refresh.each do |notification_type|
+      dossiers_to_notify = dossiers_to_notify(dossiers, notification_type, instructeur.id)
+      create_notifications_by_type_for_instructeur_dossiers(dossiers_to_notify, notification_type, instructeur.id) if dossiers_to_notify.any?
+    end
   end
 
-  def self.refresh_notifications_instructeur_for_dossier(instructeur, dossier)
-    create_notification(dossier, :dossier_modifie, instructeur:) if dossier.last_champ_updated_at.present? && dossier.last_champ_updated_at > dossier.depose_at
-    create_notification(dossier, :message, instructeur:) if dossier.commentaires.to_notify(instructeur).present?
-    create_notification(dossier, :annotation_instructeur, instructeur:) if dossier.last_champ_private_updated_at.present?
-    create_notification(dossier, :avis_externe, instructeur:) if dossier.avis.with_answer.present?
-    create_notification(dossier, :attente_correction, instructeur:) if dossier.pending_correction?
-    create_notification(dossier, :attente_avis, instructeur:) if dossier.avis.without_answer.present?
+  def self.refresh_notifications_new_instructeurs_for_dossier(instructeur_ids, dossier)
+    all_preferences_by_instructeur_id = InstructeursProcedure
+      .where(instructeur_id: instructeur_ids, procedure_id: dossier.procedure.id)
+      .pluck(:instructeur_id, *InstructeursProcedure::NOTIFICATION_COLUMNS.values)
+      .to_h { |instructeur_id, *prefs| [instructeur_id, prefs] }
+
+    instructeur_ids_requesting_notifications_by_type = InstructeursProcedure::NOTIFICATION_COLUMNS.each_with_index.to_h do |(notification_type, _), index|
+      instructeur_ids_requesting_notifications = instructeur_ids.filter do |instructeur_id|
+        preference = all_preferences_by_instructeur_id.dig(instructeur_id, index) || InstructeursProcedure::DEFAULT_NOTIFICATIONS_PREFERENCES[notification_type]
+        preference == 'all'
+      end
+      [notification_type, instructeur_ids_requesting_notifications]
+    end.compact_blank!
+
+    instructeur_ids_requesting_notifications_by_type.each do |notification_type, instructeur_ids|
+      instructeur_ids_to_notify = instructeur_ids_to_notify_by_notification_type(dossier, notification_type, instructeur_ids)
+
+      create_notifications_by_type_for_dossier_instructeurs(dossier, notification_type, instructeur_ids_to_notify) if instructeur_ids_to_notify.any?
+    end
   end
 
   def self.destroy_notifications_instructeur_of_groupe_instructeur(groupe_instructeur, instructeur)
     DossierNotification
       .where(instructeur:)
       .where(dossier_id: groupe_instructeur.dossier_ids)
-      .destroy_all
+      .delete_all
   end
 
-  def self.destroy_notifications_instructeur_of_dossier(instructeur, dossier)
+  def self.destroy_notifications_instructeurs_of_old_dossier(instructeur_ids, dossier)
     DossierNotification
-      .where(instructeur:, dossier:)
-      .destroy_all
+      .where(instructeur_id: instructeur_ids, dossier:)
+      .delete_all
+  end
+
+  def self.destroy_notifications_instructeur_of_unfollowed_dossier(instructeur, dossier)
+    instructeur_preferences = instructeur_preferences(instructeur, dossier.procedure)
+
+    notification_types_to_destroy = notification_types.keys.map(&:to_sym).reject do |notification_type|
+      instructeur_preferences[notification_type] == "all"
+    end
+
+    return if notification_types_to_destroy.empty?
+
+    DossierNotification
+      .where(instructeur:, dossier:, notification_type: notification_types_to_destroy)
+      .delete_all
   end
 
   def self.destroy_notifications_by_dossier_and_type(dossier, notification_type)
     DossierNotification
       .where(dossier:, notification_type:)
-      .destroy_all
+      .delete_all
   end
 
   def self.destroy_notification_by_dossier_and_type_and_instructeur(dossier, notification_type, instructeur)
@@ -98,6 +159,7 @@ class DossierNotification < ApplicationRecord
       .distinct
 
     dossiers_with_news_notification_by_statut = {
+      a_suivre: dossiers_with_news_notification.by_statut('a-suivre'),
       suivis: dossiers_with_news_notification.by_statut('suivis', instructeur:),
       traites: dossiers_with_news_notification.by_statut('traites')
     }
@@ -116,6 +178,7 @@ class DossierNotification < ApplicationRecord
       .distinct
 
     {
+      a_suivre: dossiers_with_news_notification.by_statut('a-suivre').exists?,
       suivis: dossiers_with_news_notification.by_statut('suivis', instructeur:).exists?,
       traites: dossiers_with_news_notification.by_statut('traites').exists?
     }
@@ -149,10 +212,8 @@ class DossierNotification < ApplicationRecord
       .transform_values { |v| v.map(&:last) }
 
     notifications_by_dossier_id = DossierNotification
-      .where(dossier: dossiers, groupe_instructeur_id: groupe_instructeur_ids)
-      .or(DossierNotification.where(dossier: dossiers, instructeur:))
+      .where(dossier: dossiers, instructeur:)
       .to_display
-      .order_by_importance
       .group_by(&:dossier_id)
 
     dossier_ids_by_procedure.transform_values do |dossier_ids|
@@ -165,31 +226,32 @@ class DossierNotification < ApplicationRecord
   end
 
   def self.notifications_for_instructeur_procedure(groupe_instructeur_ids, instructeur)
-    dossiers = Dossier.where(groupe_instructeur_id: groupe_instructeur_ids)
+    notifications = DossierNotification
+      .to_display
+      .joins(:dossier)
+      .where(dossiers: { groupe_instructeur_id: groupe_instructeur_ids }, instructeur:)
 
-    dossiers_by_statut = {
-      'a-suivre' => dossiers.by_statut('a-suivre'),
-      'suivis' => dossiers.by_statut('suivis', instructeur:),
-      'traites' => dossiers.by_statut('traites')
+    dossier_ids_with_notifications_by_statut = {
+      'a-suivre' => notifications.merge(Dossier.by_statut('a-suivre')).group_by(&:notification_type).transform_values { |notifs| notifs.first(10).pluck(:dossier_id) },
+      'suivis' => notifications.merge(Dossier.by_statut('suivis', instructeur:)).group_by(&:notification_type).transform_values { |notifs| notifs.first(10).pluck(:dossier_id) },
+      'traites' => notifications.merge(Dossier.by_statut('traites')).group_by(&:notification_type).transform_values { |notifs| notifs.first(10).pluck(:dossier_id) }
     }
 
-    notifications_by_dossier_id = DossierNotification
-      .where(dossier: dossiers, groupe_instructeur_id: groupe_instructeur_ids)
-      .or(DossierNotification.where(dossier: dossiers, instructeur:))
-      .to_display
-      .order_by_importance
-      .group_by(&:dossier_id)
+    dossiers = Dossier
+      .select(:id)
+      .where(id: dossier_ids_with_notifications_by_statut.values.flat_map(&:values).flatten.uniq)
+      .includes(:etablissement, :individual)
+      .index_by(&:id)
 
-    dossiers_by_statut.filter_map do |statut, dossiers|
-      notifications = dossiers
-        .flat_map { |d| notifications_by_dossier_id[d.id] || [] }
-        .group_by(&:notification_type)
+    dossier_ids_with_notifications_by_statut.filter_map do |statut, dossier_ids_by_notification_type|
+      next if dossier_ids_by_notification_type.empty?
 
-      next if notifications.empty?
+      dossier_ids_by_sorted_notification_type = notification_types.keys.index_with { |type| dossier_ids_by_notification_type[type] }.compact
 
-      sorted_notifications = notification_types.keys.index_with { |type| notifications[type] }.compact
+      dossiers_by_sorted_notification_type = dossier_ids_by_sorted_notification_type
+        .transform_values { |dossier_ids| dossiers.values_at(*dossier_ids) }
 
-      [statut, sorted_notifications]
+      [statut, dossiers_by_sorted_notification_type]
     end.to_h
   end
 
@@ -197,7 +259,7 @@ class DossierNotification < ApplicationRecord
     DossierNotification
       .joins(:dossier)
       .merge(Dossier.not_archived)
-      .where(dossier_id: dossier_ids, instructeur_id: [instructeur.id, nil])
+      .where(dossier_id: dossier_ids, instructeur_id: instructeur.id)
       .to_display
       .order_by_importance
       .group_by(&:dossier_id)
@@ -207,8 +269,7 @@ class DossierNotification < ApplicationRecord
     return [] if dossier.archived
 
     DossierNotification
-      .where(dossier:, groupe_instructeur_id: dossier.groupe_instructeur_id)
-      .or(DossierNotification.where(dossier:, instructeur:))
+      .where(dossier:, instructeur:)
       .to_display
       .order_by_importance
   end
@@ -224,17 +285,140 @@ class DossierNotification < ApplicationRecord
       .distinct
       .count
   end
-end
 
-private
+  private
 
-def find_or_create_notification(dossier, notification_type, groupe_instructeur_id: nil, instructeur_id: nil, display_at: Time.current)
-  DossierNotification.find_or_create_by!(
-    dossier:,
-    notification_type:,
-    groupe_instructeur_id:,
-    instructeur_id:
-  ) do |notification|
-    notification.display_at = display_at
+  def self.create_notifications_by_type_for_dossier_instructeurs(dossier, notification_type, instructeur_ids)
+    display_at = notification_type == :dossier_depose ? (dossier.depose_at + DossierNotification::DELAY_DOSSIER_DEPOSE) : Time.zone.now
+
+    missing_notifications = instructeur_ids.map do |instructeur_id|
+      { dossier_id: dossier.id, instructeur_id:, notification_type:, display_at: }
+    end
+
+    DossierNotification.insert_all(missing_notifications)
+  end
+
+  def self.create_notifications_by_type_for_instructeur_dossiers(dossiers, notification_type, instructeur_id)
+    missing_notifications = dossiers.map do |dossier|
+      display_at = notification_type == :dossier_depose ? (dossier.depose_at + DossierNotification::DELAY_DOSSIER_DEPOSE) : Time.zone.now
+      { dossier_id: dossier.id, instructeur_id:, notification_type:, display_at: }
+    end
+
+    DossierNotification.insert_all(missing_notifications)
+  end
+
+  def self.create_notifications_for_dossier_instructeur(dossier, notification_types, instructeur_id)
+    missing_notifications = notification_types.map do |notification_type|
+      display_at = notification_type == :dossier_depose ? (dossier.depose_at + DossierNotification::DELAY_DOSSIER_DEPOSE) : Time.zone.now
+      { dossier_id: dossier.id, instructeur_id:, notification_type:, display_at: }
+    end
+
+    DossierNotification.insert_all(missing_notifications)
+  end
+
+  def self.instructeur_preferences(instructeur, procedure)
+    if (instructeur_procedure = InstructeursProcedure.find_by(instructeur:, procedure:))
+      instructeur_procedure.notification_preferences
+    else
+      InstructeursProcedure::DEFAULT_NOTIFICATIONS_PREFERENCES
+    end
+  end
+
+  def self.instructeur_to_notify_ids(dossier, notification_type, except_instructeur)
+    return [] if dossier.groupe_instructeur.nil?
+
+    instructeur_ids = dossier.groupe_instructeur.instructeur_ids
+    instructeur_ids -= [except_instructeur.id] if except_instructeur.present?
+
+    followers_instructeur_ids = dossier.followers_instructeur_ids
+
+    preference_by_instructeur_id = InstructeursProcedure
+      .where(instructeur_id: instructeur_ids, procedure_id: dossier.procedure.id)
+      .pluck(:instructeur_id, "display_#{notification_type}_notifications")
+      .to_h
+
+    instructeur_ids.filter do |instructeur_id|
+      preference = preference_by_instructeur_id[instructeur_id] || InstructeursProcedure::DEFAULT_NOTIFICATIONS_PREFERENCES[notification_type]
+
+      if followers_instructeur_ids.include?(instructeur_id)
+        ['followed', 'all'].include?(preference)
+      else
+        preference == "all"
+      end
+    end
+  end
+
+  def self.destroy_notifications_by_type_for_instructeur_dossiers(dossiers, notification_type, instructeur_id)
+    DossierNotification
+      .where(dossier_id: dossiers, notification_type:, instructeur_id:)
+      .delete_all
+  end
+
+  def self.dossiers_to_notify(dossiers, notification_type, instructeur_id)
+    case notification_type
+    when :dossier_depose
+      dossiers
+        .select(:id, :state, :depose_at)
+        .where(state: :en_construction)
+        .without_followers
+    when :dossier_modifie
+      dossiers
+        .select(:id, :last_champ_updated_at, :depose_at)
+        .where.not(last_champ_updated_at: nil)
+        .where("last_champ_updated_at > depose_at")
+    when :message
+      dossiers
+        .select(:id)
+        .joins(:commentaires)
+        .merge(Commentaire.to_notify(instructeur_id))
+        .distinct
+    when :annotation_instructeur
+      dossiers
+        .select(:id, :last_champ_private_updated_at)
+        .where.not(last_champ_private_updated_at: nil)
+    when :avis_externe
+      dossiers
+        .select(:id)
+        .joins(:avis)
+        .merge(Avis.with_answer)
+        .distinct
+    when :attente_correction
+      dossiers
+        .select(:id)
+        .with_pending_corrections
+    when :attente_avis
+      dossiers
+        .select(:id)
+        .joins(:avis)
+        .merge(Avis.without_answer)
+        .distinct
+    end
+  end
+
+  def self.instructeur_ids_to_notify_by_notification_type(dossier, notification_type, instructeur_ids)
+    case notification_type
+    when :dossier_depose
+      dossier.en_construction? && dossier.follows.empty? ? instructeur_ids : []
+    when :dossier_modifie
+      dossier.last_champ_updated_at.present? && dossier.last_champ_updated_at > dossier.depose_at ? instructeur_ids : []
+    when :message
+      commentaires = dossier
+        .commentaires
+        .where.not(email: Commentaire::SYSTEM_EMAILS)
+        .where(discarded_at: nil)
+        .select(:instructeur_id)
+
+      instructeur_ids.filter do |instructeur_id|
+        commentaires.any? { |c| c.instructeur_id != instructeur_id || c.instructeur_id == nil }
+      end
+    when :annotation_instructeur
+      dossier.last_champ_private_updated_at.present? ? instructeur_ids : []
+    when :avis_externe
+      dossier.avis.with_answer.exists? ? instructeur_ids : []
+    when :attente_correction
+      dossier.pending_correction? ? instructeur_ids : []
+    when :attente_avis
+      dossier.avis.without_answer.exists? ? instructeur_ids : []
+    end
   end
 end

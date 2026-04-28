@@ -35,7 +35,7 @@ describe ExportTemplate do
 
     context 'when there is a previous revision with a renamed tdc' do
       context 'with already column in export template' do
-        let(:previous_tdc) { procedure.published_revision.types_de_champ_public.find_by(stable_id: 1) }
+        let(:previous_tdc) { procedure.published_revision.types_de_champ_public.find { _1.stable_id == 1 } }
         let(:changed_tdc) { { libelle: "Ca roule ?" } }
 
         context 'with already column in export template' do
@@ -47,7 +47,7 @@ describe ExportTemplate do
 
             type_de_champ = procedure.draft_revision.find_and_ensure_exclusive_use(previous_tdc.stable_id)
             type_de_champ.update(changed_tdc)
-            procedure.publish_revision!
+            procedure.publish_revision!(procedure.administrateurs.first)
           end
 
           it 'update columns with original libelle for champs with new revision' do
@@ -59,13 +59,13 @@ describe ExportTemplate do
         end
       end
       context 'without columns in export template' do
-        let(:previous_tdc) { procedure.published_revision.types_de_champ_public.find_by(stable_id: 1) }
+        let(:previous_tdc) { procedure.published_revision.types_de_champ_public.find { _1.stable_id == 1 } }
         let(:changed_tdc) { { libelle: "Ca roule ?" } }
 
         before do
           type_de_champ = procedure.draft_revision.find_and_ensure_exclusive_use(previous_tdc.stable_id)
           type_de_champ.update(changed_tdc)
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
 
           export_template.exported_columns = [
             ExportedColumn.new(libelle: 'Ça roule ?', column: procedure.find_column(label: "Ca roule ?"))

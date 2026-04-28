@@ -12,7 +12,6 @@ class GroupeInstructeur < ApplicationRecord
   has_many :assignments, class_name: 'DossierAssignment', dependent: :nullify, inverse_of: :groupe_instructeur
   has_many :previous_assignments, class_name: 'DossierAssignment', dependent: :nullify, inverse_of: :previous_groupe_instructeur
   has_many :export_templates, dependent: :destroy
-  has_many :dossier_notifications, dependent: :destroy
   has_and_belongs_to_many :exports, dependent: :destroy
 
   has_one :defaut_procedure, -> { with_discarded }, class_name: 'Procedure', foreign_key: :defaut_groupe_instructeur_id, dependent: :nullify, inverse_of: :defaut_groupe_instructeur
@@ -34,12 +33,14 @@ class GroupeInstructeur < ApplicationRecord
   scope :active, -> { where(closed: false) }
   scope :closed, -> { where(closed: true) }
   scope :for_dossiers, -> (dossiers) { joins(:dossiers).where(dossiers: dossiers).distinct(:id) }
+
   def add(instructeur)
     return if instructeur.nil?
     return if in?(instructeur.groupe_instructeurs)
 
     default_notification_settings = instructeur.notification_settings(procedure_id)
     instructeur.assign_to.create(groupe_instructeur: self, **default_notification_settings)
+    DossierNotification.refresh_notifications_new_instructeur_for_dossiers(self, instructeur)
   end
 
   def remove(instructeur)

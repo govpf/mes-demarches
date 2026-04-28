@@ -3,7 +3,7 @@
 describe DossierRebaseConcern do
   describe '#can_rebase?' do
     let(:procedure) { create(:procedure, types_de_champ_public: [{ mandatory: true }, { type: :yes_no, mandatory: false }], types_de_champ_private: [{}]) }
-    let(:attestation_template) { procedure.draft_revision.attestation_template.find_or_revise! }
+    let(:attestation_template) { procedure.draft_revision.attestation_acceptation_template.find_or_revise! }
     let(:type_de_champ) { procedure.active_revision.types_de_champ_public.find { |tdc| !tdc.mandatory? } }
     let(:private_type_de_champ) { procedure.active_revision.types_de_champ_private.first }
     let(:mandatory_type_de_champ) { procedure.active_revision.types_de_champ_public.find(&:mandatory?) }
@@ -23,7 +23,7 @@ describe DossierRebaseConcern do
       let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
 
       before do
-        procedure.publish!
+        procedure.publish!(procedure.administrateurs.first)
         procedure.reload
         dossier
       end
@@ -34,7 +34,7 @@ describe DossierRebaseConcern do
             type_champ: TypeDeChamp.type_champs.fetch(:text),
             libelle: "Un champ text"
           })
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
           dossier.reload
         end
 
@@ -49,7 +49,7 @@ describe DossierRebaseConcern do
       let(:dossier) { create(:dossier, :en_instruction, procedure: procedure) }
 
       before do
-        procedure.publish!
+        procedure.publish!(procedure.administrateurs.first)
         procedure.reload
         dossier
       end
@@ -60,7 +60,7 @@ describe DossierRebaseConcern do
             type_champ: TypeDeChamp.type_champs.fetch(:text),
             libelle: "Un champ text"
           })
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
           dossier.reload
         end
 
@@ -75,7 +75,7 @@ describe DossierRebaseConcern do
       let(:dossier) { create(:dossier, :accepte, procedure: procedure) }
 
       before do
-        procedure.publish!
+        procedure.publish!(procedure.administrateurs.first)
         procedure.reload
         dossier
       end
@@ -86,7 +86,7 @@ describe DossierRebaseConcern do
             type_champ: TypeDeChamp.type_champs.fetch(:text),
             libelle: "Un champ text"
           })
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
           dossier.reload
         end
 
@@ -139,7 +139,7 @@ describe DossierRebaseConcern do
 
     context "when revision is published" do
       before do
-        procedure.publish!
+        procedure.publish!(procedure.administrateurs.first)
         procedure.draft_revision.add_type_de_champ({
           type_champ: TypeDeChamp.type_champs.fetch(:text),
           libelle: "Un champ text"
@@ -183,7 +183,7 @@ describe DossierRebaseConcern do
         dossier.reload
       end
 
-      it "updates the brouillon champs with the latest revision changes" do
+      it "updates the brouillon champs with the latest revision changes", :slow do
         expect(dossier.revision).to eq(procedure.published_revision)
         expect(dossier.project_champs_public.size).to eq(5)
         expect(dossier.champs.count(&:public?)).to eq(6)
@@ -191,7 +191,7 @@ describe DossierRebaseConcern do
         expect(repetition_champ.rows[0].size).to eq(1)
         expect(repetition_champ.rows[1].size).to eq(1)
 
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
         perform_enqueued_jobs
         procedure.reload
         dossier.reload
@@ -216,7 +216,7 @@ describe DossierRebaseConcern do
 
         dossier.passer_en_construction!
         procedure.draft_revision.find_and_ensure_exclusive_use(private_text_type_de_champ.stable_id).update(type_champ: TypeDeChamp.type_champs.fetch(:textarea))
-        procedure.publish_revision!
+        procedure.publish_revision!(procedure.administrateurs.first)
         perform_enqueued_jobs
         procedure.reload
         dossier.reload
@@ -243,7 +243,7 @@ describe DossierRebaseConcern do
 
   context 'small grained' do
     subject do
-      procedure.publish_revision!
+      procedure.publish_revision!(procedure.administrateurs.first)
       perform_enqueued_jobs
 
       dossier.reload
@@ -253,7 +253,7 @@ describe DossierRebaseConcern do
       let!(:procedure) do
         create(:procedure).tap do |p|
           p.draft_revision.add_type_de_champ(type_champ: :drop_down_list, libelle: 'l1', drop_down_options: ["option", "v1"])
-          p.publish!
+          p.publish!(p.administrateurs.first)
         end
       end
       let!(:dossier) { create(:dossier, procedure: procedure) }
@@ -262,7 +262,7 @@ describe DossierRebaseConcern do
         before do
           dossier.project_champs_public.first.update(value: 'v1')
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(drop_down_options: ["option", "updated", "v1"])
         end
@@ -274,7 +274,7 @@ describe DossierRebaseConcern do
         before do
           dossier.project_champs_public.first.update(value: 'v1')
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(drop_down_options: ["option", "updated"])
         end
@@ -286,7 +286,7 @@ describe DossierRebaseConcern do
         before do
           dossier.project_champs_public.first.update(value: 'v1')
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(drop_down_options: ["v1", "updated"])
         end
@@ -299,7 +299,7 @@ describe DossierRebaseConcern do
       let!(:procedure) do
         create(:procedure).tap do |p|
           p.draft_revision.add_type_de_champ(type_champ: :multiple_drop_down_list, libelle: 'l1', drop_down_options: ["option", "v1"])
-          p.publish!
+          p.publish!(p.administrateurs.first)
         end
       end
       let!(:dossier) { create(:dossier, procedure: procedure) }
@@ -308,7 +308,7 @@ describe DossierRebaseConcern do
         before do
           dossier.project_champs_public.first.update(value: '["v1"]')
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(drop_down_options: ["option", "updated", "v1"])
         end
@@ -320,7 +320,7 @@ describe DossierRebaseConcern do
         before do
           dossier.project_champs_public.first.update(value: '["v1", "option"]')
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(drop_down_options: ["option", "updated"])
         end
@@ -332,7 +332,7 @@ describe DossierRebaseConcern do
         before do
           dossier.project_champs_public.first.update(value: '["v1"]')
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(drop_down_options: ["v1", "updated"])
         end
@@ -345,7 +345,7 @@ describe DossierRebaseConcern do
       let!(:procedure) do
         create(:procedure).tap do |p|
           p.draft_revision.add_type_de_champ(type_champ: :linked_drop_down_list, libelle: 'l1', drop_down_options: ["--titre1--", "option", "v1", "--titre2--", "option2", "v2"])
-          p.publish!
+          p.publish!(p.administrateurs.first)
         end
       end
       let!(:dossier) { create(:dossier, procedure: procedure) }
@@ -354,7 +354,7 @@ describe DossierRebaseConcern do
         before do
           dossier.project_champs_public.first.update(value: '["titre1",""]')
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(drop_down_options: ["--titre1--", "option", "v1", "updated", "--titre2--", "option2", "v2"])
         end
@@ -366,7 +366,7 @@ describe DossierRebaseConcern do
         before do
           dossier.project_champs_public.first.update(value: '["titre2","option2"]')
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(drop_down_options: ["--titre1--", "option", "updated", "--titre2--", "v2"])
         end
@@ -378,7 +378,7 @@ describe DossierRebaseConcern do
         before do
           dossier.project_champs_public.first.update(value: '["titre2",""]')
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(drop_down_options: ["--titre1--", "v1", "updated", "--titre2--", "option2", "v2"])
         end
@@ -391,7 +391,7 @@ describe DossierRebaseConcern do
       let!(:procedure) do
         create(:procedure).tap do |p|
           champ = p.draft_revision.add_type_de_champ(type_champ: :carte, libelle: 'l1', cadastres: true)
-          p.publish!
+          p.publish!(p.administrateurs.first)
         end
       end
       let!(:dossier) { create(:dossier, procedure: procedure) }
@@ -400,7 +400,7 @@ describe DossierRebaseConcern do
         before do
           dossier.project_champs_public.first.update(value: 'v1', geo_areas: [build(:geo_area, :cadastre)])
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(cadastres: false)
         end
@@ -426,9 +426,54 @@ describe DossierRebaseConcern do
         it { expect { subject }.to change { champ_libelles }.from(['l1', 'l2']).to(['l1', 'l3', 'l2']) }
       end
 
+      # pf: quand un champ formule est ajouté dans une nouvelle révision, le
+      # rebase doit créer le champ en BDD avec sa valeur calculée pour que
+      # les tableaux instructeur l'affichent correctement.
+      # pf: quand un champ formule est ajouté dans une nouvelle révision, le
+      # rebase doit créer le champ en BDD avec sa valeur calculée pour que
+      # les tableaux instructeur l'affichent correctement.
+      context 'when a formule tdc is added' do
+        before do
+          # Étape 1 : ajouter un champ Montant et publier
+          procedure.draft_revision.add_type_de_champ(
+            type_champ: :integer_number, libelle: 'Montant',
+            after_stable_id: procedure.draft_revision.types_de_champ_public.last.stable_id
+          )
+          procedure.publish_revision!(procedure.administrateurs.first)
+          # Rebaser le dossier pour qu'il voie le champ Montant
+          dossier.reload
+          dossier.rebase!
+          dossier.reload
+
+          # L'usager remplit le champ Montant
+          montant = dossier.project_champs_public.find { _1.libelle == 'Montant' }
+          montant.update!(value: '100')
+
+          # Étape 2 : l'admin ajoute un champ formule dans la prochaine révision
+          montant_tdc = procedure.draft_revision.types_de_champ.find { _1.libelle == 'Montant' }
+          expr, _deps = FormulaExpressionService.convert_to_stable_ids('{Montant} * 2', procedure.draft_revision)
+          procedure.draft_revision.add_type_de_champ(
+            type_champ: :formule, libelle: 'Double', formule_expression: expr,
+            after_stable_id: montant_tdc.stable_id
+          )
+        end
+
+        it 'creates the formule champ with its computed value on rebase' do
+          procedure.publish_revision!(procedure.administrateurs.first)
+          dossier.reload
+          dossier.rebase!
+          dossier.reload
+
+          formule_champ = dossier.champs.find { _1.libelle == 'Double' }
+          expect(formule_champ).to be_present
+          expect(formule_champ).to be_persisted
+          expect(formule_champ.value).to eq('200')
+        end
+      end
+
       context 'when the first tdc is removed' do
         before do
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_remove = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           procedure.draft_revision.remove_type_de_champ(tdc_to_remove.stable_id)
         end
@@ -438,7 +483,7 @@ describe DossierRebaseConcern do
 
       context 'when the second tdc is moved at the first place' do
         before do
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l2')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l2' }
           procedure.draft_revision.move_type_de_champ(stable_id, 0)
         end
 
@@ -447,7 +492,7 @@ describe DossierRebaseConcern do
 
       context 'when the first tdc libelle is updated' do
         before do
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(libelle: 'l1 updated')
         end
@@ -472,14 +517,14 @@ describe DossierRebaseConcern do
 
           first_champ.update_column('updated_at', Time.zone.parse('01/01/1901'))
 
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'l1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'l1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(type_champ: :integer_number)
         end
 
         it { expect { subject }.to change { dossier.revision.types_de_champ_public.map(&:type_champ) }.from(['text', 'text']).to(['integer_number', 'text']) }
         it { expect { subject }.to change { first_champ.class }.from(Champs::TextChamp).to(Champs::IntegerNumberChamp) }
-        it { expect { subject }.to change { first_champ.to_s }.from('v1').to('') }
+        it { expect { subject }.not_to change { first_champ.to_s } }
         it { expect { subject }.to change { first_champ.external_id }.from('123').to(nil) }
         it { expect { subject }.to change { first_champ.data }.from({ 'a' => 1 }).to(nil) }
         it { expect { subject }.to change { first_champ.geo_areas.count }.from(1).to(0) }
@@ -513,7 +558,7 @@ describe DossierRebaseConcern do
           last_child = procedure.draft_revision.children_of(repetition).last
           added_tdc = procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'c3', parent_stable_id: repetition.stable_id, after_stable_id: last_child)
           procedure.draft_revision.move_type_de_champ(added_tdc.stable_id, 1)
-          # procedure.publish_revision!
+          # procedure.publish_revision!(procedure.administrateurs.first)
         end
 
         it 'does somehting' do
@@ -523,7 +568,7 @@ describe DossierRebaseConcern do
 
       context 'when the first child tdc is removed' do
         before do
-          tdc_to_remove = procedure.draft_revision.types_de_champ.find_by(libelle: 'c1')
+          tdc_to_remove = procedure.draft_revision.types_de_champ.find { _1.libelle == 'c1' }
           procedure.draft_revision.remove_type_de_champ(tdc_to_remove.stable_id)
         end
 
@@ -532,7 +577,7 @@ describe DossierRebaseConcern do
 
       context 'when the first child libelle tdc is updated' do
         before do
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'c1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'c1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(libelle: 'c1 updated')
         end
@@ -542,7 +587,7 @@ describe DossierRebaseConcern do
 
       context 'when the first child tdc type is updated' do
         before do
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'c1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'c1' }
           tdc_to_update = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           tdc_to_update.update(type_champ: :integer_number)
         end
@@ -552,7 +597,7 @@ describe DossierRebaseConcern do
 
       context 'when the parents type is changed' do
         before do
-          stable_id = procedure.draft_revision.types_de_champ.find_by(libelle: 'p1')
+          stable_id = procedure.draft_revision.types_de_champ.find { _1.libelle == 'p1' }
           parent = procedure.draft_revision.find_and_ensure_exclusive_use(stable_id)
           parent.update(type_champ: :integer_number)
         end

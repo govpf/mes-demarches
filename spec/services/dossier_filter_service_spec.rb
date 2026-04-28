@@ -93,13 +93,12 @@ describe DossierFilterService do
         let(:order) { 'desc' }
 
         let!(:dossier_notif) { create(:dossier, :en_construction, procedure:) }
-        let!(:notif_instructeur) { create(:dossier_notification, :for_instructeur, instructeur:, dossier: dossier_notif, notification_type: :attente_avis) }
+        let!(:notif_instructeur_1) { create(:dossier_notification, instructeur:, dossier: dossier_notif, notification_type: :attente_avis) }
         let(:other_instructeur) { create(:instructeur) }
-        let!(:notif_other_instructeur) { create(:dossier_notification, :for_instructeur, instructeur: other_instructeur, dossier: recent_dossier) }
+        let!(:notif_other_instructeur) { create(:dossier_notification, instructeur: other_instructeur, dossier: recent_dossier) }
         let!(:dossier_2_notif) { create(:dossier, :en_construction, procedure:) }
-        let(:groupe_instructeur) { procedure.defaut_groupe_instructeur }
-        let!(:notif_groupe) { create(:dossier_notification, :for_groupe_instructeur, groupe_instructeur:, dossier: dossier_2_notif) }
-        let!(:notif_not_display) { create(:dossier_notification, :for_groupe_instructeur, groupe_instructeur:, dossier: older_dossier, display_at: 1.day.from_now) }
+        let!(:notif_instructeur_2) { create(:dossier_notification, instructeur:, dossier: dossier_2_notif) }
+        let!(:notif_not_display) { create(:dossier_notification, instructeur:, dossier: older_dossier, display_at: 1.day.from_now) }
 
         it { is_expected.to eq([dossier_2_notif, dossier_notif, recent_dossier, older_dossier].map(&:id)) }
       end
@@ -174,7 +173,7 @@ describe DossierFilterService do
         before do
           nothing_dossier
           procedure.draft_revision.add_type_de_champ(tdc)
-          procedure.publish_revision!
+          procedure.publish_revision!(procedure.administrateurs.first)
           beurre_dossier.project_champs_public.last.update(value: 'beurre')
           tartine_dossier.project_champs_public.last.update(value: 'tartine')
         end
@@ -338,10 +337,28 @@ describe DossierFilterService do
       context 'for created_at column' do
         let(:filter) { ['Date de création', '18/9/2018'] }
 
-        let!(:kept_dossier) { create(:dossier, procedure:, created_at: Time.zone.local(2018, 9, 18, 14, 28)) }
-        let!(:discarded_dossier) { create(:dossier, procedure:, created_at: Time.zone.local(2018, 9, 17, 23, 59)) }
+        let!(:dossier_18_sept) { create(:dossier, procedure:, created_at: Time.zone.local(2018, 9, 18, 14, 28)) }
+        let!(:dossier_16_sept) { create(:dossier, procedure:, created_at: Time.zone.local(2018, 9, 16, 23, 59)) }
 
-        it { is_expected.to contain_exactly(kept_dossier.id) }
+        it { is_expected.to contain_exactly(dossier_18_sept.id) }
+
+        context 'with operator match' do
+          let(:filter) { ['Date de création', { operator: 'match', value: ['18/09/2018'] }] }
+
+          it { is_expected.to contain_exactly(dossier_18_sept.id) }
+        end
+
+        context 'with operator before' do
+          let(:filter) { ['Date de création', { operator: 'before', value: ['17/09/2018'] }] }
+
+          it { is_expected.to contain_exactly(dossier_16_sept.id) }
+        end
+
+        context 'with operator after' do
+          let(:filter) { ['Date de création', { operator: 'after', value: ['17/09/2018'] }] }
+
+          it { is_expected.to contain_exactly(dossier_18_sept.id) }
+        end
       end
 
       context 'for en_construction_at column' do
@@ -453,8 +470,8 @@ describe DossierFilterService do
         let!(:en_construction) { create(:dossier, :en_construction, procedure:) }
         let!(:en_construction_with_correction) { create(:dossier, :en_construction, procedure:) }
         let!(:correction) { create(:dossier_correction, dossier: en_construction_with_correction) }
-        it 'excludes dossier en construction with pending correction' do
-          is_expected.to contain_exactly(en_construction.id)
+        it 'returns only dossier en construction with and without pending correction' do
+          is_expected.to contain_exactly(en_construction.id, en_construction_with_correction.id)
         end
       end
     end
@@ -607,6 +624,29 @@ describe DossierFilterService do
 
           it { is_expected.to be_empty }
         end
+      end
+
+      context "with filter with match operator" do
+        let(:filtered_columns) { filters.map { to_filter(_1) } }
+        let(:filters) { [['drop_down_list', { operator: 'match', value: ['Dessert', 'Fromage'] }]] }
+
+        let(:types_de_champ_public) do
+          [
+            { type: :drop_down_list, libelle: 'drop_down_list', options: ['Fromage', 'Dessert', 'Chocolat'] }
+          ]
+        end
+
+        let(:kept_dossier) { create(:dossier, procedure:) }
+        let(:kept_dossier_2) { create(:dossier, procedure:) }
+        let(:discarded_dossier) { create(:dossier, procedure:) }
+
+        before do
+          kept_dossier.champs.first.update!(value: 'Fromage')
+          kept_dossier_2.champs.first.update!(value: 'Dessert')
+          discarded_dossier.champs.first.update!(value: 'Chocolat')
+        end
+
+        it { is_expected.to contain_exactly(kept_dossier.id, kept_dossier_2.id) }
       end
     end
 
@@ -857,9 +897,185 @@ describe DossierFilterService do
     end
 
     context 'with a buggy filter, for instance a text in a integer column' do
-      let(:filter) { ['Nº dossier', 'buggy'] }
+      let(:filter) { ['N° dossier', 'buggy'] }
 
       it { is_expected.to be_empty }
+    end
+
+    context 'with a json structured filter' do
+      context 'with a single value' do
+        let(:types_de_champ_public) { [{ type: :yes_no, libelle: 'yes_no' }] }
+        let(:filter) { ['yes_no', { operator: 'match', value: ['true'] }] }
+
+        let(:kept_dossier) { create(:dossier, procedure:) }
+        let(:discarded_dossier) { create(:dossier, procedure:) }
+
+        before do
+          kept_dossier.champs.first.update!(value: 'true')
+          discarded_dossier.champs.first.update!(value: 'false')
+        end
+
+        it { is_expected.to contain_exactly(kept_dossier.id) }
+      end
+    end
+  end
+
+  describe '.normalize_filter' do
+    subject { described_class.send(:normalize_filter, filter) }
+
+    context 'when filter is a string (old filter)' do
+      let(:filter) { 'test_value' }
+
+      it 'wraps the string in a hash with value key' do
+        expect(subject).to eq({ operator: 'match', value: ['test_value'] })
+      end
+    end
+
+    context 'when filter is a hash with only value key' do
+      let(:filter) { { value: 'test_value' } }
+
+      it 'returns the filter value in an array' do
+        expect(subject).to eq({ operator: 'match', value: ['test_value'] })
+      end
+    end
+
+    context 'when filter has operator and values' do
+      let(:filter) { { operator: 'match', value: ['a', 'b'] } }
+
+      it 'returns the filter as is' do
+        expect(subject).to eq({ operator: 'match', value: ['a', 'b'] })
+      end
+    end
+  end
+
+  describe '.group_filters' do
+    let(:procedure) { create(:procedure) }
+    let(:column1) { procedure.find_column(label: 'État du dossier') }
+    let(:column2) { procedure.find_column(label: 'Date de création') }
+
+    subject { described_class.send(:group_filters, filtered_columns) }
+
+    context 'with single filter per column' do
+      let(:filtered_columns) do
+        [
+          FilteredColumn.new(column: column1, filter: { operator: 'match', value: 'en_construction' }),
+          FilteredColumn.new(column: column2, filter: { operator: 'match', value: '2025-01-01' })
+        ]
+      end
+
+      it 'groups filters by column and operator and normalizes them' do
+        expected = {
+          [column1, "match"] => [{ operator: 'match', value: ['en_construction'] }],
+          [column2, "match"] => [{ operator: 'match', value: ['2025-01-01'] }]
+        }
+        expect(subject).to eq(expected)
+      end
+    end
+
+    context 'with multiple filters for the same column' do
+      let(:filtered_columns) do
+        [
+          FilteredColumn.new(column: column1, filter: { operator: 'match', value: ['en_construction'] }),
+          FilteredColumn.new(column: column1, filter: { operator: 'match', value: ['en_instruction'] })
+        ]
+      end
+
+      it 'groups multiple filters by column and normalizes them' do
+        expected = {
+          [column1, "match"] => [
+            { operator: 'match', value: ['en_construction', 'en_instruction'] }
+          ]
+        }
+        expect(subject).to eq(expected)
+      end
+    end
+
+    context 'with multiple match filters for the same column' do
+      let(:filtered_columns) do
+        [
+          FilteredColumn.new(column: column1, filter: { operator: 'match', value: ['a'] }),
+          FilteredColumn.new(column: column1, filter: { operator: 'match', value: ['b', 'a'] })
+        ]
+      end
+
+      it 'merges their values' do
+        expected = {
+          [column1, "match"] => [
+            { operator: 'match', value: ['a', 'b'] }
+          ]
+        }
+
+        expect(subject).to eq(expected)
+      end
+    end
+
+    context 'with hash filters' do
+      let(:filtered_columns) do
+        [
+          FilteredColumn.new(column: column1, filter: { operator: 'match', value: ['en_construction'] }),
+          FilteredColumn.new(column: column1, filter: { operator: 'match', value: ['en_instruction'] })
+        ]
+      end
+
+      it 'groups filters by column and operator' do
+        expected = {
+          [column1, "match"] => [{ operator: 'match', value: ['en_construction', 'en_instruction'] }]
+        }
+        expect(subject).to eq(expected)
+      end
+    end
+
+    context 'with not mergeable filters' do
+      let(:filtered_columns) do
+        [
+          FilteredColumn.new(column: column1, filter: { operator: 'match', value: ['a', 'b'] }),
+          FilteredColumn.new(column: column1, filter: { operator: 'before', value: ['2025-01-01'] })
+        ]
+      end
+
+      it 'groups filters by column and operator' do
+        expected = {
+          [column1, "match"] => [{ operator: 'match', value: ['a', 'b'] }],
+          [column1, "before"] => [{ operator: 'before', value: ['2025-01-01'] }]
+        }
+        expect(subject).to eq(expected)
+      end
+    end
+  end
+
+  describe '.merge_match_filters' do
+    subject { described_class.send(:merge_match_filters, filters) }
+
+    context 'when match filters' do
+      let(:filters) do
+        [
+          { operator: 'match', value: ['Dessert'] },
+          { operator: 'match', value: ['Fromage'] }
+        ]
+      end
+
+      it 'groups values by operator' do
+        expected = [
+          {
+            operator: 'match',
+            value: ['Dessert', 'Fromage']
+          }
+        ]
+        expect(subject).to eq(expected)
+      end
+    end
+
+    context 'when not match filters' do
+      let(:filters) do
+        [
+          { operator: 'before', value: ['2025-01-01'] },
+          { operator: 'before', value: ['2025-01-02'] }
+        ]
+      end
+
+      it 'does not merge values' do
+        expect(subject).to eq(filters)
+      end
     end
   end
 end

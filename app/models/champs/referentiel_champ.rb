@@ -5,6 +5,9 @@ class Champs::ReferentielChamp < Champ
            :referentiel_mapping_displayable,
            :referentiel_mapping_prefillable_with_stable_id,
            to: :type_de_champ
+
+  delegate :exact_match?, :autocomplete?, to: :referentiel, allow_nil: true
+
   before_save :clear_previous_result, if: -> { external_id_changed? }
 
   validates_with ReferentielChampValidator, if: :validate_champ_value?
@@ -23,33 +26,68 @@ class Champs::ReferentielChamp < Champ
       )
       propagate_prefill(data)
     end
+    dossier.with_champ_stream(self).enqueue_fetch_external_data_jobs
+  end
+
+  def data=(data)
+    if data.blank? || dossier.nil? || exact_match?
+      super(data)
+    else
+      message_encryptor_service = MessageEncryptorService.new
+      data = message_encryptor_service.decrypt_and_verify(data, purpose: :storage)
+      data = data.with_indifferent_access if data.is_a?(Hash)
+      data = rewrap_selected_object_in_datasource(data)
+
+      super(data)
+      self.value_json = cast_displayable_values(data)
+      propagate_prefill(data)
+
+      dossier.with_champ_stream(self).enqueue_fetch_external_data_jobs
+    end
   end
 
   def uses_external_data?
-    true
-  end
-
-  def should_ui_auto_refresh?
-    true
+    exact_match?
   end
 
   def prefillable_stable_ids
-    referentiel_mapping_prefillable_with_stable_id
+    @prefillable_stable_ids ||= referentiel_mapping_prefillable_with_stable_id
       .map { |_jsonpath, mapping| mapping[:prefill_stable_id].to_i }
   end
 
   def prefillable_champs
     elligible_stable_ids = prefillable_stable_ids
-    if public?
-      dossier.project_champs_public
-    else
-      dossier.project_champs_private
-    end.filter do |champ|
-      if champ.repetition?
-        dossier.revision.children_of(champ.type_de_champ).any? { _1.stable_id.in?(elligible_stable_ids) }
-      else
-        champ.stable_id.in?(elligible_stable_ids)
+    my_parent = dossier.revision.parent_of(type_de_champ)
+
+    # pf: si le referentiel est dans une répétition, retourner les siblings de la même row
+    if my_parent.present? && row_id.present?
+      dossier.project_rows_for(my_parent).flatten.filter do |champ|
+        champ.row_id == row_id && champ.stable_id.in?(elligible_stable_ids)
       end
+    else
+      if public?
+        dossier.project_champs_public
+      else
+        dossier.project_champs_private
+      end.filter do |champ|
+        if champ.repetition?
+          dossier.revision.children_of(champ.type_de_champ).any? { _1.stable_id.in?(elligible_stable_ids) }
+        else
+          champ.stable_id.in?(elligible_stable_ids)
+        end
+      end
+    end
+  end
+
+  def selected_key
+    value
+  end
+
+  def selected_items
+    if selected_key.present?
+      [{ label: selected_key, value: selected_key, data: value_json }]
+    else
+      []
     end
   end
 
@@ -68,8 +106,16 @@ class Champs::ReferentielChamp < Champ
       v.to_i
     in [:decimal_number, v] if v.present?
       v.to_f
+    in [:datetime, v] if DateDetectionUtils.likely_string_timestamp?(v)
+      timestamp = DateDetectionUtils.convert_unix_timestamp(v)
+      return nil if timestamp.nil?
+      Time.zone.at(timestamp).iso8601 # (0) # 2 digits of precision, meaning we keep the seconds and 2 digits of milliseconds
     in [:datetime, v]
       DateDetectionUtils.convert_to_iso8601_datetime(v)
+    in [:date, v] if DateDetectionUtils.likely_string_timestamp?(v)
+      timestamp = DateDetectionUtils.convert_unix_timestamp(v)
+      return nil if timestamp.nil?
+      Time.zone.at(timestamp).to_date.iso8601
     in [:date, v]
       DateDetectionUtils.convert_to_iso8601_date(v)
     # cases of type from tdc, used to store in a champ
@@ -82,7 +128,7 @@ class Champs::ReferentielChamp < Champ
     in [:checkbox | :yes_no, v]
       bool = ActiveModel::Type::Boolean.new.cast(v)
       bool.nil? ? nil : (bool ? Champs::BooleanChamp::TRUE_VALUE : Champs::BooleanChamp::FALSE_VALUE)
-    in [:text | :textarea | :engagement_juridique| :dossier_link | :email| :phone| :iban| :siret | :formatted, v]
+    in [:text | :textarea | :engagement_juridique | :dossier_link | :email | :phone | :iban | :siret | :formatted, v]
       v.to_s
     # case of type from mapping, used to store for display
     in [:boolean, v]
@@ -97,12 +143,19 @@ class Champs::ReferentielChamp < Champ
   end
 
   def cast_value_for_type_de_champ(value, type_de_champ)
-    { value: call_caster(type_de_champ.type_champ, value, type_de_champ) }.merge(prefilled: true)
+    case type_de_champ.type_champ.to_sym
+    when :siret
+      { external_id: call_caster(type_de_champ.type_champ, value, type_de_champ) }
+    else
+      { value: call_caster(type_de_champ.type_champ, value, type_de_champ) }
+    end.merge(prefilled: true)
   end
 
-  def cast_displayable_values(data)
+  def cast_displayable_values(json)
     referentiel_mapping_displayable.reduce({}) do |accu, (jsonpath, mapping)|
-      casted_value = call_caster(mapping[:type], JsonPath.on(data, jsonpath).first)
+      json = json.first if json.is_a?(Array) # when json is an array, we take the first element
+
+      casted_value = call_caster(mapping[:type], JsonPath.on(json, jsonpath).first)
       accu[jsonpath] = casted_value if !casted_value.nil?
       accu
     end
@@ -119,7 +172,10 @@ class Champs::ReferentielChamp < Champ
       end.group_by do |_, type_de_champ|
         dossier.revision.parent_of(type_de_champ)
       end.each do |repetition_type_de_champ, mappings|
-        if repetition_type_de_champ.present?
+        if repetition_type_de_champ.present? && repetition_type_de_champ == dossier.revision.parent_of(type_de_champ)
+          # pf: le referentiel est lui-même enfant de cette répétition — on met à jour les siblings dans la même row
+          update_sibling_prefillable_champs(data, mappings)
+        elsif repetition_type_de_champ.present?
           update_repetition_prefillable_champs(data, repetition_type_de_champ, mappings)
         else
           update_simple_prefillable_champs(data, mappings)
@@ -129,16 +185,32 @@ class Champs::ReferentielChamp < Champ
 
   def update_repetition_prefillable_champs(data, repetition_type_de_champ, mappings)
     group_mappings_by_json_array(mappings).each do |array_key, array_mappings|
-      json_array = JsonPath.on(data.with_indifferent_access, array_key).first || []
+      json_array = Array(JsonPath.on(data.with_indifferent_access, array_key).first)
       next unless json_array.is_a?(Array)
+
       json_array.each do |json_value|
         next if json_value.blank?
-        row_id = dossier.repetition_add_row(repetition_type_de_champ, updated_by: :api)
+        row_id = determine_row_id(repetition_type_de_champ)
         array_mappings.each do |jsonpath, type_de_champ|
-          raw_value = JsonPath.on(json_value, JSONPathUtil.extract_key_after_array(jsonpath)).first
+          if JSONPathUtil.json_path_contains_array?(jsonpath)
+            raw_value = JsonPath.on(json_value, JSONPathUtil.extract_key_after_array(jsonpath)).first
+          else
+            raw_value = json_value
+          end
           update_prefillable_champ(type_de_champ:, raw_value:, row_id:)
         end
       end
+    end
+  end
+
+  def determine_row_id(repetition_type_de_champ)
+    # When referentiel champ is inside a repetition, use current row_id to keep related data together.
+    # When outside, create new rows for each array element from external data.
+    # Note: Limited to updating current row only when inside repetition.
+    if type_de_champ.child?(dossier.revision)
+      self.row_id
+    else
+      dossier.repetition_add_row(repetition_type_de_champ, updated_by: :api)
     end
   end
 
@@ -148,13 +220,46 @@ class Champs::ReferentielChamp < Champ
 
   def update_simple_prefillable_champs(data, mappings)
     mappings.each do |jsonpath, type_de_champ|
-      raw_value = JsonPath.on(data.with_indifferent_access, jsonpath).first
+      raw_value = JsonPath.on(data.is_a?(Hash) ? data.with_indifferent_access : data, jsonpath).first
       update_prefillable_champ(type_de_champ:, raw_value:)
+    end
+  end
+
+  # pf: met à jour les champs siblings dans la même row de répétition que le referentiel courant
+  def update_sibling_prefillable_champs(data, mappings)
+    mappings.each do |jsonpath, type_de_champ|
+      raw_value = JsonPath.on(data.is_a?(Hash) ? data.with_indifferent_access : data, jsonpath).first
+      update_prefillable_champ(type_de_champ:, raw_value:, row_id:)
     end
   end
 
   def update_prefillable_champ(type_de_champ:, raw_value:, row_id: nil)
     prefill_champ = dossier.champ_for_update(type_de_champ, row_id:, updated_by: :api)
+
     prefill_champ.update(cast_value_for_type_de_champ(raw_value, type_de_champ))
+  end
+
+  def rewrap_selected_object_in_datasource(data)
+    full_jsonpath = type_de_champ.referentiel.datasource
+    path_keys_separated_with_dot = full_jsonpath.split("$.")[1]
+    if path_keys_separated_with_dot
+      rewrap_to_hash(data, path_keys_separated_with_dot)
+    else
+      rewrap_to_array(data)
+    end
+  end
+
+  def rewrap_to_hash(data, path_keys_separated_with_dot)
+    path_keys = path_keys_separated_with_dot.split('.')
+    reversed_keys_to_rebuild_datasource = path_keys.reverse
+
+    # using reversed keys + reduce allows us to rebuild the original JSON structure
+    reversed_keys_to_rebuild_datasource.reduce([data]) do |accumulator, key|
+      { key => accumulator }
+    end.with_indifferent_access
+  end
+
+  def rewrap_to_array(data)
+    [data]
   end
 end

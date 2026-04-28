@@ -1,6 +1,11 @@
-= render partial: "notification_notice"
+- if ENV['NOTICE_NOTIFICATION_PREFERENCE'] == 'enabled'
+  = render Dsfr::NoticeComponent.new(closable: true, data_attributes: { "data-notice-name" => "instr-personnalisation-notifications" }) do |c|
+    - c.with_title do
+      NOUVEAUTÉ – Vous pouvez maintenant personnaliser l'affichage de vos badges de notifications.
+    - c.with_link do
+      = link_to "Personnaliser l'affichage dès maintenant !", notification_preferences_instructeur_procedure_path(@procedure, tab: :badge), class: "fr-notice__link"
 
-- content_for(:title, "#{@procedure.libelle}")
+- content_for(:title, procedure_tab_title(@procedure, i18n_tab_from_status(@statut)))
 
 #procedure-show
   .sub-header
@@ -28,10 +33,11 @@
   .fr-container--fluid.fr-mx-4w.overflow-y-visible
     .flex
       - if @filtered_sorted_paginated_ids.present? || @current_filters.count > 0
-        = render partial: "dossiers_filter_dropdown", locals: { procedure: @procedure, statut: @statut, procedure_presentation: @procedure_presentation }
+        = render partial: "dossiers_filter_dropdown", locals: { procedure: @procedure, statut: @statut, procedure_presentation: @procedure_presentation, instructeur_procedure: @instructeur_procedure }
 
     - if @filtered_sorted_paginated_ids.present? || @current_filters.count > 0
-      = render Instructeurs::FilterButtonsComponent.new(filters: @current_filters, procedure_presentation: @procedure_presentation, statut: @statut)
+      = render Instructeurs::EditableFiltersComponent.new(procedure_presentation: @procedure_presentation, instructeur_procedure: @instructeur_procedure, statut: @statut)
+      = render Instructeurs::RemoveFilterButtonsComponent.new(filters: @current_filters, procedure_presentation: @procedure_presentation, statut: @statut)
 
     - batch_operation_component = Dossiers::BatchOperationComponent.new(statut: @statut, procedure: @procedure)
 
@@ -40,7 +46,7 @@
         = render Dossiers::BatchAlertComponent.new(batch: batch_operation, procedure: @procedure)
 
     - if @dossiers_count > 0
-      %div{ data: batch_operation_component.render? ? { controller: 'batch-operation' } : {} }
+      %div{ data: batch_operation_component.render? ? { controller: 'batch-operation', 'batch-operation-limit-value': BatchOperation::BATCH_SELECTION_LIMIT } : {} }
         .flex.align-center.fr-mt-2w
           %span.fr-h6.fr-mb-0.fr-mr-3w
             = page_entries_info @filtered_sorted_paginated_ids
@@ -48,7 +54,7 @@
 
           .fr-ml-auto
             %ul.fr-btns-group.fr-btns-group--right.fr-btns-group--sm.fr-btns-group--inline-md.fr-btns-group--icon-left
-              = render Dossiers::ExportDropdownComponent.new(wrapper: :li, procedure: @procedure, export_templates: current_instructeur.export_templates_for(@procedure), statut: @statut, count: @dossiers_count, archived_count: @archived_dossiers_count,
+              = render Dossiers::ExportDropdownComponent.new(wrapper: :li, procedure: @procedure, export_templates: current_instructeur.export_template_options_for(@procedure), statut: @statut, count: @dossiers_count, archived_count: @archived_dossiers_count,
                 class_btn: 'fr-btn--secondary fr-icon-download-line', export_url: method(:download_export_instructeur_procedure_path))
 
               = render Dropdown::MenuComponent.new(wrapper: :li, button_options: { class: ['fr-btn--tertiary', 'fr-icon-settings-5-line'] }, menu_options: { id: 'custom-menu' }) do |menu|
@@ -116,8 +122,7 @@
                             - if dossier.hidden_by_administration_at.present?
                               %span
                                 = render Instructeurs::CellComponent.new(dossier:, column:)
-                                - if dossier.hidden_by_user_at.present?
-                                  = "- #{t("views.instructeurs.dossiers.deleted_reason.#{dossier.hidden_by_reason}")}"
+                                = "- #{t("views.instructeurs.dossiers.deleted_reason.#{dossier.hidden_by_reason}")}" if dossier.hidden_by_user_at.present?
                             - else
                               %a{ href: path }
                                 = render Instructeurs::CellComponent.new(dossier:, column:)

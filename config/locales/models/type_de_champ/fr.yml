@@ -65,7 +65,8 @@ fr:
           lexpol: "Lexpol"
           referentiel_de_polynesie: 'Référentiel des administrations'
           formatted: Champ formaté
-          referentiel: 'Référentiel à configurer (avancé)'
+          formule: 'Formule'
+          referentiel: 'Référentiel configurable (avancé)'
         default_libelle:
           annuaire_education: Établissement
           communes: Commune
@@ -85,3 +86,6 @@ fr:
         attributes:
           header_section_level:
             gap_error: "devrait être précédé d'un titre de niveau %{level}"
+          formule_expression:
+            invalid_field_reference: "Référence de champ invalide"
+            invalid_syntax: "Syntaxe invalide: %{message}"

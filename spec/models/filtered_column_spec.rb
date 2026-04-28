@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 describe FilteredColumn do
+  let(:column) { Column.new(procedure_id: 1, table: 'table', column: 'column', label: 'label') }
+
   describe '#check_filters_max_length' do
-    let(:column) { Column.new(procedure_id: 1, table: 'table', column: 'column', label: 'label') }
     let(:filtered_column) { described_class.new(column:, filter:) }
 
     before { filtered_column.valid? }
@@ -32,7 +33,7 @@ describe FilteredColumn do
       before { filtered_column.valid? }
 
       context 'when the filter is too high' do
-        let(:filter) { (FilteredColumn::PG_INTEGER_MAX_VALUE + 1).to_s }
+        let(:filter) { { operator: 'match', value: [(FilteredColumn::PG_INTEGER_MAX_VALUE + 1).to_s] } }
 
         it 'adds an error' do
           expect(filtered_column.errors.map(&:message)).to include(/Le filtre « label » n'est pas un numéro de dossier possible/)
@@ -40,7 +41,7 @@ describe FilteredColumn do
       end
 
       context 'when the filter is not too high' do
-        let(:filter) { FilteredColumn::PG_INTEGER_MAX_VALUE.to_s }
+        let(:filter) { { operator: 'match', value: [FilteredColumn::PG_INTEGER_MAX_VALUE.to_s] } }
 
         it 'does not add an error' do
           expect(filtered_column.errors).to be_empty
@@ -50,7 +51,6 @@ describe FilteredColumn do
   end
 
   describe '#check_filter_is_not_blank' do
-    let(:column) { Column.new(procedure_id: 1, table: 'table', column: 'column', label: 'label') }
     let(:filtered_column) { described_class.new(column:, filter:) }
 
     before { filtered_column.valid? }

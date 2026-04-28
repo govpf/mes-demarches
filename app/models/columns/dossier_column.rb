@@ -22,7 +22,42 @@ class Columns::DossierColumn < Column
 
   def dossier_column? = true
 
-  def filtered_ids(dossiers, values)
+  def filtered_ids(dossiers, filter)
+    case filter
+    in { operator: 'before', value: Array }
+      filtered_ids_before_value(dossiers, filter[:value])
+    in { operator: 'after', value: Array }
+      filtered_ids_after_value(dossiers, filter[:value])
+    in { operator: 'this_week' }
+      filtered_ids_for_date_range(dossiers, Time.current.all_week)
+    in { operator: 'this_month' }
+      filtered_ids_for_date_range(dossiers, Time.current.all_month)
+    in { operator: 'this_year' }
+      filtered_ids_for_date_range(dossiers, Time.current.all_year)
+    else
+      filtered_ids_for_values(dossiers, filter[:value])
+    end
+  end
+
+  def filtered_ids_before_value(dossiers, values)
+    return dossiers.ids if values.first.blank?
+
+    filtered_ids_for_date_range(dossiers, ..Time.zone.parse(values.first).beginning_of_day)
+  end
+
+  def filtered_ids_after_value(dossiers, values)
+    return dossiers.ids if values.first.blank?
+
+    filtered_ids_for_date_range(dossiers, (Time.zone.parse(values.first).end_of_day..))
+  end
+
+  def filtered_ids_for_date_range(dossiers, range)
+    dossiers.filter_by_datetimes_range(column, range).ids
+  end
+
+  def filtered_ids_for_values(dossiers, values)
+    return dossiers.ids unless values.any?(&:present?)
+
     case table
     when 'self'
       if type == :date || type == :datetime
@@ -30,10 +65,6 @@ class Columns::DossierColumn < Column
           .filter_map { |v| Time.zone.parse(v).beginning_of_day rescue nil }
 
         dossiers.filter_by_datetimes(column, dates)
-      elsif column == "state" && values.include?("pending_correction")
-        dossiers.joins(:corrections).where(corrections: DossierCorrection.pending)
-      elsif column == "state" && values.include?("en_construction")
-        dossiers.where("dossiers.#{column} IN (?)", values).includes(:corrections).where.not(corrections: DossierCorrection.pending)
       elsif type == :integer
         dossiers.where("dossiers.#{column} IN (?)", values.filter_map { Integer(_1) rescue nil })
       else

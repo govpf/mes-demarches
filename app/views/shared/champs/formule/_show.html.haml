@@ -1,0 +1,5 @@
+- if champ.value.present?
+  = render FormulaValueDisplayComponent.new(value: champ.value)
+- else
+  %span.fr-text--mention-grey
+    Aucune valeur calculée

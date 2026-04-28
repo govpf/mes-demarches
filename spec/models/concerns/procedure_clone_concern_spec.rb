@@ -11,7 +11,8 @@ describe ProcedureCloneConcern, type: :model do
         duree_conservation_etendue_par_ds: true,
         duree_conservation_dossiers_dans_ds: Procedure::OLD_MAX_DUREE_CONSERVATION,
         max_duree_conservation_dossiers_dans_ds: Procedure::OLD_MAX_DUREE_CONSERVATION,
-        attestation_template: build(:attestation_template, logo: logo, signature: signature),
+        attestation_acceptation_template: build(:attestation_template, logo: logo, signature: signature),
+        attestation_refus_template: build(:attestation_template, kind: 'refus'),
         types_de_champ_public:,
         types_de_champ_private:,
         api_particulier_token: '123456789012345',
@@ -37,13 +38,15 @@ describe ProcedureCloneConcern, type: :model do
     let!(:assign_to_2) { create(:assign_to, procedure: procedure, groupe_instructeur: groupe_instructeur_1, instructeur: instructeur_2) }
     let(:options) do
       {
-        clone_attestation_template: true,
+        clone_attestation_acceptation_template: true,
+        clone_attestation_refus_template: true,
         cloned_from_library: from_library,
         clone_presentation: true,
         clone_instructeurs: true,
         clone_mail_templates: true,
         clone_champs: true,
-        clone_annotations: true
+        clone_annotations: true,
+        clone_api_entreprise_token: true
       }
     end
 
@@ -100,7 +103,7 @@ describe ProcedureCloneConcern, type: :model do
       end
 
       public_repetition = type_de_champ_repetition
-      cloned_public_repetition = subject.draft_revision.types_de_champ_public.repetition.first
+      cloned_public_repetition = subject.draft_revision.types_de_champ_public.find(&:repetition?)
       procedure.draft_revision.children_of(public_repetition).zip(subject.draft_revision.children_of(cloned_public_repetition)).each do |ptc, stc|
         expect(stc).to have_same_attributes_as(ptc)
         expect(stc.revisions).to include(subject.draft_revision)
@@ -112,13 +115,14 @@ describe ProcedureCloneConcern, type: :model do
       end
 
       private_repetition = type_de_champ_private_repetition
-      cloned_private_repetition = subject.draft_revision.types_de_champ_private.repetition.first
+      cloned_private_repetition = subject.draft_revision.types_de_champ_private.find(&:repetition?)
       procedure.draft_revision.children_of(private_repetition).zip(subject.draft_revision.children_of(cloned_private_repetition)).each do |ptc, stc|
         expect(stc).to have_same_attributes_as(ptc)
         expect(stc.revisions).to include(subject.draft_revision)
       end
 
-      expect(subject.attestation_template.title).to eq(procedure.attestation_template.title)
+      expect(subject.attestation_acceptation_template.title).to eq(procedure.attestation_acceptation_template.title)
+      expect(subject.attestation_refus_template.title).to eq(procedure.attestation_refus_template.title)
 
       expect(subject.cloned_from_library).to be(false)
 
@@ -132,7 +136,7 @@ describe ProcedureCloneConcern, type: :model do
     end
 
     context 'when types_de_champ_public contains a referentiel' do
-      let(:referentiel) { create(:api_referentiel, :ready, :configured, :with_authentication_data) }
+      let(:referentiel) { create(:api_referentiel, :exact_match, :with_exact_match_response, :with_authentication_data) }
       let(:stable_id) { 1337 }
       let(:types_de_champ_public) { [{ type: :referentiel, referentiel: referentiel, stable_id: }] }
 
@@ -325,7 +329,7 @@ describe ProcedureCloneConcern, type: :model do
     end
 
     it 'should duplicate piece_justificative_template on a type_de_champ' do
-      expect(subject.draft_revision.types_de_champ_public.where(type_champ: "piece_justificative").first.piece_justificative_template.attached?).to be_truthy
+      expect(subject.draft_revision.types_de_champ_public.find(&:piece_justificative?).piece_justificative_template.attached?).to be_truthy
     end
 
     context 'with a notice attached' do

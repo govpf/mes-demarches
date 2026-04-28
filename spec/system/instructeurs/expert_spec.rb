@@ -44,7 +44,7 @@ describe 'Inviting an expert:', js: true do
       perform_enqueued_jobs
 
       expect(page).to have_content('Une demande d’avis a été envoyée')
-      expect(page).to have_content('Avis des invités')
+      expect(page).to have_content('Avis des experts')
       within('section') do
         expect(page).to have_content(expert.email.to_s)
         expect(page).to have_content(expert2.email.to_s)
@@ -113,7 +113,7 @@ describe 'Inviting an expert:', js: true do
         within('.fr-sidemenu') { click_on 'Demander un avis' }
         expect(page).to have_current_path(avis_new_instructeur_dossier_path(procedure, dossier))
 
-        select_combobox 'Emails', expert.email
+        select_combobox :avis_emails, expert.email
         fill_in 'avis_introduction', with: 'Bonjour, merci de me donner votre avis sur ce dossier.'
         check 'avis_invite_linked_dossiers'
         choose 'confidentiel_true', allow_label_click: true
@@ -124,7 +124,7 @@ describe 'Inviting an expert:', js: true do
         wait_until { expert_procedure.reload.avis.present? }
 
         expect(page).to have_content('Une demande d’avis a été envoyée')
-        expect(page).to have_content('Avis des invités')
+        expect(page).to have_content('Avis des experts')
         within('section') do
           expect(page).to have_content(expert.email)
           expect(page).not_to have_content(expert2.email)

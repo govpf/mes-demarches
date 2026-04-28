@@ -15,10 +15,12 @@ describe Instructeur, type: :model do
   end
 
   describe 'associations' do
-    it { is_expected.to have_many(:archives) }
-    it { is_expected.to have_many(:exports) }
-    it { is_expected.to have_and_belong_to_many(:administrateurs) }
-    it { is_expected.to have_many(:batch_operations) }
+    it do
+      is_expected.to have_many(:archives)
+      is_expected.to have_many(:exports)
+      is_expected.to have_and_belong_to_many(:administrateurs)
+      is_expected.to have_many(:batch_operations)
+    end
   end
 
   describe 'follow' do
@@ -40,7 +42,7 @@ describe Instructeur, type: :model do
     end
 
     context "when a instructeur is the first to follow a dossier" do
-      let!(:notification) { create(:dossier_notification, :for_instructeur, dossier:, instructeur:, notification_type: :dossier_depose) }
+      let!(:notification) { create(:dossier_notification, dossier:, instructeur:, notification_type: :dossier_depose) }
 
       before { instructeur.follow(dossier) }
 
@@ -100,7 +102,7 @@ describe Instructeur, type: :model do
   end
 
   describe '#unfollow' do
-    let(:already_followed_dossier) { create(:dossier) }
+    let(:already_followed_dossier) { create(:dossier, procedure:) }
     before { instructeur.followed_dossiers << already_followed_dossier }
 
     context 'when a instructeur unfollow a dossier already followed' do
@@ -109,17 +111,22 @@ describe Instructeur, type: :model do
         already_followed_dossier.reload
       end
 
-      it { expect(instructeur.follow?(already_followed_dossier)).to be false }
-      it { expect(instructeur.previously_followed_dossiers).to include(already_followed_dossier) }
+      it do
+        expect(instructeur.follow?(already_followed_dossier)).to be false
+        expect(instructeur.previously_followed_dossiers).to include(already_followed_dossier)
+      end
     end
 
-    context "when a instructeur has notifications on the dossier" do
-      let!(:notification) { create(:dossier_notification, :for_instructeur, dossier: already_followed_dossier, instructeur:) }
+    context "when the instructeur has notifications on the dossier" do
+      let!(:notification_with_followed_preference) { create(:dossier_notification, dossier: already_followed_dossier, instructeur:, notification_type: :dossier_modifie) }
+      let!(:notification_with_all_preference) { create(:dossier_notification, dossier: already_followed_dossier, instructeur:, notification_type: :message) }
+      let!(:instructeur_procedure) { create(:instructeurs_procedure, instructeur:, procedure:, display_dossier_modifie_notifications: 'followed', display_message_notifications: 'all') }
 
-      it "destroy all notifications of the instructeur/dossier" do
+      it "destroys only notifications for which the instructeur has an 'followed' preference" do
         instructeur.unfollow(already_followed_dossier)
 
-        expect(DossierNotification.exists?(notification.id)).to be_falsey
+        expect(DossierNotification.exists?(notification_with_followed_preference.id)).to be_falsey
+        expect(DossierNotification.exists?(notification_with_all_preference.id)).to be_truthy
       end
     end
   end
@@ -234,15 +241,19 @@ describe Instructeur, type: :model do
       let(:procedure_id) { procedure.id }
       let!(:pp) { ProcedurePresentation.create(assign_to: procedure_assign) }
 
-      it { expect(procedure_presentation).to eq(pp) }
-      it { expect(errors).to be_nil }
+      it do
+        expect(procedure_presentation).to eq(pp)
+        expect(errors).to be_nil
+      end
     end
 
     context 'with default presentation' do
       let(:procedure_id) { procedure_2.id }
 
-      it { expect(procedure_presentation).to be_persisted }
-      it { expect(errors).to be_nil }
+      it do
+        expect(procedure_presentation).to be_persisted
+        expect(errors).to be_nil
+      end
     end
   end
 
@@ -285,6 +296,10 @@ describe Instructeur, type: :model do
   end
 
   describe '#email_notification_data' do
+    # pf: freeze_time pour éviter les faux positifs liés au décalage UTC-10 (Pacific/Tahiti)
+    # quand les tests tournent proche de minuit PF, 10.minutes.ago peut tomber sur "yesterday"
+    before { freeze_time }
+
     let(:instructeur) { create(:instructeur) }
     let(:procedure_to_assign) { create(:procedure) }
 
@@ -311,8 +326,8 @@ describe Instructeur, type: :model do
 
     context 'when a notification exists' do
       let(:dossier) { create(:dossier, :en_construction, procedure: procedure_to_assign) }
-      let!(:notification_to_count) { create(:dossier_notification, :for_instructeur, instructeur:, dossier:, notification_type: :dossier_modifie) }
-      let!(:notification_not_count) { create(:dossier_notification, :for_instructeur, instructeur:, dossier:) }
+      let!(:notification_to_count) { create(:dossier_notification, instructeur:, dossier:, notification_type: :dossier_modifie) }
+      let!(:notification_not_count) { create(:dossier_notification, instructeur:, dossier:) }
 
       it do
         expect(instructeur.email_notification_data).to eq([
@@ -336,9 +351,10 @@ describe Instructeur, type: :model do
         dossier.process_declarative!
       end
 
-      it { expect(procedure_to_assign.declarative_with_state).to eq("en_instruction") }
-      it { expect(dossier.state).to eq("en_instruction") }
       it do
+        expect(procedure_to_assign.declarative_with_state).to eq("en_instruction")
+        expect(dossier.state).to eq("en_instruction")
+
         expect(instructeur.email_notification_data).to eq([
           {
             nb_en_construction: 0,
@@ -360,10 +376,9 @@ describe Instructeur, type: :model do
         dossier.process_declarative!
       end
 
-      it { expect(procedure_to_assign.declarative_with_state).to eq("accepte") }
-      it { expect(dossier.state).to eq("accepte") }
-
       it do
+        expect(procedure_to_assign.declarative_with_state).to eq("accepte")
+        expect(dossier.state).to eq("accepte")
         expect(instructeur.email_notification_data).to eq([])
       end
     end
@@ -377,10 +392,9 @@ describe Instructeur, type: :model do
         dossier.traitements.last.update(processed_at: Time.zone.yesterday.beginning_of_day)
       end
 
-      it { expect(procedure_to_assign.declarative_with_state).to eq("accepte") }
-      it { expect(dossier.state).to eq("accepte") }
-
       it do
+        expect(procedure_to_assign.declarative_with_state).to eq("accepte")
+        expect(dossier.state).to eq("accepte")
         expect(instructeur.email_notification_data).to eq([
           {
             nb_en_construction: 0,
@@ -461,34 +475,40 @@ describe Instructeur, type: :model do
       end
 
       context "without any dossier" do
-        it { expect(subject['a_suivre']).to eq(0) }
-        it { expect(subject['suivis']).to eq(0) }
-        it { expect(subject['traites']).to eq(0) }
-        it { expect(subject['tous']).to eq(0) }
-        it { expect(subject['archives']).to eq(0) }
-        it { expect(subject['expirant']).to eq(0) }
+        it do
+          expect(subject['a_suivre']).to eq(0)
+          expect(subject['suivis']).to eq(0)
+          expect(subject['traites']).to eq(0)
+          expect(subject['tous']).to eq(0)
+          expect(subject['archives']).to eq(0)
+          expect(subject['expirant']).to eq(0)
+        end
       end
 
       context 'with a new brouillon dossier' do
         let!(:brouillon_dossier) { create(:dossier, procedure: procedure) }
 
-        it { expect(subject['a_suivre']).to eq(0) }
-        it { expect(subject['suivis']).to eq(0) }
-        it { expect(subject['traites']).to eq(0) }
-        it { expect(subject['tous']).to eq(0) }
-        it { expect(subject['archives']).to eq(0) }
-        it { expect(subject['expirant']).to eq(0) }
+        it do
+          expect(subject['a_suivre']).to eq(0)
+          expect(subject['suivis']).to eq(0)
+          expect(subject['traites']).to eq(0)
+          expect(subject['tous']).to eq(0)
+          expect(subject['archives']).to eq(0)
+          expect(subject['expirant']).to eq(0)
+        end
       end
 
       context 'with a new dossier without follower' do
         let!(:new_unfollow_dossier) { create(:dossier, :en_instruction, procedure: procedure) }
 
-        it { expect(subject['a_suivre']).to eq(1) }
-        it { expect(subject['suivis']).to eq(0) }
-        it { expect(subject['traites']).to eq(0) }
-        it { expect(subject['tous']).to eq(1) }
-        it { expect(subject['archives']).to eq(0) }
-        it { expect(subject['expirant']).to eq(0) }
+        it do
+          expect(subject['a_suivre']).to eq(1)
+          expect(subject['suivis']).to eq(0)
+          expect(subject['traites']).to eq(0)
+          expect(subject['tous']).to eq(1)
+          expect(subject['archives']).to eq(0)
+          expect(subject['expirant']).to eq(0)
+        end
 
         context 'and dossiers without follower on each of the others groups' do
           let!(:new_unfollow_dossier_on_gi_2) { create(:dossier, :en_instruction, groupe_instructeur: gi_2) }
@@ -496,8 +516,10 @@ describe Instructeur, type: :model do
 
           before { subject }
 
-          it { expect(subject['a_suivre']).to eq(2) }
-          it { expect(subject['tous']).to eq(2) }
+          it do
+            expect(subject['a_suivre']).to eq(2)
+            expect(subject['tous']).to eq(2)
+          end
         end
       end
 
@@ -508,24 +530,28 @@ describe Instructeur, type: :model do
           instructeur_2.followed_dossiers << new_followed_dossier
         end
 
-        it { expect(subject['a_suivre']).to eq(0) }
-        it { expect(subject['suivis']).to eq(1) }
-        it { expect(subject['traites']).to eq(0) }
-        it { expect(subject['tous']).to eq(1) }
-        it { expect(subject['archives']).to eq(0) }
-        it { expect(subject['expirant']).to eq(0) }
+        it do
+          expect(subject['a_suivre']).to eq(0)
+          expect(subject['suivis']).to eq(1)
+          expect(subject['traites']).to eq(0)
+          expect(subject['tous']).to eq(1)
+          expect(subject['archives']).to eq(0)
+          expect(subject['expirant']).to eq(0)
+        end
 
         context 'and another one follows the same dossier' do
           before do
             instructeur_3.followed_dossiers << new_followed_dossier
           end
 
-          it { expect(subject['a_suivre']).to eq(0) }
-          it { expect(subject['suivis']).to eq(1) }
-          it { expect(subject['traites']).to eq(0) }
-          it { expect(subject['tous']).to eq(1) }
-          it { expect(subject['archives']).to eq(0) }
-          it { expect(subject['expirant']).to eq(0) }
+          it do
+            expect(subject['a_suivre']).to eq(0)
+            expect(subject['suivis']).to eq(1)
+            expect(subject['traites']).to eq(0)
+            expect(subject['tous']).to eq(1)
+            expect(subject['archives']).to eq(0)
+            expect(subject['expirant']).to eq(0)
+          end
         end
 
         context 'and dossier with a follower on each of the others groups' do
@@ -537,8 +563,10 @@ describe Instructeur, type: :model do
           end
 
           # followed dossiers on another groupe should not be displayed
-          it { expect(subject['suivis']).to eq(2) }
-          it { expect(subject['tous']).to eq(2) }
+          it do
+            expect(subject['suivis']).to eq(2)
+            expect(subject['tous']).to eq(2)
+          end
         end
 
         context 'and dossier with a follower is unfollowed' do
@@ -546,22 +574,26 @@ describe Instructeur, type: :model do
             instructeur_2.unfollow(new_followed_dossier)
           end
 
-          it { expect(subject['a_suivre']).to eq(1) }
-          it { expect(subject['suivis']).to eq(0) }
-          it { expect(subject['tous']).to eq(1) }
-          it { expect(subject['expirant']).to eq(0) }
+          it do
+            expect(subject['a_suivre']).to eq(1)
+            expect(subject['suivis']).to eq(0)
+            expect(subject['tous']).to eq(1)
+            expect(subject['expirant']).to eq(0)
+          end
         end
       end
 
       context 'with a termine dossier' do
         let!(:termine_dossier) { create(:dossier, :accepte, procedure: procedure) }
 
-        it { expect(subject['a_suivre']).to eq(0) }
-        it { expect(subject['suivis']).to eq(0) }
-        it { expect(subject['traites']).to eq(1) }
-        it { expect(subject['tous']).to eq(1) }
-        it { expect(subject['archives']).to eq(0) }
-        it { expect(subject['expirant']).to eq(0) }
+        it do
+          expect(subject['a_suivre']).to eq(0)
+          expect(subject['suivis']).to eq(0)
+          expect(subject['traites']).to eq(1)
+          expect(subject['tous']).to eq(1)
+          expect(subject['archives']).to eq(0)
+          expect(subject['expirant']).to eq(0)
+        end
 
         context 'and terminer dossiers on each of the others groups' do
           let!(:termine_dossier_on_gi_2) { create(:dossier, :accepte, groupe_instructeur: gi_2) }
@@ -569,12 +601,14 @@ describe Instructeur, type: :model do
 
           before { subject }
 
-          it { expect(subject['a_suivre']).to eq(0) }
-          it { expect(subject['suivis']).to eq(0) }
-          it { expect(subject['traites']).to eq(2) }
-          it { expect(subject['tous']).to eq(2) }
-          it { expect(subject['archives']).to eq(0) }
-          it { expect(subject['expirant']).to eq(0) }
+          it do
+            expect(subject['a_suivre']).to eq(0)
+            expect(subject['suivis']).to eq(0)
+            expect(subject['traites']).to eq(2)
+            expect(subject['tous']).to eq(2)
+            expect(subject['archives']).to eq(0)
+            expect(subject['expirant']).to eq(0)
+          end
         end
       end
 
@@ -722,69 +756,6 @@ describe Instructeur, type: :model do
         avis.reload
         expect(avis.claimant).to eq(new_instructeur)
       end
-    end
-  end
-
-  describe '.ensure_instructeur_procedures_for' do
-    let(:instructeur) { create(:instructeur) }
-    let!(:procedures) { create_list(:procedure, 5, published_at: Time.current) }
-
-    context 'when some procedures are missing for the instructeur' do
-      before do
-        create(:instructeurs_procedure, instructeur: instructeur, procedure: procedures.first, position: 0)
-      end
-
-      it 'creates missing instructeurs_procedures with correct positions' do
-        expect {
-          instructeur.ensure_instructeur_procedures_for(procedures)
-        }.to change { InstructeursProcedure.count }.by(4)
-
-        instructeur_procedures = InstructeursProcedure.where(instructeur: instructeur)
-        expect(instructeur_procedures.pluck(:procedure_id)).to match_array(procedures.map(&:id))
-        expect(instructeur_procedures.pluck(:position)).to eq([0, 1, 2, 3, 4])
-      end
-    end
-
-    context 'when all procedures already exist for the instructeur' do
-      before do
-        procedures.each_with_index do |procedure, index|
-          create(:instructeurs_procedure, instructeur: instructeur, procedure: procedure, position: index + 1)
-        end
-      end
-
-      it 'does not create any new instructeurs_procedures' do
-        expect {
-          instructeur.ensure_instructeur_procedures_for(procedures)
-        }.not_to change { InstructeursProcedure.count }
-      end
-    end
-  end
-
-  describe '.update_instructeur_procedures_positions' do
-    let(:instructeur) { create(:instructeur) }
-    let!(:procedures) { create_list(:procedure, 5, published_at: Time.current) }
-
-    before do
-      procedures.each_with_index do |procedure, index|
-        create(:instructeurs_procedure, instructeur: instructeur, procedure: procedure, position: index + 1)
-      end
-    end
-
-    it 'updates the positions of the specified instructeurs_procedures' do
-      instructeur.update_instructeur_procedures_positions(procedures.map(&:id))
-
-      updated_positions = InstructeursProcedure
-        .where(instructeur:)
-        .order(:procedure_id)
-        .pluck(:procedure_id, :position)
-
-      expect(updated_positions).to match_array([
-        [procedures[0].id, 4],
-        [procedures[1].id, 3],
-        [procedures[2].id, 2],
-        [procedures[3].id, 1],
-        [procedures[4].id, 0]
-      ])
     end
   end
 

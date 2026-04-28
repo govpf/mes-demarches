@@ -43,20 +43,20 @@ class Traitement < ApplicationRecord
     :passe_en_instruction_automatiquement,
     :accepte_automatiquement,
     :refuse_automatiquement
-  ].to_h { [_1, _1.to_s.humanize] }
+  ].index_with { _1.to_s.humanize }
 
   def event
     if state == Dossier.states.fetch(:en_construction)
       if previous_state.nil?
         :depose
-      elsif previous_state == Dossier.states.fetch(:en_instruction)
-        :repasse_en_construction
       elsif previous_state == Dossier.states.fetch(:en_construction)
         if instructeur?
           :depose_correction_instructeur
         else
           :depose_correction_usager
         end
+      else
+        :repasse_en_construction
       end
     elsif state == Dossier.states.fetch(:en_instruction)
       if previous_state != Dossier.states.fetch(:en_construction) && instructeur?

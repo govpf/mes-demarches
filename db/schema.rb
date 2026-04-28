@@ -10,8 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
+ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_buffercache"
+  enable_extension "pg_stat_statements"
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
   enable_extension "postgis"
@@ -69,7 +71,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.datetime "updated_at"
     t.bigint "user_id", null: false
     t.index ["groupe_gestionnaire_id"], name: "index_administrateurs_on_groupe_gestionnaire_id"
-    t.index ["user_id"], name: "index_administrateurs_on_user_id"
+    t.index ["user_id"], name: "index_administrateurs_on_user_id", unique: true
   end
 
   create_table "administrateurs_instructeurs", id: false, force: :cascade do |t|
@@ -173,6 +175,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.datetime "created_at", null: false
     t.text "footer"
     t.jsonb "json_body"
+    t.string "kind", null: false
     t.string "label_direction"
     t.string "label_logo"
     t.boolean "official_layout", default: true, null: false
@@ -181,7 +184,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.text "title"
     t.datetime "updated_at", null: false
     t.integer "version", default: 1, null: false
-    t.index ["procedure_id", "version", "state"], name: "index_attestation_templates_on_procedure_version_state", unique: true
+    t.index ["procedure_id", "version", "state", "kind"], name: "index_attestation_templates_on_procedure_version_state_kind", unique: true
   end
 
   create_table "attestations", id: :serial, force: :cascade do |t|
@@ -272,6 +275,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.integer "dossier_id"
     t.integer "etablissement_id"
     t.string "external_id"
+    t.string "external_state"
     t.string "fetch_external_data_exceptions", array: true
     t.bigint "parent_id"
     t.boolean "prefilled"
@@ -286,7 +290,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.text "updated_by"
     t.string "value"
     t.jsonb "value_json"
-    t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_stream_and_public_id", unique: true, nulls_not_distinct: true
+    t.index ["dossier_id", "stream", "stable_id", "row_id"], name: "index_champs_on_stream_and_public_id", unique: true
     t.index ["dossier_id"], name: "index_champs_on_dossier_id"
     t.index ["etablissement_id"], name: "index_champs_on_etablissement_id"
     t.index ["row_id"], name: "index_champs_on_row_id"
@@ -326,10 +330,12 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.string "email"
     t.bigint "expert_id"
     t.bigint "instructeur_id"
+    t.datetime "seen_by_recipient_at"
     t.datetime "updated_at", null: false
     t.index ["dossier_id"], name: "index_commentaires_on_dossier_id"
     t.index ["expert_id"], name: "index_commentaires_on_expert_id"
     t.index ["instructeur_id"], name: "index_commentaires_on_instructeur_id"
+    t.index ["seen_by_recipient_at"], name: "index_commentaires_on_seen_by_recipient_at"
   end
 
   create_table "contact_forms", force: :cascade do |t|
@@ -448,14 +454,11 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.datetime "created_at", null: false
     t.datetime "display_at"
     t.bigint "dossier_id", null: false
-    t.bigint "groupe_instructeur_id"
-    t.bigint "instructeur_id"
+    t.bigint "instructeur_id", null: false
     t.string "notification_type", null: false
     t.datetime "updated_at", null: false
-    t.index ["dossier_id", "notification_type", "groupe_instructeur_id"], name: "unique_dossier_groupe_instructeur_notification", unique: true, where: "((groupe_instructeur_id IS NOT NULL) AND (instructeur_id IS NULL))"
-    t.index ["dossier_id", "notification_type", "instructeur_id"], name: "unique_dossier_instructeur_notification", unique: true, where: "((instructeur_id IS NOT NULL) AND (groupe_instructeur_id IS NULL))"
+    t.index ["dossier_id", "notification_type", "instructeur_id"], name: "unique_dossier_instructeur_notification", unique: true
     t.index ["dossier_id"], name: "index_dossier_notifications_on_dossier_id"
-    t.index ["groupe_instructeur_id"], name: "index_dossier_notifications_on_groupe_instructeur_id"
     t.index ["instructeur_id"], name: "index_dossier_notifications_on_instructeur_id"
   end
 
@@ -474,6 +477,17 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.index ["dossier_id"], name: "index_dossier_operation_logs_on_dossier_id"
     t.index ["id"], name: "index_dossier_operation_logs_on_id", where: "(data IS NOT NULL)"
     t.index ["keep_until"], name: "index_dossier_operation_logs_on_keep_until"
+  end
+
+  create_table "dossier_pending_responses", force: :cascade do |t|
+    t.bigint "commentaire_id"
+    t.datetime "created_at", null: false
+    t.bigint "dossier_id", null: false
+    t.datetime "responded_at"
+    t.datetime "updated_at", null: false
+    t.index ["commentaire_id"], name: "index_dossier_pending_responses_on_commentaire_id"
+    t.index ["dossier_id"], name: "index_dossier_pending_responses_on_dossier_id"
+    t.index ["responded_at"], name: "index_dossier_pending_responses_on_responded_at", where: "(responded_at IS NULL)"
   end
 
   create_table "dossier_submitted_messages", force: :cascade do |t|
@@ -643,7 +657,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_experts_on_user_id"
+    t.index ["user_id"], name: "index_experts_on_user_id", unique: true
   end
 
   create_table "experts_procedures", force: :cascade do |t|
@@ -662,15 +676,19 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
 
   create_table "export_templates", force: :cascade do |t|
     t.jsonb "attestation"
+    t.boolean "avis_attachments", default: false, null: false
+    t.boolean "commentaires_attachments", default: false, null: false
     t.jsonb "content", default: {}
     t.datetime "created_at", null: false
     t.jsonb "dossier_folder", null: false
     t.jsonb "export_pdf", null: false
     t.jsonb "exported_columns", default: [], null: false, array: true
     t.bigint "groupe_instructeur_id", null: false
+    t.boolean "justificatif_motivation", default: false, null: false
     t.string "kind", null: false
     t.string "name", null: false
     t.jsonb "pjs", default: [], null: false, array: true
+    t.boolean "shared", default: false, null: false
     t.datetime "updated_at", null: false
     t.index ["groupe_instructeur_id"], name: "index_export_templates_on_groupe_instructeur_id"
   end
@@ -795,7 +813,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_gestionnaires_on_user_id"
+    t.index ["user_id"], name: "index_gestionnaires_on_user_id", unique: true
   end
 
   create_table "gestionnaires_groupe_gestionnaires", id: false, force: :cascade do |t|
@@ -860,14 +878,21 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.datetime "login_token_created_at"
     t.datetime "updated_at"
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_instructeurs_on_user_id"
+    t.index ["user_id"], name: "index_instructeurs_on_user_id", unique: true
   end
 
   create_table "instructeurs_procedures", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.string "display_annotation_instructeur_notifications", default: "followed", null: false
+    t.string "display_attente_avis_notifications", default: "followed", null: false
+    t.string "display_attente_correction_notifications", default: "followed", null: false
+    t.string "display_avis_externe_notifications", default: "followed", null: false
+    t.string "display_dossier_depose_notifications", default: "all", null: false
+    t.string "display_dossier_modifie_notifications", default: "followed", null: false
+    t.string "display_message_notifications", default: "followed", null: false
     t.bigint "instructeur_id", null: false
     t.bigint "last_revision_seen_id"
-    t.integer "position", default: 99
+    t.integer "position", null: false
     t.bigint "procedure_id", null: false
     t.datetime "updated_at", null: false
     t.index ["instructeur_id", "procedure_id"], name: "index_instructeurs_procedures_on_instructeur_and_procedure", unique: true
@@ -885,6 +910,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.integer "user_id"
     t.index ["dossier_id"], name: "index_invites_on_dossier_id"
     t.index ["email", "dossier_id"], name: "index_invites_on_email_and_dossier_id", unique: true
+    t.index ["user_id"], name: "index_invites_on_user_id"
   end
 
   create_table "labels", force: :cascade do |t|
@@ -895,6 +921,33 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.bigint "procedure_id", null: false
     t.datetime "updated_at", null: false
     t.index ["procedure_id"], name: "index_labels_on_procedure_id"
+  end
+
+  create_table "llm_rule_suggestion_items", force: :cascade do |t|
+    t.datetime "applied_at"
+    t.datetime "created_at", null: false
+    t.text "justification"
+    t.bigint "llm_rule_suggestion_id", null: false
+    t.string "model"
+    t.string "op_kind", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.bigint "stable_id"
+    t.datetime "updated_at", null: false
+    t.string "verify_status", default: "pending", null: false
+    t.index ["llm_rule_suggestion_id"], name: "index_items_on_llm_rule_suggestion_id"
+  end
+
+  create_table "llm_rule_suggestions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "error"
+    t.bigint "procedure_revision_id", null: false
+    t.string "rule", null: false
+    t.string "schema_hash", null: false
+    t.string "state", default: "pending", null: false
+    t.jsonb "token_usage"
+    t.datetime "updated_at", null: false
+    t.index ["procedure_revision_id", "schema_hash", "rule"], name: "index_llm_rule_suggestions_on_revision_schema_rule"
+    t.index ["procedure_revision_id"], name: "index_llm_rule_suggestions_on_procedure_revision_id"
   end
 
   create_table "maintenance_tasks_runs", force: :cascade do |t|
@@ -956,6 +1009,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.jsonb "displayed_fields", default: [{"label" => "Demandeur", "table" => "user", "column" => "email"}], null: false
     t.jsonb "expirant_filters", default: [], null: false, array: true
     t.jsonb "filters", default: {"tous" => [], "suivis" => [], "traites" => [], "a-suivre" => [], "archives" => [], "expirant" => [], "supprimes" => []}, null: false
+    t.boolean "filters_expanded", default: true, null: false
     t.jsonb "sort", default: {"order" => "desc", "table" => "notifications", "column" => "notifications"}, null: false
     t.jsonb "sorted_column"
     t.jsonb "suivis_filters", default: [], null: false, array: true
@@ -980,6 +1034,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
   end
 
   create_table "procedure_revisions", force: :cascade do |t|
+    t.bigint "administrateur_id"
     t.datetime "created_at", null: false
     t.bigint "dossier_submitted_message_id"
     t.boolean "ineligibilite_enabled", default: false, null: false
@@ -988,6 +1043,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.bigint "procedure_id", null: false
     t.datetime "published_at"
     t.datetime "updated_at", null: false
+    t.index ["administrateur_id"], name: "index_procedure_revisions_on_administrateur_id"
     t.index ["dossier_submitted_message_id"], name: "index_procedure_revisions_on_dossier_submitted_message_id"
     t.index ["procedure_id"], name: "index_procedure_revisions_on_procedure_id"
   end
@@ -1069,6 +1125,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
     t.bigint "published_revision_id"
     t.boolean "rdv_enabled", default: false, null: false
     t.bigint "replaced_by_procedure_id"
+    t.boolean "robots_indexable", default: true, null: false
     t.boolean "routing_alert", default: false, null: false
     t.boolean "routing_enabled"
     t.bigint "service_id"
@@ -1161,6 +1218,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
   create_table "referentiels", force: :cascade do |t|
     t.jsonb "authentication_data", default: {}
     t.string "authentication_method"
+    t.jsonb "autocomplete_configuration", default: {}, null: false
     t.datetime "created_at", null: false
     t.string "digest"
     t.string "headers", default: [], array: true
@@ -1443,7 +1501,6 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
   add_foreign_key "dossier_labels", "dossiers"
   add_foreign_key "dossier_labels", "labels"
   add_foreign_key "dossier_notifications", "dossiers"
-  add_foreign_key "dossier_notifications", "groupe_instructeurs"
   add_foreign_key "dossier_notifications", "instructeurs"
   add_foreign_key "dossier_operation_logs", "bill_signatures"
   add_foreign_key "dossier_transfer_logs", "dossiers"
@@ -1459,6 +1516,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
   add_foreign_key "export_templates", "groupe_instructeurs"
   add_foreign_key "exports", "export_templates"
   add_foreign_key "exports", "instructeurs"
+  add_foreign_key "follows", "dossiers"
+  add_foreign_key "follows", "instructeurs"
   add_foreign_key "france_connect_informations", "users"
   add_foreign_key "geo_areas", "champs"
   add_foreign_key "groupe_instructeurs", "procedures"
@@ -1467,6 +1526,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_12_14_182308) do
   add_foreign_key "instructeurs_procedures", "instructeurs"
   add_foreign_key "instructeurs_procedures", "procedures"
   add_foreign_key "labels", "procedures"
+  add_foreign_key "llm_rule_suggestion_items", "llm_rule_suggestions"
   add_foreign_key "merge_logs", "users"
   add_foreign_key "procedure_paths", "procedures"
   add_foreign_key "procedure_presentations", "assign_tos"

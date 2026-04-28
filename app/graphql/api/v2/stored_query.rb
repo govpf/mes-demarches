@@ -42,6 +42,7 @@ class API::V2::StoredQuery
     $includePendingDeletedDossiers: Boolean = false
     $includeDeletedDossiers: Boolean = false
     $includeRevision: Boolean = false
+    $includeRevisions: Boolean = false
     $includeService: Boolean = false
     $includeChamps: Boolean = true
     $includeAnotations: Boolean = true
@@ -66,6 +67,9 @@ class API::V2::StoredQuery
         referentielDeProgrammation
       }
       activeRevision @include(if: $includeRevision) {
+        ...RevisionFragment
+      }
+      revisions @include(if: $includeRevisions) {
         ...RevisionFragment
       }
       groupeInstructeurs @include(if: $includeGroupeInstructeurs) {
@@ -424,6 +428,9 @@ class API::V2::StoredQuery
       collapsibleExplanationEnabled
       collapsibleExplanationText
     }
+    ... on HeaderSectionChampDescriptor {
+      level
+    }
   }
 
   fragment AvisFragment on Avis {
@@ -477,6 +484,7 @@ class API::V2::StoredQuery
   fragment RootChampFragment on Champ {
     ... on RepetitionChamp {
       rows {
+        id
         champs {
           ...ChampFragment
         }
@@ -617,6 +625,9 @@ class API::V2::StoredQuery
       engagementJuridique {
         ...EngagementJuridiqueFragment
       }
+    }
+    ... on HeaderSectionChamp {
+      level
     }
   }
 
@@ -843,6 +854,23 @@ class API::V2::StoredQuery
         attestation {
           url
         }
+      }
+      errors {
+        message
+      }
+    }
+  }
+
+  mutation dossierBasculeSuivi($input: DossierBasculeSuiviInput!) {
+    dossierBasculeSuivi(input: $input) {
+      dossier {
+        id
+        instructeurs {
+          id
+        }
+      }
+      instructeur {
+        id
       }
       errors {
         message

@@ -16,19 +16,4 @@ describe APIGeo::API do
     subject { described_class.polynesian_cities }
     it { expect(subject.size).to eq(256) }
   end
-
-  describe '.pays' do
-    subject { described_class.pays }
-    let(:pays) {
-      JSON.parse(File.read('app/lib/api_geo/pays.json'), symbolize_names: true)
-    }
-    it { is_expected.to eq pays }
-  end
-
-  describe '.pays : first elts must be PF, France' do
-    subject { described_class.pays[0..1].pluck(:nom) }
-    let(:first) { ["POLYNESIE FRANCAISE", "FRANCE"] }
-
-    it { is_expected.to eq first }
-  end
 end

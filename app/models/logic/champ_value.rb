@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Logic::ChampValue < Logic::Term
-  INSTANCE_MANAGED_TYPE_DE_CHAMP = [:referentiel_de_polynesie]
+  INSTANCE_MANAGED_TYPE_DE_CHAMP = [:referentiel_de_polynesie, :formule]
 
   MANAGED_TYPE_DE_CHAMP = TypeDeChamp.type_champs.slice(
     *INSTANCE_MANAGED_TYPE_DE_CHAMP,
@@ -52,6 +52,10 @@ class Logic::ChampValue < Logic::Term
     [@stable_id]
   end
 
+  def dup_with_stable_ids(mapping)
+    self.class.new(mapping[stable_id] || stable_id)
+  end
+
   def compute(champs)
     targeted_champ = champ(champs)
 
@@ -88,6 +92,13 @@ class Logic::ChampValue < Logic::Term
       {
         archipel: targeted_champ.archipel
       }
+    when "Champs::FormuleChamp" # pf: formule comme source de condition
+      case targeted_champ.type_de_champ.formule_output_type
+      when 'boolean'
+        targeted_champ.value == Champs::BooleanChamp::TRUE_VALUE
+      else
+        targeted_champ.value&.to_f
+      end
     end
   end
 
@@ -119,6 +130,11 @@ class Logic::ChampValue < Logic::Term
       CHAMP_VALUE_TYPE.fetch(:enums)
     when MANAGED_TYPE_DE_CHAMP.fetch(:referentiel_de_polynesie)
       CHAMP_VALUE_TYPE.fetch(:enum)
+    when MANAGED_TYPE_DE_CHAMP.fetch(:formule) # pf: type conditionnel selon le résultat de la formule
+      case type_de_champ(type_de_champs)&.formule_output_type
+      when 'boolean' then CHAMP_VALUE_TYPE.fetch(:boolean)
+      else CHAMP_VALUE_TYPE.fetch(:number)
+      end
     else
       CHAMP_VALUE_TYPE.fetch(:unmanaged)
     end
