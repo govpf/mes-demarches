@@ -189,7 +189,7 @@ module DossierFormulaRefreshConcern
     # dans une row), on garde les Champs de la même row + les Champs hors
     # répétition (row_id=nil). Sans row_id (recalcul global, ex: rebase /
     # merge / refresh_clock), on traite toutes les rows.
-    champs_for_tdc = champs.select do |c|
+    champs_for_tdc = champs.filter do |c|
       c.stable_id == tdc.stable_id && c.stream == stream &&
         (row_id.nil? || c.row_id == row_id || c.row_id.nil?)
     end

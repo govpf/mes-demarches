@@ -535,7 +535,7 @@ class FormulaCalculationService
     #
     # Pour les formules amont (transitivité), la valeur est lue via @value_overrides
     # par compute_formulas_in_order avant même d'arriver dans all_champs.
-    @all_champs ||= @dossier.champs.select { |c| c.stream == @dossier.stream }
+    @all_champs ||= @dossier.champs.filter { |c| c.stream == @dossier.stream }
   end
 
   def get_champ_numeric_value(champ)
