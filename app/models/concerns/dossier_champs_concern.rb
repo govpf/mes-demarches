@@ -444,7 +444,18 @@ module DossierChampsConcern
 
     # If the champ returned from `create_or_find_by` is not the same as the one already loaded in `dossier.champs`, we need to update the association cache
     loaded_champ = champs.find { [_1.stream, _1.public_id] == [champ.stream, champ.public_id] }
-    if loaded_champ.present? && loaded_champ.object_id != champ.object_id
+    if loaded_champ.nil?
+      # pf: champ fraîchement créé via create_or_find_by! — l'ajouter à
+      # la collection en mémoire pour que les futurs lookups in-memory
+      # (champs.find ligne ~427) le retrouvent. Sans ce push, une seconde
+      # invocation de champ_upsert_by! dans la même requête (cas du double
+      # save dans update_dossier_and_compute_errors) ne trouve pas le Champ
+      # existant et tombe dans create_or_find_by! qui crée un doublon —
+      # la contrainte unique Postgres sur (dossier_id, stable_id, row_id,
+      # stream) ne matche pas avec row_id=NULL (Postgres traite NULL ≠ NULL
+      # dans les UNIQUE par défaut, sans NULLS NOT DISTINCT).
+      association(:champs).target.push(champ) if champs.loaded?
+    elsif loaded_champ.object_id != champ.object_id
       association(:champs).target = champs - [loaded_champ] + [champ]
     end
 
