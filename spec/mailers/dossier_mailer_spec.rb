@@ -23,7 +23,7 @@ RSpec.describe DossierMailer, type: :mailer do
       expect(subject.subject).to include("brouillon")
       expect(subject.subject).to include(dossier.procedure.libelle)
       expect(subject.body).to include(dossier.procedure.libelle)
-      expect(subject.body).to include(dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).to include(dossier_url(dossier))
       expect(subject.body).to include("Vous pouvez déposer votre dossier jusqu’au")
       expect(subject.body).to include("heure de")
     end
@@ -46,10 +46,10 @@ RSpec.describe DossierMailer, type: :mailer do
     #   dossier.hide_and_keep_track!(user, :user_request)
     #   expect(subject.subject).to be_nil
     # end
-    #
+
     # context 'when dossier is not brouillon anymore' do
     #   let(:dossier) { create(:dossier, :en_construction, user:) }
-    #
+
     #   it 'does not send the email' do
     #     expect(subject.subject).to be_nil
     #   end
@@ -67,7 +67,7 @@ RSpec.describe DossierMailer, type: :mailer do
       expect(subject.subject).to include("Nouveau message")
       expect(subject.subject).to include(dossier.id.to_s)
       expect(subject.body).to include(dossier.procedure.service.email)
-      expect(subject.body).not_to include(messagerie_dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).not_to include(messagerie_dossier_url(dossier))
     end
 
     it_behaves_like 'a dossier notification'
@@ -87,7 +87,7 @@ RSpec.describe DossierMailer, type: :mailer do
     it 'checks email subject and body for correct inclusions' do
       expect(subject.subject).to include("Nouveau message")
       expect(subject.subject).to include(dossier.id.to_s)
-      expect(subject.body).to include(messagerie_dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).to include(messagerie_dossier_url(dossier))
     end
 
     it_behaves_like 'a dossier notification'
@@ -136,7 +136,7 @@ RSpec.describe DossierMailer, type: :mailer do
       expect(subject.subject).to eq("Un dossier en brouillon a été supprimé")
       expect(subject.body).to include("n° #{dossier.id}")
       expect(subject.body).to include(dossier.procedure.libelle)
-      expect(subject.body).to include(commencer_url(dossier.procedure.path, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).to include(commencer_url(dossier.procedure.path))
     end
   end
 
@@ -358,7 +358,7 @@ RSpec.describe DossierMailer, type: :mailer do
       end
       it 'includes a direct URL to transfers' do
         expect(subject.body).to include('Afin de pouvoir accepter ou refuser la demande vous devez vous connectez sur')
-        expect(subject.body).to include(dossiers_url(statut: 'dossiers-transferes', host: ENV.fetch("APP_HOST_LEGACY")))
+        expect(subject.body).to include(dossiers_url(statut: 'dossiers-transferes'))
       end
     end
 
@@ -366,13 +366,6 @@ RSpec.describe DossierMailer, type: :mailer do
       it 'includes a URL to create one' do
         expect(subject.body).to include('Afin de pouvoir accepter ou refuser la demande vous devez avoir un compte :')
         expect(subject.body).to include(new_user_registration_url)
-      end
-    end
-
-    context 'when recipient has preferred domain', skip: true do
-      let(:dossier_transfer) { create(:dossier_transfer, email: create(:user, preferred_domain: :demarche_numerique_gouv_fr).email) }
-      it 'includes a link with the preferred domain in the email body' do
-        expect(subject.body).to include(dossiers_url(statut: "dossiers-transferes", host: 'demarche.numerique.gouv.fr'))
       end
     end
 
