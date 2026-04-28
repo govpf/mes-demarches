@@ -439,7 +439,12 @@ class Champ < ApplicationRecord
     dossier.with_champ_stream(self) do
       dossier.compute_formulas_in_order(
         seed_overrides: { stable_id => value },
-        only: dependent_stable_ids
+        only: dependent_stable_ids,
+        # pf: propagation du row_id de la source — limite le recalcul aux
+        # Champs formule de la même row (cas répétition) + ceux hors répétition.
+        # Évite de recalculer toutes les rows alors que seule la row de la
+        # source modifiée a été affectée.
+        row_id: row_id
       )
     end
   end
