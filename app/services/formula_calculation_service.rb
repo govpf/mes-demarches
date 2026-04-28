@@ -529,13 +529,24 @@ class FormulaCalculationService
     #   - en draft revision, recalcule chaque champ formule via project_champ
     #     (cascade O(N TDC) déclenchée pour calculer UNE formule).
     #
-    # Côté calcul, on n'a besoin que des champs réellement persistés ou en mémoire
-    # sur le stream courant. Si un TDC source n'est pas matérialisé, find_champ_*
-    # retourne nil et le service propage la valeur nil — comportement souhaité.
+    # Sémantique buffer+main : quand le dossier est sur user:buffer, un Champ
+    # source non modifié par l'usager n'a PAS de version buffer (il vit
+    # uniquement sur main). Pour pouvoir résoudre les références dans une
+    # formule, on doit voir buffer ET main, avec le buffer prioritaire pour le
+    # même public_id. C'est la sémantique de DossierChampsConcern#champs_on_stream
+    # qu'on reproduit ici pour la LECTURE (le service est utilisé pour calculer,
+    # pas pour décider du stream de persistence — c'est compute_formulas_in_order
+    # qui s'en charge avec un filtre strict par stream).
     #
     # Pour les formules amont (transitivité), la valeur est lue via @value_overrides
     # par compute_formulas_in_order avant même d'arriver dans all_champs.
-    @all_champs ||= @dossier.champs.filter { |c| c.stream == @dossier.stream }
+    @all_champs ||= if @dossier.stream == Champ::USER_BUFFER_STREAM
+      buffer_champs = @dossier.champs.filter { |c| c.stream == Champ::USER_BUFFER_STREAM }
+      main_champs = @dossier.champs.filter { |c| c.stream == Champ::MAIN_STREAM }
+      (buffer_champs + main_champs).uniq(&:public_id)
+    else
+      @dossier.champs.filter { |c| c.stream == @dossier.stream }
+    end
   end
 
   def get_champ_numeric_value(champ)
