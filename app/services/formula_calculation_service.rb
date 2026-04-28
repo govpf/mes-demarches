@@ -29,6 +29,11 @@ class FormulaCalculationService
     # backslashes) dans les champs texte.
     @variables = {}
     @var_counter = 0
+    # pf: cache value→nom de variable pour dédoublonner les références multiples
+    # à la même source dans une expression. Sans ce cache, register_variable
+    # ajoutait une nouvelle entrée à chaque appel — ex: SUBSTITUE({tdc683},...)
+    # apparaissant 4 fois créait 4 variables identiques dans @variables.
+    @value_to_var = {}
 
     # pf: La détection de référence circulaire est faite STATIQUEMENT à la
     # validation du TDC formule (cf. FormuleTypeDeChamp#validate_expression
@@ -398,11 +403,21 @@ class FormulaCalculationService
   # ce nom pour injection dans l'expression Dentaku. Dentaku recevra la
   # valeur native (String, Integer, Float) via son hash de variables,
   # sans sérialisation/parsing intermédiaire.
+  #
+  # Dédoublonnage : si la même valeur est référencée plusieurs fois dans
+  # l'expression (ex: {tdc683} apparaît 4 fois), on réutilise le nom de
+  # variable déjà enregistré au lieu d'en créer un nouveau. Bénéfice :
+  # @variables reste compact, et Dentaku peut potentiellement memoizer les
+  # sous-AST identiques sur la même variable.
   def register_variable(value)
+    @value_to_var ||= {}
+    return @value_to_var[value] if @value_to_var.key?(value)
+
     @var_counter ||= 0
     @var_counter += 1
     name = "__formula_var_#{@var_counter}__"
     @variables[name] = value
+    @value_to_var[value] = name
     name
   end
 
