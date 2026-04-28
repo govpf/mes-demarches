@@ -506,9 +506,21 @@ class FormulaCalculationService
   end
 
   def all_champs
-    # Get all champs (public + private) including repetition rows, without duplicates
-    # This ensures formulas work correctly with the current revision and stream
-    @all_champs ||= (@dossier.project_champs_public_all + @dossier.project_champs_private_all)
+    # pf: Lookup direct sur la collection au lieu de matérialiser via project_champs.
+    # project_champs_*_all itère tous les TDC de la révision et appelle project_champ
+    # pour chacun, ce qui :
+    #   - construit en mémoire un Champ vide pour chaque TDC sans champ persisté
+    #     (utile à l'affichage admin, inutile au calcul de formule),
+    #   - en draft revision, recalcule chaque champ formule via project_champ
+    #     (cascade O(N TDC) déclenchée pour calculer UNE formule).
+    #
+    # Côté calcul, on n'a besoin que des champs réellement persistés ou en mémoire
+    # sur le stream courant. Si un TDC source n'est pas matérialisé, find_champ_*
+    # retourne nil et le service propage la valeur nil — comportement souhaité.
+    #
+    # Pour les formules amont (transitivité), la valeur est lue via @value_overrides
+    # par compute_formulas_in_order avant même d'arriver dans all_champs.
+    @all_champs ||= @dossier.champs.select { |c| c.stream == @dossier.stream }
   end
 
   def get_champ_numeric_value(champ)

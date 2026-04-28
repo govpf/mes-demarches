@@ -49,6 +49,98 @@ module DossierFormulaRefreshConcern
     end
   end
 
+  # pf: Méthode unique de recalcul des formules d'un dossier dans l'ordre
+  # topologique. Utilise l'invariant "position TDC = ordre topologique" (cf.
+  # TypesDeChamp::FormuleTypeDeChamp#forward_reference?) : itérer les TDC
+  # formule dans l'ordre des positions garantit qu'au moment où on calcule
+  # une formule, toutes ses sources et formules amont sont déjà résolues.
+  #
+  # Les valeurs calculées sont accumulées dans `value_overrides` et lues par
+  # le service au calcul suivant — pas de relecture BDD par formule.
+  #
+  # Paramètres :
+  #   seed_overrides : Hash { stable_id => value } valeurs initiales. Typique :
+  #                    la nouvelle valeur d'un champ source qui vient d'être
+  #                    sauvegardée et qui a déclenché une cascade.
+  #   only           : nil (toutes les formules de la révision) ou Set/Array de
+  #                    stable_ids à recalculer (cascade ciblée).
+  #   persist        : true par défaut. Si false, retourne les valeurs sans
+  #                    toucher la BDD (mode "calcul pur" pour preview).
+  #   create_missing : true par défaut. Si false, on ne matérialise pas les
+  #                    champs formule absents en BDD — pertinent pour le calcul
+  #                    initial qui ne doit pas créer de champs si la création
+  #                    du dossier ne les a pas faits (sinon doublons avec les
+  #                    flux qui créent les champs après le dossier, comme
+  #                    certaines factories de tests).
+  #
+  # Retourne : le hash overrides complet { stable_id => value } incluant
+  # les valeurs initiales et toutes les formules calculées. Permet à
+  # l'appelant d'enchaîner sans réinterroger la BDD.
+  def compute_formulas_in_order(seed_overrides: {}, only: nil, persist: true, create_missing: true)
+    formula_tdcs = revision.types_de_champ.filter(&:formule?)
+    formula_tdcs = formula_tdcs.filter { |tdc| only.include?(tdc.stable_id) } if only
+    return seed_overrides.dup if formula_tdcs.empty?
+
+    overrides = seed_overrides.dup
+    # pf: le service lit @value_overrides par référence, donc les nouvelles
+    # entrées ajoutées au fil de l'itération sont visibles au calcul suivant.
+    service = FormulaCalculationService.new(self, value_overrides: overrides)
+
+    formula_tdcs.each do |tdc|
+      formule_champs_for_tdc(tdc).each do |formule_champ|
+        new_value = service.compute_value(formule_champ)
+        overrides[tdc.stable_id] = new_value
+        next unless persist
+
+        if formule_champ.persisted?
+          # pf: champ formule déjà en BDD — update direct, pas de cascade.
+          # update_columns met à jour value ET updated_at (cohérence pour les
+          # consommateurs basés sur updated_at, et pré-requis pour un futur
+          # cache "tdc.updated_at > champ.updated_at" en draft preview).
+          if formule_champ.read_attribute(:value) != new_value
+            formule_champ.update_columns(value: new_value, updated_at: Time.zone.now)
+          end
+        else
+          # pf: champ non persisté — création seulement si create_missing.
+          # Cas typique de création : rebase qui ajoute un nouveau TDC formule.
+          # Cas typique de skip : compute_initial_formulas qui tourne au
+          # after_commit du dossier mais n'a pas vocation à insérer des champs.
+          next unless create_missing
+          target = Dossier.no_touching do
+            with_champ_stream(formule_champ) do
+              send(:champ_upsert_by!, tdc, formule_champ.row_id)
+            end
+          end
+          if target.read_attribute(:value) != new_value
+            target.update_columns(value: new_value, updated_at: Time.zone.now)
+          end
+        end
+      end
+    end
+
+    overrides
+  end
+
+  # pf: Calcul initial des formules d'un dossier — appel explicite depuis
+  # les controllers / services qui créent un dossier. Pattern "option 3" :
+  # pas de hook after_commit (qui pose problème avec les factories de tests
+  # qui ajoutent des champs après la création) ; au contraire, l'appelant
+  # contrôle explicitement le moment où on calcule, juste après build_default_values
+  # + save! (ou après prefill! pour les flux de préfill).
+  #
+  # Couvre :
+  # - formules constantes ({1 + 1}) / sur fonctions système (AUJOURDHUI())
+  # - formules sur champs source préremplis (cas Commencer)
+  #
+  # Pour les formules dépendant d'un champ que l'usager modifie, c'est la
+  # cascade refresh_dependent_formulas qui prend le relais.
+  def compute_initial_formulas
+    return unless revision&.types_de_champ&.any?(&:formule?)
+    compute_formulas_in_order
+  rescue StandardError => e
+    Rails.logger.error("[InitialFormulas] dossier=#{id} error=#{e.class}: #{e.message}")
+  end
+
   private
 
   def refresh_state_dependent_formulas_if_needed

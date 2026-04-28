@@ -405,25 +405,28 @@ class Champ < ApplicationRecord
     # pf: Les champs formule eux-mêmes ne déclenchent pas de recalcul (évite les boucles)
     return if type_de_champ.formule?
 
-    # pf: Recalcul de toutes les formules dépendantes (transitivité A → B → C).
-    # all_dependent_formula_champs retourne les champs dans l'ordre BFS (B avant C).
-    # value_overrides accumule les valeurs fraîchement calculées pour que chaque
-    # formule suivante dans la chaîne voie les résultats à jour, sans dépendre
-    # des caches AR du dossier.
-    value_overrides = { stable_id => value }
+    # pf: Pré-calcul des stable_ids des formules transitivement dépendantes,
+    # filtrées par contrainte de stream. La cascade ne recalcule que ces
+    # formules-là (pas toutes les formules de la révision).
+    #
+    # Filtre privacy : les formules privées ne peuvent être écrites que sur
+    # main (cf. check_valid_stream_on_write?). Quand la source est sur
+    # user:buffer, on skip les formules privées — elles seront recalculées au
+    # moment où les changements sont committés vers main (dépôt / instruction).
+    dependent_formula_champs = all_dependent_formula_champs
+    dependent_formula_champs = dependent_formula_champs.reject { |fc| fc.type_de_champ.private? } if stream != Champ::MAIN_STREAM
+    dependent_stable_ids = dependent_formula_champs.map(&:stable_id).uniq
+    return if dependent_stable_ids.empty?
 
-    all_dependent_formula_champs.each do |formula_champ|
-      service = FormulaCalculationService.new(dossier, value_overrides:)
-      new_value = service.compute_value(formula_champ)
-      value_overrides[formula_champ.stable_id] = new_value
-
-      # pf: Utilise champ_upsert_by! pour respecter le stream du dossier.
-      # En mode buffer, ça crée/trouve le champ en user:buffer (pas en main).
-      # En mode main/brouillon, ça crée/trouve le champ en main.
-      # champ_upsert_by! gère aussi le cache AR (association + reset_champs_cache).
-      tdc = formula_champ.type_de_champ
-      target_champ = Dossier.no_touching { dossier.send(:champ_upsert_by!, tdc, formula_champ.row_id) }
-      target_champ.update_column(:value, new_value) if target_champ.read_attribute(:value) != new_value
+    # pf: Délégation à la méthode unique du concern. Le with_champ_stream(self)
+    # propage le stream de la source au dossier le temps de la cascade, pour
+    # que tous les upserts de champs formule créés en cascade soient sur le
+    # même stream (et que check_valid_stream_on_write? reste cohérent).
+    dossier.with_champ_stream(self) do
+      dossier.compute_formulas_in_order(
+        seed_overrides: { stable_id => value },
+        only: dependent_stable_ids
+      )
     end
   end
 
