@@ -259,23 +259,30 @@ module DossierChampsConcern
       end
     end
 
-    # pf: recalcul des formules privées après merge buffer→main. Pendant
-    # que le dossier était en user:buffer, la cascade refresh_dependent_formulas
-    # a explicitement skippé les formules privées (cf. check_valid_stream_on_write?
+    # pf: Le merge est terminé. Les buffer ont été promus à main, les
+    # anciens main sont passés en history. Le dossier vit conceptuellement
+    # sur main désormais — le @stream encore à user:buffer (hérité du
+    # before_action :set_dossier_stream du controller) ne reflète plus rien.
+    #
+    # On reset les caches dérivés (champs_by_public_id, project_champs_*,
+    # etc. qui pouvaient encore filtrer sur buffer) puis on aligne @stream
+    # explicitement. Toute opération suivante voit un état cohérent.
+    reset_champs_cache
+    @stream = Champ::MAIN_STREAM
+
+    # pf: Recalcul des formules privées après merge. Pendant que le dossier
+    # était sur user:buffer, la cascade refresh_dependent_formulas a
+    # explicitement skippé les formules privées (cf. check_valid_stream_on_write?
     # qui interdit l'écriture privée hors main). Maintenant que les sources
-    # promues sont sur main, on peut les recalculer proprement.
+    # promues sont sur main et que @stream est aligné, on peut les recalculer.
     #
     # On cible uniquement les formules privées : les formules publiques ont
     # été calculées en cascade pendant que le dossier était en buffer (sur
-    # le stream user:buffer), puis promues à main par l'update_all ci-dessus.
+    # user:buffer), puis promues à main par l'update_all ci-dessus.
     private_formula_stable_ids = revision.types_de_champ_private
       .filter(&:formule?)
       .map(&:stable_id)
-    if private_formula_stable_ids.any?
-      compute_formulas_in_order(only: private_formula_stable_ids)
-    end
-
-    reset_champs_cache
+    compute_formulas_in_order(only: private_formula_stable_ids) if private_formula_stable_ids.any?
   end
 
   def reset_user_buffer_stream!
