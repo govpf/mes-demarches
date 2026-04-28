@@ -693,6 +693,7 @@ class API::V2::StoredQuery
     byteSize: byteSizeBigInt
     url
     createdAt
+    virusScanResult
   }
 
   fragment AddressFragment on Address {
@@ -887,6 +888,9 @@ class API::V2::StoredQuery
       dossier {
         id
         state
+        attestation {
+          url
+        }
       }
       errors {
         message

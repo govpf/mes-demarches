@@ -377,6 +377,7 @@ export function useRemoteList({
   const [inputValue, setInputValue] = useState(selectedItem?.label ?? '');
   const [isExplicitlySelected, setIsExplicitlySelected] = useState(false);
   const list = useAsyncList<Item>({ getKey, load });
+  const [error, setError] = useState<Error | null>(null);
   const setFilterText = useEvent((filterText: string) => {
     list.setFilterText(filterText);
   });
@@ -407,6 +408,7 @@ export function useRemoteList({
 
   const onInputChange = useEvent<NonNullable<ComboBoxProps['onInputChange']>>(
     (value) => {
+      setError(null);
       debouncedSetFilterText(value);
       setIsExplicitlySelected(false);
       setInputValue(value);
@@ -419,17 +421,30 @@ export function useRemoteList({
   const onReset = useEvent(() => {
     setSelectedItem(null);
     setInputValue('');
+    setError(null);
   });
 
+  useEffect(() => {
+    if (list.error) {
+      setError(list.error);
+    }
+  }, [list.error]);
+
+  useEffect(() => {
+    if (!list.isLoading && !list.error) {
+      setError(null);
+    }
+  }, [list.isLoading, list.error]);
+
   // add to items list current selected item if it's not in the list
-  const items = list.error
+  const items = error
     ? []
     : selectedItem && !list.getItem(selectedItem.value)
       ? [selectedItem, ...list.items]
       : list.items;
 
   const shouldShowPopover = useMemo(() => {
-    if (!isExplicitlySelected && list.error) {
+    if (!isExplicitlySelected && error) {
       return true;
     }
 
@@ -442,7 +457,7 @@ export function useRemoteList({
     list.isLoading,
     list.loadingState,
     list.items.length,
-    list.error,
+    error,
     isExplicitlySelected
   ]);
 
@@ -474,7 +489,7 @@ export function useRemoteList({
     onReset,
     isLoading: list.isLoading,
     shouldShowPopover,
-    error: list.error
+    error
   };
 }
 

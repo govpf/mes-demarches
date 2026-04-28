@@ -455,12 +455,14 @@ describe API::V2::GraphqlController do
                   checksum
                   byteSize
                   contentType
+                  virusScanResult
                 }
                 attachments {
                   filename
                   checksum
                   byteSize
                   contentType
+                  virusScanResult
                 }
               }
               avis {
@@ -553,6 +555,7 @@ describe API::V2::GraphqlController do
                 contentType: commentaire.piece_jointe.first.content_type,
                 checksum: commentaire.piece_jointe.first.checksum,
                 byteSize: commentaire.piece_jointe.first.byte_size,
+                virusScanResult: commentaire.piece_jointe.first.virus_scan_result,
               },
               attachments: commentaire.piece_jointe.map do |pj|
                 {
@@ -560,6 +563,7 @@ describe API::V2::GraphqlController do
                   contentType: pj.content_type,
                   checksum: pj.checksum,
                   byteSize: pj.byte_size,
+                  virusScanResult: pj.virus_scan_result,
                 }
               end,
               email: commentaire.email,
@@ -875,6 +879,39 @@ describe API::V2::GraphqlController do
         }
       end
 
+      context "virusScanResult" do
+        let(:query) do
+          "{
+            dossier(number: #{dossier.id}) {
+              champs(id: \"#{champ.to_typed_id}\") {
+                ... on PieceJustificativeChamp {
+                  files { virusScanResult }
+                }
+              }
+            }
+          }"
+        end
+
+        context "when virus scan is safe" do
+          it {
+            expect(gql_errors).to be_nil
+            expect(gql_data).to eq(dossier: { champs: [{ files: [{ virusScanResult: 'safe' }] }] })
+          }
+        end
+
+        context "when virus scan is pending" do
+          before do
+            champ.piece_justificative_file.first.blob.update(virus_scan_result: 'pending')
+            champ.piece_justificative_file.first.blob.metadata.delete(:virus_scan_result)
+          end
+
+          it {
+            expect(gql_errors).to be_nil
+            expect(gql_data).to eq(dossier: { champs: [{ files: [{ virusScanResult: 'pending' }] }] })
+          }
+        end
+      end
+
       context "when the file is really big" do
         before do
           champ.piece_justificative_file.first.blob.update(byte_size: byte_size)
@@ -1140,6 +1177,60 @@ describe API::V2::GraphqlController do
               errors: [{ message: "Le dossier est déjà refusé" }],
               dossier: nil,
             })
+          end
+        end
+      end
+
+      describe 'dossierRefuser' do
+        let(:dossier) { create(:dossier, :en_instruction, :with_individual, procedure:) }
+        let(:query) do
+          "mutation {
+          dossierRefuser(input: {
+            dossierId: \"#{dossier.to_typed_id}\",
+            instructeurId: \"#{instructeur.to_typed_id}\",
+            motivation: \"Dossier incomplet\"
+          }) {
+            dossier {
+              id
+              state
+              attestation {
+                url
+                filename
+              }
+            }
+            errors {
+              message
+            }
+          }
+        }"
+        end
+
+        context 'when attestation refus template is activated' do
+          before do
+            dossier.procedure.attestation_refus_template = build(:attestation_template, :refus, activated: true)
+            dossier.procedure.save!
+          end
+
+          it 'should return the attestation' do
+            expect(gql_errors).to eq(nil)
+            expect(gql_data[:dossierRefuser][:dossier][:state]).to eq('refuse')
+            expect(gql_data[:dossierRefuser][:dossier][:attestation]).not_to be_nil
+            expect(gql_data[:dossierRefuser][:dossier][:attestation][:url]).to be_present
+            expect(gql_data[:dossierRefuser][:errors]).to be_nil
+          end
+        end
+
+        context 'when attestation refus template is not activated' do
+          before do
+            dossier.procedure.attestation_refus_template = build(:attestation_template, :refus, activated: false)
+            dossier.procedure.save!
+          end
+
+          it 'should not return attestation' do
+            expect(gql_errors).to eq(nil)
+            expect(gql_data[:dossierRefuser][:dossier][:state]).to eq('refuse')
+            expect(gql_data[:dossierRefuser][:dossier][:attestation]).to be_nil
+            expect(gql_data[:dossierRefuser][:errors]).to be_nil
           end
         end
       end
