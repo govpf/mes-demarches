@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_24_100307) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_buffercache"
   enable_extension "pg_stat_statements"
@@ -874,6 +874,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_02_05_102351) do
     t.string "agent_connect_id_token"
     t.boolean "bypass_email_login_token", default: false, null: false
     t.datetime "created_at"
+    t.string "dossier_layout_preference"
     t.text "encrypted_login_token"
     t.datetime "login_token_created_at"
     t.datetime "updated_at"

@@ -198,6 +198,11 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 - Régénérer le schéma GraphQL : `bin/rails graphql:schema:dump`
 - Lancer les tests GraphQL : `bundle exec rspec spec/controllers/api/v2/graphql_controller_spec.rb`
 
+## File Editing
+- Before editing a YAML/config file, check if the user may have it open (ask or note it); prefer atomic edits.
+- For files with French typography (guillemets « », non-breaking spaces), prefer sed or Write with full content over Edit's exact-match, which often fails on these characters.
+- Avoid incidental whitespace changes — review diffs before committing.
+
 ## Processus de Release
 
 ### Étapes pour créer une release

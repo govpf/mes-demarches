@@ -12,6 +12,8 @@ class API::Public::V1::DossiersController < API::Public::V1::BaseController
     dossier.build_default_values
     if dossier.save
       dossier.prefill!(PrefillChamps.new(dossier, params.to_unsafe_h).to_a, PrefillIdentity.new(dossier, params.to_unsafe_h).to_h)
+      # pf: calcul initial des formules après prefill (cf. dossier.compute_initial_formulas).
+      dossier.compute_initial_formulas
       render json: serialize_dossier(dossier), status: :created
     else
       render_bad_request(dossier.errors.full_messages.to_sentence)
