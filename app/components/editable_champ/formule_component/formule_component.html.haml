@@ -2,5 +2,7 @@
   - if @champ.value.present?
     = formatted_value
   - else
-    %span.fr-text--mention-grey{ "aria-label": "Aucune valeur calculée disponible pour #{@champ.libelle}" }
-      = t('views.shared.champs.formule.no_value')
+    -# pf: marker neutre "—" cohérent avec FormuleTypeDeChamp#champ_value.
+    -# L'aria-label reste verbeux et localisé pour les lecteurs d'écran.
+    %span.fr-text--mention-grey{ "aria-label": t('.no_value_aria', libelle: @champ.libelle) }
+      —

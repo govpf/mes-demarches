@@ -119,32 +119,50 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
     end
   end
 
-  # ------------------------------------------------------------------
-  # Scénario 3 : Référence circulaire — protégée par detect_circular_references
-  # ------------------------------------------------------------------
-  describe 'référence circulaire' do
+  # pf: Le scénario "référence circulaire" est désormais validé STATIQUEMENT
+  # à la sauvegarde du TDC formule (cf. spec/models/types_de_champ/
+  # formule_type_de_champ_spec.rb → "circular reference detection"). Le
+  # validateur refuse la save d'une formule qui s'auto-référence — donc ce
+  # cas ne peut plus arriver à l'exécution. La protection runtime
+  # `detect_circular_references` a été retirée car elle déclenchait
+  # `all_champs` (= project_champs cascade) à chaque calcul.
+
+  # ----------------------------------------------------------------------
+  # Scénario : history stream préservé
+  # ----------------------------------------------------------------------
+  # pf: Bug constaté en prod — en draft revision, toute validation déclenche
+  # before_validation :store_computed_value sur tous les champs persistés,
+  # y compris les history. Résultat : N entrées history contenant TOUTES la
+  # même valeur (la dernière calculée), perdant tout intérêt d'archive. La
+  # garde `return if persisted? && history_stream?` empêche le rewrite.
+  describe 'history stream preservation' do
     let(:procedure) do
       create(:procedure, :published, types_de_champ_public: [
-        { type: :formule, libelle: 'Formule A' },
-        { type: :formule, libelle: 'Formule B' }
+        { type: :integer_number, libelle: 'Source' },
+        { type: :formule, libelle: 'Double' }
       ])
     end
     let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
-
-    let(:formule_a_tdc) { procedure.active_revision.types_de_champ_public.find { |t| t.libelle == 'Formule A' } }
-    let(:formule_b_tdc) { procedure.active_revision.types_de_champ_public.find { |t| t.libelle == 'Formule B' } }
+    let(:source_tdc) { procedure.active_revision.types_de_champ_public.first }
+    let(:formule_tdc) { procedure.active_revision.types_de_champ_public.last }
 
     before do
-      set_formule_expression(dossier, formule_a_tdc, "{tdc#{formule_b_tdc.stable_id}} + 1")
-      set_formule_expression(dossier, formule_b_tdc, "{tdc#{formule_a_tdc.stable_id}} + 1")
-      # Reload pour que les TDC en mémoire reflètent les expressions mises à jour
-      dossier.reload
+      set_formule_expression(dossier, formule_tdc, "{tdc#{source_tdc.stable_id}} * 2")
+      formule_champ = find_champ(dossier, formule_tdc)
+      # Simuler un champ history figé à value=10 (différent de la valeur
+      # qui serait recalculée maintenant)
+      formule_champ.update_column(:stream, "history:2026-01-01 10:00:00 +0000")
+      formule_champ.update_column(:value, '10')
     end
 
-    it 'détecte la référence circulaire sans crash' do
-      formule_a = find_champ(dossier, formule_a_tdc)
-      result = formule_a.compute_value_from_formula
-      expect(result).to include('circulaire')
+    it 'never overwrites a history champ value via store_computed_value' do
+      formule_champ = dossier.champs.find { |c| c.stable_id == formule_tdc.stable_id }
+      original_value = formule_champ.value
+      # Trigger validation (simule ce qui se passe quand le dossier est
+      # validé en draft revision)
+      formule_champ.valid?
+      expect(formule_champ.value).to eq(original_value)
+      expect(formule_champ.value).to eq('10')
     end
   end
 
@@ -174,6 +192,71 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
 
       expect(elapsed).to be < 0.5,
         "Le refresh_dependent_formulas prend #{(elapsed * 1000).round}ms (budget: 500ms)"
+    end
+  end
+
+  # ----------------------------------------------------------------------
+  # Scénario : annotation privée formule dépendant d'un champ public
+  # ----------------------------------------------------------------------
+  # pf: Bug : quand l'usager remplit son dossier (stream user:buffer), modifier
+  # un champ public qui sert de source à une annotation privée formule
+  # déclenchait un cascade qui essayait d'écrire la formule privée sur
+  # user:buffer. Or check_valid_stream_on_write? interdit toute écriture
+  # privée hors du stream main → RuntimeError. Le cascade doit donc skipper
+  # les formules privées dans ce cas (elles seront recalculées au commit
+  # vers main, ex: au dépôt).
+  describe 'annotation privée formule + champ public source' do
+    let(:procedure) do
+      create(:procedure, :published,
+             types_de_champ_public: [{ type: :integer_number, libelle: 'Source' }],
+             types_de_champ_private: [{ type: :formule, libelle: 'Annotation calculée' }])
+    end
+    let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
+    let(:source_tdc) { procedure.active_revision.types_de_champ_public.find(&:integer_number?) }
+    let(:formule_tdc) { procedure.active_revision.types_de_champ_private.find(&:formule?) }
+
+    before do
+      set_formule_expression(dossier, formule_tdc, "{tdc#{source_tdc.stable_id}} * 2")
+    end
+
+    it "ne crash pas quand l'usager modifie un champ source en stream user:buffer" do
+      source_champ = dossier.champs.find { |c| c.type_de_champ.integer_number? }
+      source_champ.update_column(:stream, Champ::USER_BUFFER_STREAM)
+
+      expect { source_champ.update!(value: '42') }.not_to raise_error
+    end
+  end
+
+  # ----------------------------------------------------------------------
+  # Scénario : champ public formule sur dossier en_construction
+  # ----------------------------------------------------------------------
+  # pf: Quand un dossier est en_construction et que l'usager corrige un champ,
+  # la cascade refresh_dependent_formulas écrivait la formule dépendante en
+  # utilisant dossier.stream qui retombe sur 'main' par défaut. Mais
+  # check_valid_stream_on_write? interdit toute écriture publique sur 'main'
+  # quand le dossier est en_construction (le buffer doit être utilisé).
+  # Fix : la cascade utilise with_champ_stream(self) pour propager le stream
+  # de la source à l'upsert.
+  describe 'formule publique + dossier en_construction' do
+    let(:procedure) do
+      create(:procedure, :published, types_de_champ_public: [
+        { type: :integer_number, libelle: 'Source' },
+        { type: :formule, libelle: 'Double' }
+      ])
+    end
+    let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure: procedure) }
+    let(:source_tdc) { procedure.active_revision.types_de_champ_public.find(&:integer_number?) }
+    let(:formule_tdc) { procedure.active_revision.types_de_champ_public.find(&:formule?) }
+
+    before do
+      set_formule_expression(dossier, formule_tdc, "{tdc#{source_tdc.stable_id}} * 2")
+    end
+
+    it "ne crash pas quand l'usager corrige un champ source sur user:buffer" do
+      source_champ = dossier.champs.find { |c| c.type_de_champ.integer_number? }
+      source_champ.update_column(:stream, Champ::USER_BUFFER_STREAM)
+
+      expect { source_champ.update!(value: '50') }.not_to raise_error
     end
   end
 end
