@@ -50,6 +50,8 @@ les composant suivants sont affectés : #{params["components"].map { _1['name'] 
     timestamp = request.headers['X-Crisp-Request-Timestamp']
     signature = request.headers['X-Crisp-Signature']
 
+    return head :bad_request if signature.blank? || timestamp.blank?
+
     body = request.body.read
     concatenated_string = "[#{timestamp};#{body}]"
 
@@ -57,6 +59,6 @@ les composant suivants sont affectés : #{params["components"].map { _1['name'] 
       ENV.fetch("CRISP_WEBHOOK_SECRET"),
       concatenated_string)
 
-    head :bad_request unless signature == expected_signature
+    head :bad_request unless ActiveSupport::SecurityUtils.secure_compare(signature, expected_signature)
   end
 end
