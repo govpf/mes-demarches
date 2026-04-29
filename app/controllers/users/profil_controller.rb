@@ -115,7 +115,13 @@ module Users
     end
 
     def target_email_allowed?
-      LEGIT_ADMIN_DOMAINS.any? { |d| requested_email.end_with?(d) }
+      domain = requested_email.to_s.split('@', 2).last&.downcase
+      return false if domain.blank?
+
+      LEGIT_ADMIN_DOMAINS.any? do |d|
+        legit = d.to_s.downcase
+        domain == legit || domain.end_with?(".#{legit}")
+      end
     end
 
     def next_owner_email
