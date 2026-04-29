@@ -241,7 +241,7 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
     let(:procedure) do
       create(:procedure, :published, types_de_champ_public: [
         { type: :integer_number, libelle: 'Source' },
-        { type: :formule, libelle: 'Double' }
+        { type: :formule, libelle: 'Double' },
       ])
     end
     let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure: procedure) }

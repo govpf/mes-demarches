@@ -30,7 +30,7 @@ module InstructeurChampDisplayHelper
     siret: :half,
     iban: :half,
     address: :half,
-    multiple_drop_down_list: :half
+    multiple_drop_down_list: :half,
     # default = :quarter pour tout le reste
   }.freeze
 
@@ -105,7 +105,7 @@ module InstructeurChampDisplayHelper
       'dossier-layout-toggle-label-when-grid-value': dossier_layout_toggle_label(:grid),
       'dossier-layout-toggle-label-when-stacked-value': dossier_layout_toggle_label(:stacked),
       'dossier-layout-toggle-aria-when-grid-value': dossier_layout_toggle_aria_label(:grid),
-      'dossier-layout-toggle-aria-when-stacked-value': dossier_layout_toggle_aria_label(:stacked)
+      'dossier-layout-toggle-aria-when-stacked-value': dossier_layout_toggle_aria_label(:stacked),
     }
   end
 end
