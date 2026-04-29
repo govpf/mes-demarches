@@ -60,6 +60,108 @@ describe TypesDeChamp::FormuleTypeDeChamp do
     end
   end
 
+  # pf: La détection de cycle est faite STATIQUEMENT à la save du TDC
+  # (et plus au runtime). Une formule qui s'auto-référence (directement
+  # ou via une chaîne d'autres formules) est refusée dès l'enregistrement
+  # avec une erreur :circular_reference.
+  describe 'circular reference detection' do
+    let(:procedure) {
+      create(:procedure, :published, types_de_champ_public: [
+        { type: :formule, libelle: 'A' },
+        { type: :formule, libelle: 'B' },
+        { type: :formule, libelle: 'C' }
+      ])
+    }
+    let(:revision) { procedure.active_revision }
+    let(:tdc_a) { revision.types_de_champ_public.find { |t| t.libelle == 'A' } }
+    let(:tdc_b) { revision.types_de_champ_public.find { |t| t.libelle == 'B' } }
+    let(:tdc_c) { revision.types_de_champ_public.find { |t| t.libelle == 'C' } }
+
+    it 'rejects a formula that references itself directly' do
+      tdc_a.formule_expression = "{tdc#{tdc_a.stable_id}} + 1"
+      expect(tdc_a).not_to be_valid
+      expect(tdc_a.errors[:formule_expression]).to be_present
+    end
+
+    it 'rejects a 2-cycle (A → B → A)' do
+      tdc_b.update_columns(options: tdc_b.options.merge('formule_expression' => "{tdc#{tdc_a.stable_id}} + 1"))
+      tdc_a.formule_expression = "{tdc#{tdc_b.stable_id}} + 1"
+      expect(tdc_a).not_to be_valid
+      expect(tdc_a.errors[:formule_expression]).to be_present
+    end
+
+    it 'rejects a long cycle (A → B → C → A)' do
+      tdc_b.update_columns(options: tdc_b.options.merge('formule_expression' => "{tdc#{tdc_c.stable_id}} + 1"))
+      tdc_c.update_columns(options: tdc_c.options.merge('formule_expression' => "{tdc#{tdc_a.stable_id}} + 1"))
+      tdc_a.formule_expression = "{tdc#{tdc_b.stable_id}} + 1"
+      expect(tdc_a).not_to be_valid
+      expect(tdc_a.errors[:formule_expression]).to be_present
+    end
+
+    it 'accepts a DAG (A → B → C, no cycle, dependencies respect position order)' do
+      tdc_a.update_columns(options: tdc_a.options.merge('formule_expression' => '1 + 1'))
+      tdc_b.update_columns(options: tdc_b.options.merge('formule_expression' => "{tdc#{tdc_a.stable_id}} + 1"))
+      tdc_c.formule_expression = "{tdc#{tdc_b.stable_id}} + 1"
+      expect(tdc_c).to be_valid
+    end
+
+    it 'accepts a formula referencing a non-formula field' do
+      procedure_with_text = create(:procedure, :published, types_de_champ_public: [
+        { type: :integer_number, libelle: 'Source' },
+        { type: :formule, libelle: 'F' }
+      ])
+      source_tdc = procedure_with_text.active_revision.types_de_champ_public.first
+      formule_tdc = procedure_with_text.active_revision.types_de_champ_public.last
+      formule_tdc.formule_expression = "{tdc#{source_tdc.stable_id}} * 2"
+      expect(formule_tdc).to be_valid
+    end
+
+    it 'accepts a formula referencing system columns (no cycle possible)' do
+      tdc_a.formule_expression = "ANNEE({dossier_depose_at})"
+      expect(tdc_a).to be_valid
+    end
+  end
+
+  # pf: Une formule ne peut référencer que des TDC situés AVANT elle dans
+  # le formulaire. L'éditeur frontend filtre déjà les variables proposées,
+  # mais on verrouille au backend pour résister aux déplacements de TDC
+  # qui transformeraient une référence valide en forward reference.
+  describe 'forward reference detection' do
+    let(:procedure) {
+      create(:procedure, :published, types_de_champ_public: [
+        { type: :integer_number, libelle: 'Source 1' },
+        { type: :formule, libelle: 'Formule milieu' },
+        { type: :integer_number, libelle: 'Source 2' }
+      ])
+    }
+    let(:revision) { procedure.active_revision }
+    let(:source1_tdc) { revision.types_de_champ_public.find { |t| t.libelle == 'Source 1' } }
+    let(:formule_tdc) { revision.types_de_champ_public.find { |t| t.libelle == 'Formule milieu' } }
+    let(:source2_tdc) { revision.types_de_champ_public.find { |t| t.libelle == 'Source 2' } }
+
+    it 'accepts a formula referencing a TDC that precedes it' do
+      formule_tdc.formule_expression = "{tdc#{source1_tdc.stable_id}} * 2"
+      expect(formule_tdc).to be_valid
+    end
+
+    it 'rejects a formula referencing a TDC that comes after it' do
+      formule_tdc.formule_expression = "{tdc#{source2_tdc.stable_id}} * 2"
+      expect(formule_tdc).not_to be_valid
+      expect(formule_tdc.errors[:formule_expression]).to be_present
+    end
+
+    it 'accepts a formula referencing only system columns' do
+      formule_tdc.formule_expression = "ANNEE({dossier_depose_at})"
+      expect(formule_tdc).to be_valid
+    end
+
+    it 'rejects a formula mixing valid and forward references' do
+      formule_tdc.formule_expression = "{tdc#{source1_tdc.stable_id}} + {tdc#{source2_tdc.stable_id}}"
+      expect(formule_tdc).not_to be_valid
+      expect(formule_tdc.errors[:formule_expression]).to be_present
+    end
+  end
+
   describe '#infer_output_type' do
     context 'with arithmetic expression' do
       let(:expression) { '1 + 2' }
@@ -97,12 +199,175 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       end
     end
 
+    # pf: Bug — Dentaku type le nœud SI avec :numeric (type passé à add_function)
+    # quel que soit le type des branches. Sans inspection des branches, une
+    # formule retournant du texte serait stockée comme 'number' et la colonne
+    # ferait `.to_f` sur la chaîne → "0.0".
+    context 'with SI returning a string' do
+      let(:expression) { 'SI({x} > 0, "OK", "KO")' }
+
+      it 'infers string from the branches' do
+        type_de_champ.valid?
+        expect(type_de_champ.formule_output_type).to eq('string')
+      end
+    end
+
+    context 'with SI returning a boolean' do
+      let(:expression) { 'SI({x} > 0, true, false)' }
+
+      it 'infers boolean from the branches' do
+        type_de_champ.valid?
+        expect(type_de_champ.formule_output_type).to eq('boolean')
+      end
+    end
+
+    context 'with SI returning mixed types' do
+      let(:expression) { 'SI({x} > 0, "OK", 0)' }
+
+      it 'falls back to string (most permissive)' do
+        type_de_champ.valid?
+        expect(type_de_champ.formule_output_type).to eq('string')
+      end
+    end
+
+    context 'with nested SI' do
+      let(:expression) { 'SI({x} > 0, SI({y} > 0, "A", "B"), "C")' }
+
+      it 'recursively infers string' do
+        type_de_champ.valid?
+        expect(type_de_champ.formule_output_type).to eq('string')
+      end
+    end
+
+    context 'with date function AUJOURDHUI' do
+      let(:expression) { 'AUJOURDHUI()' }
+
+      it 'infers datetime' do
+        type_de_champ.valid?
+        expect(type_de_champ.formule_output_type).to eq('datetime')
+      end
+    end
+
+    context 'with text function CONCATENER' do
+      let(:expression) { 'CONCATENER("Bon", "jour")' }
+
+      it 'infers string' do
+        type_de_champ.valid?
+        expect(type_de_champ.formule_output_type).to eq('string')
+      end
+    end
+
     context 'with blank expression' do
       let(:expression) { '' }
 
       it 'does not set output type' do
         formule_type_de_champ
         expect(type_de_champ.formule_output_type).to be_nil
+      end
+    end
+  end
+
+  # pf: Le storage d'une formule booléenne est "true"/"false" (cohérent avec
+  # yes_no/checkbox). À l'affichage usager (vue dossier), on doit traduire en
+  # "Oui"/"Non" comme YesNoTypeDeChamp. Pour les autres types, la valeur est
+  # rendue brute par la base.
+  describe '#champ_value (display layer)' do
+    let(:dossier) { create(:dossier) }
+    let(:champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+    before do
+      allow(champ).to receive(:type_de_champ).and_return(type_de_champ)
+      type_de_champ.formule_output_type = output_type
+    end
+
+    context 'when formule_output_type is boolean' do
+      let(:expression) { 'SI({x} > 0, true, false)' }
+      let(:output_type) { 'boolean' }
+
+      it 'displays "Oui" for stored "true"' do
+        champ.value = 'true'
+        expect(formule_type_de_champ.champ_value(champ)).to eq('Oui')
+      end
+
+      it 'displays "Non" for stored "false"' do
+        champ.value = 'false'
+        expect(formule_type_de_champ.champ_value(champ)).to eq('Non')
+      end
+
+      it 'displays empty for blank value' do
+        champ.value = ''
+        expect(formule_type_de_champ.champ_value(champ)).to be_blank
+      end
+    end
+
+    context 'when formule_output_type is string' do
+      let(:expression) { 'SI({x} > 0, "OK", "KO")' }
+      let(:output_type) { 'string' }
+
+      it 'displays the raw string value (no transformation)' do
+        champ.value = '⚓ À QUAI 🚨'
+        expect(formule_type_de_champ.champ_value(champ)).to eq('⚓ À QUAI 🚨')
+      end
+    end
+
+    context 'when formule_output_type is number' do
+      let(:expression) { '{x} * 2' }
+      let(:output_type) { 'number' }
+
+      it 'displays the raw number value (no transformation)' do
+        champ.value = '42'
+        expect(formule_type_de_champ.champ_value(champ)).to eq('42')
+      end
+    end
+
+    context 'when formule_output_type is date' do
+      let(:expression) { '{Date de naissance}' }
+      let(:output_type) { 'date' }
+
+      it 'formats ISO date as French human-readable' do
+        champ.value = '1989-11-15'
+        expect(formule_type_de_champ.champ_value(champ)).to eq('15 novembre 1989')
+      end
+
+      it 'falls back to raw value if not parseable' do
+        champ.value = 'pas une date'
+        expect(formule_type_de_champ.champ_value(champ)).to eq('pas une date')
+      end
+    end
+
+    context 'when formule_output_type is datetime' do
+      let(:expression) { 'MAINTENANT()' }
+      let(:output_type) { 'datetime' }
+
+      it 'formats ISO datetime with time' do
+        champ.value = '2026-04-24T15:40:00+10:00'
+        # I18n.l format default → "24 avril 2026 ..h..."
+        expect(formule_type_de_champ.champ_value(champ)).to match(/\d{1,2} \w+ \d{4} \d{2}:\d{2}/)
+      end
+    end
+
+    # pf: distinction entre formule plantée (nil) et formule retournant ""
+    # intentionnellement (ex: SI(cond, "X", "")). La couche stockage les
+    # distingue, la vue dossier aussi.
+    describe 'distinction nil (formule plantée) vs "" (vide légitime)' do
+      let(:expression) { 'STXT({Iban}, 1, 4)' }
+      let(:output_type) { 'string' }
+
+      it 'displays "—" marker when value is nil (compute failed)' do
+        champ.value = nil
+        expect(formule_type_de_champ.champ_value(champ)).to eq('—')
+      end
+
+      it 'displays empty when value is "" (legitimate empty result)' do
+        champ.value = ''
+        expect(formule_type_de_champ.champ_value(champ)).to eq('')
+      end
+
+      it 'export returns nil for both nil and "" (no marker in CSV)' do
+        champ.value = nil
+        expect(formule_type_de_champ.champ_value_for_export(champ)).to be_nil
+        champ.value = ''
+        expect(formule_type_de_champ.champ_value_for_export(champ)).to be_nil
       end
     end
   end

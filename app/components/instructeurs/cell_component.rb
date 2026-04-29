@@ -61,6 +61,19 @@ class Instructeurs::CellComponent < ApplicationComponent
     when :datetime
       raw_value = DateTime.parse(raw_value) if raw_value.is_a?(String)
       I18n.l(raw_value)
+    when :integer, :decimal
+      # pf: ChampColumn#typed_value force `.to_f` sur les colonnes :decimal,
+      # ce qui produit 56.0 pour une formule retournant un entier (stocké
+      # en chaîne "56"). On le ramène à un Integer quand le nombre est entier
+      # pour un affichage propre (pas de ".0" résiduel). Bénéfique aussi pour
+      # les colonnes decimal_number natives saisies sans décimales.
+      # On préserve le type Numeric quand l'entrée est Numeric — la conversion
+      # finale en string est faite par le rendu HTML, pas ici.
+      if raw_value.is_a?(Numeric)
+        raw_value % 1 == 0 ? raw_value.to_i : raw_value
+      else
+        raw_value
+      end
     else
       # Escape if it's a string and not already safe
       raw_value.html_safe? ? raw_value : html_escape(raw_value.to_s)
