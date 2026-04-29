@@ -34,7 +34,7 @@ require 'dentaku'
   GAUCHE:     :left,
   DROITE:     :right,
   STXT:       :mid,
-  NBCAR:      :len
+  NBCAR:      :len,
 }.each do |fr_name, native_name|
   native_class = Dentaku::AST::Function.get(native_name)
   Dentaku::AST::Function.register_class(fr_name, native_class)

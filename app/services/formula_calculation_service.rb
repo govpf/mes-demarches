@@ -162,7 +162,7 @@ class FormulaCalculationService
     'Mid' => 'STXT',
     'StringFunctions::Mid' => 'STXT',
     'Len' => 'NBCAR',
-    'StringFunctions::Len' => 'NBCAR'
+    'StringFunctions::Len' => 'NBCAR',
   }.freeze
 
   def self.format_operator(klass)
