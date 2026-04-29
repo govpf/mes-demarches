@@ -1,6 +1,2 @@
 fr:
-  views:
-    shared:
-      champs:
-        formule:
-          no_value: "En attente — remplissez les champs référencés par la formule"
+  no_value_aria: "Aucune valeur disponible pour %{libelle}"
