@@ -135,7 +135,7 @@ les composant suivants sont affectés : #{params["components"].map { _1['name'] 
 
     [
       "Créé le: #{user.created_at.strftime("%d/%m/%Y à %H:%M").presence || 'indéfini'}",
-      "Confirmé le: #{user.confirmed_at.strftime("%d/%m/%Y à %H:%M").presence || 'indéfini'}",
+      "Confirmé le: #{user.confirmed_at&.strftime("%d/%m/%Y à %H:%M").presence || 'indéfini'}",
       "Drnr. connexion le: #{user.last_sign_in_at&.strftime("%d/%m/%Y à %H:%M").presence || 'indéfini'}",
       *dossiers,
       *html_mails
