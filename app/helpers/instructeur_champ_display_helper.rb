@@ -24,22 +24,53 @@ module InstructeurChampDisplayHelper
     te_fenua: :full,
     engagement_juridique: :full,
     formule: :full,
-    piece_justificative: :full,
     titre_identite: :full,
     # half : contenu de taille moyenne
     siret: :half,
     iban: :half,
     address: :half,
     multiple_drop_down_list: :half
-    # default = :quarter pour tout le reste
+    # default = :third pour tout le reste
+    # piece_justificative et titre_identite : largeur calculée au runtime selon le nombre de fichiers
   }.freeze
 
+  # pf: 95% des champs PJ ne contiennent qu'un seul fichier (mesure prod 2026-04).
+  # Pour ce cas dominant, on préfère 1/3 (3 par rangée, thumbnail 200px confortable).
+  # À partir de 2 fichiers, on bascule en pleine largeur pour laisser respirer la galerie.
   def champ_display_width(champ)
-    TYPE_CHAMP_TO_DISPLAY_WIDTH.fetch(champ.type_champ.to_sym, :quarter)
+    if pj_attachment_champ?(champ)
+      pj_mono_file?(champ) ? :third : :full
+    else
+      TYPE_CHAMP_TO_DISPLAY_WIDTH.fetch(champ.type_champ.to_sym, :third)
+    end
   end
 
   def champ_display_width_class(champ)
     "champ-grid-item--#{champ_display_width(champ)}"
+  end
+
+  # pf: une PJ mono-fichier (largeur 1/3) doit former une rangée homogène avec ses voisines
+  # PJ-mono pour ne pas se mélanger à des champs courts qui décaleraient sa hauteur.
+  # → break-before quand on bascule entre "PJ-mono" et "non-PJ-mono".
+  # Les PJ multi-fichiers passent en :full et cassent la rangée nativement, donc traitées
+  # comme non-PJ-mono dans cette règle.
+  def champ_break_before_class(champ, previous_champ)
+    return nil if previous_champ.nil?
+    return nil if pj_mono_for_grouping?(champ) == pj_mono_for_grouping?(previous_champ)
+
+    'champ-grid-item--break-before'
+  end
+
+  def pj_attachment_champ?(champ)
+    champ.piece_justificative? || champ.titre_identite?
+  end
+
+  def pj_mono_file?(champ)
+    champ.piece_justificative_file.attachments.size <= 1
+  end
+
+  def pj_mono_for_grouping?(champ)
+    pj_attachment_champ?(champ) && pj_mono_file?(champ)
   end
 
   def instructeur_champs_layout_mode(instructeur = nil)

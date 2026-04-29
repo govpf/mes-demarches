@@ -22,16 +22,21 @@
     &.champ-grid-item--half {
       grid-column: span 6;
     }
-    // pf: TEST taxonomie A — quarter passe à span 4 (1/3) pour évaluer la viabilité d'une grille tiers. Revert = span 3.
-    &.champ-grid-item--quarter {
+    &.champ-grid-item--third {
       grid-column: span 4;
+    }
+
+    // pf: force le retour à la ligne avant ce champ pour grouper les PJ mono-fichier
+    // entre elles (cf. champ_break_before_class dans InstructeurChampDisplayHelper).
+    &.champ-grid-item--break-before {
+      grid-column-start: 1;
     }
   }
 
-  // tablette (62em–80em) : half reste en half, quarter se regroupe par 2
+  // tablette (62em–80em) : half reste en half, third se regroupe par 2
   @media (min-width: 62em) and (max-width: 80em) {
     .champ-grid-item {
-      &.champ-grid-item--quarter {
+      &.champ-grid-item--third {
         grid-column: span 6;
       }
     }
