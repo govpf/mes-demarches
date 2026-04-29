@@ -1,0 +1,113 @@
+// pf: grille multi-colonnes pour l'affichage des champs côté instructeur
+// Base 12 (alignée avec DSFR)
+// Toute la logique de largeur est ici : aucun override dans les types de champ
+
+.dossier-show .champs-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  align-items: stretch;
+  column-gap: 1rem;
+  row-gap: 0;
+
+  .champ-grid-item {
+    grid-column: span 12; // safe default
+
+    // liseret discret bas : sépare visuellement les champs adjacents
+    border-bottom: 1px solid var(--border-default-grey);
+    padding: 0.25rem 0;
+
+    &.champ-grid-item--full {
+      grid-column: span 12;
+    }
+    &.champ-grid-item--half {
+      grid-column: span 6;
+    }
+    // pf: TEST taxonomie A — quarter passe à span 4 (1/3) pour évaluer la viabilité d'une grille tiers. Revert = span 3.
+    &.champ-grid-item--quarter {
+      grid-column: span 4;
+    }
+  }
+
+  // tablette (62em–80em) : half reste en half, quarter se regroupe par 2
+  @media (min-width: 62em) and (max-width: 80em) {
+    .champ-grid-item {
+      &.champ-grid-item--quarter {
+        grid-column: span 6;
+      }
+    }
+  }
+
+  // mobile / petite tablette (<62em = <992px) : mono-colonne forcée
+  // !important pour neutraliser les span qui créeraient sinon des colonnes implicites
+  @media (max-width: 62em) {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+
+    .champ-grid-item {
+      grid-column: 1 / -1 !important;
+    }
+  }
+
+  // impression / PDF : mono-colonne, pas de bordure
+  @media print {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+
+    .champ-grid-item {
+      grid-column: 1 / -1 !important;
+      border-bottom: none;
+    }
+  }
+
+  &.champs-grid--stacked {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+
+    .champ-grid-item {
+      grid-column: 1 / -1 !important;
+    }
+  }
+
+  // pf: DSFR met un margin-bottom: 1.5rem (24px) par défaut sur les <p>,
+  // ce qui crée un gros blanc entre la valeur et le badge modifié.
+  // On neutralise dans le contexte grid uniquement.
+  .champ-row .champ-content p {
+    margin-bottom: 0;
+  }
+
+  // pf: badge "modifié le" sur sa propre ligne sous la valeur.
+  // Le conteneur .champ-updated-line gère le layout (block + align à droite),
+  // le span .champ-updated garde son rendu de badge DSFR inline-block.
+  .champ-row .champ-updated-line {
+    margin: 0 0 0;
+    text-align: right;
+    line-height: 1;
+  }
+  // Neutralise le float: right global de demande.scss pour ne pas casser la nouvelle position.
+  .champ-row .champ-updated {
+    float: none;
+  }
+
+  // pf: bouton "cliquer pour copier" — on réserve l'espace en continu pour éviter
+  // le reflow que provoque le bascule "position absolute → static au hover" d'upstream
+  // (cf. buttons.scss). Le bouton reste dans le flux et le texte "Cliquer pour copier"
+  // est conservé pour les instructeurs peu à l'aise avec les icônes.
+  // opacity: 0 (et non visibility: hidden) pour préserver le focus clavier.
+  // Contrepartie : un espace réservé toujours visible après la valeur.
+  .copy-zone .copy-btn {
+    position: static !important;
+    clip: auto !important;
+    -webkit-clip-path: none !important;
+    clip-path: none !important;
+    height: auto !important;
+    width: auto !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    opacity: 0;
+    transition: opacity 80ms ease-in;
+  }
+  .copy-zone:hover .copy-btn,
+  .copy-zone .copy-btn:focus-visible {
+    opacity: 1;
+  }
+}

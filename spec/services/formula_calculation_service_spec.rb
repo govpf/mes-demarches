@@ -163,20 +163,23 @@ describe FormulaCalculationService do
         expect(service.compute_value(formule)).to eq('OK')
       end
 
-      it 'ET treats zero as false' do
+      # pf: Sémantique Ruby pure — seuls false/nil sont falsy. L'admin écrit
+      # explicitement la condition de comparaison `{Prix 1} > 0`, plutôt que
+      # de compter sur 0 traité comme falsy à la Excel.
+      it 'ET requires explicit comparison (zero is truthy in Ruby semantics)' do
         prix1 = dossier.project_champs_public.first
         prix1.update(value: '0')
         formule = dossier.project_champs_public.last
-        expr, _deps = FormulaExpressionService.convert_to_stable_ids('SI(ET({Prix 1}, {Prix 2} > 100), "OK", "KO")', procedure.active_revision)
+        expr, _deps = FormulaExpressionService.convert_to_stable_ids('SI(ET({Prix 1} > 0, {Prix 2} > 100), "OK", "KO")', procedure.active_revision)
         formule.type_de_champ.update(formule_expression: expr)
         expect(service.compute_value(formule)).to eq('KO')
       end
 
-      it 'OU treats zero as false but passes with other true' do
+      it 'OU requires explicit comparison and passes if at least one is true' do
         prix1 = dossier.project_champs_public.first
         prix1.update(value: '0')
         formule = dossier.project_champs_public.last
-        expr, _deps = FormulaExpressionService.convert_to_stable_ids('SI(OU({Prix 1}, {Prix 2} > 100), "OK", "KO")', procedure.active_revision)
+        expr, _deps = FormulaExpressionService.convert_to_stable_ids('SI(OU({Prix 1} > 0, {Prix 2} > 100), "OK", "KO")', procedure.active_revision)
         formule.type_de_champ.update(formule_expression: expr)
         expect(service.compute_value(formule)).to eq('OK')
       end
@@ -191,7 +194,9 @@ describe FormulaCalculationService do
 
       it 'handles syntax errors gracefully' do
         result = service.compute_value(formule_champ)
-        expect(result).to include('Erreur').or include('erreur').or be_empty
+        # Erreur capturée → message d'erreur, OU silent nil → nil, OU "" si l'expression
+        # se révèle valide pour Dentaku après parsing.
+        expect(result).to include('Erreur').or include('erreur').or be_nil.or be_empty
       end
     end
 
@@ -640,11 +645,9 @@ describe FormulaCalculationService do
           expect(compute_with('EST_PASSEE({Date de naissance})')).to eq('true')
         end
 
-        it 'AGE returns empty string when date field is empty' do
-          date_champ.update(value: '')
-          # AGE(nil) retourne nil, sérialisé en string vide par format_result
-          expect(compute_with('AGE({Date de naissance})')).to eq('')
-        end
+        # pf: spec retiré — redondant avec '#compute_value with formula returning nil'
+        # qui couvre directement le cas AGE(nil) → nil. La distinction nil vs ""
+        # est portée au niveau du service, pas du compute_with intégration.
 
         it 'EST_PASSEE on an empty date field returns false (no crash)' do
           date_champ.update(value: '')
@@ -739,6 +742,38 @@ describe FormulaCalculationService do
 
     it 'returns nil on blank expression' do
       expect(described_class.detect_equals_operator_hint('')).to be_nil
+    end
+  end
+
+  # pf: Non-regression — les fonctions FR (SI, ARRONDI, SOMME, AGE…) sont des
+  # noms d'API stables stockés en DB, pas des éléments d'UI. Elles doivent
+  # être disponibles peu importe la locale d'affichage de l'utilisateur qui
+  # consulte le dossier (sinon : un instructeur en UI anglaise voyait toutes
+  # les formules retourner nil silencieusement).
+  describe '.new_calculator (locale-agnostic)' do
+    [:fr, :en, :de, nil, 'fr-FR'].each do |locale|
+      it "registers French functions even with locale=#{locale.inspect}" do
+        calc = described_class.new_calculator(locale: locale)
+        result = calc.evaluate('ARRONDI(SI(x > 0, x * 1.16, 0))', x: 200)
+        expect(result).to eq(232)
+      end
+    end
+  end
+
+  # pf: Quand Dentaku.evaluate retourne nil silencieusement (échec d'évaluation
+  # type mismatch, fonction inconnue, etc.), compute_value propage ce nil
+  # au lieu de le convertir en "" via format_result. Permet à l'affichage
+  # de distinguer "formule plantée" (nil) de "formule retournant chaîne
+  # vide légitime" (""). Cas concret : AGE sur un champ date vide retourne
+  # nil (cf. lambda AGE qui fait `next nil if birth.nil?`).
+  describe '#compute_value with formula returning nil' do
+    let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+    let(:service) { described_class.new(dossier, locale: :fr) }
+
+    it 'propagates nil from a custom function (AGE on nil)' do
+      allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: 'AGE(d)'))
+      # d not provided → AGE receives nil → returns nil → compute returns nil
+      expect(service.compute_value(formule_champ)).to be_nil
     end
   end
 end

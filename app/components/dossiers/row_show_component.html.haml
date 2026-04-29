@@ -1,9 +1,6 @@
 .champ-row
   %p.champ-label
     = "#{label} :"
-    - if updated_at.present?
-      %span.fr-ml-3v.champ-updated{ class: badge_updated_class }
-        = t(:updated_at, scope: [:views, :shared, :dossiers, :form], datetime: helpers.try_format_datetime(updated_at, format: :veryshort))
 
   - if blank?
     .champ-content.fr-text-mention--grey{ class: content_class }
@@ -14,3 +11,9 @@
 
     .champ-content{ class: content_class }
       = value
+
+  -# pf: badge "modifié le" sorti du libellé, descendu sous la valeur pour éviter les collisions en colonne étroite (grid instructeur).
+  - if updated_at.present?
+    .champ-updated-line
+      %span.champ-updated{ class: badge_updated_class }
+        = t(:updated_at, scope: [:views, :shared, :dossiers, :form], datetime: helpers.try_format_datetime(updated_at, format: :veryshort))
