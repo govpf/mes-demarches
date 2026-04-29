@@ -415,8 +415,12 @@ module DossierChampsConcern
     attributes.merge(id: champ.id, updated_by:)
   end
 
-  def champ_upsert_by!(type_de_champ, row_id)
-    check_valid_stream_on_write?(type_de_champ)
+  # pf: system_write: true → bypass du check stream pour les écritures
+  # système (ex: rebase qui matérialise une formule publique en main alors
+  # que le dossier est en_construction). Les écritures déclenchées par une
+  # action user/instructeur doivent toujours laisser le check actif.
+  def champ_upsert_by!(type_de_champ, row_id, system_write: false)
+    check_valid_stream_on_write?(type_de_champ) unless system_write
     check_valid_row_id_on_write?(type_de_champ, row_id)
 
     # FIXME: This is a temporary on-demand migration. It will be removed once the full migration is over.

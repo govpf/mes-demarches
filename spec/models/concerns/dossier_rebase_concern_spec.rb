@@ -429,9 +429,6 @@ describe DossierRebaseConcern do
       # pf: quand un champ formule est ajouté dans une nouvelle révision, le
       # rebase doit créer le champ en BDD avec sa valeur calculée pour que
       # les tableaux instructeur l'affichent correctement.
-      # pf: quand un champ formule est ajouté dans une nouvelle révision, le
-      # rebase doit créer le champ en BDD avec sa valeur calculée pour que
-      # les tableaux instructeur l'affichent correctement.
       context 'when a formule tdc is added' do
         before do
           # Étape 1 : ajouter un champ Montant et publier
@@ -468,6 +465,33 @@ describe DossierRebaseConcern do
           expect(formule_champ).to be_present
           expect(formule_champ).to be_persisted
           expect(formule_champ.value).to eq('200')
+        end
+
+        # pf: cas qui faisait planter le rebase avec
+        # 'Can not write to "main" stream on a dossier "en construction"'
+        # avant le fix (système d'écriture stream main bypassée par
+        # system_write: true).
+        context 'on a dossier en_construction' do
+          before do
+            dossier.passer_en_construction!
+            dossier.reload
+          end
+
+          it 'creates the formule champ in main stream with its computed value' do
+            procedure.publish_revision!(procedure.administrateurs.first)
+            dossier.reload
+            expect { dossier.rebase! }.not_to raise_error
+            dossier.reload
+
+            formule_champ = dossier.champs.find { _1.libelle == 'Double' && _1.stream == Champ::MAIN_STREAM }
+            expect(formule_champ).to be_present
+            expect(formule_champ).to be_persisted
+            expect(formule_champ.value).to eq('200')
+
+            # pas de pollution du user_buffer
+            expect(Champ.where(dossier_id: dossier.id, stream: Champ::USER_BUFFER_STREAM,
+                               stable_id: formule_champ.stable_id)).to be_empty
+          end
         end
       end
 

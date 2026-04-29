@@ -65,6 +65,14 @@ module DossierRebaseConcern
     # target_revision pour que compute_formulas_in_order itère bien sur la
     # nouvelle révision.
     self.revision = target_revision
-    compute_formulas_in_order
+    # pf: rebase = écriture système. On force le stream main (la version
+    # officielle de la formule, indépendante du buffer usager) et on passe
+    # system_write: true pour bypasser check_valid_stream_on_write?, qui
+    # interdirait sinon l'écriture main sur un dossier en_construction
+    # (cas d'une formule publique ajoutée pendant que des dossiers sont
+    # en cours de remplissage).
+    with_main_stream do
+      compute_formulas_in_order(system_write: true)
+    end
   end
 end
