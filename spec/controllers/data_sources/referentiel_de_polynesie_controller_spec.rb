@@ -65,6 +65,13 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
       end
     end
 
+    it 'envoie data vide pour l\'option Autre (row_data nil)' do
+      allow(ReferentielDePolynesie::API).to receive(:search_with_data)
+        .and_return([{ label: I18n.t('shared.champs.drop_down_list.other'), value: Champs::DropDownListChamp::OTHER }])
+      subject
+      expect(response.parsed_body.first['data']).to eq('')
+    end
+
     context 'quand le paramètre q est absent' do
       subject { get :search, params: { table: domain_id } }
 
