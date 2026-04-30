@@ -491,6 +491,8 @@ Rails.application.routes.draw do
 
   scope module: 'instructeurs', as: 'instructeur' do
     resource :rdv_connections, only: [:show, :destroy]
+    post 'dossier_layout/:mode', to: 'dossier_layout#update', as: :dossier_layout, constraints: { mode: /grid|stacked|dismissed/ }
+
     resources :procedures, only: [] do
       resources :export_templates, only: [:new, :create, :edit, :update, :destroy] do
         collection do
