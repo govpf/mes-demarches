@@ -21,8 +21,10 @@ class RecoveryService
     dossiers = procedure_ids
       .filter { |id| id.in?(recoverable_procedure_ids) }
       .then do |p_ids|
-        previous_user.dossiers.joins(:procedure)
+        previous_user.dossiers
+          .joins(:procedure, :etablissement)
           .where(procedure: { id: p_ids })
+          .where(etablissements: { siret: })
       end
 
     dossiers.pluck(:id).map do |id|
