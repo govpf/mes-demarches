@@ -23,10 +23,13 @@ module InstructeurChampDisplayHelper
     referentiel_de_polynesie: :full,
     te_fenua: :full,
     engagement_juridique: :full,
-    formule: :full,
     titre_identite: :full,
+    # full : siret rend un layout vertical riche (IdentiteEntrepriseComponent et
+    # ses variantes : dénomination, numéro Tahiti, forme juridique, adresse...).
+    # En attendant une refonte en grid, on l'isole sur sa propre ligne pour ne
+    # pas créer de déséquilibre vertical avec des champs courts adjacents.
+    siret: :full,
     # half : contenu de taille moyenne
-    siret: :half,
     iban: :half,
     address: :half,
     multiple_drop_down_list: :half,

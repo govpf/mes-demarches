@@ -54,8 +54,12 @@ describe InstructeurChampDisplayHelper do
       expect(helper.champ_display_width(fake_other_champ(:header_section))).to eq(:full)
     end
 
-    it 'siret → :half' do
-      expect(helper.champ_display_width(fake_other_champ(:siret))).to eq(:half)
+    it 'siret → :full' do
+      expect(helper.champ_display_width(fake_other_champ(:siret))).to eq(:full)
+    end
+
+    it 'formule (default) → :third' do
+      expect(helper.champ_display_width(fake_other_champ(:formule))).to eq(:third)
     end
 
     it 'text (default) → :third' do
