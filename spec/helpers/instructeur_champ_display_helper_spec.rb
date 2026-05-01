@@ -58,12 +58,40 @@ describe InstructeurChampDisplayHelper do
       expect(helper.champ_display_width(fake_other_champ(:siret))).to eq(:full)
     end
 
+    it 'address (default) → :third' do
+      expect(helper.champ_display_width(fake_other_champ(:address))).to eq(:third)
+    end
+
+    it 'iban (default) → :third' do
+      expect(helper.champ_display_width(fake_other_champ(:iban))).to eq(:third)
+    end
+
     it 'formule (default) → :third' do
       expect(helper.champ_display_width(fake_other_champ(:formule))).to eq(:third)
     end
 
+    it 'multiple_drop_down_list (default) → :third' do
+      expect(helper.champ_display_width(fake_other_champ(:multiple_drop_down_list))).to eq(:third)
+    end
+
     it 'text (default) → :third' do
       expect(helper.champ_display_width(fake_other_champ(:text))).to eq(:third)
+    end
+  end
+
+  describe '#champ_display_width_class' do
+    it 'convertit :two_thirds en --two-thirds (convention BEM, _ → -)' do
+      champ = fake_other_champ(:dummy)
+      allow(helper).to receive(:champ_display_width).with(champ).and_return(:two_thirds)
+      expect(helper.champ_display_width_class(champ)).to eq('champ-grid-item--two-thirds')
+    end
+
+    it ':third → --third' do
+      expect(helper.champ_display_width_class(fake_other_champ(:text))).to eq('champ-grid-item--third')
+    end
+
+    it ':full → --full' do
+      expect(helper.champ_display_width_class(fake_other_champ(:siret))).to eq('champ-grid-item--full')
     end
   end
 
