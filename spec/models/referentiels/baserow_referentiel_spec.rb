@@ -114,7 +114,7 @@ describe Referentiels::BaserowReferentiel do
       let(:config) do
         {
           'Champs usager' => '1,2',
-          'Champs instructeur' => '3,2'
+          'Champs instructeur' => '3,2',
         }
       end
 
@@ -122,7 +122,7 @@ describe Referentiels::BaserowReferentiel do
         {
           1 => { name: 'Nom', type: 'text' },
           2 => { name: 'Archipel', type: 'text' },
-          3 => { name: 'Code', type: 'number' }
+          3 => { name: 'Code', type: 'number' },
         }
       end
 
@@ -163,7 +163,7 @@ describe Referentiels::BaserowReferentiel do
     it 'returns headers with flat JSONPath format' do
       expect(referentiel.headers_with_path).to eq([
         ['Nom', '$.Nom'],
-        ['Code', '$.Code']
+        ['Code', '$.Code'],
       ])
     end
   end

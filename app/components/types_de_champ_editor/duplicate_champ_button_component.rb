@@ -20,7 +20,7 @@ class TypesDeChampEditor::DuplicateChampButtonComponent < ApplicationComponent
     {
       class: "fr-btn fr-btn--tertiary-no-outline fr-icon-file-copy-line",
       method: :post,
-      title: "Dupliquer le champ"
+      title: "Dupliquer le champ",
     }
   end
 end

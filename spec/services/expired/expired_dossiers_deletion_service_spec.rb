@@ -405,7 +405,7 @@ describe Expired::DossiersDeletionService do
     before { travel_to(reference_date) }
     let(:procedure_opts) do
       {
-        procedure_expires_when_termine_enabled: true
+        procedure_expires_when_termine_enabled: true,
       }
     end
     before do
@@ -493,7 +493,7 @@ describe Expired::DossiersDeletionService do
 
     let(:procedure_opts) do
       {
-        procedure_expires_when_termine_enabled: true
+        procedure_expires_when_termine_enabled: true,
       }
     end
 

@@ -14,7 +14,7 @@ module Instructeurs
       elsif mode == :dismissed
         cookies[InstructeurChampDisplayHelper::DISMISSED_COOKIE] = {
           value: Time.current.iso8601,
-          expires: InstructeurChampDisplayHelper::FEATURE_ROLLOUT_DATE + InstructeurChampDisplayHelper::BANNER_DURATION
+          expires: InstructeurChampDisplayHelper::FEATURE_ROLLOUT_DATE + InstructeurChampDisplayHelper::BANNER_DURATION,
         }
       end
 

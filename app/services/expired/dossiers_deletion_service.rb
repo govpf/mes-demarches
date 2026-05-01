@@ -156,7 +156,7 @@ class Expired::DossiersDeletionService < Expired::MailRateLimiter
         :followers_instructeurs,
         procedure: {
           groupe_instructeurs: { instructeurs: :user },
-          administrateurs: :user
+          administrateurs: :user,
         }
       )
       .to_a

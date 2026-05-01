@@ -22,7 +22,7 @@ RSpec.describe Cron::RefreshLexpolJob, type: :job do
         value: 'NOR002',
         data: {
           lexpol_status: 'Enregistré par le BC',
-          lexpol_arrete_lien: 'https://lexpol.cloud.pf/jopf/2025/001'
+          lexpol_arrete_lien: 'https://lexpol.cloud.pf/jopf/2025/001',
         }
       )
       champ

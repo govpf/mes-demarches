@@ -102,7 +102,7 @@ module Champs
       {
         metadonnees: metadonnees.sort.to_h,
         champs_formulaire: champs_formulaire.sort.to_h,
-        dossiers_lies: dossiers_lies.sort.to_h
+        dossiers_lies: dossiers_lies.sort.to_h,
       }
     end
 

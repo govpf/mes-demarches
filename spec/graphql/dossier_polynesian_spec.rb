@@ -9,7 +9,7 @@ RSpec.describe 'Polynesian Fields GraphQL', type: :graphql do
       { type: :commune_de_polynesie, libelle: 'Commune de Polynésie' },
       { type: :code_postal_de_polynesie, libelle: 'Code postal de Polynésie' },
       { type: :numero_dn, libelle: 'Numéro DN' },
-      { type: :te_fenua, libelle: 'Carte TeFenua' }
+      { type: :te_fenua, libelle: 'Carte TeFenua' },
     ])
   end
   let(:dossier) { create(:dossier, :accepte, :with_populated_champs, procedure: procedure) }

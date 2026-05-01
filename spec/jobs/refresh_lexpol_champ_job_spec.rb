@@ -41,8 +41,8 @@ RSpec.describe RefreshLexpolChampJob, type: :job do
           'statut_libelle' => 'Enregistré par le BC',
           'lienDossier' => 'https://lexpol.cloud.pf/dossier/TEST123456',
           'elements' => [
-            { 'typeElement' => 'Arrêté', 'lienLexpol' => 'https://lexpol.cloud.pf/jopf/2025/001' }
-          ]
+            { 'typeElement' => 'Arrêté', 'lienLexpol' => 'https://lexpol.cloud.pf/jopf/2025/001' },
+          ],
         })
 
         expect {
@@ -64,7 +64,7 @@ RSpec.describe RefreshLexpolChampJob, type: :job do
             {
               'statut_libelle' => 'Soumis au Directeur',
               'lienDossier' => 'https://lexpol.cloud.pf/dossier/TEST123456',
-              'elements' => []
+              'elements' => [],
             }
           end
         end

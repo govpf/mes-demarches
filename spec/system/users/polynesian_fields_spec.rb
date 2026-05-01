@@ -8,19 +8,19 @@ describe 'Polynesian Fields - Nationalités, Commune, Code Postal & Numéro DN P
     create(:procedure, :published, :for_individual, no_gender: false, types_de_champ_public: [
       { type: :nationalites, libelle: 'Nationalité', mandatory: true },
       { type: :commune_de_polynesie, libelle: 'Commune de Polynésie', mandatory: true },
-      { type: :code_postal_de_polynesie, libelle: 'Code postal de Polynésie', mandatory: true }
+      { type: :code_postal_de_polynesie, libelle: 'Code postal de Polynésie', mandatory: true },
     ])
   end
 
   let!(:procedure_with_te_fenua) do
     create(:procedure, :published, :for_individual, no_gender: false, types_de_champ_public: [
-      { type: :te_fenua, libelle: 'Carte TeFenua', mandatory: false, options: { te_fenua_layer: 'marker' } }
+      { type: :te_fenua, libelle: 'Carte TeFenua', mandatory: false, options: { te_fenua_layer: 'marker' } },
     ])
   end
 
   let!(:procedure_with_numero_dn) do
     create(:procedure, :published, :for_individual, no_gender: false, types_de_champ_public: [
-      { type: :numero_dn, libelle: 'Numéro DN', mandatory: true }
+      { type: :numero_dn, libelle: 'Numéro DN', mandatory: true },
     ])
   end
 
