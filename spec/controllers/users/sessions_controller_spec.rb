@@ -25,8 +25,8 @@ describe Users::SessionsController, type: :controller do
         user: {
           email: email,
           password: send_password,
-          remember_me: remember_me
-        }
+          remember_me: remember_me,
+        },
       }
     end
 
@@ -41,7 +41,7 @@ describe Users::SessionsController, type: :controller do
 
         [
           FranceConnectController::ID_TOKEN_COOKIE_NAME,
-          FranceConnectController::STATE_COOKIE_NAME
+          FranceConnectController::STATE_COOKIE_NAME,
         ].map(&:to_s).each do |cookie_name|
           expect(response.cookies.keys).to include(cookie_name)
           expect(response.cookies[cookie_name]).to be_nil
@@ -163,7 +163,7 @@ describe Users::SessionsController, type: :controller do
 
         [
           FranceConnectController::ID_TOKEN_COOKIE_NAME,
-          FranceConnectController::STATE_COOKIE_NAME
+          FranceConnectController::STATE_COOKIE_NAME,
         ].map(&:to_s).each do |cookie_name|
           expect(response.cookies.keys).to include(cookie_name)
           expect(response.cookies[cookie_name]).to be_nil
@@ -351,7 +351,7 @@ describe Users::SessionsController, type: :controller do
     context 'when the email is evil' do
       [
         'Hello, I am an evil email',
-        'a@a%C2%A0evil%C2%A0text%C2%A0with%C2%A0spaces'
+        'a@a%C2%A0evil%C2%A0text%C2%A0with%C2%A0spaces',
       ].each do |evil_attempt|
         let(:link_email) { evil_attempt }
 
@@ -367,7 +367,7 @@ describe Users::SessionsController, type: :controller do
 
     context 'when the instructeur is signed without trust_device_token' do
       it 'send InstructeurMailer.send_login_token' do
-        expect(InstructeurMailer).to receive(:send_login_token).with(instructeur, anything).and_return(double(deliver_later: true))
+        expect(InstructeurMailer).to receive(:send_login_token).with(instructeur, anything, anything).and_return(double(deliver_later: true))
         expect { subject }.to change { instructeur.trusted_device_tokens.count }.by(1)
       end
     end
@@ -386,7 +386,7 @@ describe Users::SessionsController, type: :controller do
         travel_to 15.minutes.from_now
       end
       it 'send InstructeurMailer.send_login_token' do
-        expect(InstructeurMailer).to receive(:send_login_token).with(instructeur, anything).and_return(double(deliver_later: true))
+        expect(InstructeurMailer).to receive(:send_login_token).with(instructeur, anything, anything).and_return(double(deliver_later: true))
         expect { subject }.to change { instructeur.trusted_device_tokens.count }.by(1)
       end
     end

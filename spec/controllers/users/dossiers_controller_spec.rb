@@ -619,172 +619,6 @@ describe Users::DossiersController, type: :controller do
     end
   end
 
-  describe '#submit_en_construction' do
-    let(:owner) { create(:user) }
-    let(:procedure_traits) { [] }
-    let(:dossier_traits) { [] }
-    let(:procedure) { create(:procedure, :for_individual, :published, *procedure_traits, types_de_champ_public:) }
-    let(:types_de_champ_public) { [{ type: :text, mandatory: false }] }
-    let(:dossier) { create(:dossier, :en_construction, :with_individual, *dossier_traits, procedure:, user: owner) }
-    let(:now) { Time.zone.parse('01/01/2100') }
-    let(:params) { { id: dossier.id } }
-    let(:champs) { dossier.owner_editing_fork.project_champs_public }
-    let(:make_changes) do
-      champ = champs.first
-      if champ.present?
-        champ_for_update(champ).update(value: 'beautiful value')
-      end
-    end
-
-    subject do
-      make_changes
-      travel_to(now) { post :submit_en_construction, params: }
-    end
-
-    context 'when the owner signs in' do
-      before { sign_in(owner) }
-
-      context 'when the dossier cannot be updated by the owner' do
-        let(:dossier) { create(:dossier, :en_instruction, user: owner) }
-
-        it 'redirects to the dossiers list' do
-          subject
-
-          expect(response).to redirect_to(dossier_path(dossier))
-          expect(flash.alert).to eq('Votre dossier ne peut plus être modifié')
-        end
-      end
-
-      context 'when dossier is ready for submit' do
-        it 'does not raise any errors' do
-          subject
-
-          expect(response).to redirect_to(dossier_path(dossier))
-        end
-      end
-
-      context 'when the update fails' do
-        render_views
-
-        before do
-          allow_any_instance_of(Dossier).to receive(:validate).and_return(false)
-          allow_any_instance_of(Dossier).to receive(:errors).and_return(
-            [double(base: champs.first, attribute: :value, message: 'nop')]
-          )
-
-          subject
-        end
-
-        it { expect(response).to render_template(:modifier) }
-      end
-
-      context 'when dossier has no changes' do
-        let(:make_changes) {}
-
-        it 'redirects to the dossier' do
-          subject
-
-          expect(response).to redirect_to(dossier_path(dossier))
-          expect(flash.alert).to eq("Les modifications ont déjà été déposées")
-        end
-      end
-
-      context 'when a mandatory champ is missing' do
-        render_views
-        let(:types_de_champ_public) { [{}, { type: :text, mandatory: true, libelle: 'l' }] }
-        let(:empty_champ) { champs.second }
-
-        before { subject }
-
-        it do
-          expect(response).to render_template(:modifier)
-          expect(response.body).to have_content("doit être rempli")
-          expect(response.body).to have_link(empty_champ.libelle, href: "##{empty_champ.focusable_input_id}")
-        end
-      end
-
-      context 'when dossier repetition had been removed in newer version' do
-        let(:types_de_champ_public) { [{}, { type: :repetition, libelle: 'repetition', children: [{ type: :text, libelle: 'child' }] }] }
-        let(:dossier_traits) { [:with_populated_champs] }
-        let(:champ_repetition) { champs.find(&:repetition?) }
-
-        before do
-          procedure.draft_revision.remove_type_de_champ(champ_repetition.stable_id)
-          procedure.publish_revision!(procedure.administrateurs.first)
-
-          champ_repetition.dossier.reload
-          champ_repetition.dossier.rebase!
-        end
-
-        it { expect { subject }.not_to raise_error }
-      end
-
-      context "with pending correction" do
-        let(:correction) { create(:dossier_correction, dossier:) }
-
-        context "on simple procedure" do
-          before { correction }
-
-          it 'resolves correction automatically' do
-            expect { subject }.to change { correction.reload.resolved_at }.to be_truthy
-          end
-        end
-
-        context 'and sva enabled' do
-          let(:procedure_traits) { [:sva] }
-          let(:pending_correction) { "1" }
-          let(:now) { Time.current }
-          let(:params) { { id: dossier.id, dossier: { pending_correction: } } }
-
-          before { correction }
-
-          context 'when resolving correction' do
-            it 'passe automatiquement en instruction' do
-              expect(dossier.pending_correction?).to be_truthy
-
-              subject
-              dossier.reload
-
-              expect(dossier).to be_en_instruction
-              expect(dossier.pending_correction?).to be_falsey
-              expect(dossier.en_instruction_at).to within(5.seconds).of(Time.current)
-            end
-          end
-
-          context 'when not resolving correction' do
-            render_views
-            let(:pending_correction) { "" }
-
-            it 'does not passe automatiquement en instruction' do
-              subject
-              dossier.reload
-
-              expect(dossier).to be_en_construction
-              expect(dossier.pending_correction?).to be_truthy
-
-              expect(response.body).to include("Cochez la case")
-            end
-          end
-        end
-      end
-    end
-
-    context 'when a invite signs in' do
-      let(:invite_user) { create(:user) }
-      let!(:invite) { create(:invite, dossier:, user: invite_user) }
-
-      before { sign_in(invite_user) }
-      context 'and the invite tries to submit the dossier' do
-        before { subject }
-
-        it do
-          expect(response).to redirect_to(root_path)
-          expect(flash.alert).to include("Vous n’avez pas accès à ce dossier")
-        end
-      end
-    end
-  end
-
   describe '#submit_en_construction (stream)' do
     let(:owner) { create(:user) }
     let(:procedure_traits) { [] }
@@ -966,12 +800,12 @@ describe Users::DossiersController, type: :controller do
     let(:submit_payload) do
       {
         id: dossier.id,
-        dossier: { champs_public_attributes: }
+        dossier: { champs_public_attributes: },
       }
     end
     let(:champs_public_attributes) do
       {
-        first_champ.public_id => { value: value }
+        first_champ.public_id => { value: value },
       }
     end
     let(:payload) { submit_payload }
@@ -995,10 +829,10 @@ describe Users::DossiersController, type: :controller do
           dossier: {
             champs_public_attributes: {
               first_champ.public_id => {
-                value: value
-              }
-            }
-          }
+                value: value,
+              },
+            },
+          },
         }
       end
 
@@ -1027,10 +861,10 @@ describe Users::DossiersController, type: :controller do
           dossier: {
             champs_public_attributes: {
               first_champ.public_id => {
-                value:
-              }
-            }
-          }
+                value:,
+              },
+            },
+          },
         }
       end
 
@@ -1070,7 +904,7 @@ describe Users::DossiersController, type: :controller do
       context 'updates the pj' do
         let(:champs_public_attributes) do
           {
-            piece_justificative_champ.public_id => { piece_justificative_file: file }
+            piece_justificative_champ.public_id => { piece_justificative_file: file },
           }
         end
 
@@ -1100,7 +934,7 @@ describe Users::DossiersController, type: :controller do
         # See https://github.com/rails/rails/issues/26726
         let(:champs_public_attributes) do
           {
-            piece_justificative_champ.public_id => { piece_justificative_file: file }
+            piece_justificative_champ.public_id => { piece_justificative_file: file },
           }
         end
 
@@ -1112,11 +946,48 @@ describe Users::DossiersController, type: :controller do
         end
       end
 
+      context 'when the champ is a siret champ' do
+        let(:types_de_champ_public) { [{ type: :siret }] }
+        let(:champs_public_attributes) do
+          {
+            first_champ.public_id => { external_id: },
+          }
+        end
+
+        before do
+          first_champ.update_columns(external_state: 'fetched', etablissement_id: create(:etablissement).id)
+        end
+
+        context 'when the SIRET is invalid' do
+          let(:external_id) { 'nomatterthereason' }
+          it 'resets its etablissement' do
+            expect { subject }.to change { first_champ.reload.etablissement }.from(an_instance_of(Etablissement)).to(nil)
+          end
+        end
+
+        context 'when the SIRET is empty' do
+          let(:external_id) { '' }
+
+          it { expect { subject }.not_to have_enqueued_job(ChampFetchExternalDataJob) }
+        end
+
+        context "when the SIRET is invalid because of it's length" do
+          let(:external_id) { '1234' }
+
+          it { expect { subject }.not_to have_enqueued_job(ChampFetchExternalDataJob) }
+        end
+
+        context "when the SIRET is invalid because of it's checksum" do
+          let(:external_id) { '82812345600023' }
+
+          it { expect { subject }.not_to have_enqueued_job(ChampFetchExternalDataJob) }
+        end
+      end
       context 'when the champ is an external champ in fetched state' do
         let(:types_de_champ_public) { [{ type: :rnf }] }
         let(:champs_public_attributes) do
           {
-            first_champ.public_id => { external_id: 'external_id' }
+            first_champ.public_id => { external_id: 'external_id' },
           }
         end
 
@@ -1152,8 +1023,8 @@ describe Users::DossiersController, type: :controller do
         {
           id: dossier.id,
           dossier: {
-            champs_public_attributes: { first_champ.public_id => { value: } }
-          }
+            champs_public_attributes: { first_champ.public_id => { value: } },
+          },
         }
       end
 
@@ -1190,9 +1061,9 @@ describe Users::DossiersController, type: :controller do
           validate:,
           dossier: {
             champs_public_attributes: {
-              number_champ.public_id => { value: }
-            }
-          }
+              number_champ.public_id => { value: },
+            },
+          },
         }
       end
       let(:must_be_greater_than) { 10 }
@@ -1254,17 +1125,17 @@ describe Users::DossiersController, type: :controller do
             stable_id: referentiel_stable_id,
             referentiel_mapping: {
               "$.data[0].finess" => { prefill: "1", prefill_stable_id: 2 },
-              "$.data[0].ej_rs" => { prefill: "1", prefill_stable_id: 3 }
-            }
+              "$.data[0].ej_rs" => { prefill: "1", prefill_stable_id: 3 },
+            },
           },
           {
             type: :text,
-            stable_id: 2
+            stable_id: 2,
           },
           {
             type: :text,
-            stable_id: 3
-          }
+            stable_id: 3,
+          },
         ]
       end
       let(:suggestion_value) { 'osf' }
@@ -1277,10 +1148,10 @@ describe Users::DossiersController, type: :controller do
             champs_public_attributes: {
               first_champ.public_id => {
                 value: suggestion_value,
-                data: message_encryptor_service.encrypt_and_sign(suggestion_data, purpose: :storage, expires_in: 1.hour)
-              }
-            }
-          }
+                data: message_encryptor_service.encrypt_and_sign(suggestion_data, purpose: :storage, expires_in: 1.hour),
+              },
+            },
+          },
         }
       end
 
@@ -1308,190 +1179,6 @@ describe Users::DossiersController, type: :controller do
     end
   end
 
-  describe '#update en_construction' do
-    before { sign_in(user) }
-
-    let(:procedure) { create(:procedure, :published, types_de_champ_public: [{}, { type: :piece_justificative }]) }
-    let(:dossier) { create(:dossier, :en_construction, user:, procedure:) }
-    let!(:editing_fork) { dossier.owner_editing_fork }
-    let(:first_champ) { editing_fork.project_champs_public.first }
-    let(:piece_justificative_champ) { editing_fork.project_champs_public.last }
-    let(:value) { 'beautiful value' }
-    let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
-    let(:now) { Time.zone.parse('01/01/2100') }
-
-    let(:submit_payload) do
-      {
-        id: dossier.id,
-        dossier: { champs_public_attributes: }
-      }
-    end
-    let(:champs_public_attributes) do
-      {
-        first_champ.public_id => { value: value }
-      }
-    end
-    let(:payload) { submit_payload }
-
-    subject do
-      travel_to(now) do
-        patch :update, params: payload, format: :turbo_stream
-      end
-    end
-
-    context 'when the dossier cannot be updated by the user' do
-      let!(:dossier) { create(:dossier, :en_instruction, user:, procedure:) }
-
-      it 'redirects to the dossiers list' do
-        subject
-        expect(response).to redirect_to(dossier_path(dossier))
-        expect(flash.alert).to eq('Votre dossier ne peut plus être modifié')
-      end
-    end
-
-    context 'when dossier can be updated by the owner' do
-      it 'updates the champs' do
-        subject
-        expect(first_champ.reload.value).to eq('beautiful value')
-      end
-
-      context 'updates the pj' do
-        let(:champs_public_attributes) do
-          {
-            piece_justificative_champ.public_id => { piece_justificative_file: file }
-          }
-        end
-
-        it do
-          subject
-          expect(piece_justificative_champ.reload.piece_justificative_file).to be_attached
-        end
-      end
-
-      it 'updates the dossier timestamps' do
-        subject
-        editing_fork.reload
-        expect(editing_fork.updated_at).to eq(now)
-        expect(editing_fork.last_champ_updated_at).to eq(now)
-      end
-
-      it { is_expected.to have_http_status(:ok) }
-
-      context 'when only a single file champ are modified' do
-        # A bug in ActiveRecord causes records changed through grand-parent <->  parent <-> child
-        # relationships do not touch the grand-parent record on change.
-        # This situation is hit when updating just the attachment of a champ (and not the
-        # champ itself).
-        #
-        # This test ensures that, whatever workaround we wrote for this, it still works properly.
-        #
-        # See https://github.com/rails/rails/issues/26726
-        let(:submit_payload) do
-          {
-            id: dossier.id,
-            dossier: {
-              champs_public_attributes: {
-                piece_justificative_champ.public_id => {
-                  piece_justificative_file: file
-                }
-              }
-            }
-          }
-        end
-
-        it 'updates the dossier timestamps' do
-          subject
-          editing_fork.reload
-          expect(editing_fork.updated_at).to eq(now)
-          expect(editing_fork.last_champ_updated_at).to eq(now)
-        end
-      end
-    end
-
-    context 'when the update fails' do
-      render_views
-
-      context 'classic error' do
-        before do
-          allow_any_instance_of(Dossier).to receive(:save).and_return(false)
-          allow_any_instance_of(Dossier).to receive(:errors).and_return(
-            [message: 'nop', inner_error: double(base: first_champ)]
-          )
-          subject
-        end
-
-        it { expect(response).to render_template(:update) }
-
-        it 'does not update the dossier timestamps' do
-          dossier.reload
-          expect(dossier.updated_at).not_to eq(now)
-          expect(dossier.last_champ_updated_at).not_to eq(now)
-        end
-
-        it 'does not send an email' do
-          expect(NotificationMailer).not_to receive(:send_en_construction_notification)
-
-          subject
-        end
-      end
-
-      context 'iban error' do
-        let(:types_de_champ_public) { [{ type: :iban }] }
-        let(:value) { 'abc' }
-
-        before { subject }
-
-        it { expect(response).to have_http_status(:success) }
-      end
-    end
-
-    context 'when the user has an invitation but is not the owner' do
-      let(:dossier) { create(:dossier, :en_construction, procedure:) }
-      let!(:invite) { create(:invite, dossier:, user:) }
-
-      before { subject }
-
-      it do
-        expect(first_champ.reload.value).to eq('beautiful value')
-        expect(response).to have_http_status(:ok)
-      end
-    end
-
-    context 'when the champ is a phone number' do
-      let(:types_de_champ_public) { [{ type: :phone }] }
-      let(:now) { Time.zone.parse('01/01/2100') }
-
-      let(:submit_payload) do
-        {
-          id: dossier.id,
-          dossier: {
-            champs_public_attributes: {
-              first_champ.public_id => {
-                value: value
-              }
-            }
-          }
-        }
-      end
-
-      context 'with a valid value sent as string' do
-        let(:value) { '0612345678' }
-        it 'updates the value' do
-          subject
-          expect(first_champ.reload.value).to eq('0612345678')
-        end
-      end
-
-      context 'with a valid value sent as number' do
-        let(:value) { '45187272'.to_i }
-        it 'updates the value' do
-          subject
-          expect(first_champ.reload.value).to eq('45187272')
-        end
-      end
-    end
-  end
-
   describe '#update en_construction (stream)' do
     before { sign_in(user) }
 
@@ -1509,12 +1196,12 @@ describe Users::DossiersController, type: :controller do
     let(:submit_payload) do
       {
         id: dossier.id,
-        dossier: { champs_public_attributes: }
+        dossier: { champs_public_attributes: },
       }
     end
     let(:champs_public_attributes) do
       {
-        first_champ.public_id => { value: value }
+        first_champ.public_id => { value: value },
       }
     end
     let(:payload) { submit_payload }
@@ -1548,7 +1235,7 @@ describe Users::DossiersController, type: :controller do
       context 'updates the pj' do
         let(:champs_public_attributes) do
           {
-            piece_justificative_champ.public_id => { piece_justificative_file: file }
+            piece_justificative_champ.public_id => { piece_justificative_file: file },
           }
         end
 
@@ -1585,10 +1272,10 @@ describe Users::DossiersController, type: :controller do
             dossier: {
               champs_public_attributes: {
                 piece_justificative_champ.public_id => {
-                  piece_justificative_file: file
-                }
-              }
-            }
+                  piece_justificative_file: file,
+                },
+              },
+            },
           }
         end
 
@@ -1660,10 +1347,10 @@ describe Users::DossiersController, type: :controller do
           dossier: {
             champs_public_attributes: {
               first_champ.public_id => {
-                value: value
-              }
-            }
-          }
+                value: value,
+              },
+            },
+          },
         }
       end
 
@@ -1696,8 +1383,8 @@ describe Users::DossiersController, type: :controller do
           {
             type: :referentiel,
             referentiel: referentiel,
-            stable_id: referentiel_stable_id
-          }
+            stable_id: referentiel_stable_id,
+          },
         ]
       end
       let (:submit_payload) do
@@ -1706,10 +1393,10 @@ describe Users::DossiersController, type: :controller do
           dossier: {
             champs_public_attributes: {
               first_champ.public_id => {
-                external_id:
-              }
-            }
-          }
+                external_id:,
+              },
+            },
+          },
         }
       end
 
@@ -1920,8 +1607,8 @@ describe Users::DossiersController, type: :controller do
         id: dossier.id,
         commentaire: {
           body: body,
-          piece_jointe: file
-        }
+          piece_jointe: file,
+        },
       }
     }
 
@@ -2004,7 +1691,7 @@ describe Users::DossiersController, type: :controller do
 
         expect(notifications.pluck(:instructeur_id)).to match_array([
           instructeur_with_instant_message.id,
-          instructeur_without_instant_message.id
+          instructeur_without_instant_message.id,
         ])
       end
     end
@@ -2363,19 +2050,19 @@ describe Users::DossiersController, type: :controller do
                 stable_id: referentiel_stable_id,
                 referentiel_mapping: {
                   "$.ok" => { prefill: "1", prefill_stable_id: 2 },
-                  "$.repetition[0].nom" => { prefill: "1", prefill_stable_id: 3 }
-                }
+                  "$.repetition[0].nom" => { prefill: "1", prefill_stable_id: 3 },
+                },
               },
               {
                 type: :text,
-                stable_id: 2 # mapped with "$.ok"
+                stable_id: 2, # mapped with "$.ok"
               },
               {
                 type: :repetition,
                 children: [
-                  { type: :text, stable_id: 3 } # mapped with "$.repetition{0}.nom"
-                ]
-              }
+                  { type: :text, stable_id: 3 }, # mapped with "$.repetition{0}.nom"
+                ],
+              },
             ]
           end
 

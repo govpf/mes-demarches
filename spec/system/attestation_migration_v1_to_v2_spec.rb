@@ -40,7 +40,7 @@ describe 'Migration Attestations v1 vers v2', type: :system do
           '<i>italique</i>' => { type: 'italic', text: 'italique' },
           '<u>souligné</u>' => { type: 'underline', text: 'souligné' },
           '<strong>fort</strong>' => { type: 'bold', text: 'fort' },
-          '<em>emphase</em>' => { type: 'italic', text: 'emphase' }
+          '<em>emphase</em>' => { type: 'italic', text: 'emphase' },
         }
 
         test_cases.each do |html_input, expected|
@@ -145,7 +145,7 @@ describe 'Migration Attestations v1 vers v2', type: :system do
         '<table>' => 89,   # MAJEUR (Phase 2)
         '<i>' => 39,       # MOYEN
         '<strong>' => 2,   # FAIBLE
-        '<em>' => 2        # FAIBLE
+        '<em>' => 2, # FAIBLE
       }
 
       tags_found.each do |tag, expected_count|

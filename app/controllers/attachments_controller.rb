@@ -22,7 +22,7 @@ class AttachmentsController < ApplicationController
     if champ?
       @attachment = champ.piece_justificative_file.find { _1.blob.id == @blob.id }
       if @attachment.present?
-        champ.reset_external_data! if champ.may_reset_external_data?
+        champ.reset_external_data!
 
         @attachment.purge_later
         champ.update_timestamps
@@ -112,7 +112,7 @@ class AttachmentsController < ApplicationController
       attached_file: record.public_send(@attachment.name),
       view_as: params[:view_as]&.to_sym,
       direct_upload: params[:direct_upload] == "true",
-      auto_attach_url: params[:direct_upload] == "true" ? params[:auto_attach_url] : nil
+      auto_attach_url: params[:direct_upload] == "true" ? params[:auto_attach_url] : nil,
     }
   end
 end

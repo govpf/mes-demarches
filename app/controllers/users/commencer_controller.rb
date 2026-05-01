@@ -129,6 +129,12 @@ module Users
       @prefilled_dossier.build_default_values
       if @prefilled_dossier.save
         @prefilled_dossier.prefill!(PrefillChamps.new(@prefilled_dossier, params.to_unsafe_h).to_a, PrefillIdentity.new(@prefilled_dossier, params.to_unsafe_h).to_h)
+        # pf: calcul initial après prefill — les sources préremplies sont
+        # maintenant en BDD, on calcule les formules avec les bonnes valeurs.
+        # Les formules dépendant des sources préfilées ont déjà été calculées
+        # par la cascade dans prefill! ; cet appel couvre les formules sans
+        # source préremplie (constantes, fonctions système).
+        @prefilled_dossier.compute_initial_formulas
       end
       session[:prefill_token] = @prefilled_dossier.prefill_token
       session[:prefill_params_digest] = PrefillChamps.digest(params)

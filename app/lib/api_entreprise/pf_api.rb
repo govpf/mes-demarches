@@ -36,14 +36,14 @@ class APIEntreprise::PfAPI
 
   def params(no_tahiti)
     {
-      numeroTahiti: no_tahiti
+      numeroTahiti: no_tahiti,
     }
   end
 
   def headers
     @header ||= {
       'X-Gravitee-Api-Key': ENV['API_ISPF_GRAVITEE_KEY'],
-      'Content-Type': 'application/json; charset=UTF-8'
+      'Content-Type': 'application/json; charset=UTF-8',
     }
   end
 

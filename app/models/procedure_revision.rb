@@ -180,6 +180,9 @@ class ProcedureRevision < ApplicationRecord
     if dossier.new_record?
       dossier.build_default_values
       dossier.save!
+      # pf: calcul initial des formules pour le dossier de preview admin.
+      # En draft revision, project_champ recompute aussi à l'affichage.
+      dossier.compute_initial_formulas
     end
 
     dossier

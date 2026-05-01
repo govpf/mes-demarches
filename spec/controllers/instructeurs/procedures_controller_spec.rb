@@ -143,7 +143,7 @@ describe Instructeurs::ProceduresController, type: :controller do
 
             create(:dossier, procedure: procedure,
                              state: Dossier.states.fetch(:sans_suite),
-                             processed_at: 8.months.ago) # counted as expirable
+                             processed_at: 8.months.ago).tap(&:update_expired_at) # counted as expirable
             create(:dossier, procedure: procedure,
                              state: Dossier.states.fetch(:sans_suite),
                              processed_at: 8.months.ago,
@@ -151,7 +151,7 @@ describe Instructeurs::ProceduresController, type: :controller do
             create(:dossier, procedure: procedure,
                              state: Dossier.states.fetch(:sans_suite),
                              processed_at: 8.months.ago,
-                             hidden_by_user_at: 1.day.ago) # counted as expirable because even if user remove it, instructeur see it
+                             hidden_by_user_at: 1.day.ago).tap(&:update_expired_at) # counted as expirable because even if user remove it, instructeur see it
 
             instructeur.groupe_instructeurs << procedure3.defaut_groupe_instructeur
             create(:dossier, :followed, procedure: procedure3, state: Dossier.states.fetch(:en_construction))
@@ -510,9 +510,9 @@ describe Instructeurs::ProceduresController, type: :controller do
 
       context 'with an expirants dossier' do
         let(:statut) { 'expirant' }
-        let!(:expiring_dossier_termine_deleted) { create(:dossier, :accepte, procedure: procedure, processed_at: 175.days.ago, hidden_by_administration_at: 2.days.ago) }
-        let!(:expiring_dossier_termine) { create(:dossier, :accepte, procedure: procedure, processed_at: 175.days.ago) }
-        let!(:expiring_dossier_en_construction) { create(:dossier, :en_construction, procedure: procedure, en_construction_at: 175.days.ago) }
+        let!(:expiring_dossier_termine_deleted) { create(:dossier, :accepte, procedure: procedure, processed_at: 175.days.ago, hidden_by_administration_at: 2.days.ago).tap(&:update_expired_at) }
+        let!(:expiring_dossier_termine) { create(:dossier, :accepte, procedure: procedure, processed_at: 175.days.ago).tap(&:update_expired_at) }
+        let!(:expiring_dossier_en_construction) { create(:dossier, :en_construction, procedure: procedure, en_construction_at: 175.days.ago).tap(&:update_expired_at) }
 
         before { subject }
 
@@ -733,7 +733,7 @@ describe Instructeurs::ProceduresController, type: :controller do
           DossierLabel.create(dossier_id: dossier_2.id, label_id: dossier.procedure.labels.last.id)
 
           procedure_presentation.update(displayed_columns: [
-            label_id.id
+            label_id.id,
           ])
 
           subject
@@ -870,7 +870,7 @@ describe Instructeurs::ProceduresController, type: :controller do
         before do
           patch :update_email_notifications, params: {
             procedure_id: procedure.id,
-            assign_to: { id: assign_to.id, deletion_email_notifications_enabled: false }
+            assign_to: { id: assign_to.id, deletion_email_notifications_enabled: false },
           }
         end
 
@@ -898,7 +898,6 @@ describe Instructeurs::ProceduresController, type: :controller do
         let(:defaut_groupe_instructeur) { procedure.defaut_groupe_instructeur }
         let!(:dossier_in_group) { create(:dossier, :brouillon, procedure:, groupe_instructeur: defaut_groupe_instructeur) }
         let!(:dossier_without_groupe) { create(:dossier, :brouillon, procedure:, groupe_instructeur: nil) }
-        let!(:dossier_fork) { dossier_in_group.find_or_create_editing_fork(dossier_in_group.user) }
         before { defaut_groupe_instructeur.instructeurs << instructeur }
 
         it 'count brouillon per group and not in group' do
@@ -931,7 +930,7 @@ describe Instructeurs::ProceduresController, type: :controller do
             post :create_multiple_commentaire_for_brouillons,
               params: {
                 procedure_id: procedure.id,
-                bulk_message: { body: body }
+                bulk_message: { body: body },
               }
           end.to change { Commentaire.count }.from(0).to(4)
         [dossier, dossier_2, dossier_3, dossier_4].each do |any_dossier|
@@ -957,8 +956,8 @@ describe Instructeurs::ProceduresController, type: :controller do
                   procedure_id: procedure.id,
                   bulk_message: {
                     body: body,
-                    groupe_instructeur_ids: { gi_p1_1.id => true, gi_p1_2.id => false }
-                  }
+                    groupe_instructeur_ids: { gi_p1_1.id => true, gi_p1_2.id => false },
+                  },
                 }
         end
         it "creates a Bulk Message for given group_instructeur_ids" do
@@ -971,14 +970,6 @@ describe Instructeurs::ProceduresController, type: :controller do
           expect(flash.notice).to eq("Tous les messages ont été envoyés avec succès")
           expect(response).to redirect_to instructeur_procedure_path(procedure)
         end
-
-        context 'when editing_fork exists' do
-          it 'skips fork notification' do
-            dossier.find_or_create_editing_fork(dossier_4.user)
-
-            expect { subject }.to change { Commentaire.count }.from(0).to(2)
-          end
-        end
       end
 
       context 'when without_group is specified' do
@@ -989,8 +980,8 @@ describe Instructeurs::ProceduresController, type: :controller do
             bulk_message: {
               body: body,
               groupe_instructeur_ids: {},
-              without_group: "1"
-            }
+              without_group: "1",
+            },
           }
         end
         it "creates a Bulk Message for dossier without group_instructeur_ids" do
@@ -1002,14 +993,6 @@ describe Instructeurs::ProceduresController, type: :controller do
           expect(flash.notice).to be_present
           expect(flash.notice).to eq("Tous les messages ont été envoyés avec succès")
           expect(response).to redirect_to instructeur_procedure_path(procedure)
-        end
-
-        context 'when editing_fork exists' do
-          it 'skips fork notification' do
-            dossier_4.find_or_create_editing_fork(dossier_4.user)
-
-            expect { subject }.to change { Commentaire.count }.from(0).to(1)
-          end
         end
       end
     end

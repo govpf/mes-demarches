@@ -41,7 +41,9 @@ features = [
   :formule,
   # pf: feature flag pour la navigation contextuelle entre personas
   :contextual_persona_navigation,
-  :switch_domain
+  # pf: feature flag pour l'affichage en grille des champs côté instructeur (PR #334)
+  :dossier_layout_grid,
+  :switch_domain,
 ]
 
 def database_exists?

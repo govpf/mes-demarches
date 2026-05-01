@@ -4,7 +4,7 @@ describe RefreshClockDependentFormulasDossierJob do
   let(:procedure) {
     create(:procedure, :published, types_de_champ_public: [
       { type: :date, libelle: 'Date de naissance' },
-      { type: :formule, libelle: 'Age' }
+      { type: :formule, libelle: 'Age' },
     ])
   }
   let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
@@ -26,8 +26,12 @@ describe RefreshClockDependentFormulasDossierJob do
       formule_tdc.update!(formule_expression: expr)
       date_champ.update!(value: '2000-05-15')
       dossier.send(:reset_champs_cache)
+      # pf: depuis la phase 4 (option 3), le calcul initial passe par
+      # compute_initial_formulas (avant : déclenché par before_validation lors
+      # du save du champ). Update_columns la value en BDD pour que le test
+      # lise '25' avant le travel_to du test principal.
+      dossier.compute_initial_formulas
       fresh_formule = dossier.project_champs_public[1]
-      fresh_formule.save!
       expect(fresh_formule.reload.value).to eq('25')
     end
   end

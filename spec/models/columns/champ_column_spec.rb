@@ -28,7 +28,7 @@ describe Columns::ChampColumn do
             "GRTGAZ",
             "SA à conseil d'administration (s.a.i.)",
             "1990-04-24",
-            "Transports par conduites"
+            "Transports par conduites",
           ]
         ))
         expect_type_de_champ_values('text', eq(['text']))

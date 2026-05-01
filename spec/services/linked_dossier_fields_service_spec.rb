@@ -23,7 +23,7 @@ describe LinkedDossierFieldsService do
       let(:procedure) do
         create(:procedure, types_de_champ_public: [
           { type: :text, libelle: 'Nom' },
-          { type: :dossier_link, libelle: 'Dossier de candidature' }
+          { type: :dossier_link, libelle: 'Dossier de candidature' },
         ])
       end
 
@@ -57,7 +57,7 @@ describe LinkedDossierFieldsService do
         # Créer un 3ème dossier lié au 2ème
         third_procedure = create(:procedure, types_de_champ_public: [
           { type: :text, libelle: 'Ville' },
-          { type: :dossier_link, libelle: 'Autre dossier' }
+          { type: :dossier_link, libelle: 'Autre dossier' },
         ])
         third_dossier = create(:dossier, :en_construction, procedure: third_procedure)
         third_dossier.champs.first.update(value: 'Amiens')
@@ -83,7 +83,7 @@ describe LinkedDossierFieldsService do
         # Dossier lié contient lui-même un DossierLinkChamp
         nested_procedure = create(:procedure, types_de_champ_public: [
           { type: :text, libelle: 'Info' },
-          { type: :dossier_link, libelle: 'Dossier imbriqué' }
+          { type: :dossier_link, libelle: 'Dossier imbriqué' },
         ])
         nested_dossier = create(:dossier, :en_construction, procedure: nested_procedure)
         nested_dossier.champs.first.update(value: 'Donnée niveau 1')
@@ -109,7 +109,7 @@ describe LinkedDossierFieldsService do
         create(:procedure, types_de_champ_public: [
           { type: :text, libelle: 'Nom' },
           { type: :dossier_link, libelle: 'Dossier de candidature' },
-          { type: :dossier_link, libelle: 'Dossier annuel' }
+          { type: :dossier_link, libelle: 'Dossier annuel' },
         ])
       end
 
@@ -140,7 +140,7 @@ describe LinkedDossierFieldsService do
     let(:procedure) do
       create(:procedure, types_de_champ_public: [
         { type: :text, libelle: 'Nom' },
-        { type: :dossier_link, libelle: 'Dossier lié' }
+        { type: :dossier_link, libelle: 'Dossier lié' },
       ])
     end
 
@@ -162,7 +162,7 @@ describe LinkedDossierFieldsService do
     let(:procedure) do
       create(:procedure, types_de_champ_public: [
         { type: :text, libelle: 'Nom' },
-        { type: :dossier_link, libelle: 'Dossier lié' }
+        { type: :dossier_link, libelle: 'Dossier lié' },
       ])
     end
 

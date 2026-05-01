@@ -74,7 +74,7 @@ module DossierStateConcern
     self.en_instruction_at = self.traitements
       .passer_en_instruction(instructeur: instructeur)
       .processed_at
-    self.expired_at = nil
+    self.expired_at = expiration_date
 
     save!
 
@@ -95,16 +95,13 @@ module DossierStateConcern
       InstructionNotificationJob.schedule_for_dossier(self)
       NotificationMailer.send_notification_for_tiers(self).deliver_later if self.for_tiers?
     end
-
-    # TODO remove when all forks are gone
-    editing_forks.each(&:destroy_editing_fork!)
   end
 
   def after_passer_automatiquement_en_instruction
     self.en_construction_close_to_expiration_notice_sent_at = nil
     self.conservation_extension = 0.days
     self.en_instruction_at = traitements.passer_en_instruction.processed_at
-    self.expired_at = nil
+    self.expired_at = expiration_date
 
     if procedure.declarative_en_instruction?
       self.declarative_triggered_at = en_instruction_at
@@ -357,7 +354,7 @@ module DossierStateConcern
     self.en_instruction_at = self.traitements
       .passer_en_instruction(instructeur: instructeur)
       .processed_at
-    self.expired_at = nil
+    self.expired_at = expiration_date
     attestation&.destroy
 
     self.sva_svr_decision_on = nil
@@ -386,8 +383,6 @@ module DossierStateConcern
     remove_discarded_rows!
     remove_not_visible_rows!
     remove_not_visible_or_empty_champs!
-    # TODO remove when all forks are gone
-    editing_forks.each(&:destroy_editing_fork!)
   end
 
   def clean_champs_after_instruction!

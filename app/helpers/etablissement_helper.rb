@@ -36,9 +36,13 @@ module EtablissementHelper
 
   def pretty_siret(siret)
     return if siret.blank?
-    if siret.length > 9
+    # pf: also strip hyphens since Tahiti numbers may be formatted as "G33972-001"
+    siret = siret.gsub(/[[:space:]-]/, "")
+    case siret.length
+    when 14
       "#{siret[0..2]} #{siret[3..5]} #{siret[6..8]} #{siret[9..]}"
-    elsif siret.length > 6
+    when 9
+      # pf: Tahiti full number (6 chars entreprise + 3 chars etablissement)
       "#{siret[0..5]}-#{siret[6..]}"
     else
       siret
@@ -89,7 +93,7 @@ module EtablissementHelper
       '7' => '100 à 199 personnes',
       '8' => '200 à 499 personnes',
       '9' => '500 personnes et plus',
-      '10' => 'Aucune personne'
+      '10' => 'Aucune personne',
     }[etablissement.entreprise_code_effectif_entreprise]
   end
 

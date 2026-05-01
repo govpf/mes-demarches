@@ -93,8 +93,27 @@ module Maintenance
               "dossier_state" => dossier.state,
               "procedure_id" => procedure.id,
               "champ_libelle" => "Justificatif de domicile",
-              "procedure_libelle" => procedure.libelle
+              "procedure_libelle" => procedure.libelle,
             })
+          end
+
+          context 'when the attachment has no record' do
+            before do
+              attachment.update_columns(record_id: '9999999999999')
+            end
+
+            it "creates a TaskLog entry with limited info" do
+              subject
+
+              expect(TaskLog.count).to eq(1)
+              expect(TaskLog.last.data).to eq({
+                "state" => "lost",
+                "blob_key" => blob.key,
+                "name" => "piece_justificative_file",
+                "record_type" => "Champ",
+                "record_id" => 9999999999999,
+              })
+            end
           end
         end
 

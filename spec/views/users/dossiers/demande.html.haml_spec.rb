@@ -86,7 +86,7 @@ describe 'users/dossiers/demande', type: :view do
     let!(:procedure) { create(:procedure, types_de_champ_public:) }
     let(:types_de_champ_public) do
       [
-        { type: :drop_down_list, drop_down_mode: 'advanced', drop_down_other: '1', referentiel: }
+        { type: :drop_down_list, drop_down_mode: 'advanced', drop_down_other: '1', referentiel: },
       ]
     end
     let(:dossier) { create(:dossier, procedure: procedure) }
@@ -122,7 +122,7 @@ describe 'users/dossiers/demande', type: :view do
     let!(:procedure) { create(:procedure, types_de_champ_public:) }
     let(:types_de_champ_public) do
       [
-        { type: :multiple_drop_down_list, drop_down_mode: 'advanced', referentiel: }
+        { type: :multiple_drop_down_list, drop_down_mode: 'advanced', referentiel: },
       ]
     end
     let(:dossier) { create(:dossier, procedure: procedure) }

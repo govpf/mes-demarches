@@ -41,7 +41,7 @@ info = {
   :Subject => "Attestation pour un dossier",
   :Creator => (APPLICATION_NAME).to_s,
   :Producer => "Prawn",
-  :CreationDate => created_at
+  :CreationDate => created_at,
 }
 
 def print_text(pdf, text, size)
@@ -181,7 +181,7 @@ prawn_document(margin: [top_margin, right_margin, bottom_margin, left_margin], p
     normal: Rails.root.join('lib/prawn/fonts/marianne/marianne-regular.ttf'),
     bold: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf'),
     bold_italic: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf'),
-    italic: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf')
+    italic: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf'),
   })
 
   pdf.font 'marianne'

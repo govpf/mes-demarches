@@ -1,60 +1,28 @@
-- if @etablissements.size > 1
-  %p.fr-info-text Plusieurs établissements correspondent à ce numéro TAHITI. Veuillez sélectionner celui qui vous concerne :
+-# pf: shown when the siret champ is in multiple_found state — asks the user to pick one etablissement
+- if @etablissements.present?
+  %p.fr-info-text= t('.ambiguous_prefix_html')
   %span.fr-text--sm
     = "#{t('.label')} :"
   %ul.fr-text--sm.fr-text-mention--grey.etablissements
     - @etablissements.each do |etablissement|
+      - num = etablissement[:num_entreprise] || etablissement['num_entreprise']
+      - nom_commercial = etablissement[:entreprise_nom_commercial] || etablissement['entreprise_nom_commercial']
+      - raison = etablissement[:entreprise_raison_sociale] || etablissement['entreprise_raison_sociale']
+      - localite = etablissement[:localite] || etablissement['localite']
+      - full_siret = "#{@siret_prefix}#{sprintf('%03d', num.to_i)}"
       %li.fr-btns-group--sm.fr-btns-group--inline.fr-btns-group--icon-right
         %span
-          = "#{sprintf('%03d', etablissement[:num_entreprise])} - #{etablissement[:entreprise_nom_commercial].presence || etablissement[:entreprise_raison_sociale]} - #{etablissement[:localite]}"
-        - siret_value = @siret_prefix.present? && @siret_prefix.length >= 9 ? @siret_prefix : (@siret_prefix ? "#{@siret_prefix}#{sprintf('%03d', etablissement[:num_entreprise])}" : "#{etablissement[:siret]}#{sprintf('%03d', etablissement[:num_entreprise])}")
-        %a.fr-btn.fr-btn--tertiary{ href: "javascript:void(0)", onclick: "updateEtablissement('#{siret_value}', '#{@input_id}', 1)" }
-          = "Sélectionner"
-%script{ type: "text/javascript", id: "etablissement-handler-#{@input_id}" }
-  :plain
-    function updateEtablissement(tahitiValue, inputId, refresh) {
-      var input = document.getElementById(inputId);
-
-      if (input) {
-        if (tahitiValue.length === 3) {
-          // Legacy mode: suffix only, get prefix from current input
-          var currentValue = input.value.substring(0, 6);
-          input.value = currentValue + tahitiValue;
-        } else {
-          // New mode: complete value
-          input.value = tahitiValue;
-        }
-
-        if (refresh) {
-          const event = new Event('input', {
-            bubbles: true,
-            cancelable: true,
-          });
-          input.dispatchEvent(event);
-        }
+          = "#{sprintf('%03d', num.to_i)} - #{nom_commercial.presence || raison} - #{localite}"
+        %a.fr-btn.fr-btn--tertiary{ href: "javascript:void(0)", onclick: "etablissementsList_pick('#{full_siret}', '#{@input_id}')" }
+          = t('.select')
+  %script{ type: "text/javascript", id: "etablissements-handler-#{@input_id}" }
+    :plain
+      function etablissementsList_pick(fullSiret, inputId) {
+        var input = document.getElementById(inputId);
+        if (!input) { return; }
+        input.value = fullSiret;
+        var event = new Event('input', { bubbles: true, cancelable: true });
+        input.dispatchEvent(event);
+        var changeEvent = new Event('change', { bubbles: true, cancelable: true });
+        input.dispatchEvent(changeEvent);
       }
-    }
-
-    // Auto-select logic for single establishment
-    var etablissementCount = #{@etablissements.size};
-
-    if (etablissementCount === 1) {
-      var autoSelectValue = '#{@etablissements.size == 1 ? (@siret_prefix.present? && @siret_prefix.length >= 9 ? @siret_prefix : (@siret_prefix ? "#{@siret_prefix}#{sprintf('%03d', @etablissements[0][:num_entreprise])}" : "#{@etablissements[0][:siret]}#{sprintf('%03d', @etablissements[0][:num_entreprise])}")) : ''}';
-
-      function autoSelectSingleEtablissement() {
-        var input = document.getElementById('#{@input_id}');
-        if (input) {
-          var currentValue = input.value.replace(/[\s-]/g, '');
-
-          if (currentValue.length < 9) {
-            updateEtablissement(autoSelectValue, '#{@input_id}', 1);
-          }
-        }
-      }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', autoSelectSingleEtablissement);
-      } else {
-        autoSelectSingleEtablissement();
-      }
-    }

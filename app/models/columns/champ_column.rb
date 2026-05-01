@@ -50,10 +50,14 @@ class Columns::ChampColumn < Column
   end
 
   def filtered_ids_before_value(dossiers, values)
+    return dossiers.ids if values.first.blank?
+
     filtered_ids_for_date_range(dossiers, ..Time.zone.parse(values.first).beginning_of_day)
   end
 
   def filtered_ids_after_value(dossiers, values)
+    return dossiers.ids if values.first.blank?
+
     filtered_ids_for_date_range(dossiers, (Time.zone.parse(values.first).end_of_day..))
   end
 
@@ -63,6 +67,8 @@ class Columns::ChampColumn < Column
   end
 
   def filtered_ids_for_values(dossiers, search_terms)
+    return dossiers.ids unless search_terms.any?(&:present?)
+
     return dossiers.without_type_de_champ(stable_id).ids if should_exclude_empty_values?(search_terms)
 
     relation = dossiers.with_type_de_champ(stable_id)
@@ -216,7 +222,7 @@ class Columns::ChampColumn < Column
     [:multiple_drop_down_list, :drop_down_list] => -> (v) { v.first },
     [:multiple_drop_down_list, :text] => -> (v) { v.join(', ') },
     [:multiple_drop_down_list, :textarea] => -> (v) { v.join("\n") },
-    [:multiple_drop_down_list, :formatted] => -> (v) { v.join(', ') }
+    [:multiple_drop_down_list, :formatted] => -> (v) { v.join(', ') },
   }
 
   def parse_boolean(value)

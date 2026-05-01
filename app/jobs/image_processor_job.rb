@@ -1,7 +1,16 @@
 # frozen_string_literal: true
 
 class ImageProcessorJob < ApplicationJob
-  queue_as :low # thumbnails and watermarks. Execution depends of virus scanner which is more urgent
+  queue_as do
+    blob = self.arguments.first
+    maybe_champ = blob&.attachments&.first&.record
+
+    if rib?(maybe_champ)
+      :default # UI is waiting
+    else
+      :low # thumbnails and watermarks. Execution depends of virus scanner which is more urgent
+    end
+  end
 
   class FileNotScannedYetError < StandardError
   end
@@ -16,7 +25,7 @@ class ImageProcessorJob < ApplicationJob
     'improper image header',
     'width or height exceeds limit',
     'attempt to perform an operation not allowed by the security policy',
-    'no decode delegate for this image format'
+    'no decode delegate for this image format',
   ]
   discard_on do |_, error|
     DISCARDABLE_ERRORS.any? { error.message.match?(_1) }

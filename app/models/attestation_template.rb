@@ -11,12 +11,12 @@ class AttestationTemplate < ApplicationRecord
 
   enum :state, {
     draft: 'draft',
-    published: 'published'
+    published: 'published',
   }
 
   enum :kind, {
     acceptation: 'acceptation',
-    refus: 'refus'
+    refus: 'refus',
   }
 
   validates :title, tags: true, if: -> { procedure.present? && version == 1 }
@@ -46,9 +46,9 @@ class AttestationTemplate < ApplicationRecord
               {
                 "type" => "paragraph",
                 "attrs" => { "textAlign" => "left" },
-                "content" => [{ "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service" } }]
-              }
-            ]
+                "content" => [{ "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service" } }],
+              },
+            ],
           },
           {
             "type" => "headerColumn",
@@ -58,12 +58,12 @@ class AttestationTemplate < ApplicationRecord
                 "attrs" => { "textAlign" => "left" },
                 "content" => [
                   { "text" => "Fait le ", "type" => "text" },
-                  { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision" } }
-                ]
-              }
-            ]
-          }
-        ]
+                  { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision" } },
+                ],
+              },
+            ],
+          },
+        ],
       },
       { "type" => "title", "attrs" => { "textAlign" => "center" }, "content" => [{ "text" => "Titre de l'attestation", "type" => "text" }] },
       {
@@ -72,11 +72,11 @@ class AttestationTemplate < ApplicationRecord
         "content" => [
           {
             "text" => "Vous pouvez éditer ce texte pour personnaliser votre attestation. Pour ajouter du contenu issu du dossier, utilisez les balises situées sous cette zone de saisie.",
-            "type" => "text"
-          }
-        ]
-      }
-    ]
+            "type" => "text",
+          },
+        ],
+      },
+    ],
   }.freeze
 
   def attestation_for(dossier)
@@ -124,7 +124,7 @@ class AttestationTemplate < ApplicationRecord
     base_attributes = {
       created_at: Time.current,
       footer: params.fetch(:footer, footer),
-      signature: signature_to_render(groupe_instructeur)
+      signature: signature_to_render(groupe_instructeur),
     }
 
     if version == 2
@@ -164,7 +164,7 @@ class AttestationTemplate < ApplicationRecord
       has_basic_formatting: basic_tags.any?,
       has_tables: table_count > 0,
       basic_tags: basic_tags,
-      table_count: table_count
+      table_count: table_count,
     }
   end
 
@@ -196,7 +196,7 @@ class AttestationTemplate < ApplicationRecord
       if paragraph_content.any?
         result << {
           'type' => 'paragraph',
-          'content' => paragraph_content
+          'content' => paragraph_content,
         }
       end
     end
@@ -368,7 +368,7 @@ class AttestationTemplate < ApplicationRecord
         body: body,
         signature: signature,
         qrcode_url: qrcode_url,
-        qrcode_svg: qrcode_svg
+        qrcode_svg: qrcode_svg,
       }
     )
 
@@ -433,9 +433,9 @@ class AttestationTemplate < ApplicationRecord
                 {
                   "type" => "paragraph",
                   "attrs" => { "textAlign" => "left" },
-                  "content" => [{ "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service" } }]
-                }
-              ]
+                  "content" => [{ "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service" } }],
+                },
+              ],
             },
             {
               "type" => "headerColumn",
@@ -445,24 +445,24 @@ class AttestationTemplate < ApplicationRecord
                   "attrs" => { "textAlign" => "right" },
                   "content" => [
                     { "text" => "Fait le ", "type" => "text" },
-                    { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision" } }
-                  ]
-                }
-              ]
-            }
-          ]
+                    { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision" } },
+                  ],
+                },
+              ],
+            },
+          ],
         },
         # Titre centré avec le contenu converti v1
         {
           "type" => "title",
-          "content" => title_content
+          "content" => title_content,
         },
         # Corps avec le contenu converti v1
         {
           "type" => "body",
-          "content" => body_content
-        }
-      ]
+          "content" => body_content,
+        },
+      ],
     }
   end
 
@@ -649,7 +649,7 @@ class AttestationTemplate < ApplicationRecord
       'date de mise à jour' => 'dossier_last_champ_updated_at',
       'libellé démarche' => 'dossier_procedure_libelle',
       'nom du service' => 'dossier_service_name',
-      'motivation' => 'dossier_motivation'
+      'motivation' => 'dossier_motivation',
     }
 
     # D'abord chercher dans les champs système

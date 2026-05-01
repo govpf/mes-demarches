@@ -41,8 +41,6 @@ class Dossiers::EditFooterComponent < ApplicationComponent
   def submit_button_path
     if can_submit_draft?
       brouillon_dossier_path(@dossier)
-    elsif @dossier.editing_fork?
-      modifier_dossier_path(@dossier.editing_fork_origin)
     else
       modifier_dossier_path(@dossier)
     end
@@ -60,7 +58,7 @@ class Dossiers::EditFooterComponent < ApplicationComponent
     {
       class: 'fr-text--sm fr-mb-0 fr-mr-2w',
       data: { 'fr-opened': "true" },
-      aria: { controls: 'modal-eligibilite-rules-dialog' }
+      aria: { controls: 'modal-eligibilite-rules-dialog' },
     }
   end
 
@@ -69,7 +67,7 @@ class Dossiers::EditFooterComponent < ApplicationComponent
       class: 'fr-btn',
       disabled: !owner? || !can_passer_en_construction?,
       method: :post,
-      data: { 'disable-with': t('.submitting'), controller: 'autosave-submit', turbo_force: :server }
+      data: { 'disable-with': t('.submitting'), controller: 'autosave-submit', turbo_force: :server },
     }
   end
 
@@ -79,7 +77,7 @@ class Dossiers::EditFooterComponent < ApplicationComponent
       disabled: !can_passer_en_construction?,
       method: :post,
       data: { 'disable-with': t('.submitting'), controller: 'autosave-submit', turbo_force: :server },
-      form: { id: "form-submit-en-construction" }
+      form: { id: "form-submit-en-construction" },
     }
   end
 

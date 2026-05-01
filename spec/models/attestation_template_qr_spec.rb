@@ -29,9 +29,9 @@ describe AttestationTemplate, '#generate_qrcode_svg' do
         "content" => [
           {
             "type" => "paragraph",
-            "content" => [{ "type" => "text", "text" => "Test attestation" }]
-          }
-        ]
+            "content" => [{ "type" => "text", "text" => "Test attestation" }],
+          },
+        ],
       })
     end
     let(:dossier) { create(:dossier, :accepte, procedure: procedure) }

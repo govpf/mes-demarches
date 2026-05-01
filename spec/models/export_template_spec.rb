@@ -8,7 +8,7 @@ describe ExportTemplate do
   let(:types_de_champ_public) do
     [
       { type: :piece_justificative, libelle: "Justificatif de domicile", mandatory: true, stable_id: 3 },
-      { type: :titre_identite, libelle: "CNI", mandatory: true, stable_id: 5 }
+      { type: :titre_identite, libelle: "CNI", mandatory: true, stable_id: 5 },
     ]
   end
 
@@ -46,6 +46,16 @@ describe ExportTemplate do
 
       it 'gives absolute filename for export of specific dossier' do
         expect(export_template.attachment_path(dossier, attachment)).to eq("DOSSIER-#{dossier.id}/mon_export-#{dossier.id}.pdf")
+      end
+
+      context 'when export pdf is disabled' do
+        let(:export_template) do
+          build(:export_template, groupe_instructeur:, dossier_folder: ExportItem.default(prefix: "DOSSIER"), export_pdf: ExportItem.default(prefix: "mon_export", enabled: false))
+        end
+
+        it 'returns nil' do
+          expect(export_template.attachment_path(dossier, attachment)).to be_nil
+        end
       end
     end
 
@@ -113,7 +123,7 @@ describe ExportTemplate do
       let(:expected_tags) do
         [
           'entreprise_siren', 'entreprise_numero_tva_intracommunautaire', 'entreprise_siret_siege_social', 'entreprise_raison_sociale', 'entreprise_adresse',
-          'dossier_depose_at', 'dossier_procedure_libelle', 'dossier_service_name', 'dossier_number', 'dossier_groupe_instructeur', 'dossier_last_champ_updated_at'
+          'dossier_depose_at', 'dossier_procedure_libelle', 'dossier_service_name', 'dossier_number', 'dossier_groupe_instructeur', 'dossier_last_champ_updated_at',
         ]
       end
 
@@ -128,7 +138,7 @@ describe ExportTemplate do
       let(:expected_tags) do
         [
           'individual_gender', 'individual_last_name', 'individual_first_name',
-          'dossier_depose_at', 'dossier_procedure_libelle', 'dossier_service_name', 'dossier_number', 'dossier_groupe_instructeur', 'dossier_last_champ_updated_at'
+          'dossier_depose_at', 'dossier_procedure_libelle', 'dossier_service_name', 'dossier_number', 'dossier_groupe_instructeur', 'dossier_last_champ_updated_at',
         ]
       end
 

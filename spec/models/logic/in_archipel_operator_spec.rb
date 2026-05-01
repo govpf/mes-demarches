@@ -6,7 +6,7 @@ describe Logic::InArchipelOperator do
   let(:procedure) do
     create(:procedure, :published, types_de_champ_public: [
       { type: :commune_de_polynesie, libelle: 'Commune PF' },
-      { type: :code_postal_de_polynesie, libelle: 'Code Postal PF' }
+      { type: :code_postal_de_polynesie, libelle: 'Code Postal PF' },
     ])
   end
   let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }

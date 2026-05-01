@@ -7,20 +7,18 @@ module MailerDefaultsConfigurableConcern
     # Save original defaults before they're modified
     def save_original_defaults
       @original_default_from ||= self.default[:from]
-      @original_default_host ||= Rails.application.routes.default_url_options[:host]
       @original_asset_host ||= asset_host
     end
 
     # Resets mailer settings to their original values
     def reset_original_defaults
       default from: original_default_from, reply_to: original_default_from
-      default_url_options[:host] = original_default_host
-      Rails.application.routes.default_url_options[:host] = original_default_host
+      default_url_options[:host] = ENV["APP_HOST"]
+      Rails.application.routes.default_url_options[:host] = ENV["APP_HOST"]
       self.asset_host = original_asset_host
     end
 
     def original_default_from = @original_default_from
-    def original_default_host = @original_default_host
     def original_asset_host = @original_asset_host
   end
 
@@ -29,11 +27,15 @@ module MailerDefaultsConfigurableConcern
     before_action :set_currents_for_legacy
     after_action -> { self.class.reset_original_defaults }
 
-    def configure_defaults_for_user(user)
+    def configure_defaults_for_user(user, forced_domain = nil)
       return if !user.is_a?(User) # not for super-admins
 
       if user.preferred_domain_demarches_numerique_gouv_fr?
         set_currents_for_demarches_numerique_gouv_fr
+      elsif forced_domain == ApplicationHelper::APP_HOST
+        set_currents_for_demarches_numerique_gouv_fr
+      elsif forced_domain == ApplicationHelper::APP_HOST_LEGACY
+        set_currents_for_legacy
       else
         set_currents_for_legacy
       end

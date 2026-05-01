@@ -18,7 +18,7 @@ describe 'Omni Auth Connexion' do
       birthdate: birthdate,
       birthplace: birthplace,
       gender: gender,
-      email_france_connect: email
+      email_france_connect: email,
     }
   end
 

@@ -1,0 +1,20 @@
+en:
+  instructeurs:
+    dossier_layout:
+      banner:
+        title: "New field display"
+        body_html: "Fields filled in by the user are now displayed across multiple columns to better use the screen width."
+        keep_new: "Keep the new display"
+        back_to_old: "Return to previous display"
+      toggle:
+        during_rollout:
+          switch_to_stacked: "Return to previous display"
+          switch_to_grid: "Return to new display"
+        neutral:
+          switch_to_stacked: "Switch to list mode"
+          switch_to_grid: "Switch to grid mode"
+        aria_label_switch_to_stacked: "Switch to list mode"
+        aria_label_switch_to_grid: "Switch to grid mode"
+        live_grid: "Grid mode enabled"
+        live_stacked: "List mode enabled"
+        error: "Unable to save your preference"

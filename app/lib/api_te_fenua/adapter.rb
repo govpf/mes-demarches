@@ -48,7 +48,7 @@ class APITeFenua::Adapter
       id: '',
       sid: 'reqId',
       # query
-      q: search
+      q: search,
     })
   end
 end

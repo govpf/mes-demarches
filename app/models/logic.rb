@@ -30,7 +30,7 @@ module Logic
       InRegionOperator,
       NotInRegionOperator,
       InArchipelOperator,
-      NotInArchipelOperator
+      NotInArchipelOperator,
     ].find { |c| c.name == name }
   end
 
@@ -66,7 +66,11 @@ module Logic
       when :empty
         Empty.new
       when :enum, :enums, :commune_enum, :epci_enum, :departement_enum, :address, :commune_de_polynesie_enum, :code_postal_de_polynesie_enum
-        Constant.new(left.options(type_de_champs).first.second)
+        if left.options(type_de_champs).blank?
+          Empty.new
+        else
+          Constant.new(left.options(type_de_champs).first.second)
+        end
       when :number
         Constant.new(0)
       end

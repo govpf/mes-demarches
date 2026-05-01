@@ -49,6 +49,103 @@ module DossierFormulaRefreshConcern
     end
   end
 
+  # pf: Méthode unique de recalcul des formules d'un dossier dans l'ordre
+  # topologique. Utilise l'invariant "position TDC = ordre topologique" (cf.
+  # TypesDeChamp::FormuleTypeDeChamp#forward_reference?) : itérer les TDC
+  # formule dans l'ordre des positions garantit qu'au moment où on calcule
+  # une formule, toutes ses sources et formules amont sont déjà résolues.
+  #
+  # Les valeurs calculées sont accumulées dans `value_overrides` et lues par
+  # le service au calcul suivant — pas de relecture BDD par formule.
+  #
+  # Paramètres :
+  #   seed_overrides : Hash { stable_id => value } valeurs initiales. Typique :
+  #                    la nouvelle valeur d'un champ source qui vient d'être
+  #                    sauvegardée et qui a déclenché une cascade.
+  #   only           : nil (toutes les formules de la révision) ou Set/Array de
+  #                    stable_ids à recalculer (cascade ciblée).
+  #   persist        : true par défaut. Si false, retourne les valeurs sans
+  #                    toucher la BDD (mode "calcul pur" pour preview).
+  #   create_missing : true par défaut. Si false, on ne matérialise pas les
+  #                    champs formule absents en BDD — pertinent pour le calcul
+  #                    initial qui ne doit pas créer de champs si la création
+  #                    du dossier ne les a pas faits (sinon doublons avec les
+  #                    flux qui créent les champs après le dossier, comme
+  #                    certaines factories de tests).
+  #   row_id         : nil par défaut (= toutes les rows). Si non-nil, limite
+  #                    le recalcul aux Champs formule de cette row + ceux hors
+  #                    répétition. Utilisé par la cascade refresh_dependent_formulas
+  #                    pour ne recalculer que la row de la source modifiée
+  #                    (les autres rows ne sont pas affectées par la modif).
+  #
+  # Retourne : le hash overrides complet { stable_id => value } incluant
+  # les valeurs initiales et toutes les formules calculées. Permet à
+  # l'appelant d'enchaîner sans réinterroger la BDD.
+  def compute_formulas_in_order(seed_overrides: {}, only: nil, persist: true, create_missing: true, row_id: nil, system_write: false)
+    formula_tdcs = revision.types_de_champ.filter(&:formule?)
+    formula_tdcs = formula_tdcs.filter { |tdc| only.include?(tdc.stable_id) } if only
+    return seed_overrides.dup if formula_tdcs.empty?
+
+    overrides = seed_overrides.dup
+    # pf: le service lit @value_overrides par référence, donc les nouvelles
+    # entrées ajoutées au fil de l'itération sont visibles au calcul suivant.
+    service = FormulaCalculationService.new(self, value_overrides: overrides)
+
+    formula_tdcs.each do |tdc|
+      formule_champs_for_tdc(tdc, row_id: row_id).each do |formule_champ|
+        new_value = service.compute_value(formule_champ)
+        overrides[tdc.stable_id] = new_value
+        next unless persist
+
+        if formule_champ.persisted?
+          # pf: champ formule déjà en BDD — update direct, pas de cascade.
+          # update_columns met à jour value ET updated_at (cohérence pour les
+          # consommateurs basés sur updated_at, et pré-requis pour un futur
+          # cache "tdc.updated_at > champ.updated_at" en draft preview).
+          if formule_champ.read_attribute(:value) != new_value
+            formule_champ.update_columns(value: new_value, updated_at: Time.zone.now)
+          end
+        else
+          # pf: champ non persisté — création seulement si create_missing.
+          # Cas typique de création : rebase qui ajoute un nouveau TDC formule.
+          # Cas typique de skip : compute_initial_formulas qui tourne au
+          # after_commit du dossier mais n'a pas vocation à insérer des champs.
+          next unless create_missing
+          target = Dossier.no_touching do
+            with_champ_stream(formule_champ) do
+              send(:champ_upsert_by!, tdc, formule_champ.row_id, system_write: system_write)
+            end
+          end
+          if target.read_attribute(:value) != new_value
+            target.update_columns(value: new_value, updated_at: Time.zone.now)
+          end
+        end
+      end
+    end
+
+    overrides
+  end
+
+  # pf: Calcul initial des formules d'un dossier — appel explicite depuis
+  # les controllers / services qui créent un dossier. Pattern "option 3" :
+  # pas de hook after_commit (qui pose problème avec les factories de tests
+  # qui ajoutent des champs après la création) ; au contraire, l'appelant
+  # contrôle explicitement le moment où on calcule, juste après build_default_values
+  # + save! (ou après prefill! pour les flux de préfill).
+  #
+  # Couvre :
+  # - formules constantes ({1 + 1}) / sur fonctions système (AUJOURDHUI())
+  # - formules sur champs source préremplis (cas Commencer)
+  #
+  # Pour les formules dépendant d'un champ que l'usager modifie, c'est la
+  # cascade refresh_dependent_formulas qui prend le relais.
+  def compute_initial_formulas
+    return unless revision&.types_de_champ&.any?(&:formule?)
+    compute_formulas_in_order
+  rescue StandardError => e
+    Rails.logger.error("[InitialFormulas] dossier=#{id} error=#{e.class}: #{e.message}")
+  end
+
   private
 
   def refresh_state_dependent_formulas_if_needed
@@ -82,11 +179,39 @@ module DossierFormulaRefreshConcern
     end
   end
 
-  def formule_champs_for_tdc(tdc)
-    # pf: filter sur stable_id seulement — le dossier est lié à une revision
-    # donnée, et stable_id est unique dans une revision. Le champ projeté
-    # peut ne pas avoir type_de_champ_id (construction lazy via build_champ).
-    (project_champs_public_all + project_champs_private_all)
-      .filter { |c| c.stable_id == tdc.stable_id }
+  def formule_champs_for_tdc(tdc, row_id: nil)
+    # pf: lookup direct sur la collection (Champs persistés ou in-memory du
+    # stream courant). Évite project_champs_*_all qui matérialiserait tous les
+    # TDC de la révision pour chaque appel — coût O(N TDC) × O(N formules)
+    # par cascade, alors qu'on n'a besoin que des Champs du tdc en cours.
+    #
+    # Filtre row_id : si row_id est passé (cascade depuis un Champ source
+    # dans une row), on garde les Champs de la même row + les Champs hors
+    # répétition (row_id=nil). Sans row_id (recalcul global, ex: rebase /
+    # merge / refresh_clock), on traite toutes les rows.
+    champs_for_tdc = champs.filter do |c|
+      c.stable_id == tdc.stable_id && c.stream == stream &&
+        (row_id.nil? || c.row_id == row_id || c.row_id.nil?)
+    end
+    return champs_for_tdc if champs_for_tdc.any?
+
+    # pf: aucun Champ persisté pour ce TDC. Pour permettre à
+    # compute_formulas_in_order de matérialiser le Champ via champ_upsert_by!
+    # (cas rebase d'une formule ajoutée à la révision, ou tout flow où le TDC
+    # formule existe sans son Champ), on retourne un Champ in-memory.
+    #
+    # Skip pour les TDC enfants d'une répétition : leur INSERT requiert un
+    # row_id (cf. check_valid_row_id_on_write?) qu'on n'a pas systématiquement
+    # ici. Conséquence : un rebase qui ajoute une formule en répétition ne
+    # crée pas les Champs formule pour les rows existantes — la formule reste
+    # vide jusqu'à la prochaine modif d'une source dans chaque row.
+    # TODO: gérer ce cas en itérant les rows existantes du parent répétition
+    # et en buildant un Champ formule par row.
+    return [] if tdc.child?(revision)
+
+    # Le build est forcément avec row_id=nil : on est par construction sur un
+    # TDC hors répétition (le return [] au-dessus filtre les enfants), et
+    # check_valid_row_id_on_write? exige row_id=nil pour les TDC hors répétition.
+    [tdc.build_champ(dossier: self, row_id: nil, stream: stream)]
   end
 end

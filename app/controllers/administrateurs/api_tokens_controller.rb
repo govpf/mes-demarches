@@ -4,7 +4,6 @@ module Administrateurs
   class APITokensController < AdministrateurController
     include ActionView::RecordIdentifier
 
-    before_action :authenticate_administrateur!
     before_action :set_api_token, only: [:edit, :update, :destroy, :remove_procedure]
 
     def nom
@@ -175,7 +174,7 @@ module Administrateurs
       in 'custom'
         [
           Date.parse(params[:customLifetime]),
-          1.year.from_now
+          1.year.from_now,
         ].min
       in 'infinite' if authorized_networks.present?
         nil

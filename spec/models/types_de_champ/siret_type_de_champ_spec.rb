@@ -28,7 +28,7 @@ describe TypesDeChamp::SiretTypeDeChamp do
         "$.entreprise_nom_commercial",
         "$.entreprise_forme_juridique",
         "$.entreprise_date_creation",
-        "$.libelle_naf"
+        "$.libelle_naf",
       ]
 
       json_columns = columns.filter { _1.is_a?(Columns::JSONPathColumn) }

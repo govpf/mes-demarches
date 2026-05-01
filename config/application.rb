@@ -53,8 +53,6 @@ module TPS
     pf_allowed_attributes = Set.new(['target', 'rel', 'size,', 'face,', 'color', 'src'])
     config.action_view.sanitized_allowed_attributes = ActionView::Base.sanitized_allowed_attributes + pf_allowed_attributes
 
-    config.view_component.capture_compatibility_patch_enabled = true
-
     # ActionDispatch's IP spoofing detection is quite limited, and often rejects
     # legitimate requests from misconfigured proxies (such as mobile telcos).
     #
@@ -87,7 +85,7 @@ module TPS
 
     config.ds_autosave = {
       debounce_delay: 1000,
-      status_visible_duration: 6000
+      status_visible_duration: 6000,
     }
 
     config.ds_opendata_enabled = ENV.fetch('OPENDATA_ENABLED', nil) == 'enabled'
@@ -106,7 +104,7 @@ module TPS
     config.view_component.generate.preview = true
     config.view_component.show_previews_source = true
     config.view_component.default_preview_layout = 'component_preview'
-    config.view_component.preview_paths << "#{Rails.root}/spec/components/previews"
+    config.view_component.previews.paths << "#{Rails.root}/spec/components/previews"
 
     config.graphql.parser_cache = true
 
@@ -133,7 +131,7 @@ module TPS
       'raster_columns',
       'raster_overviews',
       'spatial_ref_sys',
-      'topology'
+      'topology',
     ]
   end
 end

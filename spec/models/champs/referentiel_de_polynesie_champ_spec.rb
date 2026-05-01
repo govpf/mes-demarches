@@ -85,9 +85,9 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
             type: :referentiel_de_polynesie,
             referentiel:,
             referentiel_mapping: {
-              '$.Nom' => { 'type' => 'string', 'libelle' => 'Nom', 'display_usager' => '1' }
-            }
-          }
+              '$.Nom' => { 'type' => 'string', 'libelle' => 'Nom', 'display_usager' => '1' },
+            },
+          },
         ]
       end
       let(:encrypted_blob) { encryptor.encrypt_and_sign(row_data.to_json, purpose: :storage, expires_in: 1.hour) }
@@ -217,10 +217,10 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
             type: :referentiel_de_polynesie,
             referentiel:,
             referentiel_mapping: {
-              '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s }
-            }
+              '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s },
+            },
           },
-          { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id }
+          { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id },
         ]
       end
 
@@ -359,7 +359,7 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
     context 'with legacy row format' do
       before do
         champ.update!(data: {
-          'row' => { 'Nom' => 'Papeete', 'Code' => '98714' }
+          'row' => { 'Nom' => 'Papeete', 'Code' => '98714' },
         })
       end
 
@@ -403,10 +403,10 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
           libelle: 'Référentiel',
           table_id: '24',
           referentiel_mapping: {
-            '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s }
-          }
+            '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s },
+          },
         },
-        { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id }
+        { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id },
       ]
     end
 
@@ -463,10 +463,10 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
             table_id: '24',
             referentiel_mapping: {
               '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s },
-              '$.Nom' => { 'type' => 'string', 'libelle' => 'Nom', 'display_instructeur' => '1' }
-            }
+              '$.Nom' => { 'type' => 'string', 'libelle' => 'Nom', 'display_instructeur' => '1' },
+            },
           },
-          { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id }
+          { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id },
         ]
       end
 
@@ -509,11 +509,11 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
             table_id: '24',
             referentiel_mapping: {
               '$.Code' => { 'prefill' => '1', 'prefill_stable_id' => prefillable_stable_id.to_s },
-              '$.Nom' => { 'prefill' => '1', 'prefill_stable_id' => second_prefillable_stable_id.to_s }
-            }
+              '$.Nom' => { 'prefill' => '1', 'prefill_stable_id' => second_prefillable_stable_id.to_s },
+            },
           },
           { type: :text, libelle: 'Code pré-rempli', stable_id: prefillable_stable_id },
-          { type: :text, libelle: 'Nom pré-rempli', stable_id: second_prefillable_stable_id }
+          { type: :text, libelle: 'Nom pré-rempli', stable_id: second_prefillable_stable_id },
         ]
       end
 

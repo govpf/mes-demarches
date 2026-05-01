@@ -68,7 +68,7 @@ describe AttestationTemplate, type: :model do
     let(:types_de_champ) do
       [
         { libelle: 'libelleA' },
-        { libelle: 'libelleB' }
+        { libelle: 'libelleB' },
       ]
     end
 
@@ -123,7 +123,7 @@ describe AttestationTemplate, type: :model do
         stub_request(:post, WEASYPRINT_URL)
           .with(body: {
             html: /Ministère des specs.+Mon titre pour #{procedure.libelle}.+Dossier: n° #{dossier.id}/m,
-            upstream_context: { procedure_id: procedure.id, dossier_id: dossier.id }
+            upstream_context: { procedure_id: procedure.id, dossier_id: dossier.id },
           })
           .to_return(body: 'PDF_DATA')
       end
@@ -326,9 +326,9 @@ describe AttestationTemplate, type: :model do
                     'content' => [
                       { 'type' => 'text', 'text' => 'fort', 'marks' => [{ 'type' => 'bold' }] },
                       { 'type' => 'text', 'text' => ' et ' },
-                      { 'type' => 'text', 'text' => 'emphase', 'marks' => [{ 'type' => 'italic' }] }
-                    ]
-          }
+                      { 'type' => 'text', 'text' => 'emphase', 'marks' => [{ 'type' => 'italic' }] },
+                    ],
+          },
         ]
         expect(result).to eq(expected)
       end

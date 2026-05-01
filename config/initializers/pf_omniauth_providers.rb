@@ -14,7 +14,7 @@ PF_OMNIAUTH_PROVIDERS = {
     authorization_endpoint: "#{ENV.fetch('SIPF_CLIENT_BASE_URL', '')}/protocol/openid-connect/auth",
     token_endpoint: "#{ENV.fetch('SIPF_CLIENT_BASE_URL', '')}/protocol/openid-connect/token",
     userinfo_endpoint: "#{ENV.fetch('SIPF_CLIENT_BASE_URL', '')}/protocol/openid-connect/userinfo",
-    logout_endpoint: "#{ENV.fetch('SIPF_CLIENT_BASE_URL', '')}/protocol/openid-connect/logout"
+    logout_endpoint: "#{ENV.fetch('SIPF_CLIENT_BASE_URL', '')}/protocol/openid-connect/logout",
   },
   'tatou' => {
     identifier: ENV['TATOU_CLIENT_ID'],
@@ -23,7 +23,7 @@ PF_OMNIAUTH_PROVIDERS = {
     authorization_endpoint: "#{ENV.fetch('TATOU_BASE_URL', '')}/protocol/openid-connect/auth",
     token_endpoint: "#{ENV.fetch('TATOU_BASE_URL', '')}/protocol/openid-connect/token",
     userinfo_endpoint: "#{ENV.fetch('TATOU_BASE_URL', '')}/protocol/openid-connect/userinfo",
-    logout_endpoint: "#{ENV.fetch('TATOU_BASE_URL', '')}/protocol/openid-connect/logout"
+    logout_endpoint: "#{ENV.fetch('TATOU_BASE_URL', '')}/protocol/openid-connect/logout",
   },
   'microsoft' => {
     identifier: ENV['MICROSOFT_CLIENT_ID'],
@@ -32,7 +32,7 @@ PF_OMNIAUTH_PROVIDERS = {
     authorization_endpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
     token_endpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
     userinfo_endpoint: 'https://graph.microsoft.com/oidc/userinfo',
-    logout_endpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/logout'
+    logout_endpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/logout',
   },
   'google' => {
     identifier: Rails.env.test? ? 'plop' : ENV['GOOGLE_CLIENT_ID'],
@@ -41,7 +41,7 @@ PF_OMNIAUTH_PROVIDERS = {
     authorization_endpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
     token_endpoint: 'https://oauth2.googleapis.com/token',
     userinfo_endpoint: 'https://openidconnect.googleapis.com/v1/userinfo',
-    logout_endpoint: nil
+    logout_endpoint: nil,
   },
   'yahoo' => {
     identifier: ENV['YAHOO_CLIENT_ID'],
@@ -50,6 +50,6 @@ PF_OMNIAUTH_PROVIDERS = {
     authorization_endpoint: 'https://api.login.yahoo.com/oauth2/request_auth',
     token_endpoint: 'https://api.login.yahoo.com/oauth2/get_token',
     userinfo_endpoint: 'https://api.login.yahoo.com/openid/v1/userinfo',
-    logout_endpoint: nil
-  }
+    logout_endpoint: nil,
+  },
 }.freeze
