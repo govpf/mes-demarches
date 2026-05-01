@@ -30,7 +30,7 @@ module ChampExternalDataConcern
       fetching: 'fetching',
       fetched: 'fetched',
       external_error: 'external_error',
-      multiple_found: 'multiple_found'
+      multiple_found: 'multiple_found',
     }
 
     aasm column: :external_state, enum: true do

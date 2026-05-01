@@ -39,7 +39,7 @@ class Logic::ChampValue < Logic::Term
     empty: :empty,
     unmanaged: :unmanaged,
     commune_de_polynesie_enum: :commune_de_polynesie_enum,
-    code_postal_de_polynesie_enum: :code_postal_de_polynesie_enum
+    code_postal_de_polynesie_enum: :code_postal_de_polynesie_enum,
   }
 
   attr_reader :stable_id
@@ -79,18 +79,18 @@ class Logic::ChampValue < Logic::Term
     when "Champs::DepartementChamp"
       {
         value: targeted_champ.code,
-        code_region: targeted_champ.code_region
+        code_region: targeted_champ.code_region,
       }
     when "Champs::CommuneChamp", "Champs::EpciChamp", "Champs::AddressChamp"
       {
         code_departement: targeted_champ.code_departement,
-        code_region: targeted_champ.code_region
+        code_region: targeted_champ.code_region,
       }
     when "Champs::ReferentielDePolynesieChamp"
       targeted_champ.external_id == Champs::DropDownListChamp::OTHER ? Champs::DropDownListChamp::OTHER : targeted_champ.value
     when "Champs::CommuneDePolynesieChamp", "Champs::CodePostalDePolynesieChamp"
       {
-        archipel: targeted_champ.archipel
+        archipel: targeted_champ.archipel,
       }
     when "Champs::FormuleChamp" # pf: formule comme source de condition
       case targeted_champ.type_de_champ.formule_output_type
@@ -151,7 +151,7 @@ class Logic::ChampValue < Logic::Term
   def to_h
     {
       "term" => self.class.name,
-      "stable_id" => @stable_id
+      "stable_id" => @stable_id,
     }
   end
 

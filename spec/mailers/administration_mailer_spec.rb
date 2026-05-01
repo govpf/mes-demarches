@@ -42,7 +42,7 @@ RSpec.describe AdministrationMailer, type: :mailer do
       let(:procedure) do
         create(:procedure, :published, types_de_champ_public: [
           { type: :text, libelle: 'Nom' },
-          { type: :repetition, libelle: 'Répétition', children: [{ type: :text, libelle: 'Champ enfant' }] }
+          { type: :repetition, libelle: 'Répétition', children: [{ type: :text, libelle: 'Champ enfant' }] },
         ])
       end
 

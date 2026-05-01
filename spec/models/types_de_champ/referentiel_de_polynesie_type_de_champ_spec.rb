@@ -11,7 +11,7 @@ describe TypesDeChamp::ReferentielDePolynesieTypeDeChamp do
   before do
     champ.update!(value: 'Papeete', external_id: '12345')
     champ.update_external_data!(data: {
-      'code_postal' => '98714', 'archipel' => 'Iles du Vent', 'ile' => 'Tahiti'
+      'code_postal' => '98714', 'archipel' => 'Iles du Vent', 'ile' => 'Tahiti',
     })
     champ.reload
   end
@@ -22,7 +22,7 @@ describe TypesDeChamp::ReferentielDePolynesieTypeDeChamp do
         type_de_champ.update!(referentiel_mapping: {
           '$.code_postal' => { 'type' => 'string', 'libelle' => 'code_postal', 'display_instructeur' => '1' },
           '$.archipel' => { 'type' => 'string', 'libelle' => 'archipel', 'display_instructeur' => '1' },
-          '$.ile' => { 'type' => 'string', 'libelle' => 'ile', 'display_instructeur' => '1' }
+          '$.ile' => { 'type' => 'string', 'libelle' => 'ile', 'display_instructeur' => '1' },
         })
         # value_json is computed by update_external_data!
       end

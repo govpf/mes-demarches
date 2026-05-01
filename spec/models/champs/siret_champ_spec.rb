@@ -177,7 +177,7 @@ describe Champs::SiretChamp do
           localite: 'Papeete',
           code_postal: '98713',
           naf: '1234Z',
-          libelle_naf: 'Activité fictive'
+          libelle_naf: 'Activité fictive',
         }
       end
 

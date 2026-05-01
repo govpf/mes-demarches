@@ -85,14 +85,14 @@ class APIEntreprise::PfEtablissementAdapter < APIEntreprise::Adapter
       # :entreprise_inline_adresse => '',
       :entreprise_numero_tva_intracommunautaire => '',
       :libelle_naf => 'activitePrincipale.libelle',
-      :naf => 'activitePrincipale.code'
+      :naf => 'activitePrincipale.code',
     }
   end
 
   # noinspection RubyLiteralArrayInspection
   NOM_VOIES = [
     'avenue', 'av', 'angle', 'rue', 'boulevard', 'chemin', 'ave', 'bvd', 'cours', 'place', 'allée', 'route', 'immeuble',
-    'lot', 'passage', 'servitude', 'blvd', 'pointe', 'pont', 'av.', 'bd', 'blv', 'ecole', 'école', 'église'
+    'lot', 'passage', 'servitude', 'blvd', 'pointe', 'pont', 'av.', 'bd', 'blv', 'ecole', 'école', 'église',
   ]
   NOM_VOIES_RE = NOM_VOIES.join('|')
 

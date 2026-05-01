@@ -13,7 +13,7 @@ describe ReferentielDePolynesie::BaserowAPI do
     {
       'Table' => table_id,
       'Champ de recherche' => search_field_id,
-      'Token' => token
+      'Token' => token,
     }
   end
 
@@ -21,7 +21,7 @@ describe ReferentielDePolynesie::BaserowAPI do
     [
       { 'id' => search_field_id, 'name' => 'Nom', 'type' => 'text' },
       { 'id' => 6, 'name' => 'Code', 'type' => 'text' },
-      { 'id' => 7, 'name' => 'Ile', 'type' => 'text' }
+      { 'id' => 7, 'name' => 'Ile', 'type' => 'text' },
     ]
   end
 
@@ -45,8 +45,8 @@ describe ReferentielDePolynesie::BaserowAPI do
       {
         results: [
           { id: 1, order: '1.00', field_5: 'Papeete', field_6: '98714', field_7: 'Tahiti' },
-          { id: 2, order: '2.00', field_5: 'Papenoo', field_6: '98709', field_7: 'Tahiti' }
-        ]
+          { id: 2, order: '2.00', field_5: 'Papenoo', field_6: '98709', field_7: 'Tahiti' },
+        ],
       }
     end
 
@@ -120,9 +120,9 @@ describe ReferentielDePolynesie::BaserowAPI do
               field_5: 'Papeete',
               # single_select symbolisé (résultat de symbolize_names: true sur JSON.parse)
               field_6: { id: 3, value: 'Îles du Vent', color: 'red' },
-              field_7: [{ id: 1, value: 'Capitale' }, { id: 2, value: 'Principal' }]
-            }
-          ]
+              field_7: [{ id: 1, value: 'Capitale' }, { id: 2, value: 'Principal' }],
+            },
+          ],
         }
       end
 

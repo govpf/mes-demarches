@@ -48,14 +48,14 @@ class APICps::API
       end
     end]
     {
-      datas: dn_pairs
+      datas: dn_pairs,
     }.to_json
   end
 
   def headers
     {
       'Authorization': "Bearer #{access_token}",
-      'Content-Type':  'application/json'
+      'Content-Type':  'application/json',
     }
   end
 
@@ -87,7 +87,7 @@ class APICps::API
       client_secret: ENV['API_CPS_CLIENT_SECRET'],
       username:      ENV['API_CPS_USERNAME'],
       password:      ENV['API_CPS_PASSWORD'],
-      scope:         'openid'
+      scope:         'openid',
     }
   end
 end

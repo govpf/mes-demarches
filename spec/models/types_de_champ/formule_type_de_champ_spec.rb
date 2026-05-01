@@ -69,7 +69,7 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       create(:procedure, :published, types_de_champ_public: [
         { type: :formule, libelle: 'A' },
         { type: :formule, libelle: 'B' },
-        { type: :formule, libelle: 'C' }
+        { type: :formule, libelle: 'C' },
       ])
     }
     let(:revision) { procedure.active_revision }
@@ -108,7 +108,7 @@ describe TypesDeChamp::FormuleTypeDeChamp do
     it 'accepts a formula referencing a non-formula field' do
       procedure_with_text = create(:procedure, :published, types_de_champ_public: [
         { type: :integer_number, libelle: 'Source' },
-        { type: :formule, libelle: 'F' }
+        { type: :formule, libelle: 'F' },
       ])
       source_tdc = procedure_with_text.active_revision.types_de_champ_public.first
       formule_tdc = procedure_with_text.active_revision.types_de_champ_public.last
@@ -131,7 +131,7 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       create(:procedure, :published, types_de_champ_public: [
         { type: :integer_number, libelle: 'Source 1' },
         { type: :formule, libelle: 'Formule milieu' },
-        { type: :integer_number, libelle: 'Source 2' }
+        { type: :integer_number, libelle: 'Source 2' },
       ])
     }
     let(:revision) { procedure.active_revision }

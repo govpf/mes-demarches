@@ -23,17 +23,30 @@ module Dsfr
 
         {
           "#{dsfr_group_classname}--error" => errors_on_attribute?,
-          "#{dsfr_group_classname}--valid" => !errors_on_attribute? && errors_on_another_attribute? && object.try(attribute).present?
+          "#{dsfr_group_classname}--valid" => !errors_on_attribute? && errors_on_another_attribute? && object.try(attribute).present?,
         }
       end
 
       def errors_on_attribute?
-        errors.has_key?(attribute_or_rich_body)
+        # When the object is a Champ, errors can be stored as nested errors on the dossier
+        # or directly on the champ object
+        if object.is_a?(Champ) && object.dossier.present?
+          dossier_errors_for_champ.any? || errors.has_key?(attribute_or_rich_body)
+        else
+          errors.has_key?(attribute_or_rich_body)
+        end
       end
 
       # errors helpers
       def error_full_messages
-        errors.full_messages_for(attribute_or_rich_body)
+        # When the object is a Champ, errors can be stored as nested errors on the dossier
+        # because validation adds errors to champ instances that may differ from the form object
+        # or directly on the champ object
+        if object.is_a?(Champ) && object.dossier.present?
+          dossier_errors_for_champ + errors.full_messages_for(attribute_or_rich_body)
+        else
+          errors.full_messages_for(attribute_or_rich_body)
+        end
       end
 
       def fieldset_error_opts
@@ -43,7 +56,7 @@ module Dsfr
           labelledby << @champ.error_id
 
           {
-            aria: { labelledby: labelledby.join(' ') }
+            aria: { labelledby: labelledby.join(' ') },
           }
         else
           {}
@@ -59,6 +72,17 @@ module Dsfr
       end
 
       private
+
+      def dossier_errors_for_champ
+        object.dossier.errors
+          .filter do |error|
+            # Match nested errors where the champ public_id matches this champ's public_id
+            error.is_a?(ActiveModel::NestedError) &&
+            error.inner_error.base.respond_to?(:public_id) &&
+            error.inner_error.base.public_id == object.public_id &&
+            error.inner_error.attribute == attribute_or_rich_body
+          end.map(&:message)
+      end
 
       # lookup for edge case from `form.rich_text_area`
       #   rich text uses _rich_#{attribute}, but it is saved on #{attribute}, as well as error messages
@@ -77,7 +101,7 @@ module Dsfr
 
       def input_error_class_names
         {
-          "#{dsfr_input_classname}--error": errors_on_attribute?
+          "#{dsfr_input_classname}--error": errors_on_attribute?,
         }
       end
 
@@ -91,7 +115,7 @@ module Dsfr
                                       .merge({
                                         'fr-password__input': password?,
                                              'fr-input': !react,
-                                             'fr-mb-0': true
+                                             'fr-mb-0': true,
                                       }.merge(input_error_class_names)))
 
         aria_describedby = []
@@ -113,7 +137,7 @@ module Dsfr
         if email?
           @opts.deep_merge!(data: {
             action: "blur->email-input#checkEmail",
-            'email-input-target': 'input'
+            'email-input-target': 'input',
           })
         end
 

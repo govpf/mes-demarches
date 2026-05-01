@@ -15,7 +15,7 @@ class FormulaAiPromptService
   OUTPUT_TYPE_LABELS = {
     'string' => 'texte',
     'number' => 'nombre',
-    'boolean' => 'booléen (true/false)'
+    'boolean' => 'booléen (true/false)',
   }.freeze
 
   # pf: Types de colonnes exposés par available_columns_for_formula_editor
@@ -31,7 +31,7 @@ class FormulaAiPromptService
     decimal_number: 'nombre décimal',
     boolean: 'booléen (true/false)',
     date: 'date',
-    datetime: 'date et heure'
+    datetime: 'date et heure',
   }.freeze
 
   def initialize(type_de_champ:, coordinate:)
@@ -51,7 +51,7 @@ class FormulaAiPromptService
       unsupported_section,
       response_format_section,
       self_check_section,
-      user_request_placeholder
+      user_request_placeholder,
     ].compact
 
     sections.join("\n\n").strip + "\n"

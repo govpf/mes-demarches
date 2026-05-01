@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 describe Expired::DossiersDeletionService do
-  let(:warning_period) { 1.month + 5.days }
+  let(:warning_period) { 2.weeks }
   let(:conservation_par_defaut) { 3.months }
   let(:user) { create(:user) }
   let(:procedure_opts) { {} }
@@ -178,7 +178,10 @@ describe Expired::DossiersDeletionService do
     context 'with a single dossier' do
       let!(:dossier) { create(:dossier, :en_construction, :followed, procedure: procedure, en_construction_at: en_construction_at) }
 
-      before { service.send_en_construction_expiration_notices }
+      before do
+        dossier.update_expired_at
+        service.send_en_construction_expiration_notices
+      end
 
       context 'when the dossier is not near deletion' do
         let(:en_construction_at) { (conservation_par_defaut - 2.weeks - 1.day).ago }
@@ -214,6 +217,7 @@ describe Expired::DossiersDeletionService do
       let(:groupe) { procedure.groupe_instructeurs.first }
 
       before do
+        dossier.update_expired_at
         AssignTo.create!(groupe_instructeur: groupe, instructeur: instructeur)
         service.send_en_construction_expiration_notices
       end
@@ -250,6 +254,7 @@ describe Expired::DossiersDeletionService do
       let!(:instructeur) { create(:instructeur) }
 
       before do
+        [dossier_1, dossier_2].each(&:update_expired_at)
         instructeur.followed_dossiers << dossier_1 << dossier_2
         service.send_en_construction_expiration_notices
       end
@@ -267,6 +272,7 @@ describe Expired::DossiersDeletionService do
       let!(:dossier) { create(:dossier, :en_construction, procedure: procedure, en_construction_at: (conservation_par_defaut - 2.weeks + 1.day).ago) }
 
       before do
+        dossier.update_expired_at
         administrateur.instructeur.followed_dossiers << dossier
         service.send_en_construction_expiration_notices
       end
@@ -280,7 +286,7 @@ describe Expired::DossiersDeletionService do
   end
 
   describe '#delete_expired_en_construction_and_notify' do
-    let!(:warning_period) { 1.month + 5.days }
+    let!(:warning_period) { 2.weeks }
 
     before { travel_to(reference_date) }
 
@@ -399,7 +405,7 @@ describe Expired::DossiersDeletionService do
     before { travel_to(reference_date) }
     let(:procedure_opts) do
       {
-        procedure_expires_when_termine_enabled: true
+        procedure_expires_when_termine_enabled: true,
       }
     end
     before do
@@ -410,7 +416,10 @@ describe Expired::DossiersDeletionService do
     context 'with a single dossier' do
       let!(:dossier) { create(:dossier, :followed, state: :accepte, procedure: procedure, processed_at: processed_at) }
 
-      before { service.send_termine_expiration_notices }
+      before do
+        dossier.update_expired_at
+        service.send_termine_expiration_notices
+      end
 
       context 'when the dossier is not near deletion' do
         let(:processed_at) { (conservation_par_defaut - 2.weeks - 1.day).ago }
@@ -445,6 +454,7 @@ describe Expired::DossiersDeletionService do
       let(:groupe) { procedure.groupe_instructeurs.first }
 
       before do
+        [dossier_1, dossier_2].each(&:update_expired_at)
         instructeur.followed_dossiers << dossier_1 << dossier_2
         AssignTo.create!(groupe_instructeur: groupe, instructeur: dossier_1.procedure.administrateurs.first.instructeur)
         service.send_termine_expiration_notices
@@ -465,6 +475,7 @@ describe Expired::DossiersDeletionService do
       let!(:dossier) { create(:dossier, state: :accepte, procedure: procedure, processed_at: (conservation_par_defaut - 2.weeks + 1.day).ago) }
 
       before do
+        dossier.update_expired_at
         administrateur.instructeur.followed_dossiers << dossier
         service.send_termine_expiration_notices
       end
@@ -482,7 +493,7 @@ describe Expired::DossiersDeletionService do
 
     let(:procedure_opts) do
       {
-        procedure_expires_when_termine_enabled: true
+        procedure_expires_when_termine_enabled: true,
       }
     end
 

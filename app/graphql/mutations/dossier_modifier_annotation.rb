@@ -58,12 +58,12 @@ module Mutations
           TypeDeChamp.type_champs.fetch(:drop_down_list),
           TypeDeChamp.type_champs.fetch(:email),
           TypeDeChamp.type_champs.fetch(:phone),
-          TypeDeChamp.type_champs.fetch(:visa)
+          TypeDeChamp.type_champs.fetch(:visa),
         ]
       when :checkbox
         [
           TypeDeChamp.type_champs.fetch(:checkbox),
-          TypeDeChamp.type_champs.fetch(:yes_no)
+          TypeDeChamp.type_champs.fetch(:yes_no),
         ]
       when :date
         TypeDeChamp.type_champs.fetch(:date)

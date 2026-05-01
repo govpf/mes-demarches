@@ -169,8 +169,8 @@ class ReferentielDePolynesie::BaserowAPI
       {
         "filters" => JSON.generate({
           "filter_type" => "AND",
-          "filters" => [{ "field" => search_field.to_i, "type" => "equal", "value" => term }]
-        })
+          "filters" => [{ "field" => search_field.to_i, "type" => "equal", "value" => term }],
+        }),
       }
     end
 
@@ -197,10 +197,10 @@ class ReferentielDePolynesie::BaserowAPI
             {
               "field" => search_field.to_i,
               "type" => "contains",
-              "value" => word
-            }
-          ]
-        })
+              "value" => word,
+            },
+          ],
+        }),
       }
     end
 
@@ -209,15 +209,15 @@ class ReferentielDePolynesie::BaserowAPI
         {
           "field" => search_field.to_i,
           "type" => "contains",
-          "value" => word
+          "value" => word,
         }
       end
 
       {
         "filters" => JSON.generate({
           "filter_type" => "AND",
-          "filters" => filters
-        })
+          "filters" => filters,
+        }),
       }
     end
 
@@ -225,7 +225,7 @@ class ReferentielDePolynesie::BaserowAPI
       JSON.parse(response_body, symbolize_names: true)[:results].map do |result|
         {
           label: result[:"field_#{search_field}"].to_s,
-          value: "#{domain_id}:#{result[:id]}"
+          value: "#{domain_id}:#{result[:id]}",
         }
       end
     end
