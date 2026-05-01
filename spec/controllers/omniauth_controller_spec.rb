@@ -13,7 +13,7 @@ describe OmniauthController, type: :controller do
       birthdate: birthdate,
       birthplace: '1234',
       gender: 'M',
-      email_france_connect: email
+      email_france_connect: email,
     }
   end
 

@@ -70,14 +70,14 @@ describe Administrateurs::ProceduresController, type: :controller do
       duree_conservation_dossiers_dans_ds: duree_conservation_dossiers_dans_ds,
       monavis_embed: monavis_embed,
       zone_ids: zone_ids,
-      procedure_tag_names: ['Aao', 'Accompagnement']
+      procedure_tag_names: ['Aao', 'Accompagnement'],
     }
   }
 
   let(:procedure_params_not_creatable) {
     {
       lien_site_web: lien_site_web,
-      robots_indexable: "0"
+      robots_indexable: "0",
     }
   }
 
@@ -99,7 +99,7 @@ describe Administrateurs::ProceduresController, type: :controller do
 
     subject {
       get :index, params: {
-        'statut': 'publiees'
+        'statut': 'publiees',
       }
     }
 
@@ -780,9 +780,9 @@ describe Administrateurs::ProceduresController, type: :controller do
         procedure: {
           libelle: procedure.libelle,
           clone_options: {
-            instructeurs: '0'
-          }
-        }
+            instructeurs: '0',
+          },
+        },
       }
     end
     subject { post :clone, params: params }
@@ -790,6 +790,13 @@ describe Administrateurs::ProceduresController, type: :controller do
     before do
       procedure.groupe_instructeurs.each { |gi| gi.update!(contact_information: create(:contact_information)) }
       procedure.active_revision.update(ineligibilite_rules:, ineligibilite_message:, ineligibilite_enabled:)
+
+      procedure.defaut_groupe_instructeur.signature.attach(
+        io: StringIO.new("signature"),
+        filename: "signature.png",
+        content_type: "image/png",
+        metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE }
+      )
 
       response = Typhoeus::Response.new(code: 200, body: 'Hello world')
       Typhoeus.stub(/active_storage\/disk/).and_return(response)
@@ -815,9 +822,9 @@ describe Administrateurs::ProceduresController, type: :controller do
             procedure: {
               libelle: procedure.libelle,
               clone_options: {
-                instructeurs: '0'
-              }
-            }
+                instructeurs: '0',
+              },
+            },
           }
         end
 
@@ -847,9 +854,9 @@ describe Administrateurs::ProceduresController, type: :controller do
                 mail_templates: '1',
                 ineligibilite: '1',
                 avis: '1',
-                labels: '1'
-              }
-            }
+                labels: '1',
+              },
+            },
           }
         end
 
@@ -885,6 +892,7 @@ describe Administrateurs::ProceduresController, type: :controller do
           expect(Procedure.last.labels).not_to be_blank
           expect(Procedure.last.labels.first.procedure_id).to eq(Procedure.last.id)
           expect(Procedure.last.libelle).to eq 'Démarche avec un nouveau nom'
+          expect(Procedure.last.defaut_groupe_instructeur.signature.attached?).to be_truthy
         end
       end
 
@@ -911,9 +919,9 @@ describe Administrateurs::ProceduresController, type: :controller do
                 mail_templates: '0',
                 ineligibilite: '0',
                 avis: '0',
-                labels: '0'
-              }
-            }
+                labels: '0',
+              },
+            },
           }
         end
 
@@ -951,6 +959,7 @@ describe Administrateurs::ProceduresController, type: :controller do
           expect(Procedure.last.experts_require_administrateur_invitation).to be_falsey
           expect(Procedure.last.experts).to be_blank
           expect(Procedure.last.labels).to be_blank
+          expect(Procedure.last.defaut_groupe_instructeur.signature.attached?).to be_falsey
         end
       end
     end
@@ -1220,7 +1229,7 @@ describe Administrateurs::ProceduresController, type: :controller do
     let!(:procedure) { create(:procedure, administrateur: admin) }
     let(:procedure_params) {
       {
-        monavis_embed: monavis_embed
+        monavis_embed: monavis_embed,
       }
     }
 
@@ -1745,7 +1754,7 @@ describe Administrateurs::ProceduresController, type: :controller do
       before do
         patch :update_rdv, params: {
           id: procedure.id,
-          procedure: { rdv_enabled: true }
+          procedure: { rdv_enabled: true },
         }
       end
 
@@ -1768,7 +1777,7 @@ describe Administrateurs::ProceduresController, type: :controller do
       before do
         patch :update_rdv, params: {
           id: procedure.id,
-          procedure: { rdv_enabled: false }
+          procedure: { rdv_enabled: false },
         }
       end
 
@@ -1795,7 +1804,7 @@ describe Administrateurs::ProceduresController, type: :controller do
     subject do
       patch :update_pro_connect_restricted, params: {
         id: procedure.id,
-        procedure: { pro_connect_restricted: pro_connect_restricted }
+        procedure: { pro_connect_restricted: pro_connect_restricted },
       }
     end
 

@@ -60,7 +60,7 @@ class Champs::TeFenuaChamp < Champ
       batiments: batiments? ? batiments : [],
       cadastres: parcelles? ? parcelles : [],
       zones_manuelles: zones_manuelles? ? zones_manuelles : [],
-      positions: marker? && geo_areas.present? ? geo_areas.map(&:to_feature) : []
+      positions: marker? && geo_areas.present? ? geo_areas.map(&:to_feature) : [],
     }
   end
 
@@ -87,7 +87,7 @@ class Champs::TeFenuaChamp < Champ
       type: 'FeatureCollection',
       id: stable_id,
       bbox: bounding_box,
-      features: geo_areas.map(&:to_feature)
+      features: geo_areas.map(&:to_feature),
     }
   end
 

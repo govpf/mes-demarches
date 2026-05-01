@@ -8,7 +8,7 @@ class LexpolService
     :piece_justificative,
     :titre_identite,
     :header_section,
-    :explication
+    :explication,
   ].freeze
 
   def initialize(champ:, dossier:, apilexpol:, user: nil)

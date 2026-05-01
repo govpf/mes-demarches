@@ -66,7 +66,7 @@ FactoryBot.define do
           department_code: "38",
           department_name: "Isère",
           country_code: "FR",
-          country_name: "France"
+          country_name: "France",
         }
       end
     end
@@ -294,7 +294,7 @@ FactoryBot.define do
         evaluator.rows.times do |row|
           champ_repetition.champs << [
             build(:champ_piece_justificative, dossier: champ_repetition.dossier, row: row, type_de_champ: type_de_champ_pj0),
-            build(:champ_piece_justificative, dossier: champ_repetition.dossier, row: row, type_de_champ: type_de_champ_pj1)
+            build(:champ_piece_justificative, dossier: champ_repetition.dossier, row: row, type_de_champ: type_de_champ_pj1),
           ]
         end
       end

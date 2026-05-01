@@ -12,7 +12,7 @@ class HealthController < ApplicationController
       database: test_database,
       sidekiq_redis: test_sidekiq_redis,
       cache_redis: test_cache_redis,
-      active_storage: test_active_storage
+      active_storage: test_active_storage,
     }
 
     critical_checks = [:database, :sidekiq_redis, :cache_redis]
@@ -23,13 +23,13 @@ class HealthController < ApplicationController
       render json: {
         status: 'ready',
         checks: checks,
-        critical: critical_checks.index_with { |c| checks[c] }
+        critical: critical_checks.index_with { |c| checks[c] },
       }, status: status_code
     else
       render json: {
         status: 'not_ready',
         checks: checks,
-        critical: critical_checks.index_with { |c| checks[c] }
+        critical: critical_checks.index_with { |c| checks[c] },
       }, status: 503
     end
   end

@@ -11,7 +11,7 @@ module TrustedDeviceConcern
       value: JSON.generate({ created_at: start_at }),
       expires: start_at + TRUSTED_DEVICE_PERIOD,
       httponly: true,
-      secure: Rails.env.production?
+      secure: Rails.env.production?,
     }
     if trusted_device_token
       trusted_device_token.update(activated_at: start_at)
@@ -26,7 +26,7 @@ module TrustedDeviceConcern
   def send_login_token_or_bufferize(instructeur)
     if !instructeur.young_login_token?
       token = instructeur.create_trusted_device_token
-      InstructeurMailer.send_login_token(instructeur, token).deliver_later
+      InstructeurMailer.send_login_token(instructeur, token, Current.host).deliver_later
       true
     else
       false

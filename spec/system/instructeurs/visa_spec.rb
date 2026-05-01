@@ -17,7 +17,7 @@ describe 'Using Visa field', js: true do
       { type: :header_section, header_section_level: 2 },
       { type: :text },
       { type: :visa, libelle: 'visa_to_test', accredited_users: [instructeur2, instructeur3].map(&:email) },
-      { type: :text }
+      { type: :text },
     ]
   end
   let!(:procedure) { create(:procedure, :published, types_de_champ_private:, instructeurs: [instructeur1, instructeur2, instructeur3]) }
@@ -31,8 +31,8 @@ describe 'Using Visa field', js: true do
     Geocoder::Lookup::Test.add_stub(
       dossier.etablissement.geo_adresse, [
         {
-          'coordinates' => [etablissement_geo_adresse_lat.to_f, etablissement_geo_adresse_lon.to_f]
-        }
+          'coordinates' => [etablissement_geo_adresse_lat.to_f, etablissement_geo_adresse_lon.to_f],
+        },
       ]
     )
     allow_any_instance_of(EditableChamp::DepartementsComponent).to receive(:options).and_return(departements)

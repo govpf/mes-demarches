@@ -92,7 +92,7 @@ class APIGeo::API
       accept_encoding: 'gzip',
       headers: {
         'Accept' => 'application/json',
-        'Accept-Encoding' => 'gzip, deflate'
+        'Accept-Encoding' => 'gzip, deflate',
       }.merge(method == :post ? { 'Content-Type' => 'application/json' } : {}),
       cache: @typhoeus_cache,
       cache_ttl: CACHE_DURATION

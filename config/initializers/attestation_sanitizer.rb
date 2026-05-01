@@ -18,6 +18,6 @@ Rails.application.configure do
       src alt width height
       href target rel
       colspan rowspan
-    ]
+    ],
   }
 end

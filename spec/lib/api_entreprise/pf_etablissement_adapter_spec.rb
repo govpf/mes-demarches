@@ -39,7 +39,7 @@ describe APIEntreprise::PfEtablissementAdapter do
           "BP 130, 98713 PAPEETE BP, Aéroport de Avatoru, Rangiroa",
           "BP 130, 98713 PAPEETE BP, 10, Av Bruat, Papeete",
           "BP 130, 98713 PAPEETE BP, PK 4.9, Arue",
-          "BP 130, 98713 PAPEETE BP, PK 21,1, Paea"
+          "BP 130, 98713 PAPEETE BP, PK 21,1, Paea",
         ].join(' | ')
       }
 

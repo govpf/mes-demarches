@@ -52,7 +52,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
         label: col.label,
         type: col.type.to_s,
         category: col.table,
-        paths: extract_sub_paths(col)
+        paths: extract_sub_paths(col),
       }.compact
     end
   end
@@ -123,7 +123,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
       [
         { path: 'commune', label: 'Commune' },
         { path: 'ile', label: 'Île' },
-        { path: 'archipel', label: 'Archipel' }
+        { path: 'archipel', label: 'Archipel' },
       ]
     when 'referentiel_de_polynesie'
       # Get columns from referentiel if it exists
@@ -137,7 +137,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
       [
         { path: 'code_naf', label: 'Code NAF' },
         { path: 'raison_sociale', label: 'Raison sociale' },
-        { path: 'adresse', label: 'Adresse' }
+        { path: 'adresse', label: 'Adresse' },
       ]
     else
       nil
@@ -151,7 +151,10 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   delegate :type_de_champ, :revision, :procedure, to: :coordinate
 
   def can_be_mandatory?
-    type_de_champ.public? && !type_de_champ.non_fillable?
+    # pf: Un champ formule est calculé par le système, jamais saisi par
+    # l'usager — la notion d'obligatoire n'a pas de sens. C'est à la SOURCE
+    # référencée d'être marquée obligatoire si nécessaire.
+    type_de_champ.public? && !type_de_champ.non_fillable? && !type_de_champ.formule?
   end
 
   def type_de_champ_path
@@ -167,15 +170,15 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
       data: {
         controller: 'type-de-champ-editor',
         type_de_champ_editor_move_up_url_value: move_up_admin_procedure_type_de_champ_path(procedure, type_de_champ.stable_id),
-        type_de_champ_editor_move_down_url_value: move_down_admin_procedure_type_de_champ_path(procedure, type_de_champ.stable_id)
-      }
+        type_de_champ_editor_move_down_url_value: move_down_admin_procedure_type_de_champ_path(procedure, type_de_champ.stable_id),
+      },
     }
   end
 
   def form_options
     {
       url: admin_procedure_type_de_champ_path(procedure, type_de_champ.stable_id),
-      html: { multipart: true, id: nil, class: 'form width-100' }
+      html: { multipart: true, id: nil, class: 'form width-100' },
     }
   end
 
@@ -183,7 +186,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     {
       type: 'button',
       data: { action: 'type-de-champ-editor#onMoveButtonClick', type_de_champ_editor_direction_param: direction },
-      title: direction == :up ? 'Déplacer le champ vers le haut' : 'Déplacer le champ vers le bas'
+      title: direction == :up ? 'Déplacer le champ vers le haut' : 'Déplacer le champ vers le bas',
     }
   end
 
@@ -204,7 +207,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
       .to_h do |cat, tdc|
         [
           t(cat, scope: cat_scope),
-          tdc.map { [t(_1, scope: tdc_scope), _1, { disabled: !accepted_type_champs.include?(_1) }] }
+          tdc.map { [t(_1, scope: tdc_scope), _1, { disabled: !accepted_type_champs.include?(_1) }] },
         ]
       end
   end
@@ -231,7 +234,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     {
       attached_file: type_de_champ.piece_justificative_template,
       auto_attach_url: helpers.auto_attach_url(type_de_champ, procedure_id: procedure.id),
-      view_as: :download
+      view_as: :download,
     }
   end
 
@@ -239,12 +242,12 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     {
       attached_file: type_de_champ.notice_explicative,
       auto_attach_url: helpers.auto_attach_url(type_de_champ, procedure_id: procedure.id),
-      view_as: :download
+      view_as: :download,
     }
   end
 
   EXCLUDE_FROM_BLOCK = [
-    TypeDeChamp.type_champs.fetch(:repetition)
+    TypeDeChamp.type_champs.fetch(:repetition),
   ]
 
   def filter_block_type_champ(type_champ)
@@ -326,7 +329,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
       [t('.character_limit.limit', limit: '400'), 400],
       [t('.character_limit.limit', limit: '1 000'), 1000],
       [t('.character_limit.limit', limit: '5 000'), 5000],
-      [t('.character_limit.limit', limit: '10 000'), 10000]
+      [t('.character_limit.limit', limit: '10 000'), 10000],
     ]
   end
 
