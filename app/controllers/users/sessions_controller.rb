@@ -30,6 +30,8 @@ class Users::SessionsController < Devise::SessionsController
   end
 
   def reset_link_sent
+    return redirect_to new_user_session_path if current_instructeur.nil?
+
     if send_login_token_or_bufferize(current_instructeur)
       flash[:notice] = "Nous venons de vous renvoyer un nouveau lien de connexion sécurisée à #{Current.application_name}"
     end

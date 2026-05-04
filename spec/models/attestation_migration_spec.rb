@@ -66,7 +66,7 @@ describe 'Migration Attestations v1→v2', type: :model do
         test_cases = {
           '<b>gras</b>' => { marks: [{ 'type' => 'bold' }] },
           '<i>italique</i>' => { marks: [{ 'type' => 'italic' }] },
-          '<u>souligné</u>' => { marks: [{ 'type' => 'underline' }] }
+          '<u>souligné</u>' => { marks: [{ 'type' => 'underline' }] },
         }
 
         test_cases.each do |html_input, expected_structure|
@@ -92,10 +92,10 @@ describe 'Migration Attestations v1→v2', type: :model do
               'type' => 'paragraph',
               'content' => [
                 { 'type' => 'text', 'text' => 'Hello' },
-                { 'type' => 'text', 'text' => ' World', 'marks' => [{ 'type' => 'bold' }] }
-              ]
-            }
-          ]
+                { 'type' => 'text', 'text' => ' World', 'marks' => [{ 'type' => 'bold' }] },
+              ],
+            },
+          ],
         }.to_json
 
         extracted_text = extract_text_from_tiptap(tiptap_content)
@@ -167,7 +167,7 @@ describe 'Migration Attestations v1→v2', type: :model do
           'Balises critiques' => { '<b>' => 259, '<u>' => 156 },
           'Balises majeures' => { '<table>' => 89 },
           'Balises moyennes' => { '<i>' => 39 },
-          'Balises faibles' => { '<strong>' => 2, '<em>' => 2 }
+          'Balises faibles' => { '<strong>' => 2, '<em>' => 2 },
         }
 
         total_procedures_impacted = 504 # Selon le document
@@ -191,7 +191,7 @@ describe 'Migration Attestations v1→v2', type: :model do
           'Interface de migration avec date limite',
           'Migration automatique du formatage simple',
           'Possibilité de retour en arrière',
-          'Tests passants pour les 415 démarches impactées'
+          'Tests passants pour les 415 démarches impactées',
         ]
 
         # Phase 2 - Critères selon spécifications
@@ -200,7 +200,7 @@ describe 'Migration Attestations v1→v2', type: :model do
           'Extension TiptapService pour les tables',
           'Migration des 89 démarches avec tables',
           'Interface intelligente selon contenu',
-          'Tests d\'édition des tables en v2'
+          'Tests d\'édition des tables en v2',
         ]
 
         expect(phase1_criteria.length).to eq(5)

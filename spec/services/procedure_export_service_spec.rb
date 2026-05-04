@@ -97,7 +97,7 @@ describe ProcedureExportService do
             "Motivation de la décision",
             "Instructeurs",
             *champ_headers[1..-1],
-            champ_headers[0]
+            champ_headers[0],
           ]
         end
 
@@ -215,7 +215,7 @@ describe ProcedureExportService do
           "Traité le",
           "Motivation de la décision",
           "Instructeurs",
-          'siret'
+          'siret',
         ]
       end
 
@@ -271,7 +271,7 @@ describe ProcedureExportService do
             "Traité le",
             "Motivation de la décision",
             "Instructeurs",
-            'siret'
+            'siret',
           ]
         end
 
@@ -319,7 +319,7 @@ describe ProcedureExportService do
           "Association objet",
           "Association date de création",
           "Association date de déclaration",
-          "Association date de publication"
+          "Association date de publication",
         ])
 
         expect(etablissements_sheet.data.size).to eq(2)
@@ -343,7 +343,7 @@ describe ProcedureExportService do
           "Créé le",
           "Répondu le",
           "Instructeur",
-          "Expert"
+          "Expert",
         ])
         expect(avis_sheet.data.size).to eq(1)
       end
@@ -364,7 +364,7 @@ describe ProcedureExportService do
       let!(:dossiers) do
         [
           create(:dossier, :en_instruction, :with_populated_champs, :with_individual, procedure: procedure),
-          create(:dossier, :en_instruction, :with_populated_champs, :with_individual, procedure: procedure)
+          create(:dossier, :en_instruction, :with_populated_champs, :with_individual, procedure: procedure),
         ]
       end
       let(:champ_repetition) { dossiers.first.project_champs_public.find { |champ| champ.type_champ == 'repetition' } }
@@ -385,7 +385,7 @@ describe ProcedureExportService do
             "Dossier ID",
             "Ligne",
             "Nom",
-            "Age"
+            "Age",
           ])
         end
       end
@@ -486,7 +486,7 @@ describe ProcedureExportService do
                 "#{base_fn}/",
                 "#{base_fn}/dossier-#{dossier.id}/",
                 "#{base_fn}/dossier-#{dossier.id}/piece_justificative-#{dossier.id}-01.txt",
-                "#{base_fn}/dossier-#{dossier.id}/export-#{dossier.id}.pdf"
+                "#{base_fn}/dossier-#{dossier.id}/export-#{dossier.id}.pdf",
               ]
               expect(read_zip_entries(temp_file.path)).to match_array(structure)
             end
@@ -516,7 +516,7 @@ describe ProcedureExportService do
                 "#{base_fn}/dossier-#{dossier.id}/",
                 "#{base_fn}/dossier-#{dossier.id}/pieces_justificatives/",
                 "#{base_fn}/dossier-#{dossier.id}/#{ActiveStorage::DownloadableFile.timestamped_filename(ActiveStorage::Attachment.where(record_type: "Champ").first)}",
-                "#{base_fn}/dossier-#{dossier.id}/#{ActiveStorage::DownloadableFile.timestamped_filename(dossier_exports.first.first)}"
+                "#{base_fn}/dossier-#{dossier.id}/#{ActiveStorage::DownloadableFile.timestamped_filename(dossier_exports.first.first)}",
               ]
               expect(read_zip_entries(temp_file.path)).to match_array(structure)
             end

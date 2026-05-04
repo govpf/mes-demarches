@@ -50,7 +50,7 @@ RSpec.describe Types::DossierType, type: :graphql do
         "department_code" => "75",
         "department_name" => "Paris",
         "country_code" => "FR",
-        "country_name" => "France"
+        "country_name" => "France",
       }
     end
 
@@ -67,7 +67,7 @@ RSpec.describe Types::DossierType, type: :graphql do
         department_code: "38",
         department_name: "Isère",
         country_code: "FR",
-        country_name: "France"
+        country_name: "France",
       }.stringify_keys
     end
 
@@ -81,7 +81,7 @@ RSpec.describe Types::DossierType, type: :graphql do
         department_code: "99",
         department_name: APIGeoService.departement_name('99'),
         country_code: "IT",
-        country_name: APIGeoService.country_name('IT')
+        country_name: APIGeoService.country_name('IT'),
       }.stringify_keys
     end
 
@@ -95,13 +95,13 @@ RSpec.describe Types::DossierType, type: :graphql do
           "code_postal" => "75512",
           "numero_voie" => "12",
           "distribution" => nil,
-          "libelle_voie" => "xyz"
+          "libelle_voie" => "xyz",
         },
        "association_rna" => "W173847273",
        "association_objet" => "prévenir",
        "association_titre" => "CROIX ROUGE",
        "association_date_creation" => "1964-12-30",
-       "association_date_declaration" => "2022-08-10"
+       "association_date_declaration" => "2022-08-10",
       }
     end
 
@@ -313,6 +313,33 @@ RSpec.describe Types::DossierType, type: :graphql do
     }
   end
 
+  describe 'dossier with large integer in columns' do
+    let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ libelle: 'Montant', type: :integer_number }]) }
+    let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure: procedure) }
+    let(:query) { DOSSIER_WITH_INTEGER_COLUMNS_QUERY }
+    let(:variables) { { number: dossier.id } }
+    let(:large_integer) { 3400936534933 }
+
+    before do
+      integer_champ = dossier.project_champs_public.first
+      integer_champ.update(value: large_integer.to_s)
+    end
+
+    it 'handles large integers in columns without error' do
+      expect(errors).to be_nil
+      expect(data[:dossier][:champs].first).not_to be_nil
+
+      # Verify the large integer is returned correctly in the columns field
+      integer_champ = data[:dossier][:champs].first
+      expect(integer_champ[:columns]).not_to be_empty
+
+      integer_column = integer_champ[:columns].find { |col| col[:__typename] == 'IntegerColumn' }
+      expect(integer_column).not_to be_nil
+      # BigInt values are returned as strings to avoid precision loss in JavaScript
+      expect(integer_column[:value]).to eq(large_integer.to_s)
+    end
+  end
+
   describe 'dossier with titre identite filled' do
     let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :titre_identite }]) }
     let(:dossier) { create(:dossier, :accepte, :with_populated_champs, procedure: procedure) }
@@ -414,7 +441,7 @@ RSpec.describe Types::DossierType, type: :graphql do
         {
           id: label.to_typed_id,
           name: "Urgent",
-          color: "pink_macaron"
+          color: "pink_macaron",
         }
       )
     }
@@ -530,6 +557,7 @@ RSpec.describe Types::DossierType, type: :graphql do
         ... on HeaderSectionChamp {
           level
         }
+        ... on ExplicationChamp {}
       }
     }
   }
@@ -596,6 +624,23 @@ RSpec.describe Types::DossierType, type: :graphql do
         ... on RepetitionChamp {
           rows {
             champs { id }
+          }
+        }
+      }
+    }
+  }
+  GRAPHQL
+
+  DOSSIER_WITH_INTEGER_COLUMNS_QUERY = <<-GRAPHQL
+  query($number: Int!) {
+    dossier(number: $number) {
+      champs {
+        id
+        columns {
+          __typename
+          label
+          ... on IntegerColumn {
+            value
           }
         }
       }

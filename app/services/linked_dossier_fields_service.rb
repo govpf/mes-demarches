@@ -51,7 +51,7 @@ class LinkedDossierFieldsService
         libelle: champ.libelle,
         suffixe: generate_suffix(champ.libelle),
         accessible: accessible_ids.include?(dossier_id),
-        dossier_id: dossier_id
+        dossier_id: dossier_id,
       }
     end
   end
@@ -99,7 +99,7 @@ class LinkedDossierFieldsService
       'Statut' => dossier.state && I18n.t("activerecord.attributes.dossier/state.#{dossier.state}"),
       'Dossier déposé le' => dossier.depose_at,
       'Dossier passé en instruction le' => dossier.en_instruction_at,
-      'Dossier traité le' => dossier.processed_at
+      'Dossier traité le' => dossier.processed_at,
     }.each do |key, value|
       variables[key] = LexpolFieldsService.format_lexpol_value(value) if value
     end

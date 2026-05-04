@@ -23,14 +23,17 @@ module InstructeurChampDisplayHelper
     referentiel_de_polynesie: :full,
     te_fenua: :full,
     engagement_juridique: :full,
-    formule: :full,
     titre_identite: :full,
-    # half : contenu de taille moyenne
-    siret: :half,
-    iban: :half,
-    address: :half,
-    multiple_drop_down_list: :half
+    # full : siret rend un layout vertical riche (IdentiteEntrepriseComponent et
+    # ses variantes : dénomination, numéro Tahiti, forme juridique, adresse...).
+    # En attendant une refonte en grid, on l'isole sur sa propre ligne pour ne
+    # pas créer de déséquilibre vertical avec des champs courts adjacents.
+    siret: :full,
     # default = :third pour tout le reste
+    # iban (compact ~30 chars), drop_down_list, multiple_drop_down_list etc. → :third
+    # address rend pour l'instant en vertical (Dossiers::AddressComponent), donc :third
+    # comme les autres champs courts ; à passer en :two_thirds quand la refonte du
+    # rendu adresse passera en mode horizontal (cf. issue identité).
     # piece_justificative et titre_identite : largeur calculée au runtime selon le nombre de fichiers
   }.freeze
 
@@ -46,7 +49,8 @@ module InstructeurChampDisplayHelper
   end
 
   def champ_display_width_class(champ)
-    "champ-grid-item--#{champ_display_width(champ)}"
+    # tr('_', '-') : convention BEM pour les modifiers (ex: :two_thirds → --two-thirds)
+    "champ-grid-item--#{champ_display_width(champ).to_s.tr('_', '-')}"
   end
 
   # pf: une PJ mono-fichier (largeur 1/3) doit former une rangée homogène avec ses voisines
@@ -136,7 +140,7 @@ module InstructeurChampDisplayHelper
       'dossier-layout-toggle-label-when-grid-value': dossier_layout_toggle_label(:grid),
       'dossier-layout-toggle-label-when-stacked-value': dossier_layout_toggle_label(:stacked),
       'dossier-layout-toggle-aria-when-grid-value': dossier_layout_toggle_aria_label(:grid),
-      'dossier-layout-toggle-aria-when-stacked-value': dossier_layout_toggle_aria_label(:stacked)
+      'dossier-layout-toggle-aria-when-stacked-value': dossier_layout_toggle_aria_label(:stacked),
     }
   end
 end

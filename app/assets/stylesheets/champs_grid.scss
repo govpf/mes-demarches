@@ -22,8 +22,11 @@
     &.champ-grid-item--full {
       grid-column-end: span 12;
     }
-    &.champ-grid-item--half {
-      grid-column-end: span 6;
+    // pf: --two-thirds = 2/3 (span 8). Aligné sur deux --third côte à côte
+    // (1-4 + 5-8), cohérent avec la base 3 de la grille. Pour des contenus
+    // un peu longs (adresse multi-lignes) sans aller jusqu'au :full.
+    &.champ-grid-item--two-thirds {
+      grid-column-end: span 8;
     }
     &.champ-grid-item--third {
       grid-column-end: span 4;
@@ -36,11 +39,15 @@
     }
   }
 
-  // tablette (62em–80em) : half reste en half, third se regroupe par 2
+  // tablette (62em–80em) : third se regroupe par 2 (span 6),
+  // two-thirds passe en pleine ligne pour rester confortable
   @media (min-width: 62em) and (max-width: 80em) {
     .champ-grid-item {
       &.champ-grid-item--third {
         grid-column-end: span 6;
+      }
+      &.champ-grid-item--two-thirds {
+        grid-column-end: span 12;
       }
     }
   }

@@ -161,15 +161,15 @@ module Administrateurs
                   {
                     "type" => "paragraph",
                     "attrs" => { "textAlign" => "left" },
-                    "content" => [{ "type" => "text", "text" => @procedure.service&.organisme || "" }]
+                    "content" => [{ "type" => "text", "text" => @procedure.service&.organisme || "" }],
                   },
                   # Nom du service
                   {
                     "type" => "paragraph",
                     "attrs" => { "textAlign" => "left" },
-                    "content" => [{ "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service" } }]
-                  }
-                ]
+                    "content" => [{ "type" => "mention", "attrs" => { "id" => "dossier_service_name", "label" => "nom du service" } }],
+                  },
+                ],
               },
               {
                 "type" => "headerColumn",
@@ -179,20 +179,20 @@ module Administrateurs
                     "attrs" => { "textAlign" => "right" },
                     "content" => [
                       { "text" => "Fait le ", "type" => "text" },
-                      { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision" } }
-                    ]
-                  }
-                ]
-              }
-            ]
+                      { "type" => "mention", "attrs" => { "id" => "dossier_processed_at", "label" => "date de décision" } },
+                    ],
+                  },
+                ],
+              },
+            ],
           },
           # Title (converti depuis v1) - INLINE, pas de paragraphe wrapper
           {
             "type" => "title",
             "attrs" => { "textAlign" => "center" },
-            "content" => title_content
-          }
-        ] + body_content
+            "content" => title_content,
+          },
+        ] + body_content,
       }
     end
 
@@ -267,7 +267,7 @@ module Administrateurs
         'date de mise à jour' => 'dossier_last_champ_updated_at',
         'libellé démarche' => 'dossier_procedure_libelle',
         'nom du service' => 'dossier_service_name',
-        'motivation' => 'dossier_motivation'
+        'motivation' => 'dossier_motivation',
       }
 
       # D'abord chercher dans les champs système

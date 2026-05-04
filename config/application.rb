@@ -85,7 +85,7 @@ module TPS
 
     config.ds_autosave = {
       debounce_delay: 1000,
-      status_visible_duration: 6000
+      status_visible_duration: 6000,
     }
 
     config.ds_opendata_enabled = ENV.fetch('OPENDATA_ENABLED', nil) == 'enabled'
@@ -131,7 +131,7 @@ module TPS
       'raster_columns',
       'raster_overviews',
       'spatial_ref_sys',
-      'topology'
+      'topology',
     ]
   end
 end

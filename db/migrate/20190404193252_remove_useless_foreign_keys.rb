@@ -10,17 +10,17 @@ class RemoveUselessForeignKeys < ActiveRecord::Migration[5.2]
     :dossiers => [:procedures],
     :pieces_justificatives => [:dossiers, :types_de_piece_justificative],
     :types_de_champ => [:procedures],
-    :types_de_piece_justificative => [:procedures]
+    :types_de_piece_justificative => [:procedures],
   }
 
   @@afks = {
-    :procedures => [:services]
+    :procedures => [:services],
   }
 
   @@rindexes = [
     { table: :deleted_dossiers, column: :dossier_id, name: "idx_deleted_dossiers_dossier_id" },
     { table: :types_de_champ, column: :procedure_id, name: "idx_types_de_champ_procedure_id" },
-    { table: :types_de_piece_justificative, column: :procedure_id, name: "idx_types_de_piece_justificative_procedure_id" }
+    { table: :types_de_piece_justificative, column: :procedure_id, name: "idx_types_de_piece_justificative_procedure_id" },
   ]
 
   def up

@@ -93,7 +93,7 @@ module EtablissementHelper
       '7' => '100 à 199 personnes',
       '8' => '200 à 499 personnes',
       '9' => '500 personnes et plus',
-      '10' => 'Aucune personne'
+      '10' => 'Aucune personne',
     }[etablissement.entreprise_code_effectif_entreprise]
   end
 

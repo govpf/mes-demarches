@@ -40,7 +40,7 @@ class RefreshLexpolChampJob < ApplicationJob
     Sentry.capture_exception(e, extra: {
       champ_id: champ.id,
       dossier_id: dossier&.id,
-      nor: champ.value
+      nor: champ.value,
     })
   end
 
@@ -83,7 +83,7 @@ class RefreshLexpolChampJob < ApplicationJob
         Sentry.capture_message("Lexpol: All instructeurs lack access", extra: {
           dossier_id: dossier.id,
           instructeur_emails: instructeurs.map(&:email),
-          nor: champ.value
+          nor: champ.value,
         })
         return false
       end
@@ -122,7 +122,7 @@ class RefreshLexpolChampJob < ApplicationJob
         dossier_id: dossier.id,
         nor: champ.value,
         service_email: e.email_used,
-        siret: numero_tahiti
+        siret: numero_tahiti,
       })
       false
     end

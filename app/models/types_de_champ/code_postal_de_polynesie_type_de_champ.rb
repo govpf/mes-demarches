@@ -8,21 +8,21 @@ class TypesDeChamp::CodePostalDePolynesieTypeDeChamp < TypesDeChamp::TextTypeDeC
                  description: "#{description} (Commune)",
                  path: :commune,
                  example: 1,
-                 maybe_null: public? && !mandatory?
+                 maybe_null: public? && !mandatory?,
     })
     paths.push({
       libelle: "#{libelle} (Ile)",
                  description: "#{description} (Ile)",
                  path: :ile,
                  example: "",
-                 maybe_null: public? && !mandatory?
+                 maybe_null: public? && !mandatory?,
     })
     paths.push({
       libelle: "#{libelle} (Archipel)",
                  description: "#{description} (Archipel)",
                  path: :archipel,
                  example: "",
-                 maybe_null: public? && !mandatory?
+                 maybe_null: public? && !mandatory?,
     })
     paths
   end

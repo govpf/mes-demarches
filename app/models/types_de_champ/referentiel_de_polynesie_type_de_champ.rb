@@ -31,7 +31,7 @@ class TypesDeChamp::ReferentielDePolynesieTypeDeChamp < TypesDeChamp::TypeDeCham
           libelle: "#{libelle} (#{column})",
           description: "#{description} (#{column})",
           path: column.to_sym,
-          maybe_null: public? && !mandatory?
+          maybe_null: public? && !mandatory?,
         }
       end
       return paths
@@ -44,7 +44,7 @@ class TypesDeChamp::ReferentielDePolynesieTypeDeChamp < TypesDeChamp::TypeDeCham
         libelle: "#{libelle} (#{column})",
         description: "#{description} (#{column})",
         path: column.to_sym,
-        maybe_null: public? && !mandatory?
+        maybe_null: public? && !mandatory?,
       }
     end
 

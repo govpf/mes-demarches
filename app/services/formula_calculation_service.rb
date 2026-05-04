@@ -141,7 +141,7 @@ class FormulaCalculationService
     'NotEqual' => '!=',
     'And' => 'ET',
     'Or' => 'OU',
-    'Not' => 'NON'
+    'Not' => 'NON',
   }.freeze
 
   # pf: Mapping inverse des classes natives Dentaku vers les noms FR aliasés
@@ -162,7 +162,7 @@ class FormulaCalculationService
     'Mid' => 'STXT',
     'StringFunctions::Mid' => 'STXT',
     'Len' => 'NBCAR',
-    'StringFunctions::Len' => 'NBCAR'
+    'StringFunctions::Len' => 'NBCAR',
   }.freeze
 
   def self.format_operator(klass)

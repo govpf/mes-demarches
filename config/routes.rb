@@ -150,7 +150,7 @@ Rails.application.routes.draw do
 
   devise_for :super_admins, skip: [:registrations], controllers: {
     sessions: 'super_admins/sessions',
-    passwords: 'super_admins/passwords'
+    passwords: 'super_admins/passwords',
   }
 
   namespace :super_admins do
@@ -164,7 +164,7 @@ Rails.application.routes.draw do
     sessions: 'users/sessions',
     registrations: 'users/registrations',
     confirmations: 'users/confirmations',
-    passwords: 'users/passwords'
+    passwords: 'users/passwords',
   }
 
   devise_scope :user do
@@ -227,8 +227,6 @@ Rails.application.routes.draw do
   get 'pro_connect' => 'pro_connect#index'
   get 'pro_connect/login' => 'pro_connect#login'
   get 'pro_connect/callback' => 'pro_connect#callback'
-  # to be migrated
-  get 'agent_connect/callback' => 'pro_connect#callback'
 
   namespace :champs do
     post ':dossier_id/:stable_id/repetition', to: 'repetition#add', as: :repetition
@@ -271,9 +269,6 @@ Rails.application.routes.draw do
   get "carte", to: "carte#show"
 
   post "webhooks/sendinblue", to: "webhook#sendinblue"
-  post "webhooks/helpscout", to: "webhook#helpscout"
-  post "webhooks/helpscout_support_dev", to: "webhook#helpscout_support_dev"
-  match "webhooks/helpscout", to: lambda { |_| [204, {}, nil] }, via: :head
   post "webhooks/crisp", to: "webhook#crisp"
 
   get '/preremplir/:path', to: 'prefill_descriptions#edit', as: :preremplir

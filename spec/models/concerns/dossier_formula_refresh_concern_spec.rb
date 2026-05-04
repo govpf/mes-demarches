@@ -3,7 +3,7 @@
 describe DossierFormulaRefreshConcern do
   let(:procedure) {
     create(:procedure, :published, types_de_champ_private: [
-      { type: :formule, libelle: 'Jours en instruction' }
+      { type: :formule, libelle: 'Jours en instruction' },
     ])
   }
   let(:revision) { procedure.active_revision }

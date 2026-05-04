@@ -28,7 +28,7 @@ RSpec.describe Champs::LexpolController, type: :controller do
 
         post :upsert, params: {
           dossier_id: dossier.id,
-          stable_id: champ.stable_id
+          stable_id: champ.stable_id,
         }
       end
 
@@ -45,7 +45,7 @@ RSpec.describe Champs::LexpolController, type: :controller do
 
         post :upsert, params: {
           dossier_id: dossier.id,
-          stable_id: champ.stable_id
+          stable_id: champ.stable_id,
         }
       end
 
@@ -61,7 +61,7 @@ RSpec.describe Champs::LexpolController, type: :controller do
 
         post :upsert, params: {
           dossier_id: dossier.id,
-          stable_id: champ.stable_id
+          stable_id: champ.stable_id,
         }
       end
 
@@ -80,7 +80,7 @@ RSpec.describe Champs::LexpolController, type: :controller do
 
         post :upsert, params: {
           dossier_id: dossier.id,
-          stable_id: champ.stable_id
+          stable_id: champ.stable_id,
         }
       end
 
@@ -102,7 +102,7 @@ RSpec.describe Champs::LexpolController, type: :controller do
         before do
           post :upsert, params: {
             dossier_id: dossier.id,
-            stable_id: champ.stable_id
+            stable_id: champ.stable_id,
           }
         end
 
@@ -132,7 +132,7 @@ RSpec.describe Champs::LexpolController, type: :controller do
 
           post :upsert, params: {
             dossier_id: dossier.id,
-            stable_id: champ.stable_id
+            stable_id: champ.stable_id,
           }
         end
 
@@ -162,7 +162,7 @@ RSpec.describe Champs::LexpolController, type: :controller do
 
           post :upsert, params: {
             dossier_id: dossier.id,
-            stable_id: champ.stable_id
+            stable_id: champ.stable_id,
           }
         end
 
@@ -187,7 +187,7 @@ RSpec.describe Champs::LexpolController, type: :controller do
 
         post :upsert, params: {
           dossier_id: draft_dossier.id,
-          stable_id: draft_champ.stable_id
+          stable_id: draft_champ.stable_id,
         }
       end
 

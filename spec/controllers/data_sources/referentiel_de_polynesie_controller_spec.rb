@@ -20,7 +20,7 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
         allow(ReferentielDePolynesie::API).to receive(:search_with_data)
           .with(domain_id, term, drop_down_other: nil)
           .and_return([
-            { label: 'Papeete', value: '24:1', row_data: }
+            { label: 'Papeete', value: '24:1', row_data: },
           ])
       end
 
