@@ -8,13 +8,17 @@ describe Champs::FormuleChamp do
     allow(champ).to receive(:type_de_champ).and_return(type_de_champ)
   end
 
-  describe '#value (stored via before_validation)' do
+  # pf: depuis la phase 4 (option 3), la value n'est plus calculée à la
+  # validation (before_validation supprimé). Le calcul passe par
+  # compute_value_from_formula (méthode publique appelée par
+  # compute_formulas_in_order pour la persistence ou par project_champ pour
+  # l'affichage en draft revision).
+  describe '#compute_value_from_formula (formerly stored via before_validation)' do
     context 'with simple expression' do
       let(:expression) { '1 + 1' }
 
-      it 'returns the computed value after validation' do
-        champ.validate
-        expect(champ.value).to eq('2')
+      it 'returns the computed value' do
+        expect(champ.compute_value_from_formula).to eq('2')
       end
     end
 
@@ -22,24 +26,23 @@ describe Champs::FormuleChamp do
       let(:expression) { 'CONCAT({Prénom}, " ", {Nom})' }
 
       it 'returns error message for unsupported functions' do
-        champ.validate
-        expect(champ.value).to include('Erreur')
+        expect(champ.compute_value_from_formula).to include('Erreur')
       end
     end
 
     context 'with blank expression' do
       let(:expression) { '' }
 
-      it 'returns nil (no computation)' do
-        expect(champ.value).to be_nil
+      it 'returns empty string (no computation)' do
+        expect(champ.compute_value_from_formula).to eq('')
       end
     end
 
     context 'with nil expression' do
       let(:expression) { nil }
 
-      it 'returns nil (no computation)' do
-        expect(champ.value).to be_nil
+      it 'returns empty string (no computation)' do
+        expect(champ.compute_value_from_formula).to eq('')
       end
     end
   end
@@ -66,7 +69,7 @@ describe Champs::FormuleChamp do
     let(:expression) { '1 + 1' }
 
     it 'returns an array with the stored value' do
-      champ.validate
+      champ.value = '2'
       expect(champ.search_terms).to eq(['2'])
     end
   end
@@ -103,49 +106,12 @@ describe Champs::FormuleChamp do
     end
   end
 
-  describe 'before_validation callback' do
-    let(:expression) { '2 + 2' }
-
-    it 'has the callback defined' do
-      expect(Champs::FormuleChamp._validation_callbacks.map(&:filter)).to include(:store_computed_value)
-    end
-  end
-
-  # pf: garde contre les champs formule persistés orphelins (TDC supprimé de
-  # la révision mais Champ encore en BDD — cas typique d'un dossier de preview).
-  describe 'store_computed_value with persisted orphan champ' do
-    let(:expression) { '1 + 1' }
-    let(:test_champ) { Champs::FormuleChamp.new(dossier: build(:dossier)) }
-
-    before do
-      allow(test_champ).to receive(:type_de_champ).and_return(type_de_champ)
-      allow(test_champ).to receive(:persisted?).and_return(true)
-      # Simule un orphelin : le stable_id n'est pas dans la révision courante.
-      allow(test_champ).to receive(:in_dossier_revision?).and_return(false)
-    end
-
-    it 'does not crash and does not compute anything' do
-      expect { test_champ.validate }.not_to raise_error
-      expect(test_champ.value).to be_nil
-    end
-  end
-
-  # pf: contre-épreuve — un champ non persisté (construit en mémoire) doit
-  # continuer à calculer, même s'il n'est pas dans la révision du dossier.
-  describe 'store_computed_value with non-persisted champ' do
-    let(:expression) { '3 + 4' }
-    let(:test_champ) { Champs::FormuleChamp.new(dossier: build(:dossier)) }
-
-    before do
-      allow(test_champ).to receive(:type_de_champ).and_return(type_de_champ)
-      allow(test_champ).to receive(:in_dossier_revision?).and_return(false)
-    end
-
-    it 'computes normally (guard only targets persisted orphans)' do
-      test_champ.validate
-      expect(test_champ.value).to eq('7')
-    end
-  end
+  # pf: depuis la phase 4 (option 3), il n'y a plus de before_validation
+  # :store_computed_value. La validation ne déclenche plus aucun calcul.
+  # Les anciens tests sur la garde anti-orphelin (TDC supprimé) et sur le
+  # comportement validate des champs non persistés ne sont plus pertinents :
+  # validate ne fait rien sur le value. Voir compute_value_from_formula
+  # ci-dessus pour la logique de calcul.
 
   describe '#compute_value_from_formula' do
     let(:dossier) { build(:dossier) }

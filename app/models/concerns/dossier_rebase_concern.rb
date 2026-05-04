@@ -51,18 +51,28 @@ module DossierRebaseConcern
         self.champs << type_de_champ.build_champ(row_id: ULID.generate, rebased_at: Time.zone.now)
       end
 
-    # pf: créer et calculer les champs formule ajoutés par la nouvelle révision.
-    # Sans ça, les dossiers rebasés n'ont pas de ligne en BDD pour le nouveau
-    # champ formule → colonne vide dans les tableaux instructeur, et pas de
-    # valeur affichée tant que l'usager ne touche pas une source.
-    target_revision
-      .types_de_champ
-      .filter { _1.formule? && _1.stable_id.in?(added_stable_ids) }
-      .each do |type_de_champ|
-        champ = type_de_champ.build_champ(dossier: self, row_id: nil, rebased_at: Time.zone.now)
-        computed = FormulaCalculationService.new(self).compute_value(champ) rescue nil
-        champ.value = computed
-        self.champs << champ
-      end
+    # pf: Recalcul global des formules après rebase, qui couvre :
+    # - formules AJOUTÉES par la nouvelle révision : champ_upsert_by!
+    #   matérialise le champ en BDD (avant : colonne vide tant que l'usager
+    #   ne touchait pas une source).
+    # - formules dont l'EXPRESSION a changé (updated_stable_ids ∩ formules) :
+    #   la valeur stockée devient stale, on la recalcule.
+    # - formules dont une SOURCE a changé sémantiquement (type, options) :
+    #   recalcul transitif via compute_formulas_in_order.
+    #
+    # L'association :revision en cache mémoire peut pointer sur l'ancienne
+    # révision (update_column ne reset pas l'association), on la force à
+    # target_revision pour que compute_formulas_in_order itère bien sur la
+    # nouvelle révision.
+    self.revision = target_revision
+    # pf: rebase = écriture système. On force le stream main (la version
+    # officielle de la formule, indépendante du buffer usager) et on passe
+    # system_write: true pour bypasser check_valid_stream_on_write?, qui
+    # interdirait sinon l'écriture main sur un dossier en_construction
+    # (cas d'une formule publique ajoutée pendant que des dossiers sont
+    # en cours de remplissage).
+    with_main_stream do
+      compute_formulas_in_order(system_write: true)
+    end
   end
 end

@@ -721,17 +721,22 @@ describe Champ do
     let(:revision) { procedure.active_revision }
     let(:dossier) { create(:dossier, procedure: procedure) }
 
-    let!(:montant_tdc) { create(:type_de_champ_integer_number, procedure: procedure, libelle: 'Montant HT') }
-    let!(:tva_tdc) { create(:type_de_champ_decimal_number, procedure: procedure, libelle: 'TVA') }
+    # pf: positions explicites — la factory met tous les TDC à position 0
+    # par défaut, ce qui fait échouer la validation forward_reference des
+    # formules (qui exige que les sources aient une position < self).
+    let!(:montant_tdc) { create(:type_de_champ_integer_number, procedure: procedure, position: 1, libelle: 'Montant HT') }
+    let!(:tva_tdc) { create(:type_de_champ_decimal_number, procedure: procedure, position: 2, libelle: 'TVA') }
     let!(:formule_tdc) do
       create(:type_de_champ_formule,
         procedure: procedure,
+        position: 3,
         libelle: 'Total TTC',
         formule_expression: "{tdc#{montant_tdc.stable_id}} + {tdc#{tva_tdc.stable_id}}")
     end
     let!(:autre_formule_tdc) do
       create(:type_de_champ_formule,
         procedure: procedure,
+        position: 4,
         libelle: 'Montant x2',
         formule_expression: "{tdc#{montant_tdc.stable_id}} * 2")
     end

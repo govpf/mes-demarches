@@ -119,7 +119,13 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
     system_columns = procedure.dossier_columns_for_export +
                      procedure.usager_columns_for_export
 
-    # If the formula is INSIDE a repetition, return only PARENT fields
+    # pf: ordre de retour — TDC champs d'ABORD, colonnes système ensuite.
+    # L'autocomplete frontend ne montre par défaut que les ~10 premières
+    # colonnes (slice + fuzzy match limité). Les ~46 colonnes système qui
+    # étaient en tête masquaient totalement les TDC champs dans le dropdown
+    # d'une annotation privée formule (volume des system_columns >> 10).
+    # Mettre les TDC en premier reflète aussi la fréquence d'usage : 99%
+    # des formules référencent un champ du formulaire, pas un état système.
     if in_repetition?
       # All fields that precede the parent repetition
       parent_position = parent.position
@@ -134,14 +140,14 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
           .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < parent_position }
           .flat_map { |tdc| tdc.columns(procedure:) }
 
-        system_columns + public_columns + private_columns
+        public_columns + private_columns + system_columns
       else
         # Public field in repetition: public fields before the repetition
         champ_columns = revision.types_de_champ_public
           .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < parent_position }
           .flat_map { |tdc| tdc.columns(procedure:) }
 
-        system_columns + champ_columns
+        champ_columns + system_columns
       end
     else
       # Formula outside repetition: classic order constraints
@@ -155,14 +161,14 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
           .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < position }
           .flat_map { |tdc| tdc.columns(procedure:) }
 
-        system_columns + public_columns + private_columns
+        public_columns + private_columns + system_columns
       else
         # Public field: preceding public fields only
         champ_columns = revision.types_de_champ_public
           .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < position }
           .flat_map { |tdc| tdc.columns(procedure:) }
 
-        system_columns + champ_columns
+        champ_columns + system_columns
       end
     end
   end
@@ -174,13 +180,16 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
 
     parent_columns = available_columns_for_formula
 
-    # If the formula is INSIDE a repetition, also add sibling fields (same row)
+    # pf: les siblings (champs de la même row) sont les plus pertinents pour
+    # une formule en répétition — ils précèdent même les parents. Mis en
+    # tête de liste pour qu'ils apparaissent dès l'ouverture du dropdown
+    # d'autocomplete (cf. slice frontend).
     if in_repetition?
       sibling_columns = revision.children_of(parent_type_de_champ)
         .filter { |tdc| tdc.fillable? && revision.coordinate_for(tdc)&.position.to_i < position }
         .flat_map { |tdc| tdc.columns(procedure:) }
 
-      parent_columns + sibling_columns
+      sibling_columns + parent_columns
     else
       parent_columns
     end

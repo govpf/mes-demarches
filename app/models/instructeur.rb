@@ -3,6 +3,8 @@
 class Instructeur < ApplicationRecord
   alias_attribute :pro_connect_id_token, :agent_connect_id_token
 
+  DOSSIER_LAYOUT_PREFERENCES = %w[grid stacked].freeze
+
   include UserFindByConcern
   has_and_belongs_to_many :administrateurs
 
@@ -34,6 +36,7 @@ class Instructeur < ApplicationRecord
   belongs_to :user
 
   validates :user_id, uniqueness: true
+  validates :dossier_layout_preference, inclusion: { in: DOSSIER_LAYOUT_PREFERENCES, allow_nil: true }
 
   scope :with_instant_email_message_notifications, -> (groupe_instructeur) {
     includes(:assign_to)

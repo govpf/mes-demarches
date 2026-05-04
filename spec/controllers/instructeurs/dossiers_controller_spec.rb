@@ -1562,6 +1562,23 @@ describe Instructeurs::DossiersController, type: :controller do
         expect(champ_avant.reload.value).not_to eq('bloqué')
         expect(champ_apres.reload.value).to eq('autorisé')
       end
+
+      it 'ne lève pas si tous les champs envoyés sont bloqués par le visa' do
+        expect {
+          patch :update_annotations, params: {
+            procedure_id: procedure.id,
+            dossier_id: dossier.id,
+            dossier: {
+              champs_private_attributes: {
+                champ_avant.public_id => { value: 'bloqué' },
+              },
+            },
+          }, format: :turbo_stream
+        }.not_to raise_error
+
+        expect(response).to have_http_status(:ok)
+        expect(champ_avant.reload.value).not_to eq('bloqué')
+      end
     end
 
     context 'sans visa validé' do

@@ -26,7 +26,7 @@ class Champs::PieceJustificativeController < Champs::ChampController
   def download
     if @champ&.is_a? Champs::PieceJustificativeChamp
       index = (params[:i] || "0").to_i
-      if (0..@champ.piece_justificative_file.size).cover?(index)
+      if (0...@champ.piece_justificative_file.size).cover?(index)
         blob = @champ.piece_justificative_file[index]
         if blob.filename.extension == 'pdf' && @champ.dossier.procedure.feature_enabled?(:qrcoded_pdf)
           send_data StampService.new.stamp(blob, @champ.type_de_champ.dynamic_type.download_url(@champ, index)), filename: blob.filename.to_s, type: 'application/pdf'
