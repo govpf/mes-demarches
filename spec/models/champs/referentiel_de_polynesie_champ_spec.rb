@@ -347,7 +347,7 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
 
       it 'returns the "Autre" label so the combobox shows the selected option' do
         expect(champ.selected_items).to eq([
-          { label: I18n.t('shared.champs.drop_down_list.other'), value: Champs::DropDownListChamp::OTHER }
+          { label: I18n.t('shared.champs.drop_down_list.other'), value: Champs::DropDownListChamp::OTHER },
         ])
       end
     end
