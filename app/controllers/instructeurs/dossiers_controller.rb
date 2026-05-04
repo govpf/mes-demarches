@@ -331,6 +331,14 @@ module Instructeurs
 
     def update_annotations
       filtered_params = remove_changes_forbidden_by_visa
+      # pf: tous les champs peuvent être rejetés par remove_changes_forbidden_by_visa
+      # (visa validé en aval). On retourne alors un turbo_stream noop qui nettoie
+      # les spinners et évite NoMethodError sur nil.split('-') en aval.
+      if filtered_params.empty?
+        @to_show = @to_hide = @to_update = []
+        respond_to { |format| format.turbo_stream { render :update_annotations } }
+        return
+      end
       public_id, annotation_attributes = filtered_params.to_h.first
       annotation = dossier.private_champ_for_update(public_id, updated_by: current_user.email)
       if annotation.referentiel? && annotation.autocomplete?

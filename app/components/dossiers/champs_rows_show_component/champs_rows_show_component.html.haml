@@ -3,6 +3,7 @@
 - instructeur = controller.respond_to?(:current_instructeur) ? current_instructeur : nil
 - force_stacked = profile == 'instructeur' && (!helpers.dossier_layout_grid_enabled?(instructeur) || helpers.instructeur_champs_layout_mode(instructeur) == :stacked)
 .champs-grid{ class: (force_stacked ? 'champs-grid--stacked' : nil) }
+  - previous_champ = nil
   - each_champ do |champ|
     - if champ.repetition?
       .champ-grid-item.champ-grid-item--full
@@ -13,7 +14,7 @@
             = render ViewableChamp::SectionComponent.new(dossier: champ.dossier, types_de_champ:, row_id:, demande_seen_at: seen_at, profile:)
 
     - else
-      %div{ class: "champ-grid-item #{helpers.champ_display_width_class(champ)}" }
+      %div{ class: ["champ-grid-item", helpers.champ_display_width_class(champ), helpers.champ_break_before_class(champ, previous_champ)].compact.join(' ') }
         = render Dossiers::RowShowComponent.new(label: champ.libelle, seen_at:, profile:, content_class: champ.type_champ, updated_at: updated_at_after_deposer(champ)) do |c|
           - if champ.blank?
             - c.with_blank do
@@ -86,3 +87,4 @@
               - else
                 .copy-zone{ 'data-to-copy': champ.to_s.strip }
                   = helpers.format_text_value(champ.to_s.strip)
+    - previous_champ = champ

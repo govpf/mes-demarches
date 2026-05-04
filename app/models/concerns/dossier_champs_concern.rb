@@ -156,12 +156,14 @@ module DossierChampsConcern
   end
 
   def public_champ_for_update(public_id, updated_by:)
+    return nil if public_id.nil?
     stable_id, row_id = public_id.split('-')
     type_de_champ = find_type_de_champ_by_stable_id(stable_id, :public)
     champ_for_update(type_de_champ, row_id:, updated_by:)
   end
 
   def private_champ_for_update(public_id, updated_by:)
+    return nil if public_id.nil?
     stable_id, row_id = public_id.split('-')
     type_de_champ = find_type_de_champ_by_stable_id(stable_id, :private)
     champ_for_update(type_de_champ, row_id:, updated_by:)
@@ -415,8 +417,12 @@ module DossierChampsConcern
     attributes.merge(id: champ.id, updated_by:)
   end
 
-  def champ_upsert_by!(type_de_champ, row_id)
-    check_valid_stream_on_write?(type_de_champ)
+  # pf: system_write: true → bypass du check stream pour les écritures
+  # système (ex: rebase qui matérialise une formule publique en main alors
+  # que le dossier est en_construction). Les écritures déclenchées par une
+  # action user/instructeur doivent toujours laisser le check actif.
+  def champ_upsert_by!(type_de_champ, row_id, system_write: false)
+    check_valid_stream_on_write?(type_de_champ) unless system_write
     check_valid_row_id_on_write?(type_de_champ, row_id)
 
     # FIXME: This is a temporary on-demand migration. It will be removed once the full migration is over.
