@@ -24021,7 +24021,7 @@
             },
             {
               "name": "piece_justificative",
-              "description": "Pièce justificative",
+              "description": "Pièce à joindre",
               "isDeprecated": false,
               "deprecationReason": null
             },

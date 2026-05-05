@@ -29,12 +29,12 @@ module Users
         @dossiers = current_user.dossiers.select(:id, :created_at, :depose_at, :state).visible_by_user.where(revision:).order(created_at: :desc).to_a
         @drafts, @not_drafts = @dossiers.partition(&:brouillon?)
         @preview_dossiers = @dossiers.take(3)
+
+        store_user_location!(@procedure)
       else
         # pf specific: allows social logins (google, france connect,...) to get back when logged
         store_user_location!(@procedure, @prefilled_dossier)
       end
-
-      store_user_location!(@procedure)
 
       render 'commencer/show'
     end
