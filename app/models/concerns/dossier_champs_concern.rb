@@ -156,12 +156,14 @@ module DossierChampsConcern
   end
 
   def public_champ_for_update(public_id, updated_by:)
+    return nil if public_id.nil?
     stable_id, row_id = public_id.split('-')
     type_de_champ = find_type_de_champ_by_stable_id(stable_id, :public)
     champ_for_update(type_de_champ, row_id:, updated_by:)
   end
 
   def private_champ_for_update(public_id, updated_by:)
+    return nil if public_id.nil?
     stable_id, row_id = public_id.split('-')
     type_de_champ = find_type_de_champ_by_stable_id(stable_id, :private)
     champ_for_update(type_de_champ, row_id:, updated_by:)
@@ -243,12 +245,12 @@ module DossierChampsConcern
     champs.where(id: changed_main_champ_ids, stream: history_stream)
       .where(type: ['Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp'])
       .with_attached_piece_justificative_file.find_each do |champ|
-        files = champ.piece_justificative_file.map { _1.slice(:filename, :checksum) }
-        if files.present?
-          champ.update_column(:data, files)
-          champ.piece_justificative_file.purge_later
-        end
+      files = champ.piece_justificative_file.map { _1.slice(:filename, :checksum) }
+      if files.present?
+        champ.update_column(:data, files)
+        champ.piece_justificative_file.purge_later
       end
+    end
 
     # update loaded champ instances
     champs.each do |champ|
@@ -259,7 +261,30 @@ module DossierChampsConcern
       end
     end
 
+    # pf: Le merge est terminé. Les buffer ont été promus à main, les
+    # anciens main sont passés en history. Le dossier vit conceptuellement
+    # sur main désormais — le @stream encore à user:buffer (hérité du
+    # before_action :set_dossier_stream du controller) ne reflète plus rien.
+    #
+    # On reset les caches dérivés (champs_by_public_id, project_champs_*,
+    # etc. qui pouvaient encore filtrer sur buffer) puis on aligne @stream
+    # explicitement. Toute opération suivante voit un état cohérent.
     reset_champs_cache
+    @stream = Champ::MAIN_STREAM
+
+    # pf: Recalcul des formules privées après merge. Pendant que le dossier
+    # était sur user:buffer, la cascade refresh_dependent_formulas a
+    # explicitement skippé les formules privées (cf. check_valid_stream_on_write?
+    # qui interdit l'écriture privée hors main). Maintenant que les sources
+    # promues sont sur main et que @stream est aligné, on peut les recalculer.
+    #
+    # On cible uniquement les formules privées : les formules publiques ont
+    # été calculées en cascade pendant que le dossier était en buffer (sur
+    # user:buffer), puis promues à main par l'update_all ci-dessus.
+    private_formula_stable_ids = revision.types_de_champ_private
+      .filter(&:formule?)
+      .map(&:stable_id)
+    compute_formulas_in_order(only: private_formula_stable_ids) if private_formula_stable_ids.any?
   end
 
   def reset_user_buffer_stream!
@@ -272,21 +297,15 @@ module DossierChampsConcern
   end
 
   def user_buffer_changes?
-    # TODO remove when all forks are gone
-    return true if forked_with_changes?
-
     champs_on_user_buffer_stream.present?
   end
 
   def user_buffer_changes_on_champ?(champ)
-    # TODO remove when all forks are gone
-    return true if champ_forked_with_changes?(champ)
-
     champs_on_user_buffer_stream.any? { _1.public_id == champ.public_id }
   end
 
   def with_update_stream(user, &block)
-    if update_with_stream? && user.owns_or_invite?(self)
+    if en_construction? && user.owns_or_invite?(self)
       with_stream(Champ::USER_BUFFER_STREAM, &block)
     else
       with_stream(Champ::MAIN_STREAM, &block)
@@ -307,14 +326,6 @@ module DossierChampsConcern
 
   def history
     champs_in_revision.filter(&:history_stream?)
-  end
-
-  def update_with_stream?
-    en_construction? && !with_editing_fork?
-  end
-
-  def update_with_fork?
-    en_construction? && with_editing_fork?
   end
 
   # pf: méthode publique nécessaire pour éviter boucle infinie dans les conditions
@@ -406,8 +417,12 @@ module DossierChampsConcern
     attributes.merge(id: champ.id, updated_by:)
   end
 
-  def champ_upsert_by!(type_de_champ, row_id)
-    check_valid_stream_on_write?(type_de_champ)
+  # pf: system_write: true → bypass du check stream pour les écritures
+  # système (ex: rebase qui matérialise une formule publique en main alors
+  # que le dossier est en_construction). Les écritures déclenchées par une
+  # action user/instructeur doivent toujours laisser le check actif.
+  def champ_upsert_by!(type_de_champ, row_id, system_write: false)
+    check_valid_stream_on_write?(type_de_champ) unless system_write
     check_valid_row_id_on_write?(type_de_champ, row_id)
 
     # FIXME: This is a temporary on-demand migration. It will be removed once the full migration is over.
@@ -425,28 +440,44 @@ module DossierChampsConcern
     end
 
     # Needed when a revision change the champ type in this case, we reset the champ data
+    needs_clone_from_main = false
     if champ.class != type_de_champ.champ_class
       champ = champ.becomes!(type_de_champ.champ_class)
       champ.assign_attributes(value: nil, value_json: nil, external_id: nil, data: nil)
     elsif stream != Champ::MAIN_STREAM && champ.previously_new_record?
-      main_stream_champ = champs.find_by(stable_id: type_de_champ.stable_id, row_id:, stream: Champ::MAIN_STREAM)
-      champ.clone_value_from(main_stream_champ) if main_stream_champ.present?
+      needs_clone_from_main = true
     end
 
-    # If the champ returned from `create_or_find_by` is not the same as the one already loaded in `dossier.champs`, we need to update the association cache
+    # maj de champs
     loaded_champ = champs.find { [_1.stream, _1.public_id] == [champ.stream, champ.public_id] }
-    if loaded_champ.present? && loaded_champ.object_id != champ.object_id
+    if loaded_champ.nil?
+      # pf for race conditions only, multi-thread update of same champ
+      association(:champs).target.push(champ) if champs.loaded?
+    elsif loaded_champ.object_id != champ.object_id
       association(:champs).target = champs - [loaded_champ] + [champ]
     end
-
-    # If the dossier instance on champ has changed we need to update the association cache
+    # pf: rattacher le Champ à self AVANT toute opération qui déclenche la
+    # cascade (clone_value_from → save! → refresh_dependent_formulas). Sinon
+    # la cascade lit champ.dossier qui pointe sur l'instance Dossier
+    # fantôme matérialisée par create_or_find_by!, et tous les Champs
+    # formule créés en cascade s'attachent à ce fantôme — invisibles pour
+    # le contrôleur qui retravaille avec self. Au 2e save (re-cascade
+    # via assign_attributes + save), self.champs ne les contient pas et
+    # create_or_find_by! ne détecte pas le doublon en BDD car la contrainte
+    # unique sur (dossier_id, stream, stable_id, row_id) ne matche pas
+    # quand row_id IS NULL → INSERT crée un doublon.
     if champ.dossier.object_id != object_id
       champ.association(:dossier).target = self
     end
-
     reset_champs_cache
 
-    champ.save!
+    if needs_clone_from_main
+      main_stream_champ = champs.find_by(stable_id: type_de_champ.stable_id, row_id:, stream: Champ::MAIN_STREAM)
+      champ.clone_value_from(main_stream_champ) if main_stream_champ.present?
+    else
+      champ.save!
+    end
+
     champ
   end
 
@@ -455,10 +486,8 @@ module DossierChampsConcern
       if stream != Champ::MAIN_STREAM
         raise "Can not write a private champ to \"#{stream}\" stream"
       end
-    elsif !with_editing_fork?
-      if stream == Champ::MAIN_STREAM && en_construction?
-        raise 'Can not write to "main" stream on a dossier "en construction"'
-      end
+    elsif stream == Champ::MAIN_STREAM && en_construction?
+      raise 'Can not write to "main" stream on a dossier "en construction"'
     end
   end
 

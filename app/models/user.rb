@@ -13,7 +13,7 @@ class User < ApplicationRecord
     google: 'google',
     microsoft: 'microsoft',
     yahoo: 'yahoo',
-    tatou: 'tatou'
+    tatou: 'tatou',
   }
 
   # Include default devise modules. Others available are:
@@ -93,11 +93,7 @@ class User < ApplicationRecord
   end
 
   def invite?(dossier)
-    if dossier.editing_fork?
-      invites.exists?(dossier: dossier.editing_fork_origin_id)
-    else
-      invites.exists?(dossier:)
-    end
+    invites.exists?(dossier:)
   end
 
   def owns_or_invite?(dossier)
@@ -294,7 +290,7 @@ class User < ApplicationRecord
       [
         [old_user.instructeur, instructeur],
         [old_user.expert, expert],
-        [old_user.administrateur, administrateur]
+        [old_user.administrateur, administrateur],
       ].each do |old_role, targeted_role|
         if targeted_role.nil?
           old_role&.update(user: self)

@@ -17,7 +17,7 @@ class APITeFenua::PlaceAdapter < APITeFenua::Adapter
       if source.present?
         result = {
           label: "#{source[:resultat_titre]} - #{source[:resultat_localisation]}",
-          point: source[:point][:coordinates]
+          point: source[:point][:coordinates],
         }
         e = source[:extent]
         if e.present? && e.length == 4 && e[0] != e[2] && e[1] != e[3]

@@ -18,7 +18,8 @@ class Instructeurs::ColumnFilterComponent < ApplicationComponent
       id: 'search-filter',
       'aria-describedby': 'instructeur-filter-combo-label',
       form: 'filter-component',
-      data: { no_autosubmit: 'input blur', no_autosubmit_on_empty: 'true', autosubmit_target: 'input' }
+      is_required: true,
+      data: { no_autosubmit: 'input blur', no_autosubmit_on_empty: 'true', autosubmit_target: 'input' },
     }
   end
 

@@ -10,7 +10,7 @@ class TypeDeChamp < ApplicationRecord
     lexpol: :lexpol,
     expression_reguliere: :expression_reguliere_type_de_champ,
     referentiel_de_polynesie: :referentiel_de_polynesie,
-    formule: :formule
+    formule: :formule,
   }
 
   MINIMUM_TEXTAREA_CHARACTER_LIMIT_LENGTH = 400
@@ -24,7 +24,7 @@ class TypeDeChamp < ApplicationRecord
     te_fenua: 'te_fenua',
     lexpol: 'lexpol',
     visa: 'visa',
-    formule: 'formule'
+    formule: 'formule',
   }
 
   STRUCTURE = :structure
@@ -47,7 +47,7 @@ class TypeDeChamp < ApplicationRecord
     lexpol: REFERENTIEL_EXTERNE,
     referentiel_de_polynesie: REFERENTIEL_EXTERNE,
     visa: STRUCTURE,
-    formule: STANDARD
+    formule: STANDARD,
   }
 
   TYPE_DE_CHAMP_TO_CATEGORIE = {
@@ -91,7 +91,7 @@ class TypeDeChamp < ApplicationRecord
     dgfip: REFERENTIEL_EXTERNE,
     pole_emploi: REFERENTIEL_EXTERNE,
     mesri: REFERENTIEL_EXTERNE,
-    cojo: REFERENTIEL_EXTERNE
+    cojo: REFERENTIEL_EXTERNE,
   }.merge(INSTANCE_TYPE_DE_CHAMP_TO_CATEGORIE)
 
   enum :type_champ, {
@@ -135,7 +135,7 @@ class TypeDeChamp < ApplicationRecord
     mesri: 'mesri',
     epci: 'epci',
     cojo: 'cojo',
-    referentiel: 'referentiel'
+    referentiel: 'referentiel',
   }.merge(INSTANCE_TYPE_CHAMPS)
 
   INSTANCE_OPTIONS_BY_TYPE = {
@@ -146,7 +146,7 @@ class TypeDeChamp < ApplicationRecord
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
     visa: [:accredited_users],
-    formule: [:formule_expression, :dependent_stable_ids, :formule_output_type, :clock_dependent, :state_dependent]
+    formule: [:formule_expression, :dependent_stable_ids, :formule_output_type, :clock_dependent, :state_dependent],
   }
   INSTANCE_OPTIONS = INSTANCE_OPTIONS_BY_TYPE.values.reduce(&:+).uniq
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
@@ -162,11 +162,11 @@ class TypeDeChamp < ApplicationRecord
     type_champs.fetch(:regions),
     type_champs.fetch(:pays),
     type_champs.fetch(:epci),
-    type_champs.fetch(:address)
+    type_champs.fetch(:address),
   ]
 
   PRIVATE_ONLY_TYPES = [
-    type_champs.fetch(:engagement_juridique)
+    type_champs.fetch(:engagement_juridique),
   ]
 
   store_accessor :options,
@@ -253,7 +253,7 @@ class TypeDeChamp < ApplicationRecord
   validates :character_limit, numericality: {
     greater_than_or_equal_to: MINIMUM_TEXTAREA_CHARACTER_LIMIT_LENGTH,
     only_integer: true,
-    allow_blank: true
+    allow_blank: true,
   }
 
   after_initialize :set_dynamic_type
@@ -342,7 +342,7 @@ class TypeDeChamp < ApplicationRecord
       private: private?,
       type: champ_class.name,
       stable_id:,
-      stream: Champ::MAIN_STREAM
+      stream: Champ::MAIN_STREAM,
     }
   end
 
@@ -419,7 +419,7 @@ class TypeDeChamp < ApplicationRecord
       TypeDeChamp.type_champs.fetch(:multiple_drop_down_list),
       TypeDeChamp.type_champs.fetch(:epci),
       TypeDeChamp.type_champs.fetch(:dossier_link),
-      TypeDeChamp.type_champs.fetch(:siret)
+      TypeDeChamp.type_champs.fetch(:siret),
     ])
   end
 
@@ -430,7 +430,7 @@ class TypeDeChamp < ApplicationRecord
   def non_fillable?
     type_champ.in?([
       TypeDeChamp.type_champs.fetch(:header_section),
-      TypeDeChamp.type_champs.fetch(:explication)
+      TypeDeChamp.type_champs.fetch(:explication),
     ])
   end
 
@@ -438,7 +438,7 @@ class TypeDeChamp < ApplicationRecord
     type_champ.in?([
       TypeDeChamp.type_champs.fetch(:header_section),
       TypeDeChamp.type_champs.fetch(:explication),
-      TypeDeChamp.type_champs.fetch(:repetition)
+      TypeDeChamp.type_champs.fetch(:repetition),
     ])
   end
 
@@ -447,7 +447,7 @@ class TypeDeChamp < ApplicationRecord
       TypeDeChamp.type_champs.fetch(:checkbox),
       TypeDeChamp.type_champs.fetch(:drop_down_list),
       TypeDeChamp.type_champs.fetch(:multiple_drop_down_list),
-      TypeDeChamp.type_champs.fetch(:yes_no)
+      TypeDeChamp.type_champs.fetch(:yes_no),
     ])
   end
 
@@ -763,14 +763,14 @@ class TypeDeChamp < ApplicationRecord
 
   def self.refresh_after_update?(type_champ)
     # We should refresh all champs after update except for champs using react or custom refresh
-    # logic (RNA, SIRET, etc.)
+    # logic (RNA, etc.). SIRET now uses the generic state machine + turbo-poll flow.
     case type_champ
     when type_champs.fetch(:carte),
       type_champs.fetch(:titre_identite),
       type_champs.fetch(:rna),
-      type_champs.fetch(:siret),
+      # pf: custom react-based widgets
       type_champs.fetch(:numero_dn),
-      type_champs.fetch(:te_fenua),
+      type_champs.fetch(:te_fenua)
       false
     else
       true
@@ -847,9 +847,9 @@ class TypeDeChamp < ApplicationRecord
     type_champs.fetch(:formatted) => [
       :formatted_mode, :numbers_accepted, :letters_accepted, :special_characters_accepted,
       :min_character_length, :max_character_length,
-      :expression_reguliere, :expression_reguliere_indications, :expression_reguliere_exemple_text, :expression_reguliere_error_message
+      :expression_reguliere, :expression_reguliere_indications, :expression_reguliere_exemple_text, :expression_reguliere_error_message,
     ],
-    type_champs.fetch(:referentiel) => [:referentiel_mapping]
+    type_champs.fetch(:referentiel) => [:referentiel_mapping],
   }.merge(INSTANCE_OPTIONS_BY_TYPE.transform_keys { |k| type_champs.fetch(k) })
 
   def clean_options
@@ -938,7 +938,7 @@ class TypeDeChamp < ApplicationRecord
   def piece_justificative_or_titre_identite?
     type_champ.in?([
       TypeDeChamp.type_champs.fetch(:piece_justificative),
-      TypeDeChamp.type_champs.fetch(:titre_identite)
+      TypeDeChamp.type_champs.fetch(:titre_identite),
     ])
   end
 
@@ -946,7 +946,7 @@ class TypeDeChamp < ApplicationRecord
     type_champ.in?([
       TypeDeChamp.type_champs.fetch(:drop_down_list),
       TypeDeChamp.type_champs.fetch(:multiple_drop_down_list),
-      TypeDeChamp.type_champs.fetch(:linked_drop_down_list)
+      TypeDeChamp.type_champs.fetch(:linked_drop_down_list),
     ])
   end
 

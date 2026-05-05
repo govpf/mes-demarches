@@ -3,7 +3,9 @@
   - if @champ.mandatory?
     = render EditableChamp::AsteriskMandatoryComponent.new
 
-- if @champ.user_buffer_changes?
+-# pf: pas de "modification à déposer" pour les formules — leur recalcul
+-# automatique en cascade n'est pas une action usager à confirmer.
+- if @champ.user_buffer_changes? && !@champ.formule?
   %span.updated-at.highlighted
     = t('.changes_to_save')
 - elsif @champ.updated_at.present? && @seen_at.present?
@@ -14,7 +16,7 @@
   %span.updated-at.highlighted
     = t('.check_content_rebased')
 
-- if hint?
+- if hint_renderable?
   %span.fr-hint-text{ data: { controller: 'date-input-hint' } }= hint
 
 - if @champ.textarea? && @champ.character_limit_base&.positive?

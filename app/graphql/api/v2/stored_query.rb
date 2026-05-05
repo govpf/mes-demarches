@@ -428,6 +428,9 @@ class API::V2::StoredQuery
       collapsibleExplanationEnabled
       collapsibleExplanationText
     }
+    ... on HeaderSectionChampDescriptor {
+      level
+    }
   }
 
   fragment AvisFragment on Avis {
@@ -481,6 +484,7 @@ class API::V2::StoredQuery
   fragment RootChampFragment on Champ {
     ... on RepetitionChamp {
       rows {
+        id
         champs {
           ...ChampFragment
         }
@@ -535,6 +539,9 @@ class API::V2::StoredQuery
     ... on LinkedDropDownListChamp {
       primaryValue
       secondaryValue
+    }
+    ... on DropDownListChamp {
+      value
     }
     ... on MultipleDropDownListChamp {
       values
@@ -622,6 +629,10 @@ class API::V2::StoredQuery
         ...EngagementJuridiqueFragment
       }
     }
+    ... on HeaderSectionChamp {
+      level
+    }
+    ... on ExplicationChamp {}
   }
 
   fragment PersonneMoraleFragment on PersonneMorale {

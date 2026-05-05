@@ -113,6 +113,41 @@ Cette section documente les modifications techniques spécifiques à la Polynés
 ### SiretTypeDeChamp (`app/models/types_de_champ/siret_type_de_champ.rb:4`)
 - Les champs commune, code postal, département, région ne sont pas remplis pour les Numéros Tahiti
 
+### SiretChamp — flow Tahiti sur la state machine upstream (depuis bump 2025-11-03-03)
+
+Le champ SIRET suit désormais la machine à états générique `ChampExternalDataConcern`
+(upstream) avec des adaptations PF pour gérer les numéros TAHITI en plus du SIRET français.
+
+**Formats acceptés** :
+- 14 chars : SIRET français (API Entreprise, flux upstream standard)
+- 9 chars : numéro TAHITI complet (ex. `G33972001`) via API ISPF `i-taiete`
+- 6-8 chars : numéro TAHITI partiel → résolution ambiguë (voir état `multiple_found`)
+
+**État AASM `multiple_found`** (`app/models/concerns/champ_external_data_concern.rb`)
+Nouveau transition `fetching → multiple_found` spécifique PF, déclenchée quand un
+numéro TAHITI 6-8 chars correspond à **plusieurs établissements**. Les candidats sont
+stockés dans la colonne `data` (`{ multiple_found: [...] }`) et affichés via
+`EditableChamp::EtablissementsListComponent`. Le clic sur un établissement remplit
+l'input avec le numéro 9 chars complet, ce qui déclenche un nouveau cycle
+`reset_external_data! + fetch_later!` → `fetched`.
+
+**Auto-complétion 6 → 9 chars** (`app/models/champs/siret_champ.rb` +
+`app/services/api_entreprise_service.rb#create_etablissement_from_pf_candidate`)
+Quand un numéro 6-8 chars matche **un seul** établissement, on construit
+l'établissement directement à partir du candidat déjà récupéré par
+`list_etablissements` — évite un 2e appel ISPF inutile.
+
+**Validateur custom** (`app/validators/siret_validator.rb`)
+Remplace la gem `siret_validator` (qui ne connaît que 14 chars) pour accepter
+les longueurs 6/9/14 et skipper la validation Luhn pour les numéros TAHITI
+(qui n'utilisent pas ce checksum).
+
+**Fichiers clés** :
+- `app/models/champs/siret_champ.rb` — dispatch par longueur dans `fetch_external_data`
+- `app/lib/api_entreprise/pf_api.rb` + `pf_etablissement_adapter.rb` — client API ISPF
+- `app/components/editable_champ/etablissements_list_component/` — UI liste + JS de sélection
+- `app/components/dsfr/input_status_message_component.rb` — message de statut `multiple_found`
+
 ### DecimalNumberChamp (`app/models/champs/decimal_number_champ.rb:7`)
 - Optimisation des messages d'erreur pour éviter les erreurs "trois chiffres" avec des caractères non numériques
 

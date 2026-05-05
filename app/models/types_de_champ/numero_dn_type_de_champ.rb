@@ -8,7 +8,7 @@ class TypesDeChamp::NumeroDnTypeDeChamp < TypesDeChamp::TypeDeChampBase
       description: "#{description} (Date de naissance)",
       path: :date_de_naissance,
       example: Date.today,
-      maybe_null: public? && !mandatory?
+      maybe_null: public? && !mandatory?,
     })
     paths
   end

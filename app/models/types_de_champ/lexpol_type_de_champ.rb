@@ -7,19 +7,19 @@ class TypesDeChamp::LexpolTypeDeChamp < TypesDeChamp::TypeDeChampBase
       libelle: "#{libelle} (statut)",
       description: "#{description} (statut)",
       path: :lexpol_status,
-      maybe_null: public? && !mandatory?
+      maybe_null: public? && !mandatory?,
     })
     paths.push({
       libelle: "#{libelle} (lien dossier)",
       description: "#{description} (lien dossier)",
       path: :lexpol_dossier_url,
-      maybe_null: public? && !mandatory?
+      maybe_null: public? && !mandatory?,
     })
     paths.push({
       libelle: "#{libelle} (lien arrêté)",
       description: "#{description} (lien arrêté)",
       path: :lexpol_arrete_lien,
-      maybe_null: public? && !mandatory?
+      maybe_null: public? && !mandatory?,
     })
     paths
   end

@@ -61,13 +61,27 @@ class Instructeurs::CellComponent < ApplicationComponent
     when :datetime
       raw_value = DateTime.parse(raw_value) if raw_value.is_a?(String)
       I18n.l(raw_value)
+    when :integer, :decimal
+      # pf: ChampColumn#typed_value force `.to_f` sur les colonnes :decimal,
+      # ce qui produit 56.0 pour une formule retournant un entier (stocké
+      # en chaîne "56"). On le ramène à un Integer quand le nombre est entier
+      # pour un affichage propre (pas de ".0" résiduel). Bénéfique aussi pour
+      # les colonnes decimal_number natives saisies sans décimales.
+      # On préserve le type Numeric quand l'entrée est Numeric — la conversion
+      # finale en string est faite par le rendu HTML, pas ici.
+      if raw_value.is_a?(Numeric)
+        raw_value % 1 == 0 ? raw_value.to_i : raw_value
+      else
+        raw_value
+      end
     else
-      raw_value
+      # Escape if it's a string and not already safe
+      raw_value.html_safe? ? raw_value : html_escape(raw_value.to_s)
     end
   end
 
   def format_enums(column:, raw_values:)
-    raw_values.map { format_enum(column:, raw_value: _1) }.join(', ')
+    safe_join(raw_values.map { format_enum(column:, raw_value: _1) }, ', ')
   end
 
   def format_enum(column:, raw_value:)
@@ -79,15 +93,16 @@ class Instructeurs::CellComponent < ApplicationComponent
 
     if dossier.for_tiers
       prenom, nom = dossier&.individual&.prenom, dossier&.individual&.nom
-      "#{email} #{I18n.t('views.instructeurs.dossiers.acts_on_behalf')} #{prenom} #{nom}"
+      safe_join([email, I18n.t('views.instructeurs.dossiers.acts_on_behalf'), prenom, nom], ' ')
     else
-      email
+      html_escape(email)
     end
   end
 
   def sum_up_avis(avis)
-    avis.map(&:question_answer)&.compact&.tally
+    result = avis.map(&:question_answer)&.compact&.tally
       &.map { |k, v| I18n.t("helpers.label.question_answer_with_count.#{k}", count: v) }
-      &.join(' / ')
+
+    result ? safe_join(result, ' / ') : nil
   end
 end

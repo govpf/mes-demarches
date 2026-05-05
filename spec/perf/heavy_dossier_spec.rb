@@ -48,10 +48,10 @@ describe Users::DossiersController, type: :controller do
             champs_public_attributes: {
               last_champ.public_id => {
                 with_public_id: true,
-                value: true
-              }
-            }
-          }
+                value: true,
+              },
+            },
+          },
         }
       end
 
@@ -70,7 +70,6 @@ describe Users::DossiersController, type: :controller do
     describe 'POST #submit_en_construction' do
       before do
         dossier.passer_en_construction!
-        dossier.owner_editing_fork
       end
 
       it '', :slow do

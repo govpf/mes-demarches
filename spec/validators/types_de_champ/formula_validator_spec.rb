@@ -93,9 +93,9 @@ RSpec.describe TypesDeChamp::FormulaValidator do
   context 'with a private formula referencing a public champ' do
     let(:procedure) do
       create(:procedure, types_de_champ_public: [
-        { type: :integer_number, libelle: 'Montant' }
+        { type: :integer_number, libelle: 'Montant' },
       ], types_de_champ_private: [
-        { type: :formule, libelle: 'Calcul Privé' }
+        { type: :formule, libelle: 'Calcul Privé' },
       ])
     end
 

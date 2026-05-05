@@ -14,7 +14,7 @@ class FilteredColumn
   validate :check_filter_max_length
   validate :check_filter_max_integer
   validates :filter, presence: {
-    message: -> (object, _data) { "Le filtre « #{object.label} » ne peut pas être vide" }
+    message: -> (object, _data) { "Le filtre « #{object.label} » ne peut pas être vide" },
   }
 
   def initialize(column:, filter:)
@@ -27,7 +27,7 @@ class FilteredColumn
   end
 
   def id
-    column.h_id.merge(filter:).sort.to_json
+    column.h_id.merge(filter: filter.is_a?(Hash) ? filter.to_a.sort : filter).sort.to_json
   end
 
   def filter_operator
@@ -35,7 +35,7 @@ class FilteredColumn
   end
 
   def filter_value
-    Array(filter.is_a?(String) ? filter : filter[:value])
+    Array(filter.is_a?(String) ? filter : filter&.dig(:value))
   end
 
   private

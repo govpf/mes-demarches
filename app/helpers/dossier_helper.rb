@@ -36,7 +36,6 @@ module DossierHelper
   end
 
   def dossier_submission_is_closed?(dossier)
-    return false if dossier.editing_fork?
     dossier.brouillon? && dossier.procedure.close?
   end
 
@@ -119,8 +118,8 @@ module DossierHelper
       ))
   end
 
-  def correction_resolved_badge(change, html_class: nil)
-    tag.span(Dossier.human_attribute_name("pending_correction.#{change}"), class: ['fr-badge fr-badge--sm', html_class])
+  def correction_resolved_badge(type, html_class: nil)
+    tag.span(Dossier.human_attribute_name("pending_correction.#{type}"), class: ['fr-badge fr-badge--sm', html_class])
   end
 
   def tags_label(labels)
@@ -145,7 +144,7 @@ module DossierHelper
       safe_join([
         tag.span(count, class: "fr-background-alt--grey fr-my-1v fr-mr-1v fr-px-1v fr-text-default--grey"),
         tag.span(nil, class: [badge_notification_class(type), 'fr-my-0', 'fr-mx-0', 'fr-px-0'], aria: { hidden: true }),
-        badge_notification_text(type, generic: true)
+        badge_notification_text(type, generic: true),
       ])
     end
   end

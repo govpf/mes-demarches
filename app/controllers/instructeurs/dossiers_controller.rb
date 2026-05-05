@@ -327,6 +327,14 @@ module Instructeurs
 
     def update_annotations
       filtered_params = remove_changes_forbidden_by_visa
+      # pf: tous les champs peuvent être rejetés par remove_changes_forbidden_by_visa
+      # (visa validé en aval). On retourne alors un turbo_stream noop qui nettoie
+      # les spinners et évite NoMethodError sur nil.split('-') en aval.
+      if filtered_params.empty?
+        @to_show = @to_hide = @to_update = []
+        respond_to { |format| format.turbo_stream { render :update_annotations } }
+        return
+      end
       public_id, annotation_attributes = filtered_params.to_h.first
       annotation = dossier.private_champ_for_update(public_id, updated_by: current_user.email)
       if annotation.referentiel? && annotation.autocomplete?
@@ -339,7 +347,7 @@ module Instructeurs
         annotation.update_timestamps
 
         if annotation.uses_external_data?
-          annotation.reset_external_data! if annotation.may_reset_external_data?
+          annotation.reset_external_data!
           annotation.fetch_later! if annotation.may_fetch_later?
         end
 
@@ -347,7 +355,7 @@ module Instructeurs
         DossierNotification.create_notification(dossier, :annotation_instructeur, except_instructeur: current_instructeur) if !dossier.brouillon?
       end
 
-      dossier.validate(:champs_private_value) if !annotation.waiting_for_external_data?
+      dossier.validate(:champs_private_value) if !annotation.pending?
 
       ChampRevision.create_or_update_revision_if_needed(dossier, champs_private_attributes_params, current_instructeur.id)
 
@@ -367,7 +375,7 @@ module Instructeurs
       @dossier = dossier_with_champs
       type_de_champ = @dossier.find_type_de_champ_by_stable_id(params[:stable_id], :private)
       annotation = @dossier.project_champ(type_de_champ, row_id: params[:row_id])
-      annotation.validate(:champs_public_value) if annotation.external_data_fetched?
+      annotation.validate(:champs_public_value) if annotation.done?
 
       respond_to do |format|
         format.turbo_stream do
@@ -542,7 +550,7 @@ module Instructeurs
         :country_code,
         :commune_code,
         :postal_code,
-        value: []
+        value: [],
       ] + TypeDeChamp::INSTANCE_CHAMPS_PARAMS
       # Strong attributes do not support records (indexed hash); they only support hashes with
       # static keys. We create a static hash based on the available keys.
@@ -595,6 +603,7 @@ module Instructeurs
 
     def mark_messagerie_as_read
       current_instructeur.mark_tab_as_seen(dossier, :messagerie)
+      Commentaire.mark_usager_messages_as_seen(dossier)
     end
 
     def mark_avis_as_read

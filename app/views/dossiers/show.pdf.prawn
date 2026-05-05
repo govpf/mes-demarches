@@ -37,7 +37,7 @@ def format_in_2_lines(pdf, label, text)
   text = prawn_text(text)
   min_height = [
     label.present? ? pdf.height_of_formatted([{ text: label, style: :bold, size: 12 }]) : nil,
-    text.present? ? pdf.height_of_formatted([{ text: text, size: 9, inline_format: true }]) : nil
+    text.present? ? pdf.height_of_formatted([{ text: text, size: 9, inline_format: true }]) : nil,
   ].compact.sum
   maybe_start_new_page(pdf, min_height)
 
@@ -269,7 +269,7 @@ def add_avis(pdf, avis)
     pdf.height_of_formatted([{ text: answer, size: 12 }]),
 
     binary_question.present? ? pdf.height_of_formatted([{ text: binary_question, size: 12 }]) : nil,
-    binary_answer.present? ? pdf.height_of_formatted([{ text: binary_answer, size: 12 }]) : nil
+    binary_answer.present? ? pdf.height_of_formatted([{ text: binary_answer, size: 12 }]) : nil,
   ].compact.sum
 
   maybe_start_new_page(pdf, min_height)
@@ -339,7 +339,7 @@ prawn_document(page_size: "A4") do |pdf|
     normal: Rails.root.join('lib/prawn/fonts/marianne/marianne-regular.ttf'),
     bold: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf'),
     bold_italic: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf'),
-    italic: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf')
+    italic: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf'),
   })
   pdf.font 'marianne'
   pdf.fallback_fonts = ['Helvetica']

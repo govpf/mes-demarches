@@ -20,7 +20,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
           url: 'https://rnb-api.beta.gouv.fr',
           test_data: 'test',
           hint: 'howtofillme',
-          mode: 'exact_match'
+          mode: 'exact_match',
         }
       end
       let(:referentiel) { create(:api_referentiel, **original_data) }
@@ -55,7 +55,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
           hint: 'Identifiant unique du bâtiment dans le RNB, composé de 12 chiffre et lettre',
           test_data: 'PG46YY6YWCX8',
           authentication_data: { header: 'Authorization', value: 'Bearer secret-token' },
-          authentication_method: 'header_token'
+          authentication_method: 'header_token',
         }
       end
 
@@ -86,7 +86,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
             mode: 'exact_match',
             url: 'https://rnb-api.beta.gouv.fr/api/alpha/buildings/{id}/',
             hint: 'Identifiant unique du bâtiment dans le RNB, composé de 12 chiffre et lettre',
-            test_data: 'PG46YY6YWCX8'
+            test_data: 'PG46YY6YWCX8',
           }
         end
 
@@ -113,7 +113,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
             mode: 'autocomplete',
             url: 'https://rnb-api.beta.gouv.fr/api/alpha/buildings/{id}/',
             hint: 'Identifiant unique du bâtiment dans le RNB, composé de 12 chiffre et lettre',
-            test_data: 'PG46YY6YWCX8'
+            test_data: 'PG46YY6YWCX8',
           }
         end
 
@@ -144,7 +144,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
         commit: 'Étape suivante',
         procedure_id: procedure.id,
         stable_id:,
-        referentiel: { type: 'Referentiels::BaserowReferentiel', table_id: '42', mode: 'autocomplete' }
+        referentiel: { type: 'Referentiels::BaserowReferentiel', table_id: '42', mode: 'autocomplete' },
       }, format: :turbo_stream
     end
 
@@ -218,7 +218,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
           mode: 'exact_match',
           url: 'https://rnb-api.beta.gouv.fr/api/alpha/buildings/{id}/',
           hint: 'Identifiant unique du bâtiment dans le RNB',
-          test_data: 'PG46YY6YWCX8'
+          test_data: 'PG46YY6YWCX8',
         }
       end
 
@@ -302,8 +302,8 @@ describe Administrateurs::ReferentielsController, type: :controller do
           type: "type",
           prefill: "1",
           display_usager: "1",
-          display_instructeur: "1"
-        }
+          display_instructeur: "1",
+        },
       }
     end
     let(:types_de_champ_public) { [{ type: :referentiel, stable_id:, referentiel_mapping: initial_mapping }] }
@@ -314,7 +314,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
         procedure_id: procedure.id,
             stable_id: stable_id,
             id: referentiel.id,
-            type_de_champ: { referentiel_mapping: payload_referentiel_mapping }
+            type_de_champ: { referentiel_mapping: payload_referentiel_mapping },
       }
     end
 
@@ -359,8 +359,8 @@ describe Administrateurs::ReferentielsController, type: :controller do
         "$.jsonpath" => {
           type: "type",
           prefill: "prefill",
-          libelle: "libelle"
-        }
+          libelle: "libelle",
+        },
       }
     end
     let(:type_de_champ) { procedure.draft_revision.types_de_champ.first }
@@ -386,7 +386,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
     let(:types_de_champ_public) do
       [
         { type: :referentiel, stable_id: stable_id, referentiel_mapping: },
-        { type: :text, stable_id: prefillable_stable_id }
+        { type: :text, stable_id: prefillable_stable_id },
       ]
     end
     let(:types_de_champ_private) { [] }
@@ -401,8 +401,8 @@ describe Administrateurs::ReferentielsController, type: :controller do
       {
         "$.jsonpath1" => {
           "type" => "Chaine de caractères",
-          "prefill" => "1"
-        }
+          "prefill" => "1",
+        },
       }
     end
 
@@ -413,9 +413,9 @@ describe Administrateurs::ReferentielsController, type: :controller do
             "$.jsonpath1" => {
               "type" => "Chaine de caractères",
               prefill_stable_id: prefillable_stable_id,
-              "prefill" => "1"
-            }
-          }
+              "prefill" => "1",
+            },
+          },
         }
       end
       context 'when referentiel is public' do
@@ -424,7 +424,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
             procedure_id: procedure.id,
             stable_id: type_de_champ.stable_id,
             id: referentiel.id,
-            type_de_champ: update_params
+            type_de_champ: update_params,
           }
           expect(response).to redirect_to(champs_admin_procedure_path(procedure))
           expect(flash[:notice]).to eq("La configuration du pré remplissage des champs et/ou affichage des données récupérées a bien été enregistrée")
@@ -439,7 +439,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
         let(:types_de_champ_private) do
           [
             { type: :referentiel, stable_id: stable_id, referentiel_mapping: },
-            { type: :text, stable_id: prefillable_stable_id }
+            { type: :text, stable_id: prefillable_stable_id },
           ]
         end
         let(:types_de_champ_public) { [] }
@@ -448,7 +448,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
             procedure_id: procedure.id,
               stable_id: type_de_champ.stable_id,
               id: referentiel.id,
-              type_de_champ: update_params
+              type_de_champ: update_params,
           }
           expect(response).to redirect_to(annotations_admin_procedure_path(procedure))
         end
@@ -467,9 +467,9 @@ describe Administrateurs::ReferentielsController, type: :controller do
             id: referentiel.id,
             referentiel: {
               datasource: "$.results",
-              tiptap_template: { type: "OK" }.to_json
+              tiptap_template: { type: "OK" }.to_json,
             },
-            commit: 'Enregistrer la configuration'
+            commit: 'Enregistrer la configuration',
           }
         end
 
@@ -513,9 +513,9 @@ describe Administrateurs::ReferentielsController, type: :controller do
         {
           referentiel_mapping: {
             "jsonpath1" => {
-              prefill_stable_id: prefillable_stable_id
-            }
-          }
+              prefill_stable_id: prefillable_stable_id,
+            },
+          },
         }
       end
 
@@ -527,7 +527,7 @@ describe Administrateurs::ReferentielsController, type: :controller do
           procedure_id: procedure.id,
           stable_id: type_de_champ.stable_id,
           id: referentiel.id,
-          type_de_champ: update_params
+          type_de_champ: update_params,
         }
         expect(response).to redirect_to(prefill_and_display_admin_procedure_referentiel_path(procedure, type_de_champ.stable_id, referentiel))
         expect(flash[:alert]).to eq("Une erreur est survenue")

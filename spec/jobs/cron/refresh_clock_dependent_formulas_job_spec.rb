@@ -4,7 +4,7 @@ describe Cron::RefreshClockDependentFormulasJob do
   let(:clock_dep_procedure) {
     create(:procedure, :published, types_de_champ_public: [
       { type: :date, libelle: 'Date de naissance' },
-      { type: :formule, libelle: 'Age' }
+      { type: :formule, libelle: 'Age' },
     ])
   }
   let(:clock_dep_revision) { clock_dep_procedure.active_revision }
@@ -12,7 +12,7 @@ describe Cron::RefreshClockDependentFormulasJob do
   let(:non_clock_procedure) {
     create(:procedure, :published, types_de_champ_public: [
       { type: :integer_number, libelle: 'Prix' },
-      { type: :formule, libelle: 'Double' }
+      { type: :formule, libelle: 'Double' },
     ])
   }
   let(:non_clock_revision) { non_clock_procedure.active_revision }

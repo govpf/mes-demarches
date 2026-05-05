@@ -64,3 +64,4 @@ app/graphql/schema.json
 public/graphql/schema
 /docker/
 /config/secrets/
+.claude/settings.local.json
