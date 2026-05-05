@@ -241,6 +241,7 @@ RSpec.describe DossierStateConcern do
     end
   end
 
+  # pf: tests pour la prégénération de variants des pièces jointes images
   describe 'warm_pj_previews' do
     let(:procedure) { create(:procedure, :published, :for_individual, types_de_champ_public: [{ type: :piece_justificative, stable_id: 100 }], declarative_with_state: nil, auto_archive_on: nil) }
     let(:dossier) { create(:dossier, :en_instruction, :with_individual, procedure:) }
@@ -302,6 +303,51 @@ RSpec.describe DossierStateConcern do
         expect {
           dossier.send(:warm_pj_previews)
         }.to change { ActiveStorage::VariantRecord.where(id: orphan_variant.id).count }.from(1).to(0)
+      end
+    end
+  end
+
+  describe 'auto purge piece justificative after decision' do
+    let(:file) { fixture_file_upload('spec/fixtures/files/logo_test_procedure.png', 'image/png') }
+
+    before { allow(ClamavService).to receive(:safe_file?).and_return(true) }
+
+    context 'when nature is TITRE_IDENTITE' do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :piece_justificative, nature: 'TITRE_IDENTITE' }]) }
+      let(:dossier) { create(:dossier, :en_instruction, :followed, procedure:) }
+      let(:instructeur) { dossier.followers_instructeurs.first }
+      let(:champ) { dossier.champs.first }
+
+      it 'destroys champ on accepter' do
+        champ.piece_justificative_file.attach(file)
+        dossier.accepter!(instructeur: instructeur, motivation: 'ok')
+        expect { champ.reload }.to raise_error(ActiveRecord::RecordNotFound)
+      end
+    end
+
+    context 'when pj_auto_purge is enabled' do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :piece_justificative, pj_auto_purge: '1' }]) }
+      let(:dossier) { create(:dossier, :en_instruction, :followed, procedure:) }
+      let(:instructeur) { dossier.followers_instructeurs.first }
+      let(:champ) { dossier.champs.first }
+
+      it 'destroys champ on accepter' do
+        champ.piece_justificative_file.attach(file)
+        dossier.accepter!(instructeur: instructeur, motivation: 'ok')
+        expect { champ.reload }.to raise_error(ActiveRecord::RecordNotFound)
+      end
+    end
+
+    context 'when standard piece justificative' do
+      let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :piece_justificative }]) }
+      let(:dossier) { create(:dossier, :en_instruction, :followed, procedure:) }
+      let(:instructeur) { dossier.followers_instructeurs.first }
+      let(:champ) { dossier.champs.first }
+
+      it 'keeps attachments on accepter' do
+        champ.piece_justificative_file.attach(file)
+        dossier.accepter!(instructeur: instructeur, motivation: 'ok')
+        expect(champ.reload.piece_justificative_file.attached?).to be true
       end
     end
   end

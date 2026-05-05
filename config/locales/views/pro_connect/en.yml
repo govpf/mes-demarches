@@ -8,6 +8,6 @@ en:
       # full_deploy_body: All ministries and operators can use it today
       you_are_a_citizen: Are you a citizen?
       citizen_page: Connect to your space
-      signin_with: "Sign in with"
+      # pf: French Polynesia tagline
       whats_ds: '%{application_name}, the platform to dematerialize administrative procedures for French Polynesia'
       pro_email: Professional email address

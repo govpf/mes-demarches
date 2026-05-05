@@ -35,6 +35,13 @@ class Champ < ApplicationRecord
   delegate :libelle,
     :type_champ,
     :description,
+    :max_file_size_bytes,
+    :allowed_content_types,
+    :titre_identite_nature?,
+    :rib_nature?,
+    :pj_limit_formats?,
+    :pj_format_families,
+    :pj_auto_purge?,
     :drop_down_options,
     :drop_down_other?,
     :value_is_in_options?,
@@ -120,6 +127,12 @@ class Champ < ApplicationRecord
 
   def child?
     row_id.present? && !is_type?(TypeDeChamp.type_champs.fetch(:repetition))
+  end
+
+  def parent
+    return nil if row_id.blank?
+
+    dossier.revision.parent_of(type_de_champ)
   end
 
   def row?
@@ -221,10 +234,6 @@ class Champ < ApplicationRecord
     else
       "dossier[champs_public_attributes][#{public_id}]"
     end
-  end
-
-  def labelledby_id
-    "#{html_id}-label"
   end
 
   def describedby_id
