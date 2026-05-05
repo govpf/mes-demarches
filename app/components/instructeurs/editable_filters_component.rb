@@ -18,6 +18,8 @@ class Instructeurs::EditableFiltersComponent < ApplicationComponent
   end
 
   def filters
-    procedure_presentation.filters_for(statut)
+    # pf: exclu du formulaire éditable upstream — la barre dédiée au-dessus de
+    # la table gère déjà ce filtre, le réafficher ici créerait une zone redondante
+    procedure_presentation.filters_for(statut).reject { _1.column.is_a?(Columns::PfFullTextColumn) }
   end
 end

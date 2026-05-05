@@ -11,6 +11,8 @@ describe Instructeurs::PfFullTextSearchInputComponent, type: :component do
 
   subject { render_inline(component) }
 
+  before { Flipper.enable(:pf_full_text_search_dossiers, procedure) }
+
   it 'renders a pre-filled search input posting to set_full_text_filter' do
     procedure_presentation.update!(tous_filters: [FilteredColumn.new(column: Columns::PfFullTextColumn.new(procedure_id: procedure.id), filter: { 'operator' => 'match', 'value' => ['dupont'] })])
 
