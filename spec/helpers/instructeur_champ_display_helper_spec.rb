@@ -4,6 +4,138 @@ describe InstructeurChampDisplayHelper do
   let(:instructeur) { create(:instructeur) }
   let(:user) { instructeur.user }
 
+  def fake_pj_champ(attachments_count:, type: :piece_justificative)
+    attachments = double('attachments', size: attachments_count)
+    pjf = double('piece_justificative_file', attachments: attachments)
+    double(
+      'champ',
+      type_champ: type.to_s,
+      piece_justificative?: type == :piece_justificative,
+      titre_identite?: type == :titre_identite,
+      piece_justificative_file: pjf
+    )
+  end
+
+  def fake_other_champ(type)
+    double(
+      'champ',
+      type_champ: type.to_s,
+      piece_justificative?: false,
+      titre_identite?: false
+    )
+  end
+
+  describe '#champ_display_width' do
+    it 'PJ avec 1 fichier → :third' do
+      expect(helper.champ_display_width(fake_pj_champ(attachments_count: 1))).to eq(:third)
+    end
+
+    it 'PJ avec 0 fichier (champ vide) → :third' do
+      expect(helper.champ_display_width(fake_pj_champ(attachments_count: 0))).to eq(:third)
+    end
+
+    it 'PJ avec 2 fichiers → :full' do
+      expect(helper.champ_display_width(fake_pj_champ(attachments_count: 2))).to eq(:full)
+    end
+
+    it 'PJ avec 5 fichiers → :full' do
+      expect(helper.champ_display_width(fake_pj_champ(attachments_count: 5))).to eq(:full)
+    end
+
+    it 'titre_identite mono-fichier → :third' do
+      expect(helper.champ_display_width(fake_pj_champ(attachments_count: 1, type: :titre_identite))).to eq(:third)
+    end
+
+    it 'titre_identite multi-fichier → :full' do
+      expect(helper.champ_display_width(fake_pj_champ(attachments_count: 2, type: :titre_identite))).to eq(:full)
+    end
+
+    it 'header_section → :full' do
+      expect(helper.champ_display_width(fake_other_champ(:header_section))).to eq(:full)
+    end
+
+    it 'siret → :full' do
+      expect(helper.champ_display_width(fake_other_champ(:siret))).to eq(:full)
+    end
+
+    it 'address (default) → :third' do
+      expect(helper.champ_display_width(fake_other_champ(:address))).to eq(:third)
+    end
+
+    it 'iban (default) → :third' do
+      expect(helper.champ_display_width(fake_other_champ(:iban))).to eq(:third)
+    end
+
+    it 'formule (default) → :third' do
+      expect(helper.champ_display_width(fake_other_champ(:formule))).to eq(:third)
+    end
+
+    it 'multiple_drop_down_list (default) → :third' do
+      expect(helper.champ_display_width(fake_other_champ(:multiple_drop_down_list))).to eq(:third)
+    end
+
+    it 'text (default) → :third' do
+      expect(helper.champ_display_width(fake_other_champ(:text))).to eq(:third)
+    end
+  end
+
+  describe '#champ_display_width_class' do
+    it 'convertit :two_thirds en --two-thirds (convention BEM, _ → -)' do
+      champ = fake_other_champ(:dummy)
+      allow(helper).to receive(:champ_display_width).with(champ).and_return(:two_thirds)
+      expect(helper.champ_display_width_class(champ)).to eq('champ-grid-item--two-thirds')
+    end
+
+    it ':third → --third' do
+      expect(helper.champ_display_width_class(fake_other_champ(:text))).to eq('champ-grid-item--third')
+    end
+
+    it ':full → --full' do
+      expect(helper.champ_display_width_class(fake_other_champ(:siret))).to eq('champ-grid-item--full')
+    end
+  end
+
+  describe '#champ_break_before_class' do
+    let(:pj_mono)         { fake_pj_champ(attachments_count: 1) }
+    let(:pj_mono_other)   { fake_pj_champ(attachments_count: 1) }
+    let(:ti_mono)         { fake_pj_champ(attachments_count: 1, type: :titre_identite) }
+    let(:pj_multi)        { fake_pj_champ(attachments_count: 3) }
+    let(:text_champ)      { fake_other_champ(:text) }
+    let(:header_champ)    { fake_other_champ(:header_section) }
+
+    it 'pas de previous → nil (premier champ)' do
+      expect(helper.champ_break_before_class(pj_mono, nil)).to be_nil
+    end
+
+    it 'PJ-mono après champ texte → break-before' do
+      expect(helper.champ_break_before_class(pj_mono, text_champ)).to eq('champ-grid-item--break-before')
+    end
+
+    it 'PJ-mono après PJ-mono → nil (groupées)' do
+      expect(helper.champ_break_before_class(pj_mono, pj_mono_other)).to be_nil
+    end
+
+    it 'titre_identite-mono après PJ-mono → nil (groupées entre attachments)' do
+      expect(helper.champ_break_before_class(ti_mono, pj_mono)).to be_nil
+    end
+
+    it 'champ texte après PJ-mono → break-before' do
+      expect(helper.champ_break_before_class(text_champ, pj_mono)).to eq('champ-grid-item--break-before')
+    end
+
+    it 'PJ-multi (full) après PJ-mono → break-before' do
+      expect(helper.champ_break_before_class(pj_multi, pj_mono)).to eq('champ-grid-item--break-before')
+    end
+
+    it 'PJ-mono après PJ-multi → break-before' do
+      expect(helper.champ_break_before_class(pj_mono, pj_multi)).to eq('champ-grid-item--break-before')
+    end
+
+    it 'header (full) après texte → nil (transition non-pj-mono → non-pj-mono)' do
+      expect(helper.champ_break_before_class(header_champ, text_champ)).to be_nil
+    end
+  end
+
   describe '#dossier_layout_grid_enabled?' do
     subject { helper.dossier_layout_grid_enabled?(instructeur) }
 

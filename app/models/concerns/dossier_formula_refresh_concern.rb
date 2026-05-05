@@ -81,7 +81,7 @@ module DossierFormulaRefreshConcern
   # Retourne : le hash overrides complet { stable_id => value } incluant
   # les valeurs initiales et toutes les formules calculées. Permet à
   # l'appelant d'enchaîner sans réinterroger la BDD.
-  def compute_formulas_in_order(seed_overrides: {}, only: nil, persist: true, create_missing: true, row_id: nil)
+  def compute_formulas_in_order(seed_overrides: {}, only: nil, persist: true, create_missing: true, row_id: nil, system_write: false)
     formula_tdcs = revision.types_de_champ.filter(&:formule?)
     formula_tdcs = formula_tdcs.filter { |tdc| only.include?(tdc.stable_id) } if only
     return seed_overrides.dup if formula_tdcs.empty?
@@ -113,7 +113,7 @@ module DossierFormulaRefreshConcern
           next unless create_missing
           target = Dossier.no_touching do
             with_champ_stream(formule_champ) do
-              send(:champ_upsert_by!, tdc, formule_champ.row_id)
+              send(:champ_upsert_by!, tdc, formule_champ.row_id, system_write: system_write)
             end
           end
           if target.read_attribute(:value) != new_value
