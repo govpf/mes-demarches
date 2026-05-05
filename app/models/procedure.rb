@@ -653,7 +653,7 @@ class Procedure < ApplicationRecord
 
   def restore(author)
     if discarded? && undiscard
-      dossiers.hidden_by_administration.find_each do |dossier|
+      dossiers.hidden_by_procedure_removed.find_each do |dossier|
         dossier.restore(author)
       end
     end
