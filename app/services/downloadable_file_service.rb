@@ -16,10 +16,8 @@ class DownloadableFileService
         download_manager = DownloadManager::ProcedureAttachmentsExport.new(procedure, attachments, export_dir)
         download_manager.download_all
 
-        Dir.chdir(tmp_dir) do
-          File.delete(zip_path) if File.exist?(zip_path)
-          system 'zip', '-0', '-r', zip_path, EXPORT_DIRNAME
-        end
+        File.delete(zip_path) if File.exist?(zip_path)
+        system 'zip', '-0', '-r', zip_path, EXPORT_DIRNAME, chdir: tmp_dir
         yield(zip_path)
       ensure
         FileUtils.remove_entry_secure(export_dir) if Dir.exist?(export_dir)
