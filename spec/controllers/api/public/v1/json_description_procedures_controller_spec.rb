@@ -19,6 +19,7 @@ RSpec.describe API::Public::V1::JSONDescriptionProceduresController, type: :cont
             demarche: { "number": procedure.id },
             includeRevision: true,
           },
+          context: { administrateur_id: nil, procedure_ids: [], write_access: false, remote_ip: "0.0.0.0" },
           operation_name: "getDemarcheDescriptor")
           .to_h.dig("data", "demarcheDescriptor").to_json
       end
@@ -35,6 +36,19 @@ RSpec.describe API::Public::V1::JSONDescriptionProceduresController, type: :cont
       it do
         expect(response).to have_http_status(:not_found)
         expect(response).to have_failed_with("procedure error is not found")
+      end
+    end
+
+    context "when the opendata procedure has private annotations" do
+      let(:procedure) { create(:procedure, :published, opendata: true) }
+      let(:params) { { path: procedure.path } }
+
+      it "does not expose the private annotation libelle in the public schema" do
+        create(:type_de_champ_text, :private, procedure: procedure, libelle: "annotation interne secrete")
+        get :show, params: params
+
+        expect(response).to have_http_status(:success)
+        expect(response.body).not_to include("annotation interne secrete")
       end
     end
   end
