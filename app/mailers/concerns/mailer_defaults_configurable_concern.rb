@@ -58,10 +58,14 @@ module MailerDefaultsConfigurableConcern
     private
 
     def set_currents_for_demarches_numerique_gouv_fr
-      Current.application_name = "demarches.numerique.gouv.fr"
-      Current.host = "demarches.numerique.gouv.fr"
-      Current.contact_email = "contact@demarches.numerique.gouv.fr"
-      Current.no_reply_email = NO_REPLY_EMAIL.sub(/@[a-z.-]+/, "@demarches.numerique.gouv.fr")
+      # pf: pas de double domaine en PF — on aligne sur les valeurs PF.
+      # Sinon fuite systématique via le branch `elsif forced_domain == APP_HOST` de
+      # configure_defaults_for_user, qui matche en PF puisque APP_HOST = www.mes-demarches.gov.pf
+      # (la sémantique upstream "user a choisi le nouveau domaine" n'a pas de sens chez nous).
+      Current.application_name = APPLICATION_NAME
+      Current.host = ENV.fetch("APP_HOST")
+      Current.contact_email = CONTACT_EMAIL
+      Current.no_reply_email = NO_REPLY_EMAIL
     end
 
     def set_currents_for_legacy
