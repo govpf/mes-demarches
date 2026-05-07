@@ -44,6 +44,8 @@ class ActiveStorage::VirusScanner
         { virus_scan_result: INFECTED, virus_scanned_at: Time.zone.now }
       end
     end
+  rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey
+    { virus_scan_result: INTEGRITY_ERROR, virus_scanned_at: Time.zone.now }
   end
 
   private
