@@ -112,8 +112,6 @@ class Champ < ApplicationRecord
   scope :public_only, -> { where(private: false) }
   scope :private_only, -> { where(private: true) }
 
-  # pf: recalcul des formules dépendantes lors de la sauvegarde d'un champ
-  after_save :refresh_dependent_formulas
   def public?
     !private?
   end
