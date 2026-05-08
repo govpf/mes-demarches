@@ -43,8 +43,8 @@ RSpec.describe RefreshLexpolChampJob, type: :job do
           'elements' => [
             { 'typeElement' => 'Rapport de présentation en CM', 'lienLexpol' => nil },
             { 'typeElement' => 'Arrêté en CM', 'lienLexpol' => 'http://lexpol.cloud.pf/LexpolAfficheTexte.php?ge&texte=1038589' },
-            { 'typeElement' => 'Note de présentation', 'lienLexpol' => nil }
-          ]
+            { 'typeElement' => 'Note de présentation', 'lienLexpol' => nil },
+          ],
         })
 
         expect {
@@ -58,8 +58,8 @@ RSpec.describe RefreshLexpolChampJob, type: :job do
         allow_any_instance_of(APILexpol).to receive(:get_dossier_infos).and_return({
           'statut_libelle' => 'Publié au JOPF',
           'elements' => [
-            { 'typeElement' => 'Arrêté en PR', 'lienLexpol' => 'http://lexpol.cloud.pf/LexpolAfficheTexte.php?texte=999' }
-          ]
+            { 'typeElement' => 'Arrêté en PR', 'lienLexpol' => 'http://lexpol.cloud.pf/LexpolAfficheTexte.php?texte=999' },
+          ],
         })
 
         described_class.perform_now(lexpol_champ.id)
@@ -72,8 +72,8 @@ RSpec.describe RefreshLexpolChampJob, type: :job do
           'elements' => [
             { 'typeElement' => 'Rapport de présentation en CM', 'lienLexpol' => 'http://example/rapport' },
             { 'typeElement' => 'Souche(s)', 'lienLexpol' => nil },
-            { 'typeElement' => 'Note de présentation', 'lienLexpol' => 'http://example/note' }
-          ]
+            { 'typeElement' => 'Note de présentation', 'lienLexpol' => 'http://example/note' },
+          ],
         })
 
         described_class.perform_now(lexpol_champ.id)
