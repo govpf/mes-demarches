@@ -189,6 +189,14 @@ module DossierChampsConcern
 
     row_id = ULID.generate
     champ_for_update(type_de_champ, row_id:, updated_by:)
+    # pf: cascade explicite des formules — l'ajout d'une row peut
+    # impacter une formule du genre size(bloc_repetable) ou
+    # somme(bloc_repetable.colonne). Le callback after_save sur
+    # saved_change_to_value? ne se déclenche pas (création d'un row champ
+    # vide → value nil → nil). On déclenche explicitement à partir du
+    # champ repetition parent (stable_id = celui de la repetition,
+    # row_id = nil → recalcule toutes les formules dépendantes).
+    refresh_formulas_after(project_champ(type_de_champ))
     row_id
   end
 
@@ -197,6 +205,10 @@ module DossierChampsConcern
 
     champ = champ_for_update(type_de_champ, row_id:, updated_by:)
     champ.discard!
+    # pf: cascade explicite des formules — discard! ne touche pas value
+    # donc le callback after_save ne déclenche aucun recalcul. Une formule
+    # size(bloc_repetable) doit voir le décompte mis à jour.
+    refresh_formulas_after(project_champ(type_de_champ))
   end
 
   def stable_id_in_revision?(stable_id)
