@@ -15,9 +15,9 @@
           .bloc-marque.logo-free-layout
             = image_tag(@attestation_template.logo_url)
 
-      .header-center
-        -# pf: Centre - logo personnalisé si présent ET en mode officiel
-        - if @attestation_template.official_layout? && @attestation_template.logo.present?
+      -# pf: Colonne centrale uniquement en mode charte Pays (sinon header-left absorbe l'espace pour un logo libre plus grand)
+      - if @attestation_template.official_layout? && @attestation_template.logo.present?
+        .header-center
           .logo-co-emetteur
             = image_tag(@attestation_template.logo_url)
 
