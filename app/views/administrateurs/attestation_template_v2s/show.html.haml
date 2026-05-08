@@ -15,11 +15,12 @@
           .bloc-marque.logo-free-layout
             = image_tag(@attestation_template.logo_url)
 
-      -# pf: Colonne centrale uniquement en mode charte Pays (sinon header-left absorbe l'espace pour un logo libre plus grand)
-      - if @attestation_template.official_layout? && @attestation_template.logo.present?
+      -# pf: Colonne centrale rendue uniquement en mode charte Pays (présente même vide pour préserver les proportions flex). En mode libre elle est omise pour que header-left absorbe l'espace.
+      - if @attestation_template.official_layout?
         .header-center
-          .logo-co-emetteur
-            = image_tag(@attestation_template.logo_url)
+          - if @attestation_template.logo.present?
+            .logo-co-emetteur
+              = image_tag(@attestation_template.logo_url)
 
       .header-right
         -# pf: QR Code toujours présent à droite
