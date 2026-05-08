@@ -235,11 +235,10 @@ class Etablissement < ApplicationRecord
   def update_champ_value_json!
     if champ.present?
       champ.update!(value_json: champ_value_json)
-      # pf: cascade explicite des formules — value_json a changé. Le
-      # callback after_save :refresh_dependent_formulas a la garde
-      # saved_change_to_value? qui ratait ce cas (seul value_json change).
+      # pf: cascade explicite des formules — value_json vient de changer,
+      # déclenche le recalcul transitif des formules qui en dépendent.
       # Couvre aussi les retours des jobs entreprise (kbis, exercices...)
-      # qui rapatrient des données et appellent cette méthode.
+      # qui rapatrient des données et rappellent cette méthode.
       champ.dossier.refresh_formulas_after(champ)
     elsif dossier.present?
       # pf: SIRET au niveau dossier (formulaire d'identité d'entreprise) —

@@ -11,15 +11,15 @@ describe RefreshClockDependentFormulasDossierJob do
   # pf: utilise dossier.revision (pas procedure.active_revision) : les deux sont
   # deux instances Ruby distinctes de la même ligne DB, chacune mémoïsant sa
   # propre liste types_de_champ. Si on update le TDC via procedure.active_revision,
-  # le cascade refresh_dependent_formulas (qui lit dossier.revision.types_de_champ)
-  # voit l'ancienne expression et le cascade n'a pas lieu.
+  # refresh_formulas_after (qui lit dossier.revision.types_de_champ) voit
+  # l'ancienne expression et le recalcul n'a pas lieu.
   let(:revision) { dossier.revision }
   let(:date_champ) { dossier.project_champs_public[0] }
   let(:formule_champ) { dossier.project_champs_public[1] }
 
   before do
     # pf: tout le setup dans travel_to pour stubber Date.current pendant
-    # le cascade de refresh_dependent_formulas qui appelle AGE.
+    # la cascade de recalcul qui appelle AGE.
     travel_to Time.zone.local(2026, 4, 19) do
       formule_tdc = revision.types_de_champ.find(&:formule?)
       expr, _ = FormulaExpressionService.convert_to_stable_ids('AGE({Date de naissance})', revision)

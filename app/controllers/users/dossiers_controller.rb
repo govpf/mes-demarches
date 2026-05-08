@@ -483,7 +483,8 @@ module Users
       dossier.save!
       # pf: calcul initial des formules — couvre les formules constantes et
       # sur fonctions système (AUJOURDHUI, MAINTENANT). Pour les formules
-      # dépendant d'un champ usager, c'est la cascade refresh_dependent_formulas
+      # dépendant d'un champ usager, c'est l'appel explicite à
+      # dossier.refresh_formulas_after(champ) (cf. update_dossier_and_compute_errors)
       # qui prend le relais à la première édition.
       dossier.compute_initial_formulas
       # pf: notifications différées pour réduire le spam (délai basé sur estimation de remplissage)

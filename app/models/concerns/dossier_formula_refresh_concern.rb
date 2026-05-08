@@ -127,9 +127,9 @@ module DossierFormulaRefreshConcern
   #                    certaines factories de tests).
   #   row_id         : nil par défaut (= toutes les rows). Si non-nil, limite
   #                    le recalcul aux Champs formule de cette row + ceux hors
-  #                    répétition. Utilisé par la cascade refresh_dependent_formulas
-  #                    pour ne recalculer que la row de la source modifiée
-  #                    (les autres rows ne sont pas affectées par la modif).
+  #                    répétition. Utilisé par refresh_formulas_after pour ne
+  #                    recalculer que la row de la source modifiée (les autres
+  #                    rows ne sont pas affectées par la modif).
   #
   # Retourne : le hash overrides complet { stable_id => value } incluant
   # les valeurs initiales et toutes les formules calculées. Permet à
@@ -190,8 +190,9 @@ module DossierFormulaRefreshConcern
   # - formules constantes ({1 + 1}) / sur fonctions système (AUJOURDHUI())
   # - formules sur champs source préremplis (cas Commencer)
   #
-  # Pour les formules dépendant d'un champ que l'usager modifie, c'est la
-  # cascade refresh_dependent_formulas qui prend le relais.
+  # Pour les formules dépendant d'un champ que l'usager modifie, c'est l'appel
+  # explicite à refresh_formulas_after (par les controllers / mutations /
+  # services) qui prend le relais.
   def compute_initial_formulas
     return unless revision&.types_de_champ&.any?(&:formule?)
     compute_formulas_in_order

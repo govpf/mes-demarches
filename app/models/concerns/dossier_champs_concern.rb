@@ -30,7 +30,8 @@ module DossierChampsConcern
     #    rebasés avant le fix du rebase).
     #
     # Les dossiers sur révision publiée avec champ déjà persisté ne sont pas
-    # concernés : refresh_dependent_formulas garde leur valeur à jour.
+    # concernés : l'appel explicite à refresh_formulas_after par les
+    # controllers / mutations garde leur valeur à jour.
     #
     # Garde contre la récursion : FormulaCalculationService passe par
     # project_champs_*_all → project_champ pour construire sa vue du dossier.
@@ -285,10 +286,10 @@ module DossierChampsConcern
     @stream = Champ::MAIN_STREAM
 
     # pf: Recalcul des formules privées après merge. Pendant que le dossier
-    # était sur user:buffer, la cascade refresh_dependent_formulas a
-    # explicitement skippé les formules privées (cf. check_valid_stream_on_write?
-    # qui interdit l'écriture privée hors main). Maintenant que les sources
-    # promues sont sur main et que @stream est aligné, on peut les recalculer.
+    # était sur user:buffer, refresh_formulas_after a explicitement skippé
+    # les formules privées (cf. check_valid_stream_on_write? qui interdit
+    # l'écriture privée hors main). Maintenant que les sources promues sont
+    # sur main et que @stream est aligné, on peut les recalculer.
     #
     # On cible uniquement les formules privées : les formules publiques ont
     # été calculées en cascade pendant que le dossier était en buffer (sur
@@ -468,16 +469,17 @@ module DossierChampsConcern
     elsif loaded_champ.object_id != champ.object_id
       association(:champs).target = champs - [loaded_champ] + [champ]
     end
-    # pf: rattacher le Champ à self AVANT toute opération qui déclenche la
-    # cascade (clone_value_from → save! → refresh_dependent_formulas). Sinon
-    # la cascade lit champ.dossier qui pointe sur l'instance Dossier
-    # fantôme matérialisée par create_or_find_by!, et tous les Champs
-    # formule créés en cascade s'attachent à ce fantôme — invisibles pour
-    # le contrôleur qui retravaille avec self. Au 2e save (re-cascade
-    # via assign_attributes + save), self.champs ne les contient pas et
-    # create_or_find_by! ne détecte pas le doublon en BDD car la contrainte
-    # unique sur (dossier_id, stream, stable_id, row_id) ne matche pas
-    # quand row_id IS NULL → INSERT crée un doublon.
+    # pf: rattacher le Champ à self AVANT toute opération qui déclenche
+    # une cascade (clone_value_from → save! puis recalcul des formules en
+    # aval via compute_formulas_in_order). Sinon le calcul lit champ.dossier
+    # qui pointe sur l'instance Dossier fantôme matérialisée par
+    # create_or_find_by!, et tous les Champs formule créés en cascade
+    # s'attachent à ce fantôme — invisibles pour le contrôleur qui
+    # retravaille avec self. Au 2e save (re-cascade via assign_attributes +
+    # save), self.champs ne les contient pas et create_or_find_by! ne
+    # détecte pas le doublon en BDD car la contrainte unique sur
+    # (dossier_id, stream, stable_id, row_id) ne matche pas quand
+    # row_id IS NULL → INSERT crée un doublon.
     if champ.dossier.object_id != object_id
       champ.association(:dossier).target = self
     end

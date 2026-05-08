@@ -340,8 +340,8 @@ class Champ < ApplicationRecord
   # pf: stable_ids des formules transitivement dépendantes de ce champ.
   # Pure résolution de graphe sur les types_de_champ (metadata) — n'accède
   # PAS aux champs du dossier, donc ne déclenche pas project_champs.
-  # Utilisé par la cascade refresh_dependent_formulas pour passer une liste
-  # de stable_ids à compute_formulas_in_order, qui ira chercher les Champs
+  # Utilisé par Dossier#refresh_formulas_after pour passer une liste de
+  # stable_ids à compute_formulas_in_order, qui ira chercher les Champs
   # lui-même via formule_champs_for_tdc.
   def dependent_formula_stable_ids
     formula_tdcs = dossier.revision.types_de_champ.filter(&:formule?)
@@ -401,49 +401,6 @@ class Champ < ApplicationRecord
       else
         true
       end
-    end
-  end
-
-  def refresh_dependent_formulas
-    return if stable_id.nil?
-    return if !saved_change_to_value?
-    # pf: Court-circuit rapide — si la procédure n'a aucun champ formule, rien à faire.
-    # Évite tout accès à type_de_champ / project_champs (coûteux) pour les procédures sans formule.
-    return unless dossier.revision.types_de_champ.any?(&:formule?)
-    # pf: Les champs formule eux-mêmes ne déclenchent pas de recalcul (évite les boucles)
-    return if type_de_champ.formule?
-
-    # pf: Pré-calcul des stable_ids des formules transitivement dépendantes
-    # via le graphe pur des types_de_champ — pas d'appel à project_champs
-    # (qui matérialiserait tous les Champs de la révision juste pour lire
-    # leurs stable_ids). compute_formulas_in_order ira chercher les Champs
-    # concrets ensuite via formule_champs_for_tdc.
-    #
-    # Filtre privacy : les formules privées ne peuvent être écrites que sur
-    # main (cf. check_valid_stream_on_write?). Quand la source est sur
-    # user:buffer, on skip les formules privées — elles seront recalculées au
-    # moment où les changements sont committés vers main (dépôt / instruction).
-    dependent_stable_ids = dependent_formula_stable_ids
-    if stream != Champ::MAIN_STREAM && dependent_stable_ids.any?
-      formula_tdcs_by_sid = dossier.revision.types_de_champ.filter(&:formule?).index_by(&:stable_id)
-      dependent_stable_ids = dependent_stable_ids.reject { |sid| formula_tdcs_by_sid[sid]&.private? }
-    end
-    return if dependent_stable_ids.empty?
-
-    # pf: Délégation à la méthode unique du concern. Le with_champ_stream(self)
-    # propage le stream de la source au dossier le temps de la cascade, pour
-    # que tous les upserts de champs formule créés en cascade soient sur le
-    # même stream (et que check_valid_stream_on_write? reste cohérent).
-    dossier.with_champ_stream(self) do
-      dossier.compute_formulas_in_order(
-        seed_overrides: { stable_id => value },
-        only: dependent_stable_ids,
-        # pf: propagation du row_id de la source — limite le recalcul aux
-        # Champs formule de la même row (cas répétition) + ceux hors répétition.
-        # Évite de recalculer toutes les rows alors que seule la row de la
-        # source modifiée a été affectée.
-        row_id: row_id
-      )
     end
   end
 
