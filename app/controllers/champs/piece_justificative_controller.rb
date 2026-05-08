@@ -70,6 +70,10 @@ class Champs::PieceJustificativeController < Champs::ChampController
 
       @champ.update_timestamps
 
+      # pf: cascade explicite des formules dépendantes — remplace l'ancien
+      # callback after_save sur Champ.
+      @champ.dossier.refresh_formulas_after(@champ)
+
       dossier = DossierPreloader.load_one(@champ.dossier, pj_template: true)
       # because preloader reassigns new champ instances champs, we have to reassign it
       @champ = dossier.champs.find { it.id == @champ.id }

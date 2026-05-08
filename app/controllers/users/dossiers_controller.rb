@@ -723,6 +723,11 @@ module Users
             @update_contact_information = true
             RoutingEngine.compute(dossier)
           end
+
+          # pf: cascade explicite des formules dépendantes — remplace l'ancien
+          # callback after_save sur Champ. Le caller (ce controller) sait
+          # qu'un changement effectif a eu lieu (champ_changed).
+          dossier.refresh_formulas_after(champ)
         end
 
         if params[:validate].present? && !champ.pending?
