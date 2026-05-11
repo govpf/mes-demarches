@@ -4,7 +4,7 @@ describe Instructeurs::ArchivesController, type: :controller do
   let(:procedure1) { create(:procedure, :published, groupe_instructeurs: [assign_to.groupe_instructeur]) }
   let(:procedure2) { create(:procedure, :published, groupe_instructeurs: [gi2]) }
   let!(:instructeur) { create(:instructeur, groupe_instructeurs: [gi2]) }
-  let!(:archive1) { create(:archive, :generated, groupe_instructeurs: [assign_to.groupe_instructeur]) }
+  let!(:archive1) { create(:archive, :generated, groupe_instructeurs: [assign_to.groupe_instructeur], user_profile: instructeur) }
   let!(:archive2) { create(:archive, :generated, groupe_instructeurs: [gi2]) }
   let!(:assign_to) { create(:assign_to, instructeur: instructeur, groupe_instructeur: build(:groupe_instructeur), manager: manager) }
   let(:gi2) { create(:groupe_instructeur) }
@@ -29,6 +29,16 @@ describe Instructeurs::ArchivesController, type: :controller do
       it 'assigns archives' do
         subject
         expect(assigns(:archives)).to eq([archive1])
+      end
+
+      context "IDOR: archive créée par un autre instructeur du même groupe" do
+        let(:other_instructeur) { create(:instructeur, groupe_instructeurs: [assign_to.groupe_instructeur]) }
+        let!(:archive_from_other) { create(:archive, :generated, groupe_instructeurs: [assign_to.groupe_instructeur], user_profile: other_instructeur) }
+
+        it "n'expose pas l'archive de l'autre instructeur" do
+          subject
+          expect(assigns(:archives)).not_to include(archive_from_other)
+        end
       end
     end
 
