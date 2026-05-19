@@ -63,7 +63,7 @@ class Champs::PieceJustificativeController < Champs::ChampController
       blob_filename: blob.filename.to_s,
       blob_byte_size: blob.byte_size,
       blob_content_type: blob.content_type,
-      hexapdf_error: error.message
+      hexapdf_error: error.message,
     }
     Sentry.capture_message("PieceJustificative: PDF malformé, tampon QR-code non apposé", level: :warning, extra: extra)
   end
