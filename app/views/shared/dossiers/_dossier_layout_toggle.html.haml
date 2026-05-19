@@ -1,0 +1,24 @@
+- return unless dossier_layout_grid_enabled?(current_instructeur)
+
+- current_mode = instructeur_champs_layout_mode(current_instructeur)
+- target_mode = current_mode == :grid ? :stacked : :grid
+
+- if show_dossier_layout_banner?(current_instructeur)
+  .fr-container.fr-mb-2w
+    %div{ role: 'status' }
+      = render Dsfr::CalloutComponent.new(title: t('instructeurs.dossier_layout.banner.title'), theme: :info, icon: 'fr-icon-layout-grid-fill') do |c|
+        - c.with_html_body do
+          %p= t('instructeurs.dossier_layout.banner.body_html')
+          .fr-btns-group.fr-btns-group--inline.fr-mt-1w
+            = button_to t('instructeurs.dossier_layout.banner.keep_new'), instructeur_dossier_layout_path(mode: :dismissed), class: 'fr-btn fr-btn--secondary'
+            = button_to t('instructeurs.dossier_layout.banner.back_to_old'), instructeur_dossier_layout_path(mode: :stacked), class: 'fr-btn fr-btn--tertiary-no-outline'
+
+- else
+  .fr-container.fr-mb-1w.flex.justify-end{ data: dossier_layout_toggle_data }
+    %noscript
+      = button_to dossier_layout_toggle_label(current_mode), instructeur_dossier_layout_path(mode: target_mode), class: "fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-btn--icon-left #{dossier_layout_toggle_icon_class(current_mode)}", 'aria-label': dossier_layout_toggle_aria_label(current_mode)
+
+    %button.fr-btn.fr-btn--tertiary-no-outline.fr-btn--sm.fr-btn--icon-left{ type: 'button', hidden: true, class: dossier_layout_toggle_icon_class(current_mode), data: { action: 'click->dossier-layout-toggle#toggle', 'dossier-layout-toggle-target': 'button' }, 'aria-pressed': (current_mode == :stacked), 'aria-label': dossier_layout_toggle_aria_label(current_mode) }
+      = dossier_layout_toggle_label(current_mode)
+
+    .sr-only{ 'aria-live': 'polite', data: { 'dossier-layout-toggle-target': 'liveRegion' } }

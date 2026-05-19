@@ -6,7 +6,7 @@ class Champs::RNAChamp < Champ
   RNA_REGEXP = /\AW[0-9A-Z]{9}\z/
 
   validates :value, allow_blank: true, format: {
-    with: RNA_REGEXP, message: :invalid_rna
+    with: RNA_REGEXP, message: :invalid_rna,
   }, if: :validate_champ_value?
 
   validate :ensure_association_found, if: :validate_champ_value?
@@ -21,6 +21,10 @@ class Champs::RNAChamp < Champ
     value_json = data.blank? ? nil : extract_value_json(data:)
     data = (data.presence)
     update_columns(data:, value_json:, value:, fetch_external_data_exceptions: [])
+    # pf: cascade explicite des formules — update_columns saute les
+    # callbacks Rails, on doit donc déclencher manuellement le recalcul
+    # des formules dépendantes.
+    dossier.refresh_formulas_after(self)
   end
 
   def identifier
@@ -52,7 +56,7 @@ class Champs::RNAChamp < Champ
       street_name: [address["type_voie"], address["libelle_voie"]].compact.join(' '),
       postal_code: address["code_postal"],
       city_name: address["commune"],
-      city_code: address["code_insee"]
+      city_code: address["code_insee"],
     }.with_indifferent_access
   end
 

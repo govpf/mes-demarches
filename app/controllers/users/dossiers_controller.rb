@@ -349,7 +349,7 @@ module Users
           Sentry.capture_message(
             "422: Dossier failed to pass en construction",
             extra: {
-              errors: @dossier.errors.full_messages
+              errors: @dossier.errors.full_messages,
             }
           )
           # Continue to render brouillon below
@@ -481,6 +481,12 @@ module Users
       )
       dossier.build_default_values
       dossier.save!
+      # pf: calcul initial des formules — couvre les formules constantes et
+      # sur fonctions système (AUJOURDHUI, MAINTENANT). Pour les formules
+      # dépendant d'un champ usager, c'est l'appel explicite à
+      # dossier.refresh_formulas_after(champ) (cf. update_dossier_and_compute_errors)
+      # qui prend le relais à la première édition.
+      dossier.compute_initial_formulas
       # pf: notifications différées pour réduire le spam (délai basé sur estimation de remplissage)
       DraftNotificationJob.schedule_for_dossier(dossier)
 
@@ -533,7 +539,7 @@ module Users
         'dossiers-invites' => dossiers_invites,
         'dossiers-supprimes' => dossiers_supprimes,
         'dossiers-transferes' => dossier_transferes,
-        'dossiers-expirant' => dossiers_close_to_expiration
+        'dossiers-expirant' => dossiers_close_to_expiration,
       }
 
       if tabs[params_statut]&.present?
@@ -642,7 +648,7 @@ module Users
         :country_code,
         :commune_code,
         :postal_code,
-        value: []
+        value: [],
       ] + TypeDeChamp::INSTANCE_CHAMPS_PARAMS
       # Strong attributes do not support records (indexed hash); they only support hashes with
       # static keys. We create a static hash based on the available keys.
@@ -718,6 +724,11 @@ module Users
             @update_contact_information = true
             RoutingEngine.compute(dossier)
           end
+
+          # pf: cascade explicite des formules dépendantes — remplace l'ancien
+          # callback after_save sur Champ. Le caller (ce controller) sait
+          # qu'un changement effectif a eu lieu (champ_changed).
+          dossier.refresh_formulas_after(champ)
         end
 
         if params[:validate].present? && !champ.pending?

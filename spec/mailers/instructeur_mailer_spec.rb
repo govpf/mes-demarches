@@ -40,6 +40,33 @@ RSpec.describe InstructeurMailer, type: :mailer do
         expect { subject.deliver_later }.to have_enqueued_job.on_queue(Rails.application.config.action_mailer.deliver_later_queue_name)
       end
     end
+
+    context 'without given host' do
+      let(:host) { ApplicationHelper::APP_HOST }
+
+      subject { described_class.send_login_token(user, token) }
+
+      it { expect(subject.body).to include(ApplicationHelper::APP_HOST_LEGACY) }
+    end
+
+    context 'with given host as APP_HOST' do
+      let(:host) { ApplicationHelper::APP_HOST }
+
+      subject { described_class.send_login_token(user, token, host) }
+
+      # pf: pas de double domaine — passer APP_HOST doit produire un mail PF (et non demarches.numerique.gouv.fr)
+      it 'uses PF host and never leaks the upstream domain' do
+        expect(subject.body).to include(ApplicationHelper::APP_HOST)
+        expect(subject.body).not_to include("demarches.numerique.gouv.fr")
+      end
+    end
+    context 'with given host as APP_HOST_LEGACY' do
+      let(:host) { ApplicationHelper::APP_HOST_LEGACY }
+
+      subject { described_class.send_login_token(user, token, host) }
+
+      it { expect(subject.body).to include(host) }
+    end
   end
 
   describe '#trusted_device_token_renewal' do
@@ -83,7 +110,7 @@ RSpec.describe InstructeurMailer, type: :mailer do
 
       {
         start_date: Time.zone.now,
-        procedure_overviews: [procedure_overview]
+        procedure_overviews: [procedure_overview],
       }
     end
 

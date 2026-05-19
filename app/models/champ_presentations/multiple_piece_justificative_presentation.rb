@@ -38,7 +38,7 @@ class ChampPresentations::MultiplePieceJustificativePresentation < ChampPresenta
           else
             [node]
           end
-        end
+        end,
       }
     end
   end

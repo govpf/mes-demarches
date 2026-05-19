@@ -1,6 +1,2 @@
 en:
-  views:
-    shared:
-      champs:
-        formule:
-          no_value: "Pending — fill in the fields referenced by the formula"
+  no_value_aria: "No value available for %{libelle}"

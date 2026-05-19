@@ -368,7 +368,7 @@ describe PiecesJustificativesService do
             io: StringIO.new("toto"),
             filename: "toto.png",
             content_type: "image/png",
-            metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE }
+            metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE },
           }
 
           avis.piece_justificative_file.attach(to_be_attached)
@@ -421,7 +421,7 @@ describe PiecesJustificativesService do
             io: StringIO.new("toto"),
             filename: "toto.png",
             content_type: "image/png",
-            metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE }
+            metadata: { virus_scan_result: ActiveStorage::VirusScanner::SAFE },
           }
 
           avis.piece_justificative_file.attach(to_be_attached)
@@ -489,6 +489,14 @@ describe PiecesJustificativesService do
       it 'gives custom name to export pdf file' do
         expect(subject.first.second).to eq "DOSSIER-#{dossier.id}/export-#{dossier.id}.pdf"
       end
+
+      context 'when export pdf is disabled' do
+        let(:export_template) { create(:export_template, groupe_instructeur:, export_pdf: ExportItem.default(prefix: 'export', enabled: false)) }
+
+        it 'does not export pdf' do
+          expect(subject).to be_empty
+        end
+      end
     end
   end
 
@@ -497,7 +505,7 @@ describe PiecesJustificativesService do
     let(:types_de_champ_public) do
       [
         { type: :repetition, mandatory: false, children: [{ type: :piece_justificative }] },
-        { type: :repetition, mandatory: false, children: [{ type: :piece_justificative }, { type: :piece_justificative }] }
+        { type: :repetition, mandatory: false, children: [{ type: :piece_justificative }, { type: :piece_justificative }] },
       ]
     end
 
@@ -559,7 +567,7 @@ describe PiecesJustificativesService do
   def attach_file(attachable, safe = true)
     to_be_attached = {
       io: StringIO.new("toto"),
-      filename: "toto.png", content_type: "image/png"
+      filename: "toto.png", content_type: "image/png",
     }
 
     if safe

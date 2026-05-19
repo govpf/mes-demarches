@@ -7,12 +7,12 @@ RSpec.describe DossierChampsConcern do
       { type: :text, libelle: "Un champ text", stable_id: 99 },
       { type: :text, libelle: "Un autre champ text", stable_id: 991 },
       { type: :yes_no, libelle: "Un champ yes no", stable_id: 992 },
-      { type: :repetition, libelle: "Un champ répétable", stable_id: 993, mandatory: true, children: [{ type: :text, libelle: 'Nom', stable_id: 994 }] }
+      { type: :repetition, libelle: "Un champ répétable", stable_id: 993, mandatory: true, children: [{ type: :text, libelle: 'Nom', stable_id: 994 }] },
     ]
   end
   let(:types_de_champ_private) do
     [
-      { type: :text, libelle: "Une annotation", stable_id: 995 }
+      { type: :text, libelle: "Une annotation", stable_id: 995 },
     ]
   end
   let(:dossier) { create(:dossier, procedure:) }
@@ -148,7 +148,7 @@ RSpec.describe DossierChampsConcern do
       let(:procedure) do
         create(:procedure, types_de_champ_public: [
           { type: :integer_number, libelle: 'Montant', stable_id: 10 },
-          { type: :formule, libelle: 'Double', stable_id: 11, formule_expression: '' }
+          { type: :formule, libelle: 'Double', stable_id: 11, formule_expression: '' },
         ])
       end
       let(:dossier) { procedure.draft_revision.dossier_for_preview(create(:user)) }
@@ -195,7 +195,7 @@ RSpec.describe DossierChampsConcern do
       let(:procedure) do
         create(:procedure, types_de_champ_public: [
           { type: :integer_number, libelle: 'Montant', stable_id: 30 },
-          { type: :formule, libelle: 'Double', stable_id: 31, formule_expression: '' }
+          { type: :formule, libelle: 'Double', stable_id: 31, formule_expression: '' },
         ])
       end
       let(:dossier) { create(:dossier, procedure: procedure) }
@@ -220,13 +220,13 @@ RSpec.describe DossierChampsConcern do
     end
 
     # pf: sur un dossier soumis à une révision publiée (figée), on ne force
-    # pas le recalcul : refresh_dependent_formulas a déjà fait son travail
-    # au moment du save d'une source, et la révision ne bougera plus.
+    # pas le recalcul : refresh_formulas_after a déjà fait son travail au
+    # moment de la modification d'une source, et la révision ne bougera plus.
     context 'formule field on a dossier attached to a published revision' do
       let(:procedure) do
         create(:procedure, :published, types_de_champ_public: [
           { type: :integer_number, libelle: 'Montant', stable_id: 40 },
-          { type: :formule, libelle: 'Double', stable_id: 41, formule_expression: '1 + 1' }
+          { type: :formule, libelle: 'Double', stable_id: 41, formule_expression: '1 + 1' },
         ])
       end
       # Dossier sur la révision publiée (figée)
@@ -271,7 +271,7 @@ RSpec.describe DossierChampsConcern do
         { type: :text, libelle: "Un autre champ text" },
         { type: :yes_no, libelle: "Un champ yes no" },
         { type: :repetition, libelle: "Un champ répétable", mandatory: true, children: [{ type: :text, libelle: 'Nom' }] },
-        { type: :explication }
+        { type: :explication },
       ]
     end
     let(:dossier) { create(:dossier, :with_populated_champs, procedure:) }
@@ -288,7 +288,7 @@ RSpec.describe DossierChampsConcern do
       [
         { type: :header_section },
         { type: :text, libelle: "Une annotation" },
-        { type: :explication }
+        { type: :explication },
       ]
     end
     subject { dossier.filled_champs_private }
@@ -491,7 +491,7 @@ RSpec.describe DossierChampsConcern do
       {
         "99" => { value: "Hello" },
         "991" => { value: "World" },
-        "994-#{row_id}" => { value: "Greer" }
+        "994-#{row_id}" => { value: "Greer" },
       }
     end
 
@@ -640,7 +640,7 @@ RSpec.describe DossierChampsConcern do
   describe "#private_champ_for_update" do
     let(:attributes) do
       {
-        "995" => { value: "Hello" }
+        "995" => { value: "Hello" },
       }
     end
 
@@ -686,21 +686,21 @@ RSpec.describe DossierChampsConcern do
         {
           "99" => { value: "Hello" },
           "991" => { value: "World" },
-          "994-#{row_id}" => { value: "Greer" }
+          "994-#{row_id}" => { value: "Greer" },
         }
       end
 
       let(:new_attributes) do
         {
           "99" => { value: "Hello!!!" },
-          "994-#{row_id}" => { value: "Greer is the best, for sure !" }
+          "994-#{row_id}" => { value: "Greer is the best, for sure !" },
         }
       end
 
       let(:bad_attributes) do
         {
           "99" => { value: "bad" },
-          "994-#{row_id}" => { value: "bad" }
+          "994-#{row_id}" => { value: "bad" },
         }
       end
 
@@ -814,7 +814,7 @@ RSpec.describe DossierChampsConcern do
         let(:types_de_champ_public) do
           [
             { type: :piece_justificative, libelle: "Un champ pj", stable_id: 98 },
-            { type: :titre_identite, libelle: "Un champ titre identite", stable_id: 99 }
+            { type: :titre_identite, libelle: "Un champ titre identite", stable_id: 99 },
           ]
         end
 
@@ -839,10 +839,10 @@ RSpec.describe DossierChampsConcern do
           expect(dossier.history.map(&:piece_justificative_file).map(&:attached?)).to eq([false, false])
           expect(dossier.history.map(&:data)).to match_array([
             [
-              { "checksum" => "6kFu0HWdRqjeWPY6WQd0mQ==", "filename" => "toto.txt" }
+              { "checksum" => "6kFu0HWdRqjeWPY6WQd0mQ==", "filename" => "toto.txt" },
             ], [
-              { "checksum" => "9x2+UmKKP4OnerSUgXUlxg==", "filename" => "toto.png" }
-            ]
+              { "checksum" => "9x2+UmKKP4OnerSUgXUlxg==", "filename" => "toto.png" },
+            ],
           ])
 
           dossier.clean_champs_after_instruction!

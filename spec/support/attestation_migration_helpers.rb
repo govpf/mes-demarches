@@ -9,7 +9,7 @@ module AttestationMigrationHelpers
       title: 'Titre test',
       body: html_content,
       footer: 'Footer test',
-      activated: true
+      activated: true,
     }
 
     create(:attestation_template, default_attrs.merge(attributes))
@@ -24,7 +24,7 @@ module AttestationMigrationHelpers
       basic_tags: html_string.scan(/<(b|i|u|strong|em)>/).flatten.uniq,
       table_count: html_string.scan(/<table/).length,
       has_tables: html_string.include?('<table'),
-      unsupported_tags: html_string.scan(/<(font|color|div|span)>/).flatten.uniq
+      unsupported_tags: html_string.scan(/<(font|color|div|span)>/).flatten.uniq,
     }
   end
 
@@ -36,29 +36,29 @@ module AttestationMigrationHelpers
       {
         type: 'paragraph',
         content: [
-          { type: 'text', text: 'gras', marks: [{ type: 'bold' }] }
-        ]
+          { type: 'text', text: 'gras', marks: [{ type: 'bold' }] },
+        ],
       }
     when '<i>italique</i>'
       {
         type: 'paragraph',
         content: [
-          { type: 'text', text: 'italique', marks: [{ type: 'italic' }] }
-        ]
+          { type: 'text', text: 'italique', marks: [{ type: 'italic' }] },
+        ],
       }
     when '<u>souligné</u>'
       {
         type: 'paragraph',
         content: [
-          { type: 'text', text: 'souligné', marks: [{ type: 'underline' }] }
-        ]
+          { type: 'text', text: 'souligné', marks: [{ type: 'underline' }] },
+        ],
       }
     else
       {
         type: 'paragraph',
         content: [
-          { type: 'text', text: html_content.gsub(/<[^>]+>/, '') }
-        ]
+          { type: 'text', text: html_content.gsub(/<[^>]+>/, '') },
+        ],
       }
     end
   end

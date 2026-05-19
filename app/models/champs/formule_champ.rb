@@ -1,18 +1,29 @@
 # frozen_string_literal: true
 
 class Champs::FormuleChamp < Champ
-  before_validation :store_computed_value
-
-  # pf: message spécifique — l'usager ne contrôle pas la valeur d'un champ
-  # formule, donc "doit être rempli" est trompeur. On explique que le calcul
-  # n'a pas abouti et qu'il faut vérifier les champs sources.
-  validates :value, presence: { message: "n'a pas pu être calculée. Vérifiez que les champs référencés dans la formule sont remplis." }, if: :validate_champ_value?
-
-  # value : on utilise le reader AR par défaut (read_attribute).
-  # Le calcul est fait UNE SEULE FOIS via before_validation :store_computed_value
-  # ou via refresh_dependent_formulas (after_save sur le champ source).
-  # On ne surcharge PAS value — sinon chaque appel (validation, export, API,
-  # Turbo render) recrée un FormulaCalculationService + index colonnes.
+  # pf: PAS de validates :value, presence — l'usager ne contrôle pas la
+  # valeur d'une formule, donc bloquer le dépôt parce qu'une formule n'a
+  # pas pu se calculer (source vide, etc.) est punitif. Le calcul peut
+  # être nil (Dentaku silent fail) ou "" (résultat légitime), les deux
+  # passent.
+  #
+  # Calcul de la value : trois chemins, jamais déclenchés par la validation.
+  #   1. Création du dossier : appel explicite à dossier.compute_initial_formulas
+  #      depuis les controllers (Users::Dossiers#new_dossier, Commencer,
+  #      Api::Public::V1, ProcedureRevision#dossier_for_preview).
+  #   2. Modification d'un champ source : appel explicite à
+  #      dossier.refresh_formulas_after(champ) depuis les controllers HTTP
+  #      (users, instructeurs, champs/*), les mutations GraphQL (annotation*),
+  #      les services external_data (SIRET/RNA/référentiel/api_entreprise) et
+  #      les flux structurels (repetition_add_row / repetition_remove_row).
+  #      Pas de cascade implicite via callback — chaque site qui modifie une
+  #      source déclenche explicitement le recalcul (cf. CLAUDE.md).
+  #   3. Affichage en révision draft (preview admin) :
+  #      Dossier#project_champ → recompute en mémoire pour refléter les
+  #      modifications d'expression non encore propagées aux dossiers.
+  #
+  # compute_value_from_formula reste exposé car project_champ s'en sert
+  # pour le cas (3). Tous les autres flows passent par compute_formulas_in_order.
 
   def blank?
     value.blank? && type_de_champ.formule_expression.blank?
@@ -26,22 +37,6 @@ class Champs::FormuleChamp < Champ
       calculation_service.compute_value(self)
     rescue StandardError => e
       "Erreur : #{e.message}"
-    end
-  end
-
-  private
-
-  def store_computed_value
-    # pf: garde contre les champs formule orphelins — un Champ persisté dont
-    # le TDC a été supprimé de la révision (cas typique d'un dossier de preview
-    # après une suppression de champ formule via l'éditeur admin). Sans cette
-    # garde, type_de_champ lève un RuntimeError qui fait crasher la page de
-    # preview. Les champs non persistés (construits en mémoire par build_champ)
-    # sont laissés passer : leur TDC est par construction valide.
-    return if persisted? && !in_dossier_revision?
-
-    if type_de_champ.formule_expression.present?
-      write_attribute(:value, compute_value_from_formula)
     end
   end
 end

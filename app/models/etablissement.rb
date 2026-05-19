@@ -16,7 +16,7 @@ class Etablissement < ApplicationRecord
 
   enum :entreprise_etat_administratif, {
     actif: "actif",
-    fermé: "fermé"
+    fermé: "fermé",
   }, prefix: true
 
   after_commit -> { dossier&.index_search_terms_later }
@@ -31,7 +31,7 @@ class Etablissement < ApplicationRecord
     "entreprise_nom_commercial" => { type: :text },
     "entreprise_forme_juridique" => { type: :text },
     "entreprise_date_creation" => { type: :date, filterable: false },
-    "libelle_naf" => { type: :text }
+    "libelle_naf" => { type: :text },
   }.freeze
 
   EXPORTABLE_COLUMNS = {
@@ -57,7 +57,7 @@ class Etablissement < ApplicationRecord
     "association_objet" => { type: :text },
     "association_date_creation" => { type: :text },
     "association_date_declaration" => { type: :text },
-    "association_date_publication" => { type: :text }
+    "association_date_publication" => { type: :text },
   }.freeze
 
   def entreprise_raison_sociale
@@ -92,7 +92,7 @@ class Etablissement < ApplicationRecord
       code_postal,
       localite,
       code_insee_localite,
-      nom_pays
+      nom_pays,
     ]
   end
 
@@ -131,7 +131,7 @@ class Etablissement < ApplicationRecord
       ['Association objet', :association_objet],
       ['Association date de création', :association_date_creation],
       ['Association date de déclaration', :association_date_declaration],
-      ['Association date de publication', :association_date_publication]
+      ['Association date de publication', :association_date_publication],
     ]
   end
 
@@ -148,7 +148,7 @@ class Etablissement < ApplicationRecord
     [
       "#{numero_voie} #{type_voie} #{nom_voie}",
       complement_adresse,
-      "#{code_postal} #{localite}"
+      "#{code_postal} #{localite}",
     ].compact_blank.join(', ').squeeze(' ')
   end
 
@@ -233,9 +233,21 @@ class Etablissement < ApplicationRecord
   end
 
   def update_champ_value_json!
-    return if champ.nil?
-
-    champ.update!(value_json: champ_value_json)
+    if champ.present?
+      champ.update!(value_json: champ_value_json)
+      # pf: cascade explicite des formules — value_json vient de changer,
+      # déclenche le recalcul transitif des formules qui en dépendent.
+      # Couvre aussi les retours des jobs entreprise (kbis, exercices...)
+      # qui rapatrient des données et rappellent cette méthode.
+      champ.dossier.refresh_formulas_after(champ)
+    elsif dossier.present?
+      # pf: SIRET au niveau dossier (formulaire d'identité d'entreprise) —
+      # pas de Champ source identifiable. Une formule peut lire
+      # entreprise.raison_commerciale, etablissement.adresse, etc., qui
+      # sont résolues via dossier.etablissement. Recalcul global pour
+      # toutes les formules de la révision.
+      dossier.compute_formulas_in_order
+    end
   end
 
   def champ_value_json
@@ -304,7 +316,7 @@ class Etablissement < ApplicationRecord
       "dettes4_maturite_a_un_an_au_plus", "evolution_dettes4_maturite_a_un_an_au_plus",
       "emprunts_et_dettes_financieres_divers", "evolution_emprunts_et_dettes_financieres_divers",
       "total_dettes_stables", "evolution_total_dettes_stables", "groupes_et_associes",
-      "evolution_groupes_et_associes", "total_passif", "evolution_total_passif"
+      "evolution_groupes_et_associes", "total_passif", "evolution_total_passif",
     ]
   end
 end

@@ -24,6 +24,11 @@ module Mutations
 
       if annotation.validate(:champs_private_value) && annotation.save
         ChampRevision.create_or_update_revision(annotation, instructeur.id)
+        # pf: cascade explicite des formules dépendantes — remplace l'ancien
+        # callback after_save sur Champ. Couvre toutes les mutations qui
+        # héritent via resolve_with_type (text, checkbox, date, decimal,
+        # integer, datetime, drop_down_list, piece_justificative).
+        dossier.refresh_formulas_after(annotation)
         { annotation: }
       else
         { errors: annotation.errors.full_messages }
@@ -58,12 +63,12 @@ module Mutations
           TypeDeChamp.type_champs.fetch(:drop_down_list),
           TypeDeChamp.type_champs.fetch(:email),
           TypeDeChamp.type_champs.fetch(:phone),
-          TypeDeChamp.type_champs.fetch(:visa)
+          TypeDeChamp.type_champs.fetch(:visa),
         ]
       when :checkbox
         [
           TypeDeChamp.type_champs.fetch(:checkbox),
-          TypeDeChamp.type_champs.fetch(:yes_no)
+          TypeDeChamp.type_champs.fetch(:yes_no),
         ]
       when :date
         TypeDeChamp.type_champs.fetch(:date)

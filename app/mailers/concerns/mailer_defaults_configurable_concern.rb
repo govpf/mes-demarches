@@ -27,11 +27,15 @@ module MailerDefaultsConfigurableConcern
     before_action :set_currents_for_legacy
     after_action -> { self.class.reset_original_defaults }
 
-    def configure_defaults_for_user(user)
+    def configure_defaults_for_user(user, forced_domain = nil)
       return if !user.is_a?(User) # not for super-admins
 
       if user.preferred_domain_demarches_numerique_gouv_fr?
         set_currents_for_demarches_numerique_gouv_fr
+      elsif forced_domain == ApplicationHelper::APP_HOST
+        set_currents_for_demarches_numerique_gouv_fr
+      elsif forced_domain == ApplicationHelper::APP_HOST_LEGACY
+        set_currents_for_legacy
       else
         set_currents_for_legacy
       end
@@ -54,10 +58,14 @@ module MailerDefaultsConfigurableConcern
     private
 
     def set_currents_for_demarches_numerique_gouv_fr
-      Current.application_name = "demarches.numerique.gouv.fr"
-      Current.host = "demarches.numerique.gouv.fr"
-      Current.contact_email = "contact@demarches.numerique.gouv.fr"
-      Current.no_reply_email = NO_REPLY_EMAIL.sub(/@[a-z.-]+/, "@demarches.numerique.gouv.fr")
+      # pf: pas de double domaine en PF — on aligne sur les valeurs PF.
+      # Sinon fuite systématique via le branch `elsif forced_domain == APP_HOST` de
+      # configure_defaults_for_user, qui matche en PF puisque APP_HOST = www.mes-demarches.gov.pf
+      # (la sémantique upstream "user a choisi le nouveau domaine" n'a pas de sens chez nous).
+      Current.application_name = APPLICATION_NAME
+      Current.host = ENV.fetch("APP_HOST")
+      Current.contact_email = CONTACT_EMAIL
+      Current.no_reply_email = NO_REPLY_EMAIL
     end
 
     def set_currents_for_legacy

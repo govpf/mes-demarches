@@ -26,7 +26,7 @@ class Champs::PieceJustificativeController < Champs::ChampController
   def download
     if @champ&.is_a? Champs::PieceJustificativeChamp
       index = (params[:i] || "0").to_i
-      if (0..@champ.piece_justificative_file.size).cover?(index)
+      if (0...@champ.piece_justificative_file.size).cover?(index)
         blob = @champ.piece_justificative_file[index]
         if blob.filename.extension == 'pdf' && @champ.dossier.procedure.feature_enabled?(:qrcoded_pdf)
           begin
@@ -88,6 +88,10 @@ class Champs::PieceJustificativeController < Champs::ChampController
       @champ.fetch_later! if @champ.uses_external_data?
 
       @champ.update_timestamps
+
+      # pf: cascade explicite des formules dépendantes — remplace l'ancien
+      # callback after_save sur Champ.
+      @champ.dossier.refresh_formulas_after(@champ)
 
       dossier = DossierPreloader.load_one(@champ.dossier, pj_template: true)
       # because preloader reassigns new champ instances champs, we have to reassign it

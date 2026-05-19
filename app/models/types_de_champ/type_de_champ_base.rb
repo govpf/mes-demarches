@@ -119,7 +119,7 @@ class TypesDeChamp::TypeDeChampBase
           displayable:,
           options_for_select:,
           mandatory: mandatory?
-        )
+        ),
       ]
     else
       []
@@ -160,8 +160,8 @@ class TypesDeChamp::TypeDeChampBase
         libelle:,
         path: :value,
         description:,
-        maybe_null: public? && !mandatory?
-      }
+        maybe_null: public? && !mandatory?,
+      },
     ]
   end
 end

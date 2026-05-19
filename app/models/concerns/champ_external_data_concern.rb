@@ -30,7 +30,7 @@ module ChampExternalDataConcern
       fetching: 'fetching',
       fetched: 'fetched',
       external_error: 'external_error',
-      multiple_found: 'multiple_found'
+      multiple_found: 'multiple_found',
     }
 
     aasm column: :external_state, enum: true do
@@ -126,15 +126,24 @@ module ChampExternalDataConcern
     # pf: store candidates and transition to :multiple_found awaiting user selection
     def update_external_data_multiple_found!(candidates)
       update!(data: { multiple_found: candidates }, fetch_external_data_exceptions: [])
+      # pf: cascade explicite des formules — data a changé (le callback
+      # after_save sur Champ ratait ce cas car saved_change_to_value? = false).
+      dossier.refresh_formulas_after(self)
       external_data_multiple_found!
     end
 
     def update_external_data!(data:)
       update!(data:, fetch_external_data_exceptions: [])
+      # pf: cascade explicite des formules — data a changé (le callback
+      # after_save sur Champ ratait ce cas car saved_change_to_value? = false).
+      dossier.refresh_formulas_after(self)
     end
 
     def after_reset_external_data(opts = {})
       update(opts.merge(data: nil, value_json: nil, fetch_external_data_exceptions: []))
+      # pf: cascade explicite des formules — data/value_json viennent d'être
+      # vidés, les formules dépendantes doivent être recalculées.
+      dossier.refresh_formulas_after(self)
     end
   end
 end

@@ -36,20 +36,48 @@ RSpec.describe RefreshLexpolChampJob, type: :job do
     end
 
     context 'when first instructeur has access' do
-      it 'refreshes Lexpol data with first instructeur' do
+      it 'refreshes Lexpol data with first instructeur (Arrêté en CM)' do
         allow_any_instance_of(APILexpol).to receive(:get_dossier_infos).and_return({
           'statut_libelle' => 'Enregistré par le BC',
           'lienDossier' => 'https://lexpol.cloud.pf/dossier/TEST123456',
           'elements' => [
-            { 'typeElement' => 'Arrêté', 'lienLexpol' => 'https://lexpol.cloud.pf/jopf/2025/001' }
-          ]
+            { 'typeElement' => 'Rapport de présentation en CM', 'lienLexpol' => nil },
+            { 'typeElement' => 'Arrêté en CM', 'lienLexpol' => 'http://lexpol.cloud.pf/LexpolAfficheTexte.php?ge&texte=1038589' },
+            { 'typeElement' => 'Note de présentation', 'lienLexpol' => nil },
+          ],
         })
 
         expect {
           described_class.perform_now(lexpol_champ.id)
           lexpol_champ.reload
         }.to change { lexpol_champ.lexpol_status }.to('Enregistré par le BC')
-          .and change { lexpol_champ.lexpol_arrete_lien }.to('https://lexpol.cloud.pf/jopf/2025/001')
+          .and change { lexpol_champ.lexpol_arrete_lien }.to('http://lexpol.cloud.pf/LexpolAfficheTexte.php?ge&texte=1038589')
+      end
+
+      it 'matches "Arrêté en PR" too' do
+        allow_any_instance_of(APILexpol).to receive(:get_dossier_infos).and_return({
+          'statut_libelle' => 'Publié au JOPF',
+          'elements' => [
+            { 'typeElement' => 'Arrêté en PR', 'lienLexpol' => 'http://lexpol.cloud.pf/LexpolAfficheTexte.php?texte=999' },
+          ],
+        })
+
+        described_class.perform_now(lexpol_champ.id)
+        expect(lexpol_champ.reload.lexpol_arrete_lien).to eq('http://lexpol.cloud.pf/LexpolAfficheTexte.php?texte=999')
+      end
+
+      it 'ne remonte pas les éléments non-arrêtés (rapport, note, souche)' do
+        allow_any_instance_of(APILexpol).to receive(:get_dossier_infos).and_return({
+          'statut_libelle' => 'Enregistré par le BC',
+          'elements' => [
+            { 'typeElement' => 'Rapport de présentation en CM', 'lienLexpol' => 'http://example/rapport' },
+            { 'typeElement' => 'Souche(s)', 'lienLexpol' => nil },
+            { 'typeElement' => 'Note de présentation', 'lienLexpol' => 'http://example/note' },
+          ],
+        })
+
+        described_class.perform_now(lexpol_champ.id)
+        expect(lexpol_champ.reload.lexpol_arrete_lien).to be_nil
       end
     end
 
@@ -64,7 +92,7 @@ RSpec.describe RefreshLexpolChampJob, type: :job do
             {
               'statut_libelle' => 'Soumis au Directeur',
               'lienDossier' => 'https://lexpol.cloud.pf/dossier/TEST123456',
-              'elements' => []
+              'elements' => [],
             }
           end
         end

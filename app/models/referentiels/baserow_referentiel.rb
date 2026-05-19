@@ -6,7 +6,7 @@ class Referentiels::BaserowReferentiel < Referentiel
 
   enum :mode, {
     exact_match: 'exact_match',
-    autocomplete: 'autocomplete'
+    autocomplete: 'autocomplete',
   }
 
   # pf: nécessaire pour AutocompleteConfigurationComponent qui appelle referentiel.datasource

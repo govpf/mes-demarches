@@ -30,7 +30,8 @@ module DossierChampsConcern
     #    rebasés avant le fix du rebase).
     #
     # Les dossiers sur révision publiée avec champ déjà persisté ne sont pas
-    # concernés : refresh_dependent_formulas garde leur valeur à jour.
+    # concernés : l'appel explicite à refresh_formulas_after par les
+    # controllers / mutations garde leur valeur à jour.
     #
     # Garde contre la récursion : FormulaCalculationService passe par
     # project_champs_*_all → project_champ pour construire sa vue du dossier.
@@ -156,12 +157,14 @@ module DossierChampsConcern
   end
 
   def public_champ_for_update(public_id, updated_by:)
+    return nil if public_id.nil?
     stable_id, row_id = public_id.split('-')
     type_de_champ = find_type_de_champ_by_stable_id(stable_id, :public)
     champ_for_update(type_de_champ, row_id:, updated_by:)
   end
 
   def private_champ_for_update(public_id, updated_by:)
+    return nil if public_id.nil?
     stable_id, row_id = public_id.split('-')
     type_de_champ = find_type_de_champ_by_stable_id(stable_id, :private)
     champ_for_update(type_de_champ, row_id:, updated_by:)
@@ -187,6 +190,14 @@ module DossierChampsConcern
 
     row_id = ULID.generate
     champ_for_update(type_de_champ, row_id:, updated_by:)
+    # pf: cascade explicite des formules — l'ajout d'une row peut
+    # impacter une formule du genre size(bloc_repetable) ou
+    # somme(bloc_repetable.colonne). Le callback after_save sur
+    # saved_change_to_value? ne se déclenche pas (création d'un row champ
+    # vide → value nil → nil). On déclenche explicitement à partir du
+    # champ repetition parent (stable_id = celui de la repetition,
+    # row_id = nil → recalcule toutes les formules dépendantes).
+    refresh_formulas_after(project_champ(type_de_champ))
     row_id
   end
 
@@ -195,6 +206,10 @@ module DossierChampsConcern
 
     champ = champ_for_update(type_de_champ, row_id:, updated_by:)
     champ.discard!
+    # pf: cascade explicite des formules — discard! ne touche pas value
+    # donc le callback after_save ne déclenche aucun recalcul. Une formule
+    # size(bloc_repetable) doit voir le décompte mis à jour.
+    refresh_formulas_after(project_champ(type_de_champ))
   end
 
   def stable_id_in_revision?(stable_id)
@@ -243,12 +258,12 @@ module DossierChampsConcern
     champs.where(id: changed_main_champ_ids, stream: history_stream)
       .where(type: ['Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp'])
       .with_attached_piece_justificative_file.find_each do |champ|
-        files = champ.piece_justificative_file.map { _1.slice(:filename, :checksum) }
-        if files.present?
-          champ.update_column(:data, files)
-          champ.piece_justificative_file.purge_later
-        end
+      files = champ.piece_justificative_file.map { _1.slice(:filename, :checksum) }
+      if files.present?
+        champ.update_column(:data, files)
+        champ.piece_justificative_file.purge_later
       end
+    end
 
     # update loaded champ instances
     champs.each do |champ|
@@ -259,7 +274,30 @@ module DossierChampsConcern
       end
     end
 
+    # pf: Le merge est terminé. Les buffer ont été promus à main, les
+    # anciens main sont passés en history. Le dossier vit conceptuellement
+    # sur main désormais — le @stream encore à user:buffer (hérité du
+    # before_action :set_dossier_stream du controller) ne reflète plus rien.
+    #
+    # On reset les caches dérivés (champs_by_public_id, project_champs_*,
+    # etc. qui pouvaient encore filtrer sur buffer) puis on aligne @stream
+    # explicitement. Toute opération suivante voit un état cohérent.
     reset_champs_cache
+    @stream = Champ::MAIN_STREAM
+
+    # pf: Recalcul des formules privées après merge. Pendant que le dossier
+    # était sur user:buffer, refresh_formulas_after a explicitement skippé
+    # les formules privées (cf. check_valid_stream_on_write? qui interdit
+    # l'écriture privée hors main). Maintenant que les sources promues sont
+    # sur main et que @stream est aligné, on peut les recalculer.
+    #
+    # On cible uniquement les formules privées : les formules publiques ont
+    # été calculées en cascade pendant que le dossier était en buffer (sur
+    # user:buffer), puis promues à main par l'update_all ci-dessus.
+    private_formula_stable_ids = revision.types_de_champ_private
+      .filter(&:formule?)
+      .map(&:stable_id)
+    compute_formulas_in_order(only: private_formula_stable_ids) if private_formula_stable_ids.any?
   end
 
   def reset_user_buffer_stream!
@@ -392,8 +430,12 @@ module DossierChampsConcern
     attributes.merge(id: champ.id, updated_by:)
   end
 
-  def champ_upsert_by!(type_de_champ, row_id)
-    check_valid_stream_on_write?(type_de_champ)
+  # pf: system_write: true → bypass du check stream pour les écritures
+  # système (ex: rebase qui matérialise une formule publique en main alors
+  # que le dossier est en_construction). Les écritures déclenchées par une
+  # action user/instructeur doivent toujours laisser le check actif.
+  def champ_upsert_by!(type_de_champ, row_id, system_write: false)
+    check_valid_stream_on_write?(type_de_champ) unless system_write
     check_valid_row_id_on_write?(type_de_champ, row_id)
 
     # FIXME: This is a temporary on-demand migration. It will be removed once the full migration is over.
@@ -411,28 +453,45 @@ module DossierChampsConcern
     end
 
     # Needed when a revision change the champ type in this case, we reset the champ data
+    needs_clone_from_main = false
     if champ.class != type_de_champ.champ_class
       champ = champ.becomes!(type_de_champ.champ_class)
       champ.assign_attributes(value: nil, value_json: nil, external_id: nil, data: nil)
     elsif stream != Champ::MAIN_STREAM && champ.previously_new_record?
-      main_stream_champ = champs.find_by(stable_id: type_de_champ.stable_id, row_id:, stream: Champ::MAIN_STREAM)
-      champ.clone_value_from(main_stream_champ) if main_stream_champ.present?
+      needs_clone_from_main = true
     end
 
-    # If the champ returned from `create_or_find_by` is not the same as the one already loaded in `dossier.champs`, we need to update the association cache
+    # maj de champs
     loaded_champ = champs.find { [_1.stream, _1.public_id] == [champ.stream, champ.public_id] }
-    if loaded_champ.present? && loaded_champ.object_id != champ.object_id
+    if loaded_champ.nil?
+      # pf for race conditions only, multi-thread update of same champ
+      association(:champs).target.push(champ) if champs.loaded?
+    elsif loaded_champ.object_id != champ.object_id
       association(:champs).target = champs - [loaded_champ] + [champ]
     end
-
-    # If the dossier instance on champ has changed we need to update the association cache
+    # pf: rattacher le Champ à self AVANT toute opération qui déclenche
+    # une cascade (clone_value_from → save! puis recalcul des formules en
+    # aval via compute_formulas_in_order). Sinon le calcul lit champ.dossier
+    # qui pointe sur l'instance Dossier fantôme matérialisée par
+    # create_or_find_by!, et tous les Champs formule créés en cascade
+    # s'attachent à ce fantôme — invisibles pour le contrôleur qui
+    # retravaille avec self. Au 2e save (re-cascade via assign_attributes +
+    # save), self.champs ne les contient pas et create_or_find_by! ne
+    # détecte pas le doublon en BDD car la contrainte unique sur
+    # (dossier_id, stream, stable_id, row_id) ne matche pas quand
+    # row_id IS NULL → INSERT crée un doublon.
     if champ.dossier.object_id != object_id
       champ.association(:dossier).target = self
     end
-
     reset_champs_cache
 
-    champ.save!
+    if needs_clone_from_main
+      main_stream_champ = champs.find_by(stable_id: type_de_champ.stable_id, row_id:, stream: Champ::MAIN_STREAM)
+      champ.clone_value_from(main_stream_champ) if main_stream_champ.present?
+    else
+      champ.save!
+    end
+
     champ
   end
 

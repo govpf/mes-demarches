@@ -40,7 +40,7 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
     header_cells = headers.map do |header|
       {
         type: 'tableHeader',
-        content: [{ type: 'paragraph', content: [{ type: 'text', text: header }] }]
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: header }] }],
       }
     end
 
@@ -71,7 +71,7 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
 
         {
           type: 'tableCell',
-          content: [{ type: 'paragraph', content: cell_node_content }]
+          content: [{ type: 'paragraph', content: cell_node_content }],
         }
       end
       { type: 'tableRow', content: cells }
@@ -81,8 +81,8 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
       type: 'table',
       content: [
         { type: 'tableRow', content: header_cells },
-        *data_rows
-      ]
+        *data_rows,
+      ],
     }
   end
 
@@ -112,25 +112,25 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
                     content: [
                       {
                         type: 'text',
-                        text: champ.libelle
-                      }
-                    ]
+                        text: champ.libelle,
+                      },
+                    ],
                   }.compact,
                   {
                     type: 'descriptionDetails',
                     content: [
                       {
                         type: 'text',
-                        text: champ.to_s
-                      }
-                    ]
-                  }
+                        text: champ.to_s,
+                      },
+                    ],
+                  },
                 ]
-              end.flatten
-            }
-          ]
+              end.flatten,
+            },
+          ],
         }
-      end
+      end,
     }
   end
 

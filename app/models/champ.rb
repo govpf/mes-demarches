@@ -112,8 +112,6 @@ class Champ < ApplicationRecord
   scope :public_only, -> { where(private: false) }
   scope :private_only, -> { where(private: true) }
 
-  # pf: recalcul des formules dépendantes lors de la sauvegarde d'un champ
-  after_save :refresh_dependent_formulas
   def public?
     !private?
   end
@@ -339,35 +337,45 @@ class Champ < ApplicationRecord
     dependent_formula_champs_from(dossier.project_champs_public_all + dossier.project_champs_private_all)
   end
 
-  # pf: Toutes les formules dépendantes (transitivité : A → B → C)
-  # Construit project_champs UNE SEULE FOIS et résout le graphe de dépendances
-  # via les types_de_champ (metadata) + BFS sur les stable_ids.
-  def all_dependent_formula_champs
-    all_champs = dossier.project_champs_public_all + dossier.project_champs_private_all
-
-    # 1. Construire le graphe de dépendances depuis les types_de_champ (pas les champs)
+  # pf: stable_ids des formules transitivement dépendantes de ce champ.
+  # Pure résolution de graphe sur les types_de_champ (metadata) — n'accède
+  # PAS aux champs du dossier, donc ne déclenche pas project_champs.
+  # Utilisé par Dossier#refresh_formulas_after pour passer une liste de
+  # stable_ids à compute_formulas_in_order, qui ira chercher les Champs
+  # lui-même via formule_champs_for_tdc.
+  def dependent_formula_stable_ids
     formula_tdcs = dossier.revision.types_de_champ.filter(&:formule?)
-    # stable_id → [stable_ids des formules qui en dépendent]
+    return [] if formula_tdcs.empty?
+
+    # stable_id source → [stable_ids des formules qui en dépendent]
     deps_graph = Hash.new { |h, k| h[k] = Set.new }
     formula_tdcs.each do |tdc|
       tdc.dependent_stable_ids.each { |dep_sid| deps_graph[dep_sid].add(tdc.stable_id) }
     end
 
-    # 2. BFS sur le graphe pour trouver tous les stable_ids de formules à recalculer (en ordre topologique)
-    ordered_formula_sids = []
+    # BFS topologique depuis self.stable_id
     visited = Set.new
     queue = deps_graph[stable_id].to_a
-
+    result = []
     while (sid = queue.shift)
       next if visited.include?(sid)
       visited.add(sid)
-      ordered_formula_sids << sid
+      result << sid
       queue.concat(deps_graph[sid].to_a)
     end
+    result
+  end
 
+  # pf: Toutes les formules dépendantes (transitivité : A → B → C) résolues
+  # en Champs concrets. Utilisé par TurboChampsConcern qui a besoin des
+  # instances pour le rendu Turbo. Pour la cascade pure (calcul + persistence),
+  # préférer dependent_formula_stable_ids qui évite project_champs.
+  def all_dependent_formula_champs
+    ordered_formula_sids = dependent_formula_stable_ids
     return [] if ordered_formula_sids.empty?
 
-    # 3. Résoudre les champs une seule fois, filtrés par row_id
+    all_champs = dossier.project_champs_public_all + dossier.project_champs_private_all
+
     ordered_formula_sids.flat_map do |sid|
       all_champs.filter do |champ|
         next false unless champ.stable_id == sid
@@ -393,37 +401,6 @@ class Champ < ApplicationRecord
       else
         true
       end
-    end
-  end
-
-  def refresh_dependent_formulas
-    return if stable_id.nil?
-    return if !saved_change_to_value?
-    # pf: Court-circuit rapide — si la procédure n'a aucun champ formule, rien à faire.
-    # Évite tout accès à type_de_champ / project_champs (coûteux) pour les procédures sans formule.
-    return unless dossier.revision.types_de_champ.any?(&:formule?)
-    # pf: Les champs formule eux-mêmes ne déclenchent pas de recalcul (évite les boucles)
-    return if type_de_champ.formule?
-
-    # pf: Recalcul de toutes les formules dépendantes (transitivité A → B → C).
-    # all_dependent_formula_champs retourne les champs dans l'ordre BFS (B avant C).
-    # value_overrides accumule les valeurs fraîchement calculées pour que chaque
-    # formule suivante dans la chaîne voie les résultats à jour, sans dépendre
-    # des caches AR du dossier.
-    value_overrides = { stable_id => value }
-
-    all_dependent_formula_champs.each do |formula_champ|
-      service = FormulaCalculationService.new(dossier, value_overrides:)
-      new_value = service.compute_value(formula_champ)
-      value_overrides[formula_champ.stable_id] = new_value
-
-      # pf: Utilise champ_upsert_by! pour respecter le stream du dossier.
-      # En mode buffer, ça crée/trouve le champ en user:buffer (pas en main).
-      # En mode main/brouillon, ça crée/trouve le champ en main.
-      # champ_upsert_by! gère aussi le cache AR (association + reset_champs_cache).
-      tdc = formula_champ.type_de_champ
-      target_champ = Dossier.no_touching { dossier.send(:champ_upsert_by!, tdc, formula_champ.row_id) }
-      target_champ.update_column(:value, new_value) if target_champ.read_attribute(:value) != new_value
     end
   end
 

@@ -11,12 +11,12 @@ class InstructeurDashboard < Administrate::BaseDashboard
   # on pages throughout the dashboard.
   ATTRIBUTE_TYPES = {
     id: Field::Number,
-    user: Field::HasOne.with_options(searchable: true, searchable_field: 'email'),
+    user: Field::HasOne.with_options(searchable: true, searchable_fields: %w[email]),
     created_at: Field::DateTime,
     updated_at: Field::DateTime,
     dossiers: Field::HasMany,
     procedures: Field::HasMany,
-    bypass_email_login_token: Field::Boolean
+    bypass_email_login_token: Field::Boolean,
   }.freeze
 
   # COLLECTION_ATTRIBUTES
@@ -27,7 +27,7 @@ class InstructeurDashboard < Administrate::BaseDashboard
   COLLECTION_ATTRIBUTES = [
     :id,
     :user,
-    :created_at
+    :created_at,
   ].freeze
 
   # SHOW_PAGE_ATTRIBUTES
@@ -38,14 +38,14 @@ class InstructeurDashboard < Administrate::BaseDashboard
     :id,
     :user,
     :created_at,
-    :bypass_email_login_token
+    :bypass_email_login_token,
   ].freeze
 
   # FORM_ATTRIBUTES
   # an array of attributes that will be displayed
   # on the model's form (`new` and `edit`) pages.
   FORM_ATTRIBUTES = [
-    :bypass_email_login_token
+    :bypass_email_login_token,
   ].freeze
 
   # Overwrite this method to customize how users are displayed

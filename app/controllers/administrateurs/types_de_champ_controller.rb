@@ -162,7 +162,7 @@ module Administrateurs
 
           {
             data: { row: normalized_row.transform_keys { Referentiel.header_to_path(_1) } },
-            referentiel_id: referentiel.id
+            referentiel_id: referentiel.id,
           }
         end
 
@@ -186,7 +186,7 @@ module Administrateurs
         condition: default_type_de_champ.condition,
         private: default_type_de_champ.private,
         after_stable_id: @coordinate.stable_id,
-        parent_stable_id: @coordinate.parent&.stable_id
+        parent_stable_id: @coordinate.parent&.stable_id,
       }
 
       duplicate_type_de_champ(default_type_de_champ, new_champ_params)
@@ -226,7 +226,7 @@ module Administrateurs
           condition: child.condition&.dup_with_stable_ids(mapping),
           private: child.private,
           after_stable_id: last_child_stable_id,
-          parent_stable_id: type_de_champ.stable_id
+          parent_stable_id: type_de_champ.stable_id,
         }
 
         child_type_de_champ = draft.add_type_de_champ(new_child_params)
@@ -317,7 +317,7 @@ module Administrateurs
         editable_options: [
           *INSTANCE_EDITABLE_OPTIONS,
           *TypesDeChamp::CarteTypeDeChamp::LAYERS,
-          :te_fenua_layer
+          :te_fenua_layer,
         ])
     end
 

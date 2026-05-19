@@ -120,7 +120,7 @@ class Sendinblue::API
   def headers
     {
       'api-key': client_key,
-      'Content-Type': 'application/json; charset=UTF-8'
+      'Content-Type': 'application/json; charset=UTF-8',
     }
   end
 

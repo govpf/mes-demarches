@@ -26,6 +26,10 @@ class Champs::SiretChamp < Champ
     else
       update(etablissement: data[:etablissement], value: external_id)
     end
+    # pf: cascade explicite des formules — etablissement/external_id/value
+    # ont changé, on recalcule les formules dépendantes (le callback
+    # after_save ne couvrait que les changements de value).
+    dossier.refresh_formulas_after(self)
   end
 
   def ready_for_external_call?

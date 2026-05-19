@@ -540,6 +540,9 @@ class API::V2::StoredQuery
       primaryValue
       secondaryValue
     }
+    ... on DropDownListChamp {
+      value
+    }
     ... on MultipleDropDownListChamp {
       values
     }
@@ -629,6 +632,7 @@ class API::V2::StoredQuery
     ... on HeaderSectionChamp {
       level
     }
+    ... on ExplicationChamp {}
   }
 
   fragment PersonneMoraleFragment on PersonneMorale {
