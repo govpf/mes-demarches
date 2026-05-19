@@ -29,7 +29,25 @@ class Champs::PieceJustificativeController < Champs::ChampController
       if (0..@champ.piece_justificative_file.size).cover?(index)
         blob = @champ.piece_justificative_file[index]
         if blob.filename.extension == 'pdf' && @champ.dossier.procedure.feature_enabled?(:qrcoded_pdf)
-          send_data StampService.new.stamp(blob, @champ.type_de_champ.dynamic_type.download_url(@champ, index)), filename: blob.filename.to_s, type: 'application/pdf'
+          begin
+            send_data StampService.new.stamp(blob, @champ.type_de_champ.dynamic_type.download_url(@champ, index)), filename: blob.filename.to_s, type: 'application/pdf'
+          rescue HexaPDF::MalformedPDFError => e
+            Sentry.capture_message(
+              "PieceJustificative: PDF malformé, tampon QR-code non apposé",
+              level: :warning,
+              extra: {
+                procedure_id: @champ.dossier.procedure.id,
+                dossier_id: @champ.dossier.id,
+                champ_id: @champ.id,
+                blob_id: blob.id,
+                blob_filename: blob.filename.to_s,
+                blob_byte_size: blob.byte_size,
+                blob_content_type: blob.content_type,
+                hexapdf_error: e.message
+              }
+            )
+            redirect_to blob.url, status: :found, allow_other_host: true
+          end
         else
           redirect_to blob.url, status: :found, allow_other_host: true
         end

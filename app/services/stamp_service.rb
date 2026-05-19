@@ -3,15 +3,7 @@
 class StampService
   def stamp(blob, url)
     blob.open do |file|
-      begin
-        doc = HexaPDF::Document.open(file)
-      rescue HexaPDF::MalformedPDFError
-        # Fallback gracieux : si le PDF est malformé (pas de trailer valide, etc.),
-        # on retourne le contenu brut du fichier sans tampon plutôt que de lever
-        # une erreur 500 à l'utilisateur.
-        file.rewind
-        return file.read
-      end
+      doc = HexaPDF::Document.open(file)
       page = doc.pages[0]
       canvas = page.canvas(type: :overlay)
       page_height = page.box.height
