@@ -57,7 +57,9 @@
     align-items: flex-start;
 
     .header-left {
-      flex: 0.7; // Plus d'espace pour le logo PF + textes
+      // pf: défaut = mode libre, absorbe tout l'espace dispo (header-center absent).
+      // En mode charte (.official-layout) : surchargé à flex: 0.5 pour partager avec header-center (cf. plus bas).
+      flex: 1;
       display: flex;
       align-items: flex-start;
     }
@@ -81,9 +83,16 @@
     }
   }
 
-  .official-layout & {
+  // pf: .official-layout est sur .a4-container, qui est DESCENDANT de #attestation (body) — pas ancêtre.
+  // Donc on utilise un sélecteur de descendant classique, pas `.official-layout &` (qui compilait en `.official-layout #attestation` et ne matchait jamais).
+  .official-layout {
     .direction {
       margin-top: 5.25mm;
+    }
+
+    // pf: mode charte — partage de l'espace entre bloc Polynésie et logo co-émetteur
+    .header-left {
+      flex: 0.6;
     }
   }
 
@@ -207,7 +216,7 @@
   .logo-free-layout {
     img {
       max-height: 50mm;
-      max-width: 100mm;
+      max-width: 150mm;
     }
   }
 

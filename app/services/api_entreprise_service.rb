@@ -53,6 +53,9 @@ class APIEntrepriseService
       if siret.length > 9
         perform_later_fetch_jobs(etablissement, procedure_id, user_id)
       end
+      # pf: la cascade explicite des formules est déclenchée par
+      # Etablissement#update_champ_value_json! (couvre les deux cas Champ et
+      # Dossier-level — formules qui lisent entreprise.raison_commerciale).
       etablissement.update_champ_value_json!
       etablissement
     end
@@ -68,6 +71,7 @@ class APIEntrepriseService
       if dossier_or_champ.is_a?(Champ)
         dossier_or_champ.update!(value_json: APIGeoService.parse_etablissement_address(etablissement))
       end
+      # pf: cascade des formules déclenchée par update_champ_value_json!
       etablissement.update_champ_value_json!
       etablissement
     end

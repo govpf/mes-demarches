@@ -2,10 +2,12 @@
 
 require 'rails_helper'
 
-# pf: Audit de performance et de comportement de la cascade refresh_dependent_formulas
-# Ce test sert de garde-fou CI pour détecter les régressions de performance
-# et vérifier le comportement du recalcul en chaîne.
-RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
+# pf: Audit de performance et de comportement de la cascade explicite des
+# formules — Dossier#refresh_formulas_after, appelée par les controllers
+# (users/instructeurs/champs), les mutations GraphQL et les services
+# external_data. Ce test sert de garde-fou CI pour détecter les régressions
+# de performance et vérifier le comportement du recalcul en chaîne.
+RSpec.describe 'Formule cascade refresh_formulas_after', type: :model do
   # ------------------------------------------------------------------
   # Helpers
   # ------------------------------------------------------------------
@@ -97,7 +99,7 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
       set_formule_expression(dossier, quadruple_tdc, "{tdc#{double_tdc.stable_id}} * 2")
     end
 
-    it 'propage la transitivité A → B → C via propagate_formula_updates' do
+    it 'propage la transitivité A → B → C via refresh_formulas_after' do
       # Persister les champs formule pour que update_column fonctionne
       dossier.reload
       double_champ = find_champ(dossier, double_tdc)
@@ -107,6 +109,10 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
 
       montant = find_champ(dossier, montant_tdc)
       montant.update!(value: '10')
+      # pf: cascade explicite — c'est désormais le caller (controller,
+      # mutation, service) qui déclenche le recalcul après modification
+      # d'un champ source. Ici on simule l'appel typique d'un controller.
+      dossier.refresh_formulas_after(montant)
 
       # Vérifier que les DEUX niveaux sont recalculés en DB
       expect(double_champ.reload.read_attribute(:value)).to eq('20')
@@ -115,7 +121,10 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
 
     it 'ne provoque pas de cascade infinie (pas de StackOverflow)' do
       montant = find_champ(dossier, montant_tdc)
-      expect { montant.update!(value: '999') }.not_to raise_error
+      expect {
+        montant.update!(value: '999')
+        dossier.refresh_formulas_after(montant)
+      }.not_to raise_error
     end
   end
 
