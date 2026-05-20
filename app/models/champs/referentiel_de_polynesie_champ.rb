@@ -56,6 +56,10 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
       )
       propagate_prefill(data)
     end
+    # pf: cascade explicite des formules — data/value_json ont changé. À ce
+    # jour les formules ne lisent pas encore les colonnes des référentiels
+    # mais on prépare le terrain pour les évolutions futures.
+    dossier.refresh_formulas_after(self)
   end
 
   # pf: autocomplete utilise le flux inline (pas de job) ; exact_match utilise le job asynchrone ;
