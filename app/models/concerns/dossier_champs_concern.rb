@@ -30,7 +30,8 @@ module DossierChampsConcern
     #    rebasés avant le fix du rebase).
     #
     # Les dossiers sur révision publiée avec champ déjà persisté ne sont pas
-    # concernés : refresh_dependent_formulas garde leur valeur à jour.
+    # concernés : l'appel explicite à refresh_formulas_after par les
+    # controllers / mutations garde leur valeur à jour.
     #
     # Garde contre la récursion : FormulaCalculationService passe par
     # project_champs_*_all → project_champ pour construire sa vue du dossier.
@@ -189,6 +190,14 @@ module DossierChampsConcern
 
     row_id = ULID.generate
     champ_for_update(type_de_champ, row_id:, updated_by:)
+    # pf: cascade explicite des formules — l'ajout d'une row peut
+    # impacter une formule du genre size(bloc_repetable) ou
+    # somme(bloc_repetable.colonne). Le callback after_save sur
+    # saved_change_to_value? ne se déclenche pas (création d'un row champ
+    # vide → value nil → nil). On déclenche explicitement à partir du
+    # champ repetition parent (stable_id = celui de la repetition,
+    # row_id = nil → recalcule toutes les formules dépendantes).
+    refresh_formulas_after(project_champ(type_de_champ))
     row_id
   end
 
@@ -197,6 +206,10 @@ module DossierChampsConcern
 
     champ = champ_for_update(type_de_champ, row_id:, updated_by:)
     champ.discard!
+    # pf: cascade explicite des formules — discard! ne touche pas value
+    # donc le callback after_save ne déclenche aucun recalcul. Une formule
+    # size(bloc_repetable) doit voir le décompte mis à jour.
+    refresh_formulas_after(project_champ(type_de_champ))
   end
 
   def stable_id_in_revision?(stable_id)
@@ -273,10 +286,10 @@ module DossierChampsConcern
     @stream = Champ::MAIN_STREAM
 
     # pf: Recalcul des formules privées après merge. Pendant que le dossier
-    # était sur user:buffer, la cascade refresh_dependent_formulas a
-    # explicitement skippé les formules privées (cf. check_valid_stream_on_write?
-    # qui interdit l'écriture privée hors main). Maintenant que les sources
-    # promues sont sur main et que @stream est aligné, on peut les recalculer.
+    # était sur user:buffer, refresh_formulas_after a explicitement skippé
+    # les formules privées (cf. check_valid_stream_on_write? qui interdit
+    # l'écriture privée hors main). Maintenant que les sources promues sont
+    # sur main et que @stream est aligné, on peut les recalculer.
     #
     # On cible uniquement les formules privées : les formules publiques ont
     # été calculées en cascade pendant que le dossier était en buffer (sur
@@ -456,16 +469,17 @@ module DossierChampsConcern
     elsif loaded_champ.object_id != champ.object_id
       association(:champs).target = champs - [loaded_champ] + [champ]
     end
-    # pf: rattacher le Champ à self AVANT toute opération qui déclenche la
-    # cascade (clone_value_from → save! → refresh_dependent_formulas). Sinon
-    # la cascade lit champ.dossier qui pointe sur l'instance Dossier
-    # fantôme matérialisée par create_or_find_by!, et tous les Champs
-    # formule créés en cascade s'attachent à ce fantôme — invisibles pour
-    # le contrôleur qui retravaille avec self. Au 2e save (re-cascade
-    # via assign_attributes + save), self.champs ne les contient pas et
-    # create_or_find_by! ne détecte pas le doublon en BDD car la contrainte
-    # unique sur (dossier_id, stream, stable_id, row_id) ne matche pas
-    # quand row_id IS NULL → INSERT crée un doublon.
+    # pf: rattacher le Champ à self AVANT toute opération qui déclenche
+    # une cascade (clone_value_from → save! puis recalcul des formules en
+    # aval via compute_formulas_in_order). Sinon le calcul lit champ.dossier
+    # qui pointe sur l'instance Dossier fantôme matérialisée par
+    # create_or_find_by!, et tous les Champs formule créés en cascade
+    # s'attachent à ce fantôme — invisibles pour le contrôleur qui
+    # retravaille avec self. Au 2e save (re-cascade via assign_attributes +
+    # save), self.champs ne les contient pas et create_or_find_by! ne
+    # détecte pas le doublon en BDD car la contrainte unique sur
+    # (dossier_id, stream, stable_id, row_id) ne matche pas quand
+    # row_id IS NULL → INSERT crée un doublon.
     if champ.dossier.object_id != object_id
       champ.association(:dossier).target = self
     end

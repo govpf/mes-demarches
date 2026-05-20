@@ -11,8 +11,13 @@ class Champs::FormuleChamp < Champ
   #   1. Création du dossier : appel explicite à dossier.compute_initial_formulas
   #      depuis les controllers (Users::Dossiers#new_dossier, Commencer,
   #      Api::Public::V1, ProcedureRevision#dossier_for_preview).
-  #   2. Modification d'un champ source : Champ#after_save :refresh_dependent_formulas
-  #      → cascade via compute_formulas_in_order avec seed.
+  #   2. Modification d'un champ source : appel explicite à
+  #      dossier.refresh_formulas_after(champ) depuis les controllers HTTP
+  #      (users, instructeurs, champs/*), les mutations GraphQL (annotation*),
+  #      les services external_data (SIRET/RNA/référentiel/api_entreprise) et
+  #      les flux structurels (repetition_add_row / repetition_remove_row).
+  #      Pas de cascade implicite via callback — chaque site qui modifie une
+  #      source déclenche explicitement le recalcul (cf. CLAUDE.md).
   #   3. Affichage en révision draft (preview admin) :
   #      Dossier#project_champ → recompute en mémoire pour refléter les
   #      modifications d'expression non encore propagées aux dossiers.
