@@ -138,6 +138,28 @@ describe Champs::PieceJustificativeController, type: :controller do
         end
       end
     end
+
+    context 'when the PDF is malformed (qrcoding activated)' do
+      let(:current_user) { instructeur.user }
+
+      before do
+        Flipper.enable(:qrcoded_pdf, procedure)
+        allow(HexaPDF::Document).to receive(:open).and_raise(HexaPDF::MalformedPDFError.new("missing trailer"))
+      end
+
+      it 'logs a Sentry warning with blob context and redirects to the original blob' do
+        expect(Sentry).to receive(:capture_message).with(
+          "PieceJustificative: PDF malformé, tampon QR-code non apposé",
+          hash_including(
+            level: :warning,
+            extra: hash_including(:procedure_id, :dossier_id, :champ_id, :blob_id, :blob_filename, :hexapdf_error)
+          )
+        )
+        subject
+        expect(response.status).to eq(302)
+        expect(response.location).to include('active_storage')
+      end
+    end
   end
 
   describe '#update' do
