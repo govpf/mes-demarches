@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
 describe FormulaValueDisplayComponent, type: :component do
-  subject { render_inline(described_class.new(value: value, output_type: output_type)) }
+  subject { render_inline(described_class.new(champ: champ)) }
 
+  let(:type_de_champ) { build(:type_de_champ_formule, formule_output_type: output_type) }
+  let(:champ) { instance_double(Champs::FormuleChamp, value: value, type_de_champ: type_de_champ) }
   let(:output_type) { nil }
+  let(:value) { nil }
 
-  context 'with output_type: "string"' do
+  context 'with output_type "string"' do
     let(:output_type) { 'string' }
 
     context 'and a value that starts with an ISO date prefix' do
@@ -30,7 +33,7 @@ describe FormulaValueDisplayComponent, type: :component do
     end
   end
 
-  context 'with output_type: "date"' do
+  context 'with output_type "date"' do
     let(:output_type) { 'date' }
     let(:value) { '2026-06-08' }
 
@@ -40,7 +43,7 @@ describe FormulaValueDisplayComponent, type: :component do
     end
   end
 
-  context 'with output_type: "datetime"' do
+  context 'with output_type "datetime"' do
     let(:output_type) { 'datetime' }
     let(:value) { '2026-06-08T15:40:00+02:00' }
 
@@ -50,7 +53,7 @@ describe FormulaValueDisplayComponent, type: :component do
     end
   end
 
-  context 'with output_type: "number"' do
+  context 'with output_type "number"' do
     let(:output_type) { 'number' }
 
     context 'with a Rational-like string "195/1"' do
@@ -82,7 +85,7 @@ describe FormulaValueDisplayComponent, type: :component do
     end
   end
 
-  context 'with output_type: "boolean"' do
+  context 'with output_type "boolean"' do
     let(:output_type) { 'boolean' }
 
     context 'when true' do
@@ -96,24 +99,16 @@ describe FormulaValueDisplayComponent, type: :component do
     end
   end
 
-  context 'with output_type: nil (legacy sniffing for backwards compatibility)' do
+  context 'with output_type nil (defensive — should not happen in practice)' do
     let(:output_type) { nil }
 
     context 'with an ISO date value' do
       let(:value) { '2026-06-08' }
 
-      it 'falls back to date rendering' do
+      it 'does NOT auto-detect a date (no sniffing fallback)' do
         subject
-        expect(page).to have_selector('time')
-      end
-    end
-
-    context 'with a URL' do
-      let(:value) { 'https://example.com' }
-
-      it 'renders a link' do
-        subject
-        expect(page).to have_selector('a[href="https://example.com"]')
+        expect(page).to have_text('2026-06-08')
+        expect(page).not_to have_selector('time')
       end
     end
 
