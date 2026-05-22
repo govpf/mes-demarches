@@ -579,6 +579,63 @@ describe FormulaCalculationService do
         end
       end
 
+      describe 'DUREE_SEMAINES' do
+        it 'Date + DUREE_SEMAINES adds n * 7 days' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() + DUREE_SEMAINES(2)')).to eq('2026-05-03')
+          end
+        end
+
+        it 'Date - DUREE_SEMAINES subtracts n * 7 days' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() - DUREE_SEMAINES(1)')).to eq('2026-04-12')
+          end
+        end
+      end
+
+      describe 'JOURS_ENTRE / SEMAINES_ENTRE / MOIS_ENTRE / ANNEES_ENTRE' do
+        it 'JOURS_ENTRE returns the day difference' do
+          expect(compute('JOURS_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(10))')).to eq('10')
+        end
+
+        it 'JOURS_ENTRE can be negative when d2 is before d1' do
+          expect(compute('JOURS_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_JOURS(3))')).to eq('-3')
+        end
+
+        it 'SEMAINES_ENTRE returns integer weeks (truncated toward zero)' do
+          # 13 jours → 1 semaine
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(13))')).to eq('1')
+          # 14 jours → 2 semaines
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(14))')).to eq('2')
+        end
+
+        it 'MOIS_ENTRE handles month boundary (31 jan → 28 feb = 1 month)' do
+          travel_to Time.zone.local(2026, 1, 31) do
+            expect(compute('MOIS_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(28))')).to eq('1')
+          end
+        end
+
+        it 'MOIS_ENTRE returns 12 across a full year' do
+          travel_to Time.zone.local(2026, 1, 1) do
+            expect(compute('MOIS_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(1))')).to eq('12')
+          end
+        end
+
+        it 'ANNEES_ENTRE handles 29 feb leap-year edge (anniversary not yet passed)' do
+          # d1 = 2020-02-29, d2 = 2024-02-28 → 3 ans (anniv pas encore atteint)
+          travel_to Time.zone.local(2020, 2, 29) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(4) - DUREE_JOURS(1))')).to eq('3')
+          end
+        end
+
+        it 'ANNEES_ENTRE returns 4 once the anniversary is reached' do
+          # d1 = 2020-02-29, d2 = 2024-02-29 → 4 ans
+          travel_to Time.zone.local(2020, 2, 29) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(4))')).to eq('4')
+          end
+        end
+      end
+
       describe 'DURATION (native Dentaku)' do
         it 'exposes DURATION natively with years/months/days identifiers' do
           travel_to Time.zone.local(2026, 4, 19) do

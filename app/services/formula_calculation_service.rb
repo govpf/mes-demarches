@@ -340,6 +340,44 @@ class FormulaCalculationService
     calculator.add_function(:DUREE_JOURS, :duration, -> (n) {
       Dentaku::AST::Duration::Value.new(n.to_i, 'days')
     })
+    # pf: DUREE_SEMAINES(n) = n * 7 jours — pas de unit 'weeks' dans Dentaku,
+    # on retombe sur 'days'.
+    calculator.add_function(:DUREE_SEMAINES, :duration, -> (n) {
+      Dentaku::AST::Duration::Value.new(n.to_i * 7, 'days')
+    })
+
+    # pf: Intervalles entre deux dates. Toutes nil-safe (n'importe quel
+    # argument nil → retourne nil pour propager le manque de donnée).
+    calculator.add_function(:JOURS_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      (to_date(d2) - to_date(d1)).to_i
+    })
+    # pf: division entière → arrondi vers zéro (5 jours = 0 semaine).
+    calculator.add_function(:SEMAINES_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      ((to_date(d2) - to_date(d1)).to_i / 7)
+    })
+    # pf: Différence en mois calendaires, indépendante du jour du mois
+    # (31 jan → 28 fév = 1, comme attendu par les usagers).
+    calculator.add_function(:MOIS_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      a = to_date(d1)
+      b = to_date(d2)
+      (b.year - a.year) * 12 + (b.month - a.month)
+    })
+    # pf: Années révolues (même logique que AGE, généralisée à deux dates).
+    # Si le mois/jour de d2 est avant celui de d1 dans l'année courante,
+    # on retire une année.
+    calculator.add_function(:ANNEES_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      a = to_date(d1)
+      b = to_date(d2)
+      years = b.year - a.year
+      if b.month < a.month || (b.month == a.month && b.day < a.day)
+        years -= 1
+      end
+      years
+    })
   end
 
   # pf: Les fonctions date acceptent indifféremment Date/DateTime/Time.

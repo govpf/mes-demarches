@@ -16,6 +16,8 @@ class FormulaAiPromptService
     'string' => 'texte',
     'number' => 'nombre',
     'boolean' => 'booléen (true/false)',
+    'date' => 'date',
+    'datetime' => 'date et heure',
   }.freeze
 
   # pf: Types de colonnes exposés par available_columns_for_formula_editor
@@ -205,8 +207,12 @@ class FormulaAiPromptService
       - `AGE(date_de_naissance)` → nombre — âge en années révolues (tient compte de l’anniversaire)
       - `EST_PASSEE(date)` → booléen — la date est-elle strictement antérieure à aujourd’hui ?
       - `EST_FUTURE(date)` → booléen — la date est-elle strictement postérieure à aujourd’hui ?
-      - `DUREE_ANNEES(n)` / `DUREE_MOIS(n)` / `DUREE_JOURS(n)` → durée — à utiliser en arithmétique avec une date. Ex : `{DateNaissance} + DUREE_ANNEES(18)` → date du 18e anniversaire.
+      - `DUREE_ANNEES(n)` / `DUREE_MOIS(n)` / `DUREE_JOURS(n)` / `DUREE_SEMAINES(n)` → durée — à utiliser en arithmétique avec une date. Ex : `{DateNaissance} + DUREE_ANNEES(18)` → date du 18e anniversaire, ou `AUJOURDHUI() + DUREE_SEMAINES(2)` → date dans deux semaines.
       - `DURATION(n, years|months|days)` → durée — équivalent anglais natif, interchangeable avec les `DUREE_*`.
+      - `JOURS_ENTRE(date1, date2)` → nombre — nombre de jours entre deux dates (négatif si date2 < date1). Ex : `JOURS_ENTRE({Date d'arrivée}, AUJOURDHUI())`.
+      - `SEMAINES_ENTRE(date1, date2)` → nombre — nombre de semaines complètes (division entière par 7).
+      - `MOIS_ENTRE(date1, date2)` → nombre — différence en mois calendaires (31 jan → 28 fév vaut 1).
+      - `ANNEES_ENTRE(date1, date2)` → nombre — années révolues entre deux dates (tient compte de l'anniversaire ; équivalent à `AGE` généralisé à deux dates).
 
       Opérations dérivées de l’arithmétique native :
       - `{Date1} - {Date2}` → nombre de jours entre deux dates (entier si les deux sont des dates simples).
