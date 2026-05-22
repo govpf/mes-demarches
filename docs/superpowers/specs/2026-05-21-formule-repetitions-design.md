@@ -292,7 +292,59 @@ Cette étape est UI-only, isolable du reste, peut partir en PR distincte des ét
 
 ---
 
-## 7. Out of scope
+## 7. Scénarios système (Capybara)
+
+Comme pour la spec #2+#4, ces scénarios sont **obligatoires** dans la PR. À écrire dans `spec/system/formula_repetitions_*_spec.rb`.
+
+### S5 — Recalcul d'un agrégat à l'ajout d'une ligne de bloc
+
+**Préconditions** :
+- Procédure publiée avec : un bloc répétable « Lignes de facture » contenant un sous-champ « Prix HT » (decimal number), et une formule placée **en dessous** du bloc, libellée « Total », formule `SOMME({Lignes de facture/Prix HT})`
+- Dossier brouillon avec 2 lignes déjà saisies (Prix HT : 100, 200)
+
+**Actions** :
+1. Naviguer sur la page d'édition du dossier
+2. Vérifier la valeur initiale de « Total » : `300`
+3. Cliquer « Ajouter une ligne »
+4. Saisir `50` dans le Prix HT de la nouvelle ligne
+5. Déclencher l'autosave
+
+**Assertions** :
+- Après l'autosave, « Total » affiche `350`
+- `COUNT({Lignes de facture})` (si présent dans une autre formule) affiche `3`
+
+### S6 — Recalcul à la modification d'un sous-champ d'une ligne existante
+
+**Préconditions** :
+- Même procédure et même dossier que S5 (2 lignes, Total = 300)
+
+**Actions** :
+1. Modifier le Prix HT de la première ligne : `100` → `150`
+2. Déclencher l'autosave
+
+**Assertions** :
+- Après l'autosave, « Total » affiche `350`
+- Le recalcul est déclenché **sans** rechargement complet de la page (vérification via absence de FOUC ou via Turbo Stream)
+
+### S7 — Validation de placement à l'enregistrement du TDC
+
+**Préconditions** :
+- Administrateur connecté sur l'éditeur d'une procédure brouillon
+- Procédure avec un bloc « Lignes de facture » + sous-champ « Prix HT »
+
+**Actions** :
+1. Créer un nouveau champ formule **avant** le bloc dans l'ordre des champs
+2. Saisir l'expression `SOMME({Lignes de facture/Prix HT})`
+3. Cliquer « Enregistrer »
+
+**Assertions** :
+- Le formulaire affiche une erreur de validation : « Le bloc 'Lignes de facture' doit être placé avant la formule » (ou équivalent localisé)
+- Le TDC formule n'est **pas** enregistré (vérifier `TypeDeChamp.where(libelle: ...).count == 0` après l'action)
+- À l'inverse : déplacer la formule en dessous du bloc puis enregistrer → succès
+
+---
+
+## 8. Out of scope
 
 - **MAP, REDUCE, FILTER exposés à l'admin** — pas en v1. Les transformations par ligne passent par formule-ligne intermédiaire.
 - **Agrégation filtrée (`COUNT_WHERE`, `SUM_WHERE`)** — pas en v1. Réalisable via formule-ligne `SI(...)` + agrégation, cf. patterns du catalogue.

@@ -236,7 +236,70 @@ end
 
 ---
 
-## 7. Out of scope
+## 7. Scénarios système (Capybara)
+
+L'historique du champ formule a démontré que les tests unitaires et de service couvrent bien la **logique de calcul** mais ratent les bugs de la **chaîne de déclenchement** (`controller → callback AR → refresh_formulas_after → compute_formulas_in_order → affichage`). Cette section liste les scénarios end-to-end **obligatoires** pour cette PR, à écrire dans `spec/system/formula_*_spec.rb`.
+
+### S1 — Cascade entre formules après modification d'un champ source
+
+**Préconditions** :
+- Procédure publiée avec : un champ texte « Montant HT » (number), une formule A `{Montant HT} * 1.2` (libellé « TTC »), une formule B `{TTC} - {Montant HT}` (libellé « TVA »)
+- Dossier brouillon ouvert par un usager connecté
+
+**Actions** :
+1. Naviguer sur la page d'édition du dossier
+2. Saisir `100` dans le champ « Montant HT »
+3. Déclencher l'autosave (tab out ou attente)
+
+**Assertions** :
+- La valeur affichée de « TTC » est `120` immédiatement après l'autosave (vérification via `expect(page).to have_content('120')`)
+- La valeur affichée de « TVA » est `20` immédiatement après (cascade transitive)
+
+### S2 — Recalcul sur transition d'état dossier
+
+**Préconditions** :
+- Procédure publiée avec une formule référençant `{dossier_en_instruction_at}` (ex: `JOURS_ENTRE({dossier_en_instruction_at}, AUJOURDHUI())`)
+- Dossier en construction, déposé
+
+**Actions** :
+1. Se connecter en instructeur
+2. Naviguer sur le dossier, cliquer « Passer en instruction »
+
+**Assertions** :
+- Après le rechargement (ou Turbo Stream), la valeur de la formule est affichée et égale à `0` (date du jour - date du jour)
+- La page ne contient pas de marqueur « — » (valeur non calculée)
+
+### S3 — Recalcul sur modification d'identité (procédure for_individual)
+
+**Préconditions** :
+- Procédure publiée avec `for_individual: true` et une formule référençant `{individual_nom}` (ex: `CONCATENER("Bonjour ", {individual_prenom}, " ", {individual_nom})`)
+- Dossier brouillon avec identité initialement saisie (`prenom: "Jean"`, `nom: "Dupont"`)
+
+**Actions** :
+1. Naviguer sur la page identité
+2. Modifier le nom en `"Martin"`
+3. Soumettre
+
+**Assertions** :
+- Après le rechargement, la valeur de la formule affichée est `"Bonjour Jean Martin"`
+
+### S4 — Affichage type-aware (non-régression du bug d'origine)
+
+**Préconditions** :
+- Procédure publiée avec un champ date « Date d'arrivée » et un champ texte « Référence transport », et une formule (libellé « Identifiant ») de la forme `CONCATENER("", ANNEE({Date d'arrivée}), "-", {Référence transport})`
+- Dossier rempli avec `Date d'arrivée: 2026-06-08`, `Référence transport: "CAP-19297/288"`
+
+**Actions** :
+1. Naviguer sur la page de consultation du dossier
+
+**Assertions** :
+- Le résultat est affiché en clair `"2026-CAP-19297/288"` (string)
+- Le rendu HTML ne contient **pas** de balise `<time>` autour de la valeur
+- `formule_output_type` du TDC en base est `'string'` (vérification via assertion modèle complémentaire si possible)
+
+---
+
+## 8. Out of scope
 
 Les points suivants ne font pas partie de ce chantier :
 
