@@ -352,10 +352,12 @@ class FormulaCalculationService
       next nil if d1.nil? || d2.nil?
       (to_date(d2) - to_date(d1)).to_i
     })
-    # pf: division entière → arrondi vers zéro (5 jours = 0 semaine).
+    # pf: Troncature vers zéro (5 jours → 0 semaine, -5 jours → 0 semaine).
+    # Pas la division entière Ruby (qui fait floor vers -∞).
     calculator.add_function(:SEMAINES_ENTRE, :numeric, -> (d1, d2) {
       next nil if d1.nil? || d2.nil?
-      ((to_date(d2) - to_date(d1)).to_i / 7)
+      days = (to_date(d2) - to_date(d1)).to_i
+      days.abs.div(7) * (days.negative? ? -1 : 1)
     })
     # pf: Différence en mois calendaires, indépendante du jour du mois
     # (31 jan → 28 fév = 1, comme attendu par les usagers).
@@ -366,17 +368,19 @@ class FormulaCalculationService
       (b.year - a.year) * 12 + (b.month - a.month)
     })
     # pf: Années révolues (même logique que AGE, généralisée à deux dates).
-    # Si le mois/jour de d2 est avant celui de d1 dans l'année courante,
-    # on retire une année.
+    # Symétrique : ANNEES_ENTRE(a, b) == -ANNEES_ENTRE(b, a).
+    # On calcule toujours sur (min, max) puis on rétablit le signe.
     calculator.add_function(:ANNEES_ENTRE, :numeric, -> (d1, d2) {
       next nil if d1.nil? || d2.nil?
       a = to_date(d1)
       b = to_date(d2)
-      years = b.year - a.year
-      if b.month < a.month || (b.month == a.month && b.day < a.day)
+      sign = b >= a ? 1 : -1
+      from, to = sign == 1 ? [a, b] : [b, a]
+      years = to.year - from.year
+      if to.month < from.month || (to.month == from.month && to.day < from.day)
         years -= 1
       end
-      years
+      years * sign
     })
   end
 

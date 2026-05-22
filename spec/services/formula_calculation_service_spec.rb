@@ -609,6 +609,13 @@ describe FormulaCalculationService do
           expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(14))')).to eq('2')
         end
 
+        it 'SEMAINES_ENTRE truncates toward zero on negative ranges' do
+          # -5 jours → 0 semaine (et pas -1 comme le ferait la division entière Ruby)
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_JOURS(5))')).to eq('0')
+          # -13 jours → -1 semaine
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_JOURS(13))')).to eq('-1')
+        end
+
         it 'MOIS_ENTRE handles month boundary (31 jan → 28 feb = 1 month)' do
           travel_to Time.zone.local(2026, 1, 31) do
             expect(compute('MOIS_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(28))')).to eq('1')
@@ -632,6 +639,17 @@ describe FormulaCalculationService do
           # d1 = 2020-02-29, d2 = 2024-02-29 → 4 ans
           travel_to Time.zone.local(2020, 2, 29) do
             expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(4))')).to eq('4')
+          end
+        end
+
+        it 'ANNEES_ENTRE is symmetric: f(a, b) == -f(b, a)' do
+          # d1 = 2020-02-28, d2 = 2024-02-29 → 4 ans
+          # Inversé : d1 = 2024-02-29, d2 = 2020-02-28 → -4 ans (pas -5)
+          travel_to Time.zone.local(2020, 2, 28) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(4) + DUREE_JOURS(1))')).to eq('4')
+          end
+          travel_to Time.zone.local(2024, 2, 29) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_ANNEES(4) - DUREE_JOURS(1))')).to eq('-4')
           end
         end
       end
