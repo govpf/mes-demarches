@@ -382,9 +382,8 @@ describe TypesDeChamp::FormuleTypeDeChamp do
   end
 
   # pf: formule_deps est un Hash structuré stocké dans options['formule_deps']
-  # calculé à chaque validation. Il remplace conceptuellement les flags booléens
-  # clock_dependent / state_dependent (qui restent écrits pour compatibilité
-  # ascendante jusqu'à l'étape F). Convention : clés absentes <=> false.
+  # calculé à chaque validation. Il remplace les anciens flags booléens
+  # clock_dependent / state_dependent (supprimés à l'étape F). Convention : clés absentes <=> false.
   describe 'formule_deps computation' do
     subject(:deps) do
       type_de_champ.valid?
@@ -496,38 +495,38 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       end
     end
 
-    # pf: non-régression — les flags clock_dependent et state_dependent doivent
-    # continuer à être écrits (compatibilité avec les consommateurs étape F).
-    context 'non-regression: existing flags still written' do
-      context 'clock_dependent with AUJOURDHUI' do
+    # pf: non-régression — formule_deps doit couvrir les cas has_clock et has_state
+    # (les anciens flags clock_dependent / state_dependent ont été supprimés à l'étape F).
+    context 'non-regression: formule_deps covers clock and state detection' do
+      context "AUJOURDHUI() sets has_clock" do
         let(:expression) { 'AUJOURDHUI()' }
 
-        it 'still sets clock_dependent on the type_de_champ' do
+        it "sets formule_deps['has_clock'] to true" do
           type_de_champ.valid?
-          expect(type_de_champ.clock_dependent).to be(true)
+          expect(type_de_champ.formule_deps&.[]('has_clock')).to be(true)
         end
       end
 
-      context 'state_dependent with dossier timestamp' do
+      context "dossier timestamp reference sets has_state" do
         let(:expression) { '{dossier_en_instruction_at}' }
 
-        it 'still sets state_dependent on the type_de_champ' do
+        it "sets formule_deps['has_state'] to true" do
           type_de_champ.valid?
-          expect(type_de_champ.state_dependent).to be(true)
+          expect(type_de_champ.formule_deps&.[]('has_state')).to be(true)
         end
       end
 
       context 'no clock, no state' do
         let(:expression) { '1 + 1' }
 
-        it 'clock_dependent is false' do
+        it "does not set formule_deps['has_clock']" do
           type_de_champ.valid?
-          expect(type_de_champ.clock_dependent).to be(false)
+          expect(type_de_champ.formule_deps).not_to have_key('has_clock')
         end
 
-        it 'state_dependent is false' do
+        it "does not set formule_deps['has_state']" do
           type_de_champ.valid?
-          expect(type_de_champ.state_dependent).to be(false)
+          expect(type_de_champ.formule_deps).not_to have_key('has_state')
         end
       end
     end

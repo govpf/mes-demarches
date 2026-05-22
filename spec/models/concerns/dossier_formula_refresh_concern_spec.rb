@@ -17,15 +17,15 @@ describe DossierFormulaRefreshConcern do
     formule_tdc.reload
   end
 
-  describe 'flags on the type_de_champ' do
-    it 'marks the formula as clock_dependent' do
+  describe 'formule_deps on the type_de_champ' do
+    it "sets formule_deps['has_clock'] for a clock-dependent formula" do
       formule_tdc = revision.types_de_champ.find(&:formule?)
-      expect(formule_tdc.clock_dependent).to be true
+      expect(formule_tdc.formule_deps&.[]('has_clock')).to be true
     end
 
-    it 'marks the formula as state_dependent' do
+    it "sets formule_deps['has_state'] for a state-dependent formula" do
       formule_tdc = revision.types_de_champ.find(&:formule?)
-      expect(formule_tdc.state_dependent).to be true
+      expect(formule_tdc.formule_deps&.[]('has_state')).to be true
     end
   end
 
