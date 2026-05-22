@@ -38,6 +38,20 @@ module DossierFormulaRefreshConcern
     refresh_formulas_matching { |tdc| tdc.formule_deps&.[]('has_state') }
   end
 
+  # pf: Recalcule les formules qui référencent l'identité du déclarant
+  # (champs {individual_*} ou {entreprise_*}). Appelé explicitement par les
+  # controllers après modification de l'identité — pas de callback AR sur
+  # Individual/Etablissement pour respecter la convention "cascade explicite"
+  # documentée dans CLAUDE.md.
+  def refresh_formulas_with_identite_dependents
+    matching = revision.types_de_champ.filter do |tdc|
+      tdc.formule? && tdc.formule_deps&.[]('has_identite')
+    end
+    return if matching.empty?
+
+    compute_formulas_in_order(only: matching.map(&:stable_id).to_set)
+  end
+
   # pf: Recalcule les formules avec formule_deps['has_clock'] = true selon le scope fourni.
   # scope: :all → publiques + privées (pour dossiers en brouillon)
   # scope: :private_only → annotations privées uniquement (pour dossiers
