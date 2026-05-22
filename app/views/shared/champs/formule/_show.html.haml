@@ -1,5 +1,5 @@
 - if champ.value.present?
-  = render FormulaValueDisplayComponent.new(value: champ.value)
+  = render FormulaValueDisplayComponent.new(value: champ.value, output_type: champ.type_de_champ.formule_output_type)
 - else
   %span.fr-text--mention-grey
     Aucune valeur calculée
