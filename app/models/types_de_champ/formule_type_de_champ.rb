@@ -372,14 +372,18 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   # fonction clock. Les noeuds personnalises (add_function) ont
   # node.class.name comme Symbol (ex: :AGE) ; les noeuds built-in ont
   # node.class.name comme String. On s'appuie sur ce discriminant.
+  # pf: Dentaku::AST::Negation stocke son operande dans @node (accesseur :node),
+  # pas dans :left/:right. On descend explicitement dans :node pour ne pas
+  # manquer un appel clock enveloppe par un unaire (ex: -AGE({tdc42})).
   def ast_uses_clock_function?(node)
     return false if node.nil?
     return true if node.class.name.is_a?(Symbol) && CLOCK_FUNCTION_NAMES.include?(node.class.name)
 
     children = []
-    children.concat(node.args) if node.respond_to?(:args)
+    children.concat(node.args) if node.respond_to?(:args) && node.args
     children << node.left if node.respond_to?(:left) && node.left
     children << node.right if node.respond_to?(:right) && node.right
+    children << node.node if node.respond_to?(:node) && node.node
 
     children.any? { |child| ast_uses_clock_function?(child) }
   end

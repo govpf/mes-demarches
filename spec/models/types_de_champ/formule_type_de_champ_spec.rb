@@ -477,6 +477,17 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       end
     end
 
+    # pf: non-régression — Dentaku::AST::Negation stocke son opérande dans @node,
+    # pas dans :left/:right. Sans le guard :node, -AGE({tdc42}) retournait
+    # has_clock=false (enfant ignoré silencieusement).
+    context 'with clock function nested under a Negation node' do
+      let(:expression) { '-AGE({tdc42}) + 100' }
+
+      it 'detects clock function nested under a Negation node' do
+        expect(deps['has_clock']).to be(true)
+      end
+    end
+
     context 'with blank expression' do
       let(:expression) { '' }
 
@@ -518,6 +529,23 @@ describe TypesDeChamp::FormuleTypeDeChamp do
           type_de_champ.valid?
           expect(type_de_champ.state_dependent).to be(false)
         end
+      end
+    end
+  end
+
+  # pf: invariant de durabilité — les symboles de CLOCK_FUNCTION_NAMES doivent
+  # correspondre à des fonctions effectivement enregistrées dans le calculateur
+  # Dentaku. Ce test échouera si une fonction est renommée ou supprimée sans
+  # mettre à jour la constante, signalant que le discriminant class.name.is_a?(Symbol)
+  # n'est plus fiable pour cette fonction.
+  describe 'CLOCK_FUNCTION_NAMES invariant' do
+    it 'all clock function names are registered in the Dentaku calculator' do
+      calc = FormulaCalculationService.new_calculator
+      registry = calc.instance_variable_get(:@function_registry)
+      TypesDeChamp::FormuleTypeDeChamp::CLOCK_FUNCTION_NAMES.each do |sym|
+        klass = registry.get(sym)
+        expect(klass).not_to be_nil, "#{sym} is listed in CLOCK_FUNCTION_NAMES but not registered in the calculator"
+        expect(klass.name).to eq(sym), "#{sym} registered class name mismatch: expected #{sym.inspect}, got #{klass.name.inspect}"
       end
     end
   end
