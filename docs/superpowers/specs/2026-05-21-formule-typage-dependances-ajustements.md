@@ -289,3 +289,53 @@ Les points "out of scope" de la spec d'origine restent valides : pas de
 preview temps-réel, pas de badge, pas d'autocomplete des nouvelles fonctions,
 pas de type `:duration` exposable, pas d'agrégation en répétition, pas
 d'exposition `formule_deps` en GraphQL.
+
+---
+
+## Bugs / améliorations trouvés en debug (à traiter séparément)
+
+Découverts pendant un debug du dossier 712 (procédure 43, TDC 750 référencé
+par TDC 751) le 2026-05-22 :
+
+### B-1 — Erreur de validation de l'expression formule non remontée dans l'UI
+
+**Symptôme** : l'admin tape une expression contenant une fonction inexistante
+(ex: `ARRONDI_INF(...)`). Côté Rails, `validate_expression` ajoute une
+erreur :
+
+```
+Le champ « Formule expression » La fonction 'arrondi_inf' n'existe pas
+```
+
+Mais l'éditeur formule (Stimulus) **n'affiche pas l'erreur** — l'admin croit
+que la sauvegarde a réussi alors que l'ancienne expression reste en base
+(visible via `updated_at` du TDC).
+
+**À investiguer** : le retour AJAX du PATCH du TDC + la gestion des
+`flash`/erreurs côté `formula_autocomplete_controller.ts` ou équivalent.
+
+### B-2 — `ARRONDI_INF` / `ARRONDI_SUP` manquants
+
+Ces deux fonctions sont prévues dans la spec **répétitions**
+(`2026-05-21-formule-repetitions-design.md` lignes 209-226, alias Dentaku
+`rounddown` / `roundup`). À ajouter là-bas, ou à découper en mini-PR
+indépendante si le chantier répétitions tarde — le besoin est immédiat
+(arrondi vers le bas pour des calculs de délais).
+
+### B-3 — `ARRONDI(n, 0)` retourne un float, casse `CONCATENER`
+
+**Symptôme** : `CONCATENER("00", ARRONDI({tdc750}, 0), "000")` ressort
+`"00xxx.0000"` au lieu de `"00xxx000"` — `ARRONDI` rend un Float même quand
+le résultat est entier.
+
+**Cause** : `ARRONDI` est aliasé sur Dentaku `:round` qui retourne un
+Numeric (Float pour la précision donnée).
+
+**Solution proposée** : ajouter une fonction `ENTIER(n)` (alias Dentaku
+`:int` ou implémentation custom) qui force la conversion en Integer :
+`n.to_f.to_i`. À mettre dans la même PR que B-2 (regroupement
+"améliorations arithmétiques").
+
+Alternative : modifier `ARRONDI(n, 0)` pour retourner un Integer quand
+`decimales = 0`. Plus risqué (rupture de comportement pour qui s'en sert
+en arithmétique flottante derrière).
