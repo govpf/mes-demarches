@@ -3,75 +3,71 @@
 class FormulaValueDisplayComponent < ApplicationComponent
   include ChampHelper
 
-  def initialize(value:)
-    @value = value&.to_s&.strip
+  # pf: On reçoit le champ entier (pas value + output_type séparés) pour
+  # garantir une source unique de vérité au call-site : un dev ne peut pas
+  # oublier de passer le type tout en passant la valeur.
+  # formule_output_type est inféré dans FormuleTypeDeChamp#validate_expression
+  # à chaque save — tout TDC formule validé en base a donc un type non-nil.
+  def initialize(champ:)
+    @value = champ.value&.to_s&.strip
+    @output_type = champ.type_de_champ.formule_output_type
   end
 
   def formatted_value
     return '' if @value.blank?
 
-    if boolean?(@value)
-      format_as_boolean(@value)
-    elsif url?(@value)
-      format_as_url(@value)
-    elsif number?(@value)
-      format_as_number(@value)
-    elsif date?(@value)
-      format_as_date(@value)
-    else
+    case @output_type
+    when 'boolean'  then format_as_boolean(@value)
+    when 'date'     then format_as_date(@value)
+    when 'datetime' then format_as_datetime(@value)
+    when 'number'   then format_as_number(@value)
+    else # 'string' ou nil (défensif) → texte brut, jamais de sniffing
       format_text_value(@value)
     end
   end
 
   private
 
-  def boolean?(value)
-    value == Champs::BooleanChamp::TRUE_VALUE || value == Champs::BooleanChamp::FALSE_VALUE
-  end
-
   def format_as_boolean(value)
     value == Champs::BooleanChamp::TRUE_VALUE ? t('utils.yes') : t('utils.no')
   end
 
-  def url?(value)
-    value.match?(/\Ahttps?:\/\//)
-  end
-
-  def date?(value)
-    # pf: Date.parse est trop permissif (accepte "Pas validé100" → date).
-    # On ne reconnaît que les formats ISO et courants explicites.
-    value.match?(/\A\d{4}-\d{2}-\d{2}/) || value.match?(/\A\d{2}\/\d{2}\/\d{4}\z/)
-  end
-
-  def number?(value)
-    value.match?(/\A-?\d+(\.\d+)?\z/)
-  end
-
-  def format_as_url(value)
-    link_to(truncate(value, length: 60), value,
-            target: '_blank',
-            rel: 'noopener noreferrer',
-            class: 'fr-link fr-link--external',
-            'aria-label': "Lien externe : #{value} (s'ouvre dans un nouvel onglet)")
-  end
-
   def format_as_date(value)
-    begin
-      parsed_date = Date.parse(value)
-      content_tag(:time,
-                  l(parsed_date, format: :long),
-                  datetime: parsed_date.iso8601,
-                  class: 'fr-text')
-    rescue ArgumentError
-      format_text_value(value)
+    parsed_date = Date.parse(value)
+    content_tag(:time,
+                l(parsed_date, format: :long),
+                datetime: parsed_date.iso8601,
+                class: 'fr-text')
+  rescue ArgumentError
+    format_text_value(value)
+  end
+
+  def format_as_datetime(value)
+    parsed = Time.zone.parse(value)
+    return format_text_value(value) if parsed.nil?
+
+    content_tag(:time,
+                l(parsed),
+                datetime: parsed.iso8601,
+                class: 'fr-text')
+  rescue ArgumentError
+    format_text_value(value)
+  end
+
+  # pf: Rational("195/1") → 195.0 ; rescue couvre les strings non-numériques.
+  def format_as_number(value)
+    numeric = parse_numeric(value)
+
+    if numeric == numeric.to_i && !value.include?('.')
+      number_with_delimiter(numeric.to_i)
+    else
+      number_with_precision(numeric, precision: 2, strip_insignificant_zeros: true)
     end
   end
 
-  def format_as_number(value)
-    if value.include?('.')
-      number_with_precision(value.to_f, precision: 2, strip_insignificant_zeros: true)
-    else
-      number_with_delimiter(value.to_i)
-    end
+  def parse_numeric(value)
+    Rational(value).to_f
+  rescue ArgumentError, TypeError, ZeroDivisionError
+    value.to_f
   end
 end
