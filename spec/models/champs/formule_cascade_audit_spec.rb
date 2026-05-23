@@ -22,7 +22,11 @@ RSpec.describe 'Formule cascade refresh_formulas_after', type: :model do
   end
 
   def set_formule_expression(dossier, formule_tdc, expression)
-    formule_tdc.update_column(:options, formule_tdc.options.merge('formule_expression' => expression))
+    # pf: passe par update! (avec validation) pour que formule_deps soit recalculé
+    # en même temps que formule_expression — update_column bypasse les callbacks
+    # et laisserait formule_deps stale, ce qui romprait la construction du graphe
+    # de dépendances via formule_deps['champs'].
+    formule_tdc.update!(formule_expression: expression)
   end
 
   def find_champ(dossier, tdc)

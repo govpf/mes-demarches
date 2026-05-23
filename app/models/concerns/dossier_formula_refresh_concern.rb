@@ -5,13 +5,13 @@
 # Deux familles de dépendances nécessitent des recalculs hors du flow normal
 # (le flow normal = cascade sur save d'un champ source) :
 #
-#   1. **clock_dependent** : formules qui utilisent AUJOURDHUI/MAINTENANT/
+#   1. **formule_deps['has_clock']** : formules qui utilisent AUJOURDHUI/MAINTENANT/
 #      AGE/EST_PASSEE/EST_FUTURE — leur valeur change avec le temps qui
 #      passe. Recalcul quotidien via Cron::RefreshClockDependentFormulasJob,
 #      scopé par état (brouillon → public+privé, actif non-brouillon →
 #      privé seulement).
 #
-#   2. **state_dependent** : formules qui référencent les timestamps d'état
+#   2. **formule_deps['has_state']** : formules qui référencent les timestamps d'état
 #      du dossier ({dossier_depose_at}, {dossier_en_instruction_at}, etc.).
 #      Ces valeurs changent à chaque transition. Recalcul synchrone via
 #      les hooks after_commit_passer_en_*, sans distinction public/privé
@@ -20,7 +20,7 @@ module DossierFormulaRefreshConcern
   extend ActiveSupport::Concern
 
   # pf: Timestamps d'état du dossier qui, s'ils changent, peuvent faire
-  # bouger la valeur d'une formule state_dependent.
+  # bouger la valeur d'une formule avec formule_deps['has_state'] = true.
   STATE_TIMESTAMP_COLUMNS = [:depose_at, :en_construction_at, :en_instruction_at, :processed_at].freeze
 
   included do
@@ -28,23 +28,23 @@ module DossierFormulaRefreshConcern
     # pour isoler le changement dans ce concern et éviter d'éditer
     # dossier_state_concern à chaque ajout d'un nouveau trigger. Filtré par
     # un changement effectif de timestamp d'état + présence d'au moins une
-    # formule state_dependent.
+    # formule avec formule_deps['has_state'] = true.
     after_commit :refresh_state_dependent_formulas_if_needed, on: :update
   end
 
-  # pf: Recalcule les formules state_dependent après une transition d'état.
+  # pf: Recalcule les formules avec formule_deps['has_state'] = true après une transition d'état.
   # Appelée depuis les callbacks after_commit_passer_en_* de Dossier.
   def refresh_state_dependent_formulas
-    refresh_formulas_matching(&:state_dependent)
+    refresh_formulas_matching { |tdc| tdc.formule_deps&.[]('has_state') }
   end
 
-  # pf: Recalcule les formules clock_dependent selon le scope fourni.
+  # pf: Recalcule les formules avec formule_deps['has_clock'] = true selon le scope fourni.
   # scope: :all → publiques + privées (pour dossiers en brouillon)
   # scope: :private_only → annotations privées uniquement (pour dossiers
   # actifs déposés, où les formules publiques sont figées)
   def refresh_clock_dependent_formulas(scope: :all)
     refresh_formulas_matching do |tdc|
-      next false unless tdc.clock_dependent
+      next false unless tdc.formule_deps&.[]('has_clock')
       scope == :private_only ? tdc.private? : true
     end
   end
@@ -209,7 +209,7 @@ module DossierFormulaRefreshConcern
   end
 
   def has_state_dependent_formula?
-    revision&.types_de_champ&.any? { |tdc| tdc.formule? && tdc.state_dependent }
+    revision&.types_de_champ&.any? { |tdc| tdc.formule? && tdc.formule_deps&.[]('has_state') }
   end
 
   # pf: Boucle générique de recalcul. Utilise update_column pour éviter de

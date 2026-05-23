@@ -124,25 +124,17 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   end
 
   def validate_expression
-    # pf: Met à jour les flags clock_dependent / state_dependent à chaque
-    # validation — permettent au RefreshFormulasJob (clock) et aux hooks de
-    # transition d'état (state) de cibler efficacement les formules à
-    # recalculer. Fait avant le return early pour que l'expression vide
-    # remette les flags à false.
-    expression = @type_de_champ.formule_expression
-    @type_de_champ.clock_dependent = FormulaCalculationService.clock_dependent?(expression)
-    @type_de_champ.state_dependent = FormulaCalculationService.state_dependent?(expression)
-
     # pf: Calcul des deps structurées (étape D). has_clock est absent ici car
     # il necessite l'AST Dentaku — il est ajoute plus bas apres construction
     # de l'AST. Les autres cles (champs, has_state, has_identite) sont
     # calculees via regex sur l'expression brute, ce qui est sans risque car
     # les tokens {…} ne peuvent pas apparaitre dans des litteraux Dentaku.
-    @type_de_champ.formule_deps = compute_formule_deps_from_expression(expression)
+    raw_expression = @type_de_champ.formule_expression
+    @type_de_champ.formule_deps = compute_formule_deps_from_expression(raw_expression)
 
-    return if @type_de_champ.formule_expression.blank?
+    return if raw_expression.blank?
 
-    expression = @type_de_champ.formule_expression.strip
+    expression = raw_expression.strip
 
     if expression.length > 1000
       @type_de_champ.errors.add(:formule_expression, :too_long, count: 1000)
@@ -346,18 +338,24 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   # has_clock est absent ici — il est ajoute separement via l'AST Dentaku
   # dans validate_expression, apres construction de l'AST.
   # Convention : seules les cles vraies sont presentes (sauf 'champs' toujours la).
+  # Supporte les deux formats : {tdc123} (format courant) et {123} (ancien format
+  # de compatibilite ascendante), ainsi que le chemin optionnel {tdc123/path}.
   FORMULE_DEPS_TDC_PATTERN = /\{tdc(\d+)(?:\/[^}]+)?\}/
+  FORMULE_DEPS_LEGACY_PATTERN = /\{(\d+)\}/
   FORMULE_DEPS_STATE_PATTERN = /\{dossier_(depose|en_construction|en_instruction|processed)_at\}/
   FORMULE_DEPS_IDENTITE_PATTERN = /\{(?:individual_|entreprise_)/
 
   def compute_formule_deps_from_expression(expression)
     deps = {}
 
-    champs = expression.to_s.scan(FORMULE_DEPS_TDC_PATTERN).map { |m| m[0].to_i }.uniq.sort
+    expr_str = expression.to_s
+    tdc_ids = expr_str.scan(FORMULE_DEPS_TDC_PATTERN).map { |m| m[0].to_i }
+    legacy_ids = expr_str.scan(FORMULE_DEPS_LEGACY_PATTERN).map { |m| m[0].to_i }
+    champs = (tdc_ids + legacy_ids).uniq.sort
     deps['champs'] = champs
 
-    deps['has_state'] = true if expression.to_s.match?(FORMULE_DEPS_STATE_PATTERN)
-    deps['has_identite'] = true if expression.to_s.match?(FORMULE_DEPS_IDENTITE_PATTERN)
+    deps['has_state'] = true if expr_str.match?(FORMULE_DEPS_STATE_PATTERN)
+    deps['has_identite'] = true if expr_str.match?(FORMULE_DEPS_IDENTITE_PATTERN)
 
     deps
   end

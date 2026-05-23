@@ -146,7 +146,7 @@ class TypeDeChamp < ApplicationRecord
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
     visa: [:accredited_users],
-    formule: [:formule_expression, :dependent_stable_ids, :formule_output_type, :clock_dependent, :state_dependent, :formule_deps],
+    formule: [:formule_expression, :formule_output_type, :formule_deps],
   }
   INSTANCE_OPTIONS = INSTANCE_OPTIONS_BY_TYPE.values.reduce(&:+).uniq
   INSTANCE_CHAMPS_PARAMS = [:numero_dn, :date_de_naissance]
@@ -461,24 +461,6 @@ class TypeDeChamp < ApplicationRecord
         formule_expression
       end
     )
-  end
-
-  def dependent_stable_ids
-    return [] unless formule?
-    # pf: Extract stable_ids from column references in the expression
-    stable_ids = []
-
-    formule_expression.to_s.scan(/\{([^}]+)\}/).each do |match|
-      ref = match[0].strip
-
-      if ref.match?(/^tdc(\d+)/)
-        stable_ids << ref.match(/^tdc(\d+)/)[1].to_i
-      elsif ref.match?(/^\d+$/)
-        stable_ids << ref.to_i
-      end
-    end
-
-    stable_ids.uniq
   end
 
   # pf: Returns champs that can be referenced by this formula field

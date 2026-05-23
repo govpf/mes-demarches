@@ -350,7 +350,7 @@ class Champ < ApplicationRecord
     # stable_id source → [stable_ids des formules qui en dépendent]
     deps_graph = Hash.new { |h, k| h[k] = Set.new }
     formula_tdcs.each do |tdc|
-      tdc.dependent_stable_ids.each { |dep_sid| deps_graph[dep_sid].add(tdc.stable_id) }
+      (tdc.formule_deps&.[]('champs') || []).each { |dep_sid| deps_graph[dep_sid].add(tdc.stable_id) }
     end
 
     # BFS topologique depuis self.stable_id
@@ -394,7 +394,7 @@ class Champ < ApplicationRecord
   def dependent_formula_champs_from(all_champs)
     all_champs.filter do |formula_champ|
       next false if formula_champ.stable_id.nil?
-      next false unless formula_champ.formule? && formula_champ.type_de_champ.dependent_stable_ids&.include?(stable_id)
+      next false unless formula_champ.formule? && (formula_champ.type_de_champ.formule_deps&.[]('champs') || []).include?(stable_id)
 
       if row_id.present?
         formula_champ.row_id == row_id || formula_champ.row_id.nil?
