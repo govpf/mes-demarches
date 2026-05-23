@@ -451,6 +451,52 @@ describe FormulaCalculationService do
       end
     end
 
+    # pf: non-régression — une formule qui retourne un entier (ex: ARRONDI(x, 0)
+    # ou un simple {champ_entier}) ne doit PAS introduire un "x.0" quand elle
+    # est référencée par une autre formule. format_value_for_dentaku case :decimal
+    # doit préserver le type Integer si la valeur stockée est sans décimale.
+    context 'when a formula references another numeric formula that returned an integer' do
+      let(:procedure) {
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :decimal_number, libelle: 'X' },
+          { type: :formule, libelle: 'Rounded' }, # ARRONDI({X}, 0)
+          { type: :formule, libelle: 'Label' }, # CONCATENER("00", {Rounded}, "000")
+        ])
+      }
+      let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
+      let(:x_champ) { dossier.project_champs_public[0] }
+      let(:rounded_champ) { dossier.project_champs_public[1] }
+      let(:label_champ) { dossier.project_champs_public[2] }
+      let(:service) { described_class.new(dossier, locale: :fr) }
+
+      before do
+        expr_r, _ = FormulaExpressionService.convert_to_stable_ids('ARRONDI({X}, 0)', procedure.active_revision)
+        rounded_champ.type_de_champ.update(formule_expression: expr_r)
+        rounded_champ.type_de_champ.valid?
+        rounded_champ.type_de_champ.save!
+
+        expr_l, _ = FormulaExpressionService.convert_to_stable_ids('CONCATENER("00", {Rounded}, "000")', procedure.active_revision)
+        label_champ.type_de_champ.update(formule_expression: expr_l)
+      end
+
+      it 'does not introduce a ".0" artifact when concatenating a formula that returned an integer' do
+        x_champ.update(value: '3.7')
+        rounded_champ.update(value: service.compute_value(rounded_champ)) # "4"
+        expect(rounded_champ.reload.value).to eq('4')
+        expect(service.compute_value(label_champ)).to eq('004000')
+      end
+
+      it 'preserves the decimal when the upstream formula actually returns a decimal' do
+        x_champ.update(value: '3.74')
+        # une formule décimale réelle ne doit pas perdre ses décimales
+        decimal_expr, _ = FormulaExpressionService.convert_to_stable_ids('{X} * 2', procedure.active_revision)
+        rounded_champ.type_de_champ.update(formule_expression: decimal_expr)
+        rounded_champ.update(value: service.compute_value(rounded_champ)) # "7.48"
+        expect(rounded_champ.reload.value).to eq('7.48')
+        expect(service.compute_value(label_champ)).to eq('007.48000')
+      end
+    end
+
     # pf: non-régression — une formule qui référence juste un champ booléen
     # (checkbox, yes_no, ou formule booléenne) doit rendre "true"/"false",
     # pas "1"/"0". Le typage boolean doit se propager jusqu'à format_result.
