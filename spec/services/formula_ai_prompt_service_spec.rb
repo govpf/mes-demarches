@@ -21,6 +21,12 @@ describe FormulaAiPromptService do
       expect(subject).to include('ANNEES_ENTRE')
     end
 
+    it 'documents the new rounding functions' do
+      expect(subject).to include('ARRONDI_INF')
+      expect(subject).to include('ARRONDI_SUP')
+      expect(subject).to include('ENTIER')
+    end
+
     it 'documents DUREE_SEMAINES' do
       expect(subject).to include('DUREE_SEMAINES')
     end

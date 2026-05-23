@@ -78,6 +78,67 @@ describe FormulaCalculationService do
       # and SOMME receives it as a single array argument, which flatten() handles
     end
 
+    context 'ARRONDI_INF, ARRONDI_SUP, ENTIER functions' do
+      let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+      def compute(expression)
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: expression))
+        service.compute_value(formule_champ)
+      end
+
+      # ARRONDI_INF (floor)
+      it 'ARRONDI_INF floors a positive non-integer' do
+        expect(compute('ARRONDI_INF(3.7)')).to eq('3')
+      end
+
+      it 'ARRONDI_INF floors a negative non-integer' do
+        expect(compute('ARRONDI_INF(-3.2)')).to eq('-4')
+      end
+
+      it 'ARRONDI_INF is a no-op on an exact integer' do
+        expect(compute('ARRONDI_INF(5)')).to eq('5')
+      end
+
+      # ARRONDI_SUP (ceil)
+      it 'ARRONDI_SUP ceils a positive non-integer' do
+        expect(compute('ARRONDI_SUP(3.2)')).to eq('4')
+      end
+
+      it 'ARRONDI_SUP ceils a negative non-integer' do
+        expect(compute('ARRONDI_SUP(-3.7)')).to eq('-3')
+      end
+
+      it 'ARRONDI_SUP is a no-op on an exact integer' do
+        expect(compute('ARRONDI_SUP(5)')).to eq('5')
+      end
+
+      # ENTIER (truncation toward zero)
+      it 'ENTIER truncates a positive non-integer toward zero' do
+        expect(compute('ENTIER(3.7)')).to eq('3')
+      end
+
+      it 'ENTIER truncates a negative non-integer toward zero' do
+        expect(compute('ENTIER(-3.7)')).to eq('-3')
+      end
+
+      it 'ENTIER is a no-op on an exact integer' do
+        expect(compute('ENTIER(5)')).to eq('5')
+      end
+
+      it 'ENTIER on zero returns zero' do
+        expect(compute('ENTIER(0)')).to eq('0')
+      end
+
+      # Cross-check: floor vs truncation differ for negatives
+      it 'ARRONDI_INF and ENTIER differ for negative non-integers' do
+        floor_result    = compute('ARRONDI_INF(-3.5)')
+        truncate_result = compute('ENTIER(-3.5)')
+        expect(floor_result).to    eq('-4')
+        expect(truncate_result).to eq('-3')
+        expect(floor_result).not_to eq(truncate_result)
+      end
+    end
+
     context 'ET/OU/NON functions with real procedure and revision' do
       let(:procedure) {
         create(:procedure, :published, types_de_champ_public: [
@@ -387,6 +448,52 @@ describe FormulaCalculationService do
         age_champ.update(value: '15')
         majeur_champ.update(value: service.compute_value(majeur_champ)) # "false"
         expect(service.compute_value(label_champ)).to eq('mineur')
+      end
+    end
+
+    # pf: non-régression — une formule qui retourne un entier (ex: ARRONDI(x, 0)
+    # ou un simple {champ_entier}) ne doit PAS introduire un "x.0" quand elle
+    # est référencée par une autre formule. format_value_for_dentaku case :decimal
+    # doit préserver le type Integer si la valeur stockée est sans décimale.
+    context 'when a formula references another numeric formula that returned an integer' do
+      let(:procedure) {
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :decimal_number, libelle: 'X' },
+          { type: :formule, libelle: 'Rounded' }, # ARRONDI({X}, 0)
+          { type: :formule, libelle: 'Label' }, # CONCATENER("00", {Rounded}, "000")
+        ])
+      }
+      let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
+      let(:x_champ) { dossier.project_champs_public[0] }
+      let(:rounded_champ) { dossier.project_champs_public[1] }
+      let(:label_champ) { dossier.project_champs_public[2] }
+      let(:service) { described_class.new(dossier, locale: :fr) }
+
+      before do
+        expr_r, _ = FormulaExpressionService.convert_to_stable_ids('ARRONDI({X}, 0)', procedure.active_revision)
+        rounded_champ.type_de_champ.update(formule_expression: expr_r)
+        rounded_champ.type_de_champ.valid?
+        rounded_champ.type_de_champ.save!
+
+        expr_l, _ = FormulaExpressionService.convert_to_stable_ids('CONCATENER("00", {Rounded}, "000")', procedure.active_revision)
+        label_champ.type_de_champ.update(formule_expression: expr_l)
+      end
+
+      it 'does not introduce a ".0" artifact when concatenating a formula that returned an integer' do
+        x_champ.update(value: '3.7')
+        rounded_champ.update(value: service.compute_value(rounded_champ)) # "4"
+        expect(rounded_champ.reload.value).to eq('4')
+        expect(service.compute_value(label_champ)).to eq('004000')
+      end
+
+      it 'preserves the decimal when the upstream formula actually returns a decimal' do
+        x_champ.update(value: '3.74')
+        # une formule décimale réelle ne doit pas perdre ses décimales
+        decimal_expr, _ = FormulaExpressionService.convert_to_stable_ids('{X} * 2', procedure.active_revision)
+        rounded_champ.type_de_champ.update(formule_expression: decimal_expr)
+        rounded_champ.update(value: service.compute_value(rounded_champ)) # "7.48"
+        expect(rounded_champ.reload.value).to eq('7.48')
+        expect(service.compute_value(label_champ)).to eq('007.48000')
       end
     end
 

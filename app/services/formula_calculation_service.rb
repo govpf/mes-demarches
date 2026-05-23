@@ -257,6 +257,15 @@ class FormulaCalculationService
       match ? match[0].tr(',', '.').to_f : 0
     })
 
+    # pf: ENTIER tronque vers zéro (to_i Ruby) — différent de ARRONDI_INF (floor).
+    # ENTIER(-3.7) = -3 alors que ARRONDI_INF(-3.7) = -4.
+    # Utile pour caster un résultat numérique en entier afin d'éviter "xxx.0"
+    # en concaténation : CONCATENER("00", ENTIER({tdc750}), "000").
+    calculator.add_function(:ENTIER, :numeric, -> (n) {
+      next nil if n.nil?
+      n.to_f.to_i
+    })
+
     add_french_date_functions(calculator)
   end
 
@@ -474,7 +483,21 @@ class FormulaCalculationService
     when :integer
       value.present? ? value.to_i : 0
     when :decimal
-      value.present? ? value.to_f : 0
+      # pf: une formule de type 'number' qui retourne un entier (ex: ARRONDI(x, 0)
+      # → Integer 3 → stocké "3") doit rester Integer quand elle est référencée
+      # par une autre formule, sinon CONCATENER("00", {tdc_A}, "000") ressort
+      # "003.0000" parce qu'un Float 3.0 est injecté dans Dentaku.
+      # La value reçue peut être String ("3.7"), Float (4.0 après cast colonne)
+      # ou Integer — on normalise vers Integer quand la valeur est sans partie
+      # décimale, Float sinon.
+      return 0 if value.blank?
+      case value
+      when Integer then value
+      when Float, BigDecimal then value % 1 == 0 ? value.to_i : value.to_f
+      else
+        s = value.to_s
+        Integer(s, exception: false) || s.to_f
+      end
     when :boolean
       # pf: on passe des booléens natifs à Dentaku (pas 0/1) pour que le
       # typage soit préservé jusqu'à format_result. Une formule `{CaseACocher}`

@@ -176,6 +176,9 @@ class FormulaAiPromptService
       - `MIN(a, b, ...)` / `MAX(a, b, ...)` → nombre
       - `ABS(n)` → nombre — valeur absolue
       - `ARRONDI(n, [décimales])` → nombre — arrondi à `décimales` chiffres (0 par défaut)
+      - `ARRONDI_INF(n)` → nombre — entier le plus grand ≤ n (floor). Ex : `ARRONDI_INF(3.7)` = 3, `ARRONDI_INF(-3.2)` = -4.
+      - `ARRONDI_SUP(n)` → nombre — entier le plus petit ≥ n (ceil). Ex : `ARRONDI_SUP(3.2)` = 4, `ARRONDI_SUP(-3.7)` = -3.
+      - `ENTIER(n)` → nombre — partie entière (tronque vers zéro). Ex : `ENTIER(3.7)` = 3, `ENTIER(-3.7)` = -3. Utile pour caster un résultat numérique en entier (évite "xxx.0" en concaténation).
 
       ### Logique
       - `SI(condition, valeur_si_vrai, valeur_si_faux)` — équivalent ternaire
