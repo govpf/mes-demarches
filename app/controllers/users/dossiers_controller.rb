@@ -188,6 +188,7 @@ module Users
         end
 
         @dossier.update!(autorisation_donnees: true, identity_updated_at: Time.zone.now)
+        @dossier.refresh_formulas_with_identite_dependents
 
         flash.notice = t('.identity_saved')
 
@@ -618,6 +619,7 @@ module Users
 
       current_user.update!(siret: siret)
       @dossier.update!(autorisation_donnees: true, last_champ_updated_at: Time.zone.now)
+      @dossier.refresh_formulas_with_identite_dependents
       redirect_to etablissement_dossier_path
     end
 

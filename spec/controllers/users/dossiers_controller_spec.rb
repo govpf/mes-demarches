@@ -312,6 +312,36 @@ describe Users::DossiersController, type: :controller do
         end
       end
     end
+
+    context 'when the dossier has a formula referencing {individual_last_name}' do
+      let(:procedure) {
+        create(:procedure, :published, :for_individual, types_de_champ_private: [
+          { type: :formule, libelle: 'Formule nom' },
+        ])
+      }
+      let(:dossier) { create(:dossier, :with_individual, user: user, procedure: procedure) }
+      let(:dossier_params) { { individual_attributes: { gender: 'M', nom: 'Martin', prenom: 'Jean' } } }
+
+      before do
+        formule_tdc = procedure.active_revision.types_de_champ.find(&:formule?)
+        expr, _ = FormulaExpressionService.convert_to_stable_ids(
+          'CONCATENER("Bonjour ", {individual_last_name})',
+          procedure.active_revision
+        )
+        formule_tdc.update!(formule_expression: expr)
+        dossier.individual.update!(nom: 'Dupont')
+        dossier.compute_formulas_in_order
+        sign_in(user)
+      end
+
+      it 'recomputes the formula after identity update' do
+        post :update_identite, params: { id: dossier.id, dossier: dossier_params }
+
+        formule_champ = dossier.project_champs_private.find { |c| c.libelle == 'Formule nom' }
+        # Individual#nom is stored uppercased
+        expect(formule_champ.reload.value).to eq('Bonjour MARTIN')
+      end
+    end
   end
 
   describe '#siret' do
