@@ -16,7 +16,13 @@
 
 = turbo_stream.replace 'summary', render(TypesDeChampEditor::HeaderSectionsSummaryComponent.new(procedure: @procedure, is_private: @coordinate&.private?))
 
-- unless flash.alert
+- if flash.alert
+  -# flash.alert path: pas de toast autosave (l'alerte est rendue ailleurs)
+- elsif @has_errors
+  = turbo_stream.show 'autosave-notice'
+  = turbo_stream.replace 'autosave-notice', render(AutosaveNoticeComponent.new(success: false, label_scope: :form))
+  -# pas de hide auto — l'utilisateur doit voir l'erreur jusqu'à action
+- else
   = turbo_stream.show 'autosave-notice'
   = turbo_stream.replace 'autosave-notice', render(AutosaveNoticeComponent.new(success: true, label_scope: :form))
   = turbo_stream.hide 'autosave-notice', delay: 30000
