@@ -25,16 +25,20 @@ require 'dentaku'
 #     (première occurrence seulement).
 # Restent en lambda custom dans FormulaCalculationService#add_french_functions.
 {
-  SI:         :if,
-  SOMME:      :sum,
-  MOYENNE:    :avg,
-  ABS:        :abs,
-  ARRONDI:    :round,
-  CONCATENER: :concat,
-  GAUCHE:     :left,
-  DROITE:     :right,
-  STXT:       :mid,
-  NBCAR:      :len,
+  SI:           :if,
+  SOMME:        :sum,
+  MOYENNE:      :avg,
+  ABS:          :abs,
+  ARRONDI:      :round,
+  # pf: floor / ceil — ARRONDI_INF(-3.2) = -4, ARRONDI_SUP(-3.7) = -3.
+  # Différent de ENTIER qui tronque vers zéro (ENTIER(-3.7) = -3).
+  ARRONDI_INF:  :rounddown,
+  ARRONDI_SUP:  :roundup,
+  CONCATENER:   :concat,
+  GAUCHE:       :left,
+  DROITE:       :right,
+  STXT:         :mid,
+  NBCAR:        :len,
 }.each do |fr_name, native_name|
   native_class = Dentaku::AST::Function.get(native_name)
   Dentaku::AST::Function.register_class(fr_name, native_class)

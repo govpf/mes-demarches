@@ -78,6 +78,67 @@ describe FormulaCalculationService do
       # and SOMME receives it as a single array argument, which flatten() handles
     end
 
+    context 'ARRONDI_INF, ARRONDI_SUP, ENTIER functions' do
+      let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+      def compute(expression)
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: expression))
+        service.compute_value(formule_champ)
+      end
+
+      # ARRONDI_INF (floor)
+      it 'ARRONDI_INF floors a positive non-integer' do
+        expect(compute('ARRONDI_INF(3.7)')).to eq('3')
+      end
+
+      it 'ARRONDI_INF floors a negative non-integer' do
+        expect(compute('ARRONDI_INF(-3.2)')).to eq('-4')
+      end
+
+      it 'ARRONDI_INF is a no-op on an exact integer' do
+        expect(compute('ARRONDI_INF(5)')).to eq('5')
+      end
+
+      # ARRONDI_SUP (ceil)
+      it 'ARRONDI_SUP ceils a positive non-integer' do
+        expect(compute('ARRONDI_SUP(3.2)')).to eq('4')
+      end
+
+      it 'ARRONDI_SUP ceils a negative non-integer' do
+        expect(compute('ARRONDI_SUP(-3.7)')).to eq('-3')
+      end
+
+      it 'ARRONDI_SUP is a no-op on an exact integer' do
+        expect(compute('ARRONDI_SUP(5)')).to eq('5')
+      end
+
+      # ENTIER (truncation toward zero)
+      it 'ENTIER truncates a positive non-integer toward zero' do
+        expect(compute('ENTIER(3.7)')).to eq('3')
+      end
+
+      it 'ENTIER truncates a negative non-integer toward zero' do
+        expect(compute('ENTIER(-3.7)')).to eq('-3')
+      end
+
+      it 'ENTIER is a no-op on an exact integer' do
+        expect(compute('ENTIER(5)')).to eq('5')
+      end
+
+      it 'ENTIER on zero returns zero' do
+        expect(compute('ENTIER(0)')).to eq('0')
+      end
+
+      # Cross-check: floor vs truncation differ for negatives
+      it 'ARRONDI_INF and ENTIER differ for negative non-integers' do
+        floor_result    = compute('ARRONDI_INF(-3.5)')
+        truncate_result = compute('ENTIER(-3.5)')
+        expect(floor_result).to    eq('-4')
+        expect(truncate_result).to eq('-3')
+        expect(floor_result).not_to eq(truncate_result)
+      end
+    end
+
     context 'ET/OU/NON functions with real procedure and revision' do
       let(:procedure) {
         create(:procedure, :published, types_de_champ_public: [

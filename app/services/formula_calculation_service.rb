@@ -257,6 +257,15 @@ class FormulaCalculationService
       match ? match[0].tr(',', '.').to_f : 0
     })
 
+    # pf: ENTIER tronque vers zéro (to_i Ruby) — différent de ARRONDI_INF (floor).
+    # ENTIER(-3.7) = -3 alors que ARRONDI_INF(-3.7) = -4.
+    # Utile pour caster un résultat numérique en entier afin d'éviter "xxx.0"
+    # en concaténation : CONCATENER("00", ENTIER({tdc750}), "000").
+    calculator.add_function(:ENTIER, :numeric, -> (n) {
+      next nil if n.nil?
+      n.to_f.to_i
+    })
+
     add_french_date_functions(calculator)
   end
 
