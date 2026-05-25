@@ -2,7 +2,7 @@
 
 module Instructeurs
   class ProcedurePresentationController < InstructeurController
-    before_action :set_procedure_presentation, only: [:update, :refresh_column_filter, :add_filter, :remove_filter, :update_filter, :toggle_filters_expanded]
+    before_action :set_procedure_presentation, only: [:update, :refresh_column_filter, :add_filter, :remove_filter, :update_filter, :toggle_filters_expanded, :set_full_text_filter]
 
     def add_filter
       statut = params[:statut]
@@ -42,6 +42,16 @@ module Instructeurs
       editable_filters_component = Instructeurs::EditableFiltersComponent.new(procedure_presentation: @procedure_presentation, instructeur_procedure: @instructeur_procedure, statut: params[:statut])
 
       render turbo_stream: turbo_stream.replace(editable_filters_component.id, editable_filters_component)
+    end
+
+    def set_full_text_filter
+      statut = params[:statut]
+      query = params[:query].to_s.strip
+      filter = query.present? ? FilteredColumn.new(column: Columns::PfFullTextColumn.new(procedure_id: procedure.id), filter: { 'operator' => 'match', 'value' => [query] }) : nil
+
+      @procedure_presentation.set_full_text_filter_for_statut!(statut, filter)
+
+      redirect_back_or_to([:instructeur, procedure, { statut: }])
     end
 
     def update

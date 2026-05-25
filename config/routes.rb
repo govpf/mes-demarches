@@ -515,6 +515,7 @@ Rails.application.routes.draw do
         post 'update_filter'
         delete 'remove_filter'
         post 'toggle_filters_expanded'
+        post 'set_full_text_filter'
       end
     end
 

@@ -213,4 +213,32 @@ describe ProcedurePresentation do
       ])
     end
   end
+
+  describe 'PF full-text filter concern' do
+    let(:procedure_presentation) { create(:procedure_presentation, assign_to:) }
+    let(:full_text_column) { Columns::PfFullTextColumn.new(procedure_id: procedure.id) }
+    let(:state_column) { procedure.dossier_state_column }
+
+    before { Flipper.enable(:pf_full_text_search_dossiers, procedure) }
+
+    def ft_filter(value) = FilteredColumn.new(column: full_text_column, filter: { 'operator' => 'match', 'value' => [value] })
+
+    it 'replaces the existing full-text filter and preserves non-full-text filters' do
+      state_filter = FilteredColumn.new(column: state_column, filter: { 'operator' => 'match', 'value' => ['en_construction'] })
+      procedure_presentation.update!(tous_filters: [state_filter, ft_filter('old')])
+
+      procedure_presentation.set_full_text_filter_for_statut!('tous', ft_filter('new'))
+
+      filters = procedure_presentation.reload.tous_filters
+      expect(filters.size).to eq(2)
+      expect(procedure_presentation.current_full_text_filter_for('tous').filter_value).to eq(['new'])
+      expect(filters.any? { |f| f.column == state_column && f.filter_value == ['en_construction'] }).to be true
+    end
+
+    it 'removes the full-text filter when called with nil' do
+      procedure_presentation.update!(tous_filters: [ft_filter('dupont')])
+      procedure_presentation.set_full_text_filter_for_statut!('tous', nil)
+      expect(procedure_presentation.reload.tous_filters).to eq([])
+    end
+  end
 end

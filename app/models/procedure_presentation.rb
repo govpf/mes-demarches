@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ProcedurePresentation < ApplicationRecord
+  include PfFullTextFilterConcern
+
   self.ignored_columns += ["displayed_fields", "filters", "sort"]
 
   belongs_to :assign_to, optional: false
