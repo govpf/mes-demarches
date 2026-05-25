@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 class InstructeursProcedure < ApplicationRecord
+  # pf: défauts PF historiques (cf. migration 20230907 sur assign_tos) — préservés lors de la
+  # migration upstream des préférences email vers instructeurs_procedures. Override Ruby-level
+  # uniquement (le défaut DB reste false pour ne pas diverger du schéma upstream).
+  attribute :instant_email_new_dossier, :boolean, default: true
+  attribute :instant_email_new_message, :boolean, default: true
+
   NOTIFICATION_PREFERENCES = ['all', 'followed', 'none'].freeze
 
   DEFAULT_NOTIFICATIONS_PREFERENCES = {
