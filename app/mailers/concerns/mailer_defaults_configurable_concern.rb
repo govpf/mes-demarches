@@ -30,15 +30,19 @@ module MailerDefaultsConfigurableConcern
     def configure_defaults_for_user(user, forced_domain = nil)
       return if !user.is_a?(User) # not for super-admins
 
-      if user.preferred_domain_demarches_numerique_gouv_fr?
-        set_currents_for_demarches_numerique_gouv_fr
-      elsif forced_domain == ApplicationHelper::APP_HOST
-        set_currents_for_demarches_numerique_gouv_fr
-      elsif forced_domain == ApplicationHelper::APP_HOST_LEGACY
-        set_currents_for_legacy
-      else
-        set_currents_for_legacy
-      end
+      # Temporaire avant migration: tous les emails partent par demarcehs-simplifiees.fr
+      # le temps de config brevo
+      set_currents_for_legacy
+
+      # if user.preferred_domain_demarche_numerique_gouv_fr?
+      #   set_currents_for_demarche_numerique_gouv_fr
+      # elsif forced_domain == ApplicationHelper::APP_HOST
+      #   set_currents_for_demarche_numerique_gouv_fr
+      # elsif forced_domain == ApplicationHelper::APP_HOST_LEGACY
+      #   set_currents_for_legacy
+      # else
+      #   set_currents_for_legacy
+      # end
 
       # Define mailer defaults
       from = derive_from_header
@@ -57,8 +61,9 @@ module MailerDefaultsConfigurableConcern
 
     private
 
-    def set_currents_for_demarches_numerique_gouv_fr
-      # pf: pas de double domaine en PF — on aligne sur les valeurs PF.
+    def set_currents_for_demarche_numerique_gouv_fr
+      # pf: pas de double domaine en PF — on aligne sur les valeurs PF quel que soit le domaine
+      # cible upstream (demarches.numerique.gouv.fr OU demarche.numerique.gouv.fr).
       # Sinon fuite systématique via le branch `elsif forced_domain == APP_HOST` de
       # configure_defaults_for_user, qui matche en PF puisque APP_HOST = www.mes-demarches.gov.pf
       # (la sémantique upstream "user a choisi le nouveau domaine" n'a pas de sens chez nous).

@@ -143,12 +143,13 @@ RSpec.describe NotificationMailer, type: :mailer do
 
       # pf: pas de double domaine — même avec preferred_domain set, les liens et le sender restent en PF
       context "when user has preferred domain" do
-        let(:user) { create(:user, preferred_domain: :demarches_numerique_gouv_fr) }
+        let(:user) { create(:user, preferred_domain: :demarche_numerique_gouv_fr) }
 
         it 'still uses PF host and PF sender' do
-          expect(mail.body).to have_link(href: dossier_url(dossier, host: ENV.fetch("APP_HOST")))
+          expect(mail.body).to have_link(href: dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
           expect(header_value("From", mail)).to eq(NO_REPLY_EMAIL)
           expect(mail.body.to_s).not_to include("demarches.numerique.gouv.fr")
+          expect(mail.body.to_s).not_to include("demarche.numerique.gouv.fr")
         end
       end
     end

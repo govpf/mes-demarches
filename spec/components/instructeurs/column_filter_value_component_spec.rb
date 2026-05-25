@@ -18,7 +18,7 @@ describe Instructeurs::ColumnFilterValueComponent, type: :component do
 
   describe 'the select case' do
     let!(:column) do
-      column = double("Column", column: :value, type: :enum, tdc_type: "drop_down_list", options_for_select:, mandatory: true, h_id: {})
+      column = double("Column", column: :value, type: :enum, tdc_type: "drop_down_list", options_for_select:, mandatory: true, h_id: {}, label: 'option1 option2')
       allow(column).to receive(:is_a?).with(Columns::ChampColumn).and_return(true)
       column
     end
@@ -35,20 +35,20 @@ describe Instructeurs::ColumnFilterValueComponent, type: :component do
   end
 
   describe 'the input case' do
-    let(:column) { double("Column", column: :value, type: :datetime, mandatory: true, h_id: {}) }
+    let(:column) { double("Column", column: :value, type: :datetime, mandatory: true, h_id: {}, label: 'date') }
 
     it { expect(page).to have_selector('input[name="filter[filter][value][]"][type="date"]', count: 1) }
   end
 
   describe 'the yes no case' do
-    let(:column) { double("Column", column: :value, type: :boolean, tdc_type: "yes_no", options_for_select: Champs::YesNoChamp.options, mandatory:, h_id: {}) }
+    let(:column) { double("Column", column: :value, type: :boolean, tdc_type: "yes_no", options_for_select: Champs::YesNoChamp.options, mandatory:, h_id: {}, label: 'oui non') }
 
     context 'when the column is mandatory' do
       let(:mandatory) { true }
       it do
         expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 2)
-        expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'oui')
-        expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non')
+        expect(page).to have_selector('label[for="value_filter-operator-match-value-value_true"]', text: 'oui')
+        expect(page).to have_selector('label[for="value_filter-operator-match-value-value_false"]', text: 'non')
       end
     end
 
@@ -57,23 +57,23 @@ describe Instructeurs::ColumnFilterValueComponent, type: :component do
 
       it do
         expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 3)
-        expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'oui')
-        expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non')
-        expect(page).to have_selector('label[for="filter[filter][value][]_nil"]', text: 'Non renseigné')
+        expect(page).to have_selector('label[for="value_filter-operator-match-value-value_true"]', text: 'oui')
+        expect(page).to have_selector('label[for="value_filter-operator-match-value-value_false"]', text: 'non')
+        expect(page).to have_selector('label[for="value_filter-operator-match-value-value_nil"]', text: 'Non renseigné')
       end
     end
   end
 
   describe 'the checkbox case' do
-    let(:column) { double("Column", column: :value, type: :boolean, tdc_type: "checkbox", options_for_select: Champs::CheckboxChamp.options, mandatory:) }
+    let(:column) { double("Column", column: :value, type: :boolean, tdc_type: "checkbox", options_for_select: Champs::CheckboxChamp.options, mandatory:, label: 'coché non coché', h_id: {}) }
 
     context 'when the column is mandatory' do
       let(:mandatory) { true }
 
       it do
         expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 2)
-        expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'coché')
-        expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non coché')
+        expect(page).to have_selector('label[for="value_filter-operator-match-value-value_true"]', text: 'coché')
+        expect(page).to have_selector('label[for="value_filter-operator-match-value-value_false"]', text: 'non coché')
       end
     end
 
@@ -82,14 +82,14 @@ describe Instructeurs::ColumnFilterValueComponent, type: :component do
 
       it do
         expect(page).to have_selector('input[name="filter[filter][value][]"][type="radio"]', count: 2)
-        expect(page).to have_selector('label[for="filter[filter][value][]_true"]', text: 'coché')
-        expect(page).to have_selector('label[for="filter[filter][value][]_false"]', text: 'non coché')
+        expect(page).to have_selector('label[for="value_filter-operator-match-value-value_true"]', text: 'coché')
+        expect(page).to have_selector('label[for="value_filter-operator-match-value-value_false"]', text: 'non coché')
       end
     end
   end
 
   describe 'the notification_type case' do
-    let(:column) { double("Column", column: 'notification_type', type: :enum, options_for_select:, h_id: {}) }
+    let(:column) { double("Column", column: 'notification_type', type: :enum, options_for_select:, h_id: {}, label: 'notifications sur le dossier') }
     let(:options_for_select) { I18n.t('instructeurs.dossiers.filterable_notification').map(&:to_a).map(&:reverse) }
 
     context 'when the instructeur has chosen not to have certain notifications' do

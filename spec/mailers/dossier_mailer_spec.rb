@@ -32,12 +32,13 @@ RSpec.describe DossierMailer, type: :mailer do
 
     # pf: pas de double domaine — même avec preferred_domain "new domain", on reste sur les valeurs PF
     context "when user prefers new domain" do
-      let(:user) { create(:user, preferred_domain: :demarches_numerique_gouv_fr) }
+      let(:user) { create(:user, preferred_domain: :demarche_numerique_gouv_fr) }
 
       it 'still uses PF host and PF sender' do
-        expect(subject.body).to include(dossier_url(dossier, host: ENV.fetch("APP_HOST")))
+        expect(subject.body).to include(dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
         expect(header_value("From", subject)).to eq(NO_REPLY_EMAIL)
         expect(subject.body).not_to include("demarches.numerique.gouv.fr")
+        expect(subject.body).not_to include("demarche.numerique.gouv.fr")
       end
     end
 
@@ -374,10 +375,11 @@ RSpec.describe DossierMailer, type: :mailer do
 
     # pf: pas de double domaine — même avec preferred_domain set, le lien reste sur le host PF
     context 'when recipient has preferred domain' do
-      let(:dossier_transfer) { create(:dossier_transfer, email: create(:user, preferred_domain: :demarches_numerique_gouv_fr).email) }
+      let(:dossier_transfer) { create(:dossier_transfer, email: create(:user, preferred_domain: :demarche_numerique_gouv_fr).email) }
       it 'includes a link with PF host in the email body' do
-        expect(subject.body).to include(dossiers_url(statut: "dossiers-transferes", host: ENV.fetch("APP_HOST")))
+        expect(subject.body).to include(dossiers_url(statut: "dossiers-transferes", host: ENV.fetch("APP_HOST_LEGACY")))
         expect(subject.body).not_to include("demarches.numerique.gouv.fr")
+        expect(subject.body).not_to include("demarche.numerique.gouv.fr")
       end
     end
 
