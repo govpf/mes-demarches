@@ -248,23 +248,22 @@ Workflow type :
 2. Dév locaux mergés
 3. `/md_release` agrège tout en une release PF datée
 
-### ⚠️ Gap actuel à connaître sur `/md_release`
+### Articulation MT entre les deux skills
 
-Le skill `/md_release` (`.claude/commands/md_release.md`) **ne mentionne pas les Maintenance Tasks à exécuter manuellement** (Issue B de `maintenance-task-decision.md`).
+Pour que `/md_release` puisse correctement agréger les MT à exécuter manuellement (Issue B), **le présent skill DOIT inclure dans la description de la PR `feature/bump-*` une section explicite** sous la forme :
 
-Quand tu utilises `/md_release` après avoir mergé des PRs `feature/bump-*` qui contiennent des MT en Issue B :
+```markdown
+### Maintenance Tasks
 
-1. **Récupérer** la liste des MT Issue B des descriptions de PRs `feature/bump-*` agrégées
-2. **Ajouter manuellement** une section dans la release PF :
-   ```markdown
-   ## ⚠️ Actions manuelles post-déploiement
+| Tâche | run_on_first_deploy | Décision | Raison |
+|---|---|---|---|
+| `T20XXMMNN_xxx_task` | ✅ Décommenté | Issue A | ... |
+| `T20XXMMNN_yyy_task` | ❌ Commenté | **Issue B — Manuel après déploiement** | ... |
+```
 
-   Lancer les Maintenance Tasks suivantes depuis l'interface admin :
-   - `T20XXMMNN_xxx_task` — [raison]
-   - `T20XXMMNN_yyy_task` — [raison]
-   ```
+`/md_release` lit cette section dans toutes les PRs `feature/bump-*` agrégées (Source A) et croise avec un scan de code pour détecter les oublis (Source B). Voir étape 3 bis dans `/md_release`.
 
-Une amélioration de `/md_release` pour automatiser cette agrégation est planifiée (cf. task de suivi).
+**Format obligatoire** : la mention "Manuel après déploiement" doit apparaître textuellement pour que `/md_release` puisse la repérer via `grep`.
 
 ## Sous-fichiers du skill (chargement à la demande)
 
