@@ -56,14 +56,16 @@ RSpec.describe DeviseUserMailer, type: :mailer do
         end
       end
 
-      context "new domain", skip: true do
+      # pf: pas de double domaine — même avec preferred_domain set, le mail reste en PF
+      context "new domain" do
         let(:user) { create(:user, preferred_domain: :demarche_numerique_gouv_fr) }
 
-        it "respect preferred domain" do
-          expect(header_value("From", subject.message)).to eq("Démarche Numérique <ne-pas-repondre@demarche.numerique.gouv.fr>")
-          expect(header_value("Reply-To", subject.message)).to eq("Démarche Numérique <ne-pas-repondre@demarche.numerique.gouv.fr>")
-          expect(subject.message.to_s).to include("demarche.numerique.gouv.fr/users/confirmation")
-          expect(subject.message.to_s).to include("//demarche.numerique.gouv.fr/assets/")
+        it "stays on PF host and PF sender" do
+          expect(header_value("From", subject.message)).to eq(NO_REPLY_EMAIL)
+          expect(header_value("Reply-To", subject.message)).to eq(NO_REPLY_EMAIL)
+          expect(subject.message.to_s).to include("#{ENV.fetch("APP_HOST_LEGACY")}/users/confirmation")
+          expect(subject.message.to_s).not_to include("demarches.numerique.gouv.fr")
+          expect(subject.message.to_s).not_to include("demarche.numerique.gouv.fr")
         end
       end
     end
@@ -79,12 +81,15 @@ RSpec.describe DeviseUserMailer, type: :mailer do
         end
       end
 
-      context "new domain", skip: true do
+      # pf: pas de double domaine — même avec preferred_domain set, le mail reste en PF
+      context "new domain" do
         let(:user) { create(:user, preferred_domain: :demarche_numerique_gouv_fr) }
 
-        it "respect preferred domain" do
-          expect(header_value("From", subject.message)).to include("@demarche.numerique.gouv.fr")
-          expect(subject.message.to_s).to include("demarche.numerique.gouv.fr/users/password")
+        it "stays on PF host and PF sender" do
+          expect(header_value("From", subject.message)).to include(CONTACT_EMAIL)
+          expect(subject.message.to_s).to include("#{ENV.fetch("APP_HOST_LEGACY")}/users/password")
+          expect(subject.message.to_s).not_to include("demarches.numerique.gouv.fr")
+          expect(subject.message.to_s).not_to include("demarche.numerique.gouv.fr")
         end
       end
     end

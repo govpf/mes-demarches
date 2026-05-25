@@ -17,15 +17,15 @@ describe DossierFormulaRefreshConcern do
     formule_tdc.reload
   end
 
-  describe 'flags on the type_de_champ' do
-    it 'marks the formula as clock_dependent' do
+  describe 'formule_deps on the type_de_champ' do
+    it "sets formule_deps['has_clock'] for a clock-dependent formula" do
       formule_tdc = revision.types_de_champ.find(&:formule?)
-      expect(formule_tdc.clock_dependent).to be true
+      expect(formule_tdc.formule_deps&.[]('has_clock')).to be true
     end
 
-    it 'marks the formula as state_dependent' do
+    it "sets formule_deps['has_state'] for a state-dependent formula" do
       formule_tdc = revision.types_de_champ.find(&:formule?)
-      expect(formule_tdc.state_dependent).to be true
+      expect(formule_tdc.formule_deps&.[]('has_state')).to be true
     end
   end
 
@@ -40,6 +40,83 @@ describe DossierFormulaRefreshConcern do
       # Timezone PF (UTC-10) vs UTC stockage : la valeur exacte dépend de la
       # conversion. On vérifie juste que le recalcul a bien produit ~9 jours.
       expect(formule_champ.reload.value.to_f).to be_within(1).of(9)
+    end
+  end
+
+  describe '#refresh_formulas_with_identite_dependents' do
+    let(:individual_procedure) {
+      create(:procedure, :published, :for_individual, types_de_champ_private: [
+        { type: :formule, libelle: 'Formule identite' },
+        { type: :formule, libelle: 'Formule horloge' },
+      ])
+    }
+    let(:individual_revision) { individual_procedure.active_revision }
+    let(:individual_dossier) {
+      create(:dossier, :with_individual, :en_construction, procedure: individual_procedure)
+    }
+
+    before do
+      identite_tdc = individual_revision.types_de_champ.find { |t| t.formule? && t.libelle == 'Formule identite' }
+      clock_tdc    = individual_revision.types_de_champ.find { |t| t.formule? && t.libelle == 'Formule horloge' }
+
+      # formula with has_identite: true
+      identite_expr, _ = FormulaExpressionService.convert_to_stable_ids(
+        'CONCATENER("Bonjour ", {individual_last_name})',
+        individual_revision
+      )
+      identite_tdc.update!(formule_expression: identite_expr)
+
+      # formula without has_identite (only clock dep)
+      clock_expr, _ = FormulaExpressionService.convert_to_stable_ids('AUJOURDHUI()', individual_revision)
+      clock_tdc.update!(formule_expression: clock_expr)
+
+      # Materialize initial formula champs
+      individual_dossier.compute_formulas_in_order
+      individual_dossier.reload
+    end
+
+    it 'recomputes formulas with has_identite: true after identity change' do
+      individual_dossier.individual.update!(nom: 'Martin')
+      individual_dossier.send(:reset_champs_cache)
+      individual_dossier.refresh_formulas_with_identite_dependents
+
+      identite_champ = individual_dossier.project_champs_private.find { |c| c.libelle == 'Formule identite' }
+      # Individual#nom is stored uppercased — match the actual stored value
+      expect(identite_champ.reload.value).to eq('Bonjour MARTIN')
+    end
+
+    it 'does NOT recompute formulas without has_identite' do
+      # Force the clock formula to a known value first
+      clock_champ = individual_dossier.project_champs_private.find { |c| c.libelle == 'Formule horloge' }
+      frozen_value = clock_champ.reload.value
+
+      travel_to(2.days.from_now) do
+        individual_dossier.individual.update!(nom: 'Durand')
+        individual_dossier.send(:reset_champs_cache)
+        individual_dossier.refresh_formulas_with_identite_dependents
+      end
+
+      # Clock formula should NOT have been updated (no has_identite)
+      expect(clock_champ.reload.value).to eq(frozen_value)
+    end
+
+    it 'is a no-op when no formula has has_identite' do
+      # Build a dossier on a procedure with only a clock formula (no identite refs)
+      procedure_no_identite = create(:procedure, :published, :for_individual, types_de_champ_private: [
+        { type: :formule, libelle: 'Formule sans identite' },
+      ])
+      clock_only_tdc = procedure_no_identite.active_revision.types_de_champ.find(&:formule?)
+      clock_expr, _ = FormulaExpressionService.convert_to_stable_ids('AUJOURDHUI()', procedure_no_identite.active_revision)
+      clock_only_tdc.update!(formule_expression: clock_expr)
+
+      dossier_no_identite = create(:dossier, :with_individual, procedure: procedure_no_identite)
+      dossier_no_identite.compute_formulas_in_order
+
+      # Ensure has_identite is NOT set
+      expect(clock_only_tdc.reload.formule_deps&.[]('has_identite')).to be_falsey
+
+      expect(dossier_no_identite).not_to receive(:compute_formulas_in_order)
+      expect { dossier_no_identite.refresh_formulas_with_identite_dependents }.not_to raise_error
     end
   end
 

@@ -187,33 +187,6 @@ class FormulaCalculationService
     end
   end
 
-  # pf: Pattern de détection des fonctions qui dépendent de l'instant présent
-  # (i.e. qui renvoient une valeur différente au fil du temps sans qu'aucun
-  # champ source n'ait changé). Utilisé par le TDC pour marquer la formule,
-  # et par RefreshFormulasJob pour cibler les formules à recalculer à minuit.
-  # AGE/EST_PASSEE/EST_FUTURE dépendent implicitement de Date.current.
-  # JOUR/MOIS/ANNEE/JOURSEM ne sont PAS clock-dependent (dépendent uniquement
-  # de leur argument).
-  CLOCK_DEPENDENT_PATTERN = /\b(AUJOURDHUI|MAINTENANT|AGE|EST_PASSEE|EST_FUTURE)\s*\(/
-
-  def self.clock_dependent?(expression)
-    return false if expression.blank?
-    expression.match?(CLOCK_DEPENDENT_PATTERN)
-  end
-
-  # pf: Pattern de détection des références aux timestamps d'état du dossier.
-  # Ces valeurs changent à chaque transition (depose_at au dépôt,
-  # en_instruction_at au passage en instruction, etc.), et nécessitent donc
-  # un recalcul synchrone au moment de la transition — le job quotidien
-  # créerait un lag max 24h inacceptable pour des formules type "jours en
-  # instruction".
-  STATE_DEPENDENT_PATTERN = /\{dossier_(depose|en_construction|en_instruction|processed)_at\}/
-
-  def self.state_dependent?(expression)
-    return false if expression.blank?
-    expression.match?(STATE_DEPENDENT_PATTERN)
-  end
-
   private
 
   def create_calculator
@@ -284,6 +257,15 @@ class FormulaCalculationService
       match ? match[0].tr(',', '.').to_f : 0
     })
 
+    # pf: ENTIER tronque vers zéro (to_i Ruby) — différent de ARRONDI_INF (floor).
+    # ENTIER(-3.7) = -3 alors que ARRONDI_INF(-3.7) = -4.
+    # Utile pour caster un résultat numérique en entier afin d'éviter "xxx.0"
+    # en concaténation : CONCATENER("00", ENTIER({tdc750}), "000").
+    calculator.add_function(:ENTIER, :numeric, -> (n) {
+      next nil if n.nil?
+      n.to_f.to_i
+    })
+
     add_french_date_functions(calculator)
   end
 
@@ -339,6 +321,48 @@ class FormulaCalculationService
     })
     calculator.add_function(:DUREE_JOURS, :duration, -> (n) {
       Dentaku::AST::Duration::Value.new(n.to_i, 'days')
+    })
+    # pf: DUREE_SEMAINES(n) = n * 7 jours — pas de unit 'weeks' dans Dentaku,
+    # on retombe sur 'days'.
+    calculator.add_function(:DUREE_SEMAINES, :duration, -> (n) {
+      Dentaku::AST::Duration::Value.new(n.to_i * 7, 'days')
+    })
+
+    # pf: Intervalles entre deux dates. Toutes nil-safe (n'importe quel
+    # argument nil → retourne nil pour propager le manque de donnée).
+    calculator.add_function(:JOURS_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      (to_date(d2) - to_date(d1)).to_i
+    })
+    # pf: Troncature vers zéro (5 jours → 0 semaine, -5 jours → 0 semaine).
+    # Pas la division entière Ruby (qui fait floor vers -∞).
+    calculator.add_function(:SEMAINES_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      days = (to_date(d2) - to_date(d1)).to_i
+      days.abs.div(7) * (days.negative? ? -1 : 1)
+    })
+    # pf: Différence en mois calendaires, indépendante du jour du mois
+    # (31 jan → 28 fév = 1, comme attendu par les usagers).
+    calculator.add_function(:MOIS_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      a = to_date(d1)
+      b = to_date(d2)
+      (b.year - a.year) * 12 + (b.month - a.month)
+    })
+    # pf: Années révolues (même logique que AGE, généralisée à deux dates).
+    # Symétrique : ANNEES_ENTRE(a, b) == -ANNEES_ENTRE(b, a).
+    # On calcule toujours sur (min, max) puis on rétablit le signe.
+    calculator.add_function(:ANNEES_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      a = to_date(d1)
+      b = to_date(d2)
+      sign = b >= a ? 1 : -1
+      from, to = sign == 1 ? [a, b] : [b, a]
+      years = to.year - from.year
+      if to.month < from.month || (to.month == from.month && to.day < from.day)
+        years -= 1
+      end
+      years * sign
     })
   end
 
@@ -459,7 +483,21 @@ class FormulaCalculationService
     when :integer
       value.present? ? value.to_i : 0
     when :decimal
-      value.present? ? value.to_f : 0
+      # pf: une formule de type 'number' qui retourne un entier (ex: ARRONDI(x, 0)
+      # → Integer 3 → stocké "3") doit rester Integer quand elle est référencée
+      # par une autre formule, sinon CONCATENER("00", {tdc_A}, "000") ressort
+      # "003.0000" parce qu'un Float 3.0 est injecté dans Dentaku.
+      # La value reçue peut être String ("3.7"), Float (4.0 après cast colonne)
+      # ou Integer — on normalise vers Integer quand la valeur est sans partie
+      # décimale, Float sinon.
+      return 0 if value.blank?
+      case value
+      when Integer then value
+      when Float, BigDecimal then value % 1 == 0 ? value.to_i : value.to_f
+      else
+        s = value.to_s
+        Integer(s, exception: false) || s.to_f
+      end
     when :boolean
       # pf: on passe des booléens natifs à Dentaku (pas 0/1) pour que le
       # typage soit préservé jusqu'à format_result. Une formule `{CaseACocher}`

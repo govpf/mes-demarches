@@ -124,18 +124,17 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   end
 
   def validate_expression
-    # pf: Met à jour les flags clock_dependent / state_dependent à chaque
-    # validation — permettent au RefreshFormulasJob (clock) et aux hooks de
-    # transition d'état (state) de cibler efficacement les formules à
-    # recalculer. Fait avant le return early pour que l'expression vide
-    # remette les flags à false.
-    expression = @type_de_champ.formule_expression
-    @type_de_champ.clock_dependent = FormulaCalculationService.clock_dependent?(expression)
-    @type_de_champ.state_dependent = FormulaCalculationService.state_dependent?(expression)
+    # pf: Calcul des deps structurées (étape D). has_clock est absent ici car
+    # il necessite l'AST Dentaku — il est ajoute plus bas apres construction
+    # de l'AST. Les autres cles (champs, has_state, has_identite) sont
+    # calculees via regex sur l'expression brute, ce qui est sans risque car
+    # les tokens {…} ne peuvent pas apparaitre dans des litteraux Dentaku.
+    raw_expression = @type_de_champ.formule_expression
+    @type_de_champ.formule_deps = compute_formule_deps_from_expression(raw_expression)
 
-    return if @type_de_champ.formule_expression.blank?
+    return if raw_expression.blank?
 
-    expression = @type_de_champ.formule_expression.strip
+    expression = raw_expression.strip
 
     if expression.length > 1000
       @type_de_champ.errors.add(:formule_expression, :too_long, count: 1000)
@@ -186,6 +185,16 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     testable = expression.gsub(/\{[^}]+\}/, 'x')
     calculator = FormulaCalculationService.new_calculator
     ast_node = calculator.ast(testable)
+
+    # pf: has_clock est calcule via l'AST (pas via regex) pour eviter les
+    # faux positifs quand un nom de fonction clock apparait dans un litteraal
+    # string. Ex: CONCATENER("AGE(x)", {ref}) → has_clock doit etre absent.
+    # L'AST est deja construit ici, on enrichit formule_deps.
+    if ast_uses_clock_function?(ast_node)
+      deps = @type_de_champ.formule_deps.dup
+      deps['has_clock'] = true
+      @type_de_champ.formule_deps = deps
+    end
 
     # pf: Inférence automatique du type de sortie.
     # Cas spécial : une expression qui est JUSTE une référence nue `{champ}`
@@ -323,5 +332,57 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
 
     extract_dependent_stable_ids(@type_de_champ.formule_expression)
       .any? { |dep_id| !allowed_stable_ids.include?(dep_id) }
+  end
+
+  # pf: Construit le Hash formule_deps depuis l'expression brute (regex).
+  # has_clock est absent ici — il est ajoute separement via l'AST Dentaku
+  # dans validate_expression, apres construction de l'AST.
+  # Convention : seules les cles vraies sont presentes (sauf 'champs' toujours la).
+  # Supporte les deux formats : {tdc123} (format courant) et {123} (ancien format
+  # de compatibilite ascendante), ainsi que le chemin optionnel {tdc123/path}.
+  FORMULE_DEPS_TDC_PATTERN = /\{tdc(\d+)(?:\/[^}]+)?\}/
+  FORMULE_DEPS_LEGACY_PATTERN = /\{(\d+)\}/
+  FORMULE_DEPS_STATE_PATTERN = /\{dossier_(depose|en_construction|en_instruction|processed)_at\}/
+  FORMULE_DEPS_IDENTITE_PATTERN = /\{(?:individual_|entreprise_)/
+
+  def compute_formule_deps_from_expression(expression)
+    deps = {}
+
+    expr_str = expression.to_s
+    tdc_ids = expr_str.scan(FORMULE_DEPS_TDC_PATTERN).map { |m| m[0].to_i }
+    legacy_ids = expr_str.scan(FORMULE_DEPS_LEGACY_PATTERN).map { |m| m[0].to_i }
+    champs = (tdc_ids + legacy_ids).uniq.sort
+    deps['champs'] = champs
+
+    deps['has_state'] = true if expr_str.match?(FORMULE_DEPS_STATE_PATTERN)
+    deps['has_identite'] = true if expr_str.match?(FORMULE_DEPS_IDENTITE_PATTERN)
+
+    deps
+  end
+
+  # pf: Fonctions Dentaku dependantes de "maintenant" (clock-dependent).
+  # Detectees via l'AST (pas le regex) pour ne pas matcher les noms de
+  # fonction presents dans des litteraux string.
+  # Rappel : calculator.add_function(:AGE, ...) → node.class.name == :AGE (Symbol).
+  CLOCK_FUNCTION_NAMES = Set[:AUJOURDHUI, :MAINTENANT, :AGE, :EST_PASSEE, :EST_FUTURE].freeze
+
+  # pf: Parcours recursif de l'AST Dentaku pour detecter un appel a une
+  # fonction clock. Les noeuds personnalises (add_function) ont
+  # node.class.name comme Symbol (ex: :AGE) ; les noeuds built-in ont
+  # node.class.name comme String. On s'appuie sur ce discriminant.
+  # pf: Dentaku::AST::Negation stocke son operande dans @node (accesseur :node),
+  # pas dans :left/:right. On descend explicitement dans :node pour ne pas
+  # manquer un appel clock enveloppe par un unaire (ex: -AGE({tdc42})).
+  def ast_uses_clock_function?(node)
+    return false if node.nil?
+    return true if node.class.name.is_a?(Symbol) && CLOCK_FUNCTION_NAMES.include?(node.class.name)
+
+    children = []
+    children.concat(node.args) if node.respond_to?(:args) && node.args
+    children << node.left if node.respond_to?(:left) && node.left
+    children << node.right if node.respond_to?(:right) && node.right
+    children << node.node if node.respond_to?(:node) && node.node
+
+    children.any? { |child| ast_uses_clock_function?(child) }
   end
 end

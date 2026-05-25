@@ -37,7 +37,9 @@ module Administrateurs
         reload_procedure_with_includes
         @morphed = champ_components_starting_at(@coordinate)
       else
-        # Afficher l'erreur inline sous le champ au lieu d'un flash
+        # Afficher l'erreur inline sous le champ ET un toast d'échec
+        # pour que l'admin voie clairement que la sauvegarde a échoué.
+        @has_errors = true
         errors = type_de_champ.errors.full_messages.join(', ')
         @morphed = [champ_component_from(@coordinate, focused: false, errors:)]
       end
@@ -120,8 +122,8 @@ module Administrateurs
         flash.alert = errors
       else
         @coordinate = draft.remove_type_de_champ(params[:stable_id])
-        ProcedureRevisionPreloader.load_one(@coordinate.revision)
         if @coordinate.present?
+          ProcedureRevisionPreloader.load_one(@coordinate.revision)
           @destroyed = @coordinate
           @morphed = champ_components_starting_at(@coordinate)
         end

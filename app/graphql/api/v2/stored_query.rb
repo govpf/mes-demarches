@@ -632,7 +632,9 @@ class API::V2::StoredQuery
     ... on HeaderSectionChamp {
       level
     }
-    ... on ExplicationChamp {}
+    ... on ExplicationChamp {
+      __typename
+    }
   }
 
   fragment PersonneMoraleFragment on PersonneMorale {

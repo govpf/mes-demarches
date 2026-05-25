@@ -78,6 +78,67 @@ describe FormulaCalculationService do
       # and SOMME receives it as a single array argument, which flatten() handles
     end
 
+    context 'ARRONDI_INF, ARRONDI_SUP, ENTIER functions' do
+      let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+      def compute(expression)
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: expression))
+        service.compute_value(formule_champ)
+      end
+
+      # ARRONDI_INF (floor)
+      it 'ARRONDI_INF floors a positive non-integer' do
+        expect(compute('ARRONDI_INF(3.7)')).to eq('3')
+      end
+
+      it 'ARRONDI_INF floors a negative non-integer' do
+        expect(compute('ARRONDI_INF(-3.2)')).to eq('-4')
+      end
+
+      it 'ARRONDI_INF is a no-op on an exact integer' do
+        expect(compute('ARRONDI_INF(5)')).to eq('5')
+      end
+
+      # ARRONDI_SUP (ceil)
+      it 'ARRONDI_SUP ceils a positive non-integer' do
+        expect(compute('ARRONDI_SUP(3.2)')).to eq('4')
+      end
+
+      it 'ARRONDI_SUP ceils a negative non-integer' do
+        expect(compute('ARRONDI_SUP(-3.7)')).to eq('-3')
+      end
+
+      it 'ARRONDI_SUP is a no-op on an exact integer' do
+        expect(compute('ARRONDI_SUP(5)')).to eq('5')
+      end
+
+      # ENTIER (truncation toward zero)
+      it 'ENTIER truncates a positive non-integer toward zero' do
+        expect(compute('ENTIER(3.7)')).to eq('3')
+      end
+
+      it 'ENTIER truncates a negative non-integer toward zero' do
+        expect(compute('ENTIER(-3.7)')).to eq('-3')
+      end
+
+      it 'ENTIER is a no-op on an exact integer' do
+        expect(compute('ENTIER(5)')).to eq('5')
+      end
+
+      it 'ENTIER on zero returns zero' do
+        expect(compute('ENTIER(0)')).to eq('0')
+      end
+
+      # Cross-check: floor vs truncation differ for negatives
+      it 'ARRONDI_INF and ENTIER differ for negative non-integers' do
+        floor_result    = compute('ARRONDI_INF(-3.5)')
+        truncate_result = compute('ENTIER(-3.5)')
+        expect(floor_result).to    eq('-4')
+        expect(truncate_result).to eq('-3')
+        expect(floor_result).not_to eq(truncate_result)
+      end
+    end
+
     context 'ET/OU/NON functions with real procedure and revision' do
       let(:procedure) {
         create(:procedure, :published, types_de_champ_public: [
@@ -390,6 +451,52 @@ describe FormulaCalculationService do
       end
     end
 
+    # pf: non-régression — une formule qui retourne un entier (ex: ARRONDI(x, 0)
+    # ou un simple {champ_entier}) ne doit PAS introduire un "x.0" quand elle
+    # est référencée par une autre formule. format_value_for_dentaku case :decimal
+    # doit préserver le type Integer si la valeur stockée est sans décimale.
+    context 'when a formula references another numeric formula that returned an integer' do
+      let(:procedure) {
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :decimal_number, libelle: 'X' },
+          { type: :formule, libelle: 'Rounded' }, # ARRONDI({X}, 0)
+          { type: :formule, libelle: 'Label' }, # CONCATENER("00", {Rounded}, "000")
+        ])
+      }
+      let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
+      let(:x_champ) { dossier.project_champs_public[0] }
+      let(:rounded_champ) { dossier.project_champs_public[1] }
+      let(:label_champ) { dossier.project_champs_public[2] }
+      let(:service) { described_class.new(dossier, locale: :fr) }
+
+      before do
+        expr_r, _ = FormulaExpressionService.convert_to_stable_ids('ARRONDI({X}, 0)', procedure.active_revision)
+        rounded_champ.type_de_champ.update(formule_expression: expr_r)
+        rounded_champ.type_de_champ.valid?
+        rounded_champ.type_de_champ.save!
+
+        expr_l, _ = FormulaExpressionService.convert_to_stable_ids('CONCATENER("00", {Rounded}, "000")', procedure.active_revision)
+        label_champ.type_de_champ.update(formule_expression: expr_l)
+      end
+
+      it 'does not introduce a ".0" artifact when concatenating a formula that returned an integer' do
+        x_champ.update(value: '3.7')
+        rounded_champ.update(value: service.compute_value(rounded_champ)) # "4"
+        expect(rounded_champ.reload.value).to eq('4')
+        expect(service.compute_value(label_champ)).to eq('004000')
+      end
+
+      it 'preserves the decimal when the upstream formula actually returns a decimal' do
+        x_champ.update(value: '3.74')
+        # une formule décimale réelle ne doit pas perdre ses décimales
+        decimal_expr, _ = FormulaExpressionService.convert_to_stable_ids('{X} * 2', procedure.active_revision)
+        rounded_champ.type_de_champ.update(formule_expression: decimal_expr)
+        rounded_champ.update(value: service.compute_value(rounded_champ)) # "7.48"
+        expect(rounded_champ.reload.value).to eq('7.48')
+        expect(service.compute_value(label_champ)).to eq('007.48000')
+      end
+    end
+
     # pf: non-régression — une formule qui référence juste un champ booléen
     # (checkbox, yes_no, ou formule booléenne) doit rendre "true"/"false",
     # pas "1"/"0". Le typage boolean doit se propager jusqu'à format_result.
@@ -575,6 +682,81 @@ describe FormulaCalculationService do
         it 'Date - DUREE_ANNEES subtracts years' do
           travel_to Time.zone.local(2026, 4, 19) do
             expect(compute('AUJOURDHUI() - DUREE_ANNEES(1)')).to eq('2025-04-19')
+          end
+        end
+      end
+
+      describe 'DUREE_SEMAINES' do
+        it 'Date + DUREE_SEMAINES adds n * 7 days' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() + DUREE_SEMAINES(2)')).to eq('2026-05-03')
+          end
+        end
+
+        it 'Date - DUREE_SEMAINES subtracts n * 7 days' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() - DUREE_SEMAINES(1)')).to eq('2026-04-12')
+          end
+        end
+      end
+
+      describe 'JOURS_ENTRE / SEMAINES_ENTRE / MOIS_ENTRE / ANNEES_ENTRE' do
+        it 'JOURS_ENTRE returns the day difference' do
+          expect(compute('JOURS_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(10))')).to eq('10')
+        end
+
+        it 'JOURS_ENTRE can be negative when d2 is before d1' do
+          expect(compute('JOURS_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_JOURS(3))')).to eq('-3')
+        end
+
+        it 'SEMAINES_ENTRE returns integer weeks (truncated toward zero)' do
+          # 13 jours → 1 semaine
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(13))')).to eq('1')
+          # 14 jours → 2 semaines
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(14))')).to eq('2')
+        end
+
+        it 'SEMAINES_ENTRE truncates toward zero on negative ranges' do
+          # -5 jours → 0 semaine (et pas -1 comme le ferait la division entière Ruby)
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_JOURS(5))')).to eq('0')
+          # -13 jours → -1 semaine
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_JOURS(13))')).to eq('-1')
+        end
+
+        it 'MOIS_ENTRE handles month boundary (31 jan → 28 feb = 1 month)' do
+          travel_to Time.zone.local(2026, 1, 31) do
+            expect(compute('MOIS_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(28))')).to eq('1')
+          end
+        end
+
+        it 'MOIS_ENTRE returns 12 across a full year' do
+          travel_to Time.zone.local(2026, 1, 1) do
+            expect(compute('MOIS_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(1))')).to eq('12')
+          end
+        end
+
+        it 'ANNEES_ENTRE handles 29 feb leap-year edge (anniversary not yet passed)' do
+          # d1 = 2020-02-29, d2 = 2024-02-28 → 3 ans (anniv pas encore atteint)
+          travel_to Time.zone.local(2020, 2, 29) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(4) - DUREE_JOURS(1))')).to eq('3')
+          end
+        end
+
+        it 'ANNEES_ENTRE returns 4 once the anniversary is reached' do
+          # d1 = 2020-02-29, d2 = 2024-02-29 → 4 ans
+          travel_to Time.zone.local(2020, 2, 29) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(4))')).to eq('4')
+          end
+        end
+
+        it 'ANNEES_ENTRE is symmetric: f(a, b) == -f(b, a)' do
+          # d1 = 2020-02-28, d2 = 2024-02-29 → 4 ans
+          # Inversé : d1 = 2024-02-29, d2 = 2020-02-28 → -4 ans (pas -5)
+          travel_to Time.zone.local(2020, 2, 28) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(4) + DUREE_JOURS(1))')).to eq('4')
+          end
+          travel_to Time.zone.local(2024, 2, 29) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_ANNEES(4) - DUREE_JOURS(1))')).to eq('-4')
           end
         end
       end

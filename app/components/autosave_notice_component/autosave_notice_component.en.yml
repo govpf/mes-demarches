@@ -2,7 +2,7 @@
 en:
   form:
     saved: 'Form saved'
-    error: 'Form in error'
+    error: "Save error — check the field in error."
   attestation:
     saved: 'Attestation saved'
     error: 'Attestation in error'

@@ -54,7 +54,11 @@ RSpec.describe InstructeurMailer, type: :mailer do
 
       subject { described_class.send_login_token(user, token, host) }
 
-      it { expect(subject.body).to include("demarches.numerique.gouv.fr") }
+      # pf: pas de double domaine — passer APP_HOST doit produire un mail PF (et non demarches.numerique.gouv.fr)
+      it 'uses PF host and never leaks the upstream domain' do
+        expect(subject.body).to include(ApplicationHelper::APP_HOST)
+        expect(subject.body).not_to include("demarches.numerique.gouv.fr")
+      end
     end
     context 'with given host as APP_HOST_LEGACY' do
       let(:host) { ApplicationHelper::APP_HOST_LEGACY }

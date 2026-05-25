@@ -19,12 +19,15 @@ RSpec.describe UserMailer, type: :mailer do
 
       it { expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path, host: ENV.fetch("APP_HOST_LEGACY"))) }
 
-      context "when user has preferred domain", skip: true do
+      # pf: pas de double domaine — même avec preferred_domain set, le lien et le sender restent en PF
+      context "when user has preferred domain" do
         let(:user) { create(:user, preferred_domain: :demarche_numerique_gouv_fr) }
 
-        it do
-          expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path, host: "demarche.numerique.gouv.fr"))
-          expect(header_value("From", subject)).to include("@demarche.numerique.gouv.fr")
+        it 'still uses PF host and PF sender' do
+          expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path, host: ENV.fetch("APP_HOST_LEGACY")))
+          expect(header_value("From", subject)).to include(CONTACT_EMAIL)
+          expect(subject.body.to_s).not_to include("demarches.numerique.gouv.fr")
+          expect(subject.body.to_s).not_to include("demarche.numerique.gouv.fr")
         end
       end
     end

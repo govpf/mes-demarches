@@ -193,6 +193,43 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 2. **Résolution automatique** : email → user_id au runtime  
 3. **Migration transparente** : table de mapping email ↔ user_id
 
+## Cascade des formules (recalcul après modification d'une source)
+
+**Convention : la cascade est explicite, pas implicite par callback.**
+
+Tout site qui modifie un champ source d'une formule (changement de `value`,
+`value_json`, `data`, `external_id`, `etablissement_id`, ou structurel sur
+une répétition) doit appeler explicitement :
+
+```ruby
+dossier.refresh_formulas_after(champ)
+```
+
+Sites qui doivent déclencher la cascade :
+- Controllers HTTP qui modifient un champ (`Users::DossiersController#update_dossier_and_compute_errors`, `Instructeurs::DossiersController#update_annotations`, `Champs::PieceJustificativeController`, `Champs::RNAController`)
+- Mutations GraphQL annotation (centralisée dans `Mutations::DossierModifierAnnotation#resolve_with_type`)
+- Services external_data qui changent `data`/`value_json` (`Champs::SiretChamp#update_external_data!`, `Champs::RnaChamp`, `Champs::PieceJustificativeChamp`, `Champs::ReferentielDePolynesieChamp`, `ChampExternalDataConcern`)
+- Helpers `Etablissement#update_champ_value_json!` (couvre les retours des jobs entreprise)
+- `Dossier#repetition_add_row` / `Dossier#repetition_remove_row` (formules `size(repetition)`, `count`...)
+- API entreprise : `APIEntrepriseService#create_etablissement` (via `update_champ_value_json!`)
+
+Sites qui ne déclenchent **pas** la cascade (recalcul géré autrement) :
+- `DossierCloneConcern#clone` : valeurs héritées de la source ; `rebase!` qui suit recalcule si la révision a changé.
+- `DossierRebaseConcern#rebase!` : appelle `compute_formulas_in_order` à la fin.
+- `DossierChampsConcern#merge_user_buffer_stream!` : appelle `compute_formulas_in_order(only: private_formula_stable_ids)` à la fin.
+- `DossierPrefillableConcern` + `Users::DossiersController#new_dossier` : appellent `compute_initial_formulas` après le prefill / la création.
+- Migrations / maintenance tasks : utilisent `update_all` / `update_columns` qui sautent les callbacks de toute façon.
+
+Pour le SIRET au niveau dossier (formulaire d'identité d'entreprise, pas de
+Champ source identifiable), on déclenche un recalcul global via
+`dossier.compute_formulas_in_order` (cf. `Etablissement#update_champ_value_json!`).
+
+Si tu ajoutes un nouveau flux qui modifie un champ source, **ajoute l'appel
+explicite** + une spec d'intégration qui vérifie que la formule dépendante
+est à jour. La spec de non-régression de référence est dans
+`spec/models/concerns/dossier_clone_concern_spec.rb` (context "with formula
+champs depending on a source") + `spec/models/champs/formule_cascade_audit_spec.rb`.
+
 ## Commandes utiles
 
 - Régénérer le schéma GraphQL : `bin/rails graphql:schema:dump`
