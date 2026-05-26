@@ -160,24 +160,34 @@ describe API::V2::GraphqlController do
           ]
         end
         let(:dossier) { create(:dossier, :en_construction, :with_individual, :with_populated_champs, procedure:) }
-        let(:columns) { gql_data[:dossier][:champs].flat_map { _1[:columns] } }
+        let(:champs) { gql_data[:dossier][:champs] }
 
-        it {
+        # pf: la query par défaut n'expose `columns` que sur les types qui apportent
+        # une information non disponible ailleurs (PJ pour OCR RIB,
+        # ReferentielDePolynesieChamp pour l'éclatement référentiel). Les champs
+        # simples sont décrits via stringValue et leurs sous-objets typés
+        # (etablissement, address, commune, …).
+        it 'expose columns only on types that carry non-redundant data' do
           expect(gql_errors).to be_nil
           expect(gql_data[:dossier][:id]).to eq(dossier.to_typed_id)
-          expect(gql_data[:dossier][:champs].size).to eq(7)
-          expect(columns.size).to eq(13)
+          expect(champs.size).to eq(7)
 
-          expect(columns[0]).to include(label: "label text", value: 'text')
-          expect(columns[1]).to include(label: "label integer_number", value: "42")
-          expect(columns[2]).to include(label: "label decimal_number", value: 42.1)
-          expect(columns[3]).to include(label: "label checkbox", value: true)
-          expect(columns[4][:value].first).to include(__typename: "File", filename: "toto.txt", contentType: "text/plain")
-          expect(columns[5]).to include(label: "label multiple_drop_down_list", value: ["val1", "val2"])
+          text_champ, int_champ, dec_champ, cb_champ, pj_champ, mdd_champ, siret_champ = champs
 
-          expect(columns[6]).to include(label: "label entreprise – SIRET", value: '44011762001530')
-          expect(columns[7]).to include(label: "label entreprise – Entreprise raison sociale", value: 'GRTGAZ')
-        }
+          # types couverts par stringValue ou sous-objets typés : pas de columns
+          expect(text_champ).not_to have_key(:columns)
+          expect(int_champ).not_to have_key(:columns)
+          expect(dec_champ).not_to have_key(:columns)
+          expect(cb_champ).not_to have_key(:columns)
+          expect(mdd_champ).not_to have_key(:columns)
+          expect(siret_champ).not_to have_key(:columns)
+
+          # PJ conserve columns (utile pour les colonnes OCR des RIB)
+          expect(pj_champ[:columns].size).to eq(1)
+          expect(pj_champ[:columns].first[:value].first).to include(
+            __typename: "File", filename: "toto.txt", contentType: "text/plain"
+          )
+        end
       end
     end
 
