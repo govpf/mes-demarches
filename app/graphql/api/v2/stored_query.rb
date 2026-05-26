@@ -512,9 +512,9 @@ class API::V2::StoredQuery
     stringValue
     updatedAt
     prefilled
-    columns {
-      ...ColumnFragment
-    }
+    # pf: `columns` retiré du fragment racine (redondant avec stringValue + sous-objets
+    # typés pour la majorité des types). Réintroduit ci-dessous uniquement sur les
+    # types où il porte une information non disponible ailleurs.
     ... on DateChamp {
       date
     }
@@ -549,6 +549,10 @@ class API::V2::StoredQuery
     ... on PieceJustificativeChamp {
       files {
         ...FileFragment
+      }
+      # pf: columns expose les champs OCR pour les PJ de type RIB (titulaire, IBAN, BIC, banque)
+      columns {
+        ...ColumnFragment
       }
     }
     ... on AddressChamp {
@@ -634,6 +638,14 @@ class API::V2::StoredQuery
     }
     ... on ExplicationChamp {
       __typename
+    }
+    # pf: TableColumn éclate value_json via referentiel_mapping_displayable
+    ... on ReferentielDePolynesieChamp {
+      columns {
+        name
+        value
+        type
+      }
     }
   }
 
