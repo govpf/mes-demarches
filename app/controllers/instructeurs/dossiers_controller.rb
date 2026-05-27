@@ -71,10 +71,12 @@ module Instructeurs
     end
 
     def dossier_labels
-      labels = params[:label_id]&.map(&:to_i) || []
-
       @dossier = dossier
-      labels.each { |params_label| DossierLabel.find_or_create_by(dossier_id: @dossier.id, label_id: params_label) }
+
+      requested_label_ids = params[:label_id]&.map(&:to_i) || []
+      labels = @dossier.procedure.labels.where(id: requested_label_ids).pluck(:id)
+
+      labels.each { |label_id| DossierLabel.find_or_create_by(dossier_id: @dossier.id, label_id:) }
 
       all_labels = DossierLabel.where(dossier_id: @dossier.id).pluck(:label_id)
 

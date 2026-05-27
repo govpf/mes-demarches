@@ -2171,6 +2171,19 @@ describe Instructeurs::DossiersController, type: :controller do
         expect(subject.body).to include('Ajouter un label')
       end
     end
+
+    context 'when a label_id belongs to another procedure' do
+      let(:other_procedure) { create(:procedure, :with_labels) }
+      let(:foreign_label) { other_procedure.labels.first }
+
+      subject(:cross_procedure_request) do
+        post :dossier_labels, params: { procedure_id: procedure.id, dossier_id: dossier.id, label_id: [foreign_label.id], statut: 'a-suivre' }, format: :turbo_stream
+      end
+
+      it 'does not assign the label from the other procedure to the dossier' do
+        expect { cross_procedure_request }.not_to change { dossier.dossier_labels.count }
+      end
+    end
   end
 
   describe '#rendez_vous' do
