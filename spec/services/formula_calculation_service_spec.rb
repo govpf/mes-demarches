@@ -958,4 +958,60 @@ describe FormulaCalculationService do
       expect(service.compute_value(formule_champ)).to be_nil
     end
   end
+
+  # pf: normalisation value_json + JSONPathColumn des types PF — les références
+  # à sous-chemin {Champ/Path} étaient cassées en formule (resolve_with_path ne
+  # consultait que le préfixe tdc<N>). Cf. branche normalize-pf-champs-value-json.
+  describe '#compute_value with PF field sub-paths' do
+    context 'Numéro DN / date_de_naissance' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :numero_dn, libelle: 'DN' },
+          { type: :formule, libelle: 'Annee' },
+        ])
+      end
+      let(:dossier) { create(:dossier, procedure: procedure) }
+      let(:revision) { procedure.active_revision }
+      let(:dn_tdc) { revision.types_de_champ.find { _1.libelle == 'DN' } }
+      let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Annee' } }
+      let(:formule_champ) { dossier.project_champs_public.find { _1.stable_id == formule_tdc.stable_id } }
+      let(:service) { described_class.new(dossier) }
+
+      before do
+        dossier.project_champs_public.find { _1.stable_id == dn_tdc.stable_id }
+          .update!(value_json: { 'numero_dn' => '1234567', 'date_de_naissance' => '2015-06-15' })
+        formule_tdc.update!(formule_expression: "ANNEE({tdc#{dn_tdc.stable_id}/date_de_naissance})")
+      end
+
+      it 'résout la date de naissance via JSONPathColumn et calcule' do
+        expect(service.compute_value(formule_champ)).to eq('2015')
+      end
+    end
+
+    context 'Commune de Polynésie / ile' do
+      let(:sample) { APIGeo::API.communes_de_polynesie.find { !_1.start_with?('---') } }
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :commune_de_polynesie, libelle: 'Commune' },
+          { type: :formule, libelle: 'Ile' },
+        ])
+      end
+      let(:dossier) { create(:dossier, procedure: procedure) }
+      let(:revision) { procedure.active_revision }
+      let(:com_tdc) { revision.types_de_champ.find { _1.libelle == 'Commune' } }
+      let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Ile' } }
+      let(:formule_champ) { dossier.project_champs_public.find { _1.stable_id == formule_tdc.stable_id } }
+      let(:service) { described_class.new(dossier) }
+
+      before do
+        dossier.project_champs_public.find { _1.stable_id == com_tdc.stable_id }.update!(value: sample)
+        formule_tdc.update!(formule_expression: "{tdc#{com_tdc.stable_id}/ile}")
+      end
+
+      it 'résout l\'île via le cache value_json et la JSONPathColumn' do
+        city = APIGeo::API.commune_by_city_postal_code(sample)
+        expect(service.compute_value(formule_champ)).to eq(city[:ile])
+      end
+    end
+  end
 end
