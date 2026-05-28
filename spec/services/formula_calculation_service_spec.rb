@@ -1014,4 +1014,183 @@ describe FormulaCalculationService do
       end
     end
   end
+
+  # pf: chantier formule-agrégat — une formule placée hors bloc peut agréger
+  # un sous-champ de toutes les lignes via {bloc/sub}, ou compter le bloc
+  # via {bloc}. Cf. docs/superpowers/specs/2026-05-21-formule-repetitions-design.md
+  describe '#compute_value with aggregation over a repetition block' do
+    let(:procedure) do
+      create(:procedure, :published, types_de_champ_public: [
+        {
+          type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+            { type: :text, libelle: 'Désignation' },
+            { type: :integer_number, libelle: 'Prix HT' },
+          ],
+        },
+        { type: :formule, libelle: 'Total' },
+      ])
+    end
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:revision) { procedure.active_revision }
+    let(:bloc_tdc) { revision.types_de_champ.find { _1.libelle == 'Lignes' } }
+    let(:prix_ht_tdc) { revision.types_de_champ.find { _1.libelle == 'Prix HT' } }
+    let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Total' } }
+    let(:formule_champ) { dossier.project_champs_public.find { _1.stable_id == formule_tdc.stable_id } }
+    let(:service) { described_class.new(dossier) }
+
+    def add_row_with_prix_ht(value)
+      row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+      if value
+        # pf: repetition_add_row crée juste le RepetitionChamp pour le row_id ;
+        # les sous-champs sont créés à la demande via champ_for_update.
+        sub_champ = dossier.champ_for_update(prix_ht_tdc, row_id: row_id, updated_by: 'test')
+        sub_champ.update!(value: value.to_s)
+      end
+      row_id
+    end
+
+    def set_formula(expression)
+      formule_tdc.update!(formule_expression: expression)
+    end
+
+    def sub_ref
+      "tdc#{bloc_tdc.stable_id}/sub_#{prix_ht_tdc.stable_id}"
+    end
+
+    def bloc_ref
+      "tdc#{bloc_tdc.stable_id}"
+    end
+
+    context 'SOMME sur un sous-champ numérique' do
+      before do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(200)
+        add_row_with_prix_ht(50)
+      end
+
+      it 'somme les prix de toutes les lignes' do
+        set_formula("SOMME({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('350')
+      end
+    end
+
+    context 'COUNT sur le bloc entier' do
+      before do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(200)
+        add_row_with_prix_ht(50)
+      end
+
+      it 'compte le nombre de lignes' do
+        set_formula("COUNT({#{bloc_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('3')
+      end
+    end
+
+    context 'MAX et MIN sur un sous-champ' do
+      before do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(200)
+        add_row_with_prix_ht(50)
+      end
+
+      it 'MAX retourne le plus grand' do
+        set_formula("MAX({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('200')
+      end
+
+      it 'MIN retourne le plus petit' do
+        set_formula("MIN({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('50')
+      end
+    end
+
+    context 'MOYENNE sur un sous-champ' do
+      before do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(200)
+        add_row_with_prix_ht(150)
+      end
+
+      it 'retourne la moyenne arithmétique' do
+        set_formula("MOYENNE({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('150')
+      end
+    end
+
+    context 'bloc vide' do
+      it 'SOMME retourne 0' do
+        set_formula("SOMME({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('0')
+      end
+
+      it 'COUNT retourne 0' do
+        set_formula("COUNT({#{bloc_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('0')
+      end
+
+      # pf: Dentaku natif MAX/[] = nil (cf. spec sentinelle dentaku_array_functions).
+      # Le service propage le nil → champ formule reste vide (pas d'erreur).
+      it 'MAX retourne nil (rien à comparer)' do
+        set_formula("MAX({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to be_nil
+      end
+    end
+
+    context 'ligne avec sous-champ vide' do
+      before do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(nil) # ligne sans Prix HT saisi
+        add_row_with_prix_ht(50)
+      end
+
+      it 'SOMME ignore les valeurs nil (somme les 2 lignes valides)' do
+        set_formula("SOMME({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('150')
+      end
+
+      it 'COUNT compte toutes les lignes (3) — la cardinalité ne dépend pas des nil' do
+        set_formula("COUNT({#{bloc_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('3')
+      end
+    end
+
+    context 'combinaison : reste à payer' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          {
+            type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+              { type: :integer_number, libelle: 'Prix HT' },
+            ],
+          },
+          {
+            type: :repetition, libelle: 'Paiements', mandatory: false, children: [
+              { type: :integer_number, libelle: 'Montant' },
+            ],
+          },
+          { type: :formule, libelle: 'Total' },
+        ])
+      end
+      let(:paiement_tdc) { revision.types_de_champ.find { _1.libelle == 'Paiements' } }
+      let(:montant_tdc) { revision.types_de_champ.find { _1.libelle == 'Montant' } }
+
+      def add_paiement(value)
+        row_id = dossier.repetition_add_row(paiement_tdc, updated_by: 'test')
+        sub_champ = dossier.champ_for_update(montant_tdc, row_id: row_id, updated_by: 'test')
+        sub_champ.update!(value: value.to_s)
+      end
+
+      it 'SOMME(lignes/prix) - SOMME(paiements/montant) = reste à payer' do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(200)
+        add_paiement(150)
+
+        sub_prix = "tdc#{bloc_tdc.stable_id}/sub_#{prix_ht_tdc.stable_id}"
+        sub_montant = "tdc#{paiement_tdc.stable_id}/sub_#{montant_tdc.stable_id}"
+
+        set_formula("SOMME({#{sub_prix}}) - SOMME({#{sub_montant}})")
+        expect(service.compute_value(formule_champ)).to eq('150')
+      end
+    end
+  end
 end

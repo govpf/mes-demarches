@@ -414,12 +414,72 @@ class FormulaCalculationService
       # New column-based resolution
       column, path = @resolver.resolve_with_path(reference)
 
+      # pf: Blocs répétables — agrégation hors bloc (chantier formule-agrégat).
+      # Dentaku 3.5.4 supporte SUM/COUNT/MAX/MIN/AVG sur arrays bindings.
+      # Le binding {bloc} reçoit la liste des row_ids (suffit pour COUNT) ;
+      # {bloc/sub} reçoit un array de scalaires type-aware.
+      case column
+      when FormulaColumnResolver::RepetitionRef
+        next register_variable(extract_repetition_row_ids(column.bloc_tdc))
+      when FormulaColumnResolver::RepetitionSubChampRef
+        next register_variable(extract_repetition_values(column.bloc_tdc, column.sub_tdc))
+      end
+
       if column.nil?
         raise InvalidFieldReferenceError, reference
       end
 
       value = extract_column_value(column, path)
       register_variable(format_value_for_dentaku(value, column.type))
+    end
+  end
+
+  # pf: Renvoie l'array des row_ids du bloc — utilisé pour COUNT/NB({bloc}).
+  # On lit les RepetitionChamps (un par row, créé dès repetition_add_row),
+  # plus fiable que de passer par les sous-champs (qui n'existent que si
+  # l'usager les a saisis — un row vide n'aurait sinon aucun champ).
+  def extract_repetition_row_ids(bloc_tdc)
+    all_champs
+      .select { |c| c.stable_id == bloc_tdc.stable_id && c.row_id.present? }
+      .map(&:row_id)
+      .uniq
+  end
+
+  # pf: Renvoie l'array des valeurs (type-aware) d'un sous-champ de toutes
+  # les lignes du bloc. Les valeurs nil sont filtrées pour éviter qu'une
+  # ligne incomplète n'écrase une agrégation (SUM, MAX) — comportement
+  # cohérent avec les agrégateurs SQL et avec format_result qui rend nil
+  # quand le calcul échoue (ex: MAX sur array vide).
+  def extract_repetition_values(_bloc_tdc, sub_tdc)
+    rows_champs = all_champs
+      .select { |c| c.row_id.present? && c.stable_id == sub_tdc.stable_id }
+      .sort_by(&:row_id)
+
+    rows_champs.filter_map { |champ| coerce_repetition_champ_value(champ, sub_tdc) }
+  end
+
+  # pf: Conversion typée d'un champ sous-TDC vers le type Ruby attendu par
+  # Dentaku. Distincte de format_value_for_dentaku (qui prend un type Column,
+  # pas type_champ). Retourne nil pour les champs vides afin d'être filtrés
+  # par filter_map dans extract_repetition_values.
+  def coerce_repetition_champ_value(champ, tdc)
+    return nil if champ.value.blank?
+
+    case tdc.type_champ
+    when 'integer_number'
+      champ.value.to_i
+    when 'decimal_number', 'number'
+      champ.value.to_f
+    when 'date'
+      Date.parse(champ.value) rescue nil # rubocop:disable Style/RescueModifier
+    when 'datetime'
+      DateTime.parse(champ.value) rescue nil # rubocop:disable Style/RescueModifier
+    when 'yes_no'
+      champ.value == 'true'
+    when 'checkbox'
+      champ.value == 'on'
+    else
+      champ.value.to_s
     end
   end
 
