@@ -20,7 +20,7 @@ class FormulaAiPromptService
     'datetime' => 'date et heure',
   }.freeze
 
-  # pf: Types de colonnes exposés par available_columns_for_formula_editor
+  # pf: Types de colonnes exposés par available_columns_for_formula
   # traduits en libellés parlants pour une IA francophone.
   COLUMN_TYPE_LABELS = {
     text: 'texte',
@@ -332,7 +332,7 @@ class FormulaAiPromptService
   end
 
   def available_columns
-    @available_columns ||= coordinate.available_columns_for_formula_editor.filter do |col|
+    @available_columns ||= coordinate.available_columns_for_formula.filter do |col|
       col.label.present? && col.type.present?
     end
   end

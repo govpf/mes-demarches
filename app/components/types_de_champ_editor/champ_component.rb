@@ -46,7 +46,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     # Optimize: create hash map to avoid N+1 queries
     @types_de_champ_by_stable_id ||= revision.types_de_champ.index_by(&:stable_id)
 
-    coordinate.available_columns_for_formula_editor.map do |col|
+    coordinate.available_columns_for_formula.map do |col|
       {
         id: encode_column_id(col),
         label: col.label,

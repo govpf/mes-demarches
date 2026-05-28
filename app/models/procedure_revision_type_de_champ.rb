@@ -109,10 +109,13 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
     parent_type_de_champ&.repetition? || false
   end
 
-  # pf: Returns columns available for formula validation (respects order constraints)
-  # For formulas IN repetitions: only parent fields (fields OUTSIDE the repetition)
-  # For formulas OUTSIDE repetitions: preceding fields in the same scope
-  def available_columns_for_formula
+  # pf: Building block — colonnes "hors bloc" pour une formule (parents +
+  # system). Ne contient PAS les siblings : utilisée comme composant interne
+  # par available_columns_for_formula (qui y ajoute les siblings) et par les
+  # cas où on a besoin de distinguer parents vs siblings (collision warning,
+  # available_in_repetition_context?). Hors bloc, équivalent à
+  # available_columns_for_formula puisqu'il n'y a pas de notion de sibling.
+  def available_parent_columns_for_formula
     return [] unless type_de_champ.formule?
 
     # System columns: always available
@@ -173,12 +176,14 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
     end
   end
 
-  # pf: Returns columns available for formula EDITOR (includes siblings for repetitions)
-  # This is used by the UI editor to show all available fields including siblings
-  def available_columns_for_formula_editor
+  # pf: Liste canonique des colonnes qu'une formule peut référencer (validation
+  # backend ET autocomplete UI partagent cette liste — c'est la source de vérité).
+  # Pour une formule dans un bloc répétable, inclut les siblings (champs antérieurs
+  # de la même ligne) en plus des parents hors bloc.
+  def available_columns_for_formula
     return [] unless type_de_champ.formule?
 
-    parent_columns = available_columns_for_formula
+    parent_columns = available_parent_columns_for_formula
 
     # pf: les siblings (champs de la même row) sont les plus pertinents pour
     # une formule en répétition — ils précèdent même les parents. Mis en
@@ -208,7 +213,7 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
       end
 
     # Parent fields (outside repetition)
-    parent_columns = available_columns_for_formula
+    parent_columns = available_parent_columns_for_formula
       .filter { |col| col.is_a?(Columns::ChampColumn) }
       .map do |col|
         tdc = revision.types_de_champ.find { |t| col.stable_id == t.stable_id }
@@ -238,7 +243,7 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
     has_sibling_with_libelle = sibling_tdcs.any? { |tdc| tdc.libelle == referenced_libelle }
 
     # Check if a parent field has this libelle
-    parent_tdcs = available_columns_for_formula
+    parent_tdcs = available_parent_columns_for_formula
       .filter { |col| col.is_a?(Columns::ChampColumn) }
       .map { |col| revision.types_de_champ.find { |t| col.stable_id == t.stable_id } }
       .compact
