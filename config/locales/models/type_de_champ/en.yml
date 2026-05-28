@@ -71,12 +71,13 @@ en:
           rnf: RNF number
         not_filled: Not filled
     errors:
-      type_de_champ:
-        attributes:
-          header_section_level:
-            gap_error: 'An header section with %{level} is missing.'
-          formule_expression:
-            invalid_field_reference: "Invalid field reference"
-            invalid_syntax: "Invalid syntax: %{message}"
-            circular_reference: "Circular reference detected — this formula references itself directly or through a chain of other formulas"
-            forward_reference: "Reference to a field located after the formula — a formula can only reference fields that precede it"
+      models:
+        type_de_champ:
+          attributes:
+            header_section_level:
+              gap_error: 'An header section with %{level} is missing.'
+            formule_expression:
+              invalid_field_reference: "Invalid field reference"
+              invalid_syntax: "Invalid syntax: %{message}"
+              circular_reference: "Circular reference detected — this formula references itself directly or through a chain of other formulas"
+              forward_reference: "Reference to a field located after the formula — a formula can only reference fields that precede it"
