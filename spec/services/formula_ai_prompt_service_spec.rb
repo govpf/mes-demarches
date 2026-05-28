@@ -7,7 +7,7 @@ describe FormulaAiPromptService do
     let(:output_type) { 'number' }
 
     before do
-      allow(coordinate).to receive(:available_columns_for_formula_editor).and_return([])
+      allow(coordinate).to receive(:available_columns_for_formula).and_return([])
       allow(coordinate).to receive(:revision).and_return(double(types_de_champ: []))
       allow(coordinate).to receive(:child?).and_return(false)
     end

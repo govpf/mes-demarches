@@ -160,6 +160,38 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       expect(formule_tdc).not_to be_valid
       expect(formule_tdc.errors[:formule_expression]).to be_present
     end
+
+    # pf: Non-régression — l'éditeur propose les siblings antérieurs d'un même
+    # bloc, la validation backend doit accepter cette référence (le bug
+    # historique faisait diverger éditeur et validation, les siblings étaient
+    # rejetés alors qu'ils étaient proposés).
+    context 'formula in repetition referencing a sibling field' do
+      let(:procedure) {
+        create(:procedure, :published, types_de_champ_public: [
+          {
+            type: :repetition, libelle: 'Bloc', children: [
+              { type: :integer_number, libelle: 'Sibling antérieur' },
+              { type: :formule, libelle: 'Formule sibling' },
+              { type: :integer_number, libelle: 'Sibling postérieur' },
+            ],
+          },
+        ])
+      }
+      let(:sibling_before_tdc) { revision.types_de_champ.find { |t| t.libelle == 'Sibling antérieur' } }
+      let(:sibling_after_tdc) { revision.types_de_champ.find { |t| t.libelle == 'Sibling postérieur' } }
+      let(:formule_in_bloc_tdc) { revision.types_de_champ.find { |t| t.libelle == 'Formule sibling' } }
+
+      it 'accepts a sibling that precedes the formula in the same row' do
+        formule_in_bloc_tdc.formule_expression = "{tdc#{sibling_before_tdc.stable_id}} * 2"
+        expect(formule_in_bloc_tdc).to be_valid
+      end
+
+      it 'rejects a sibling that follows the formula in the same row' do
+        formule_in_bloc_tdc.formule_expression = "{tdc#{sibling_after_tdc.stable_id}} * 2"
+        expect(formule_in_bloc_tdc).not_to be_valid
+        expect(formule_in_bloc_tdc.errors[:formule_expression]).to be_present
+      end
+    end
   end
 
   describe '#infer_output_type' do

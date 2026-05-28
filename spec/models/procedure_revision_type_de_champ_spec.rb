@@ -103,7 +103,7 @@ describe ProcedureRevisionTypeDeChamp do
       end
     end
 
-    describe '#available_columns_for_formula' do
+    describe '#available_parent_columns_for_formula' do
       context 'formula in repetition' do
         let(:procedure) do
           create(:procedure,
@@ -127,13 +127,14 @@ describe ProcedureRevisionTypeDeChamp do
         end
 
         it 'returns only PARENT fields (before repetition), not siblings' do
-          available = formula_coordinate.available_columns_for_formula
+          available = formula_coordinate.available_parent_columns_for_formula
 
           # Doit contenir Parent 1, Parent 2 (et métadonnées système)
           labels = available.map(&:label)
           expect(labels).to include('Parent 1', 'Parent 2')
 
-          # Ne doit PAS contenir Sibling (pas dans available_columns_for_formula, uniquement dans _editor)
+          # Ne doit PAS contenir Sibling : ces siblings sont ajoutés par
+          # available_columns_for_formula, pas par le building block parents-only.
           expect(labels).not_to include('Sibling')
         end
       end
@@ -156,7 +157,7 @@ describe ProcedureRevisionTypeDeChamp do
         end
 
         it 'returns all preceding fields (classic behavior)' do
-          available = formula_coordinate.available_columns_for_formula
+          available = formula_coordinate.available_parent_columns_for_formula
 
           labels = available.map(&:label)
           expect(labels).to include('Champ 1', 'Champ 2')
@@ -164,7 +165,7 @@ describe ProcedureRevisionTypeDeChamp do
       end
     end
 
-    describe '#available_columns_for_formula_editor' do
+    describe '#available_columns_for_formula' do
       context 'formula in repetition' do
         let(:procedure) do
           create(:procedure,
@@ -186,8 +187,8 @@ describe ProcedureRevisionTypeDeChamp do
             .find_by(type_de_champ: { libelle: 'Formule' })
         end
 
-        it 'returns parents + siblings (for UI editor)' do
-          available = formula_coordinate.available_columns_for_formula_editor
+        it 'returns parents + siblings (canonique : éditeur ET validation backend)' do
+          available = formula_coordinate.available_columns_for_formula
 
           labels = available.map(&:label)
           expect(labels).to include('Parent', 'Sibling')
@@ -210,11 +211,11 @@ describe ProcedureRevisionTypeDeChamp do
             .find_by(type_de_champ: { libelle: 'Formule' })
         end
 
-        it 'returns same as available_columns_for_formula (no siblings)' do
-          available_editor = formula_coordinate.available_columns_for_formula_editor
-          available_classic = formula_coordinate.available_columns_for_formula
+        it 'returns same as available_parent_columns_for_formula (no siblings to add)' do
+          available_canonical = formula_coordinate.available_columns_for_formula
+          available_parents = formula_coordinate.available_parent_columns_for_formula
 
-          expect(available_editor.map(&:label)).to eq(available_classic.map(&:label))
+          expect(available_canonical.map(&:label)).to eq(available_parents.map(&:label))
         end
       end
     end

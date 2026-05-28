@@ -164,8 +164,9 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     # une référence valide en forward reference. Dans ce cas la formule
     # devient invalide et l'admin doit corriger ou changer l'ordre.
     #
-    # On s'appuie directement sur la liste de colonnes autorisées par
-    # l'éditeur — garantit la cohérence UI/backend.
+    # Backend et frontend partagent exactement la même méthode source
+    # (available_columns_for_formula) : pas de divergence possible entre
+    # ce que l'éditeur propose et ce que la validation accepte.
     if forward_reference?
       @type_de_champ.errors.add(:formule_expression, :forward_reference)
       return
@@ -312,11 +313,13 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   end
 
   # pf: Vrai si l'expression référence un stable_id qui n'est pas dans la
-  # liste de colonnes autorisées par l'éditeur (= TDC situés à une position
-  # antérieure). Implémenté en réutilisant available_columns_for_formula
-  # plutôt qu'en réécrivant la logique de position : garantit que la règle
-  # backend est exactement celle de l'autocomplete frontend (même cas
-  # répétition, même cas annotation privée référençant des champs publics).
+  # liste de colonnes autorisées (= TDC situés à une position antérieure ;
+  # pour une formule dans un bloc, inclut aussi les siblings antérieurs de
+  # la même ligne et les parents hors bloc). Implémenté en réutilisant
+  # available_columns_for_formula plutôt qu'en réécrivant la logique de
+  # position : garantit que la règle backend est exactement celle de
+  # l'autocomplete frontend (même cas répétition, même cas annotation
+  # privée référençant des champs publics).
   def forward_reference?
     return false if @type_de_champ.stable_id.nil?
 
