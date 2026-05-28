@@ -177,7 +177,9 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     # UnboundVariableError peu compréhensible pour l'utilisateur.
     hint = FormulaCalculationService.detect_equals_operator_hint(expression)
     if hint.present?
-      @type_de_champ.errors.add(:formule_expression, :invalid_syntax, message: hint)
+      # pf: interpolation via :detail (pas :message, clé réservée par
+      # errors.add → non conservée pour la ré-interpolation de full_messages).
+      @type_de_champ.errors.add(:formule_expression, :invalid_syntax, detail: hint)
       return
     end
 
@@ -204,7 +206,7 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     @type_de_champ.formule_output_type = infer_output_type_from_reference(expression) || infer_output_type(ast_node)
   rescue Dentaku::ParseError, Dentaku::TokenizerError => e
     @type_de_champ.errors.add(:formule_expression, :invalid_syntax,
-                              message: FormulaCalculationService.translate_error(e))
+                              detail: FormulaCalculationService.translate_error(e))
   rescue StandardError
     # Autres erreurs Dentaku (UnboundVariable, etc.) — OK à ce stade,
     # les variables seront résolues au calcul.
