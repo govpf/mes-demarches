@@ -15,7 +15,11 @@ module Types
       if object.is_a?(Hash)
         object[:url]
       else
-        object.url(host: Current.host)
+        # pf: stockage S3 direct → l'URL presignée est absolue et auto-suffisante.
+        # Ne pas passer host: — clé invalide pour aws-sdk (ArgumentError: unexpected
+        # value at params[:host]), et Current.host vaut le hostname interne du cluster
+        # en requête server-to-server. cf. upstream #12346 / 3871d37538.
+        object.url
       end
     end
 
