@@ -46,26 +46,19 @@ RSpec.describe InstructeurMailer, type: :mailer do
 
       subject { described_class.send_login_token(user, token) }
 
-      it { expect(subject.body).to include(ApplicationHelper::APP_HOST_LEGACY) }
+      it { expect(subject.body).to include(ApplicationHelper::APP_HOST) }
     end
 
-    context 'with given host as APP_HOST', skip: true do
-      let(:host) { ApplicationHelper::APP_HOST }
+    # pf: garde-fou anti-fuite (78aefa3324) — en PF on force toujours le host PF ;
+    # un host forcé (même un domaine upstream) ne doit jamais surcharger ni fuiter.
+    context 'with a forced upstream host' do
+      subject { described_class.send_login_token(user, token, "demarche.numerique.gouv.fr") }
 
-      subject { described_class.send_login_token(user, token, host) }
-
-      # pf: pas de double domaine — passer APP_HOST doit produire un mail PF (et non demarches.numerique.gouv.fr)
-      it 'uses PF host and never leaks the upstream domain' do
+      it 'keeps the PF host and never leaks the upstream domain' do
         expect(subject.body).to include(ApplicationHelper::APP_HOST)
+        expect(subject.body).not_to include("demarche.numerique.gouv.fr")
         expect(subject.body).not_to include("demarches.numerique.gouv.fr")
       end
-    end
-    context 'with given host as APP_HOST_LEGACY' do
-      let(:host) { ApplicationHelper::APP_HOST_LEGACY }
-
-      subject { described_class.send_login_token(user, token, host) }
-
-      it { expect(subject.body).to include(host) }
     end
   end
 

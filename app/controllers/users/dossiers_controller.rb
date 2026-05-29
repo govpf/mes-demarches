@@ -171,7 +171,7 @@ module Users
       respond_to do |format|
         format.html
         format.turbo_stream do
-          @dossier.for_tiers = params[:dossier][:for_tiers]
+          @dossier.for_tiers = params[:dossier][:for_tiers] if params[:dossier].present?
         end
       end
     end

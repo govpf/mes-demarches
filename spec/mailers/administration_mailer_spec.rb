@@ -22,7 +22,7 @@ RSpec.describe AdministrationMailer, type: :mailer do
       let(:last_sign_in_at) { Time.zone.now }
       it do
         expect(subject.body).not_to include(users_activate_path(token: token))
-        expect(subject.body).to include(edit_user_password_url(admin_user, reset_password_token: token, host: ENV.fetch("APP_HOST_LEGACY")))
+        expect(subject.body).to include(edit_user_password_url(admin_user, reset_password_token: token))
       end
     end
   end

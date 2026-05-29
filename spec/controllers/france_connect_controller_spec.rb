@@ -102,6 +102,7 @@ describe FranceConnectController, type: :controller do
             expect(fc_user.reload.loged_in_with_france_connect).to eq(User.loged_in_with_france_connects.fetch(:particulier))
             expect(cookies.encrypted[FranceConnectController::NONCE_COOKIE_NAME]).to be_nil
             expect(cookies.encrypted[FranceConnectController::ID_TOKEN_COOKIE_NAME]).to eq('id_token')
+            expect(fc_user.preferred_domain_demarche_numerique_gouv_fr?).to be_truthy
           end
 
           context 'and the user has a stored location' do
@@ -352,7 +353,7 @@ describe FranceConnectController, type: :controller do
   RSpec.shared_examples "a method that needs a valid merge token" do
     context 'when the merge token is invalid' do
       before do
-        allow(Current).to receive(:application_name).and_return('demarches-simplifiees.fr')
+        allow(Current).to receive(:application_name).and_return('demarche.numerique.gouv.fr')
         merge_token
         fci.update(merge_token_created_at: 2.years.ago)
       end
@@ -442,7 +443,7 @@ describe FranceConnectController, type: :controller do
       end
 
       before do
-        allow(Current).to receive(:application_name).and_return('demarches-simplifiees.fr')
+        allow(Current).to receive(:application_name).and_return('demarche.numerique.gouv.fr')
         fci.update!(requested_email: email.downcase)
       end
 

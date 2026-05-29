@@ -17,14 +17,14 @@ RSpec.describe UserMailer, type: :mailer do
 
       subject { described_class.new_account_warning(user, procedure) }
 
-      it { expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path, host: ENV.fetch("APP_HOST_LEGACY"))) }
+      it { expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path)) }
 
-      # pf: pas de double domaine — même avec preferred_domain set, le lien et le sender restent en PF
+      # pf: garde-fou anti-fuite (78aefa3324) — même avec preferred_domain set, lien et sender restent en PF
       context "when user has preferred domain" do
         let(:user) { create(:user, preferred_domain: :demarche_numerique_gouv_fr) }
 
         it 'still uses PF host and PF sender' do
-          expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path, host: ENV.fetch("APP_HOST_LEGACY")))
+          expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path))
           expect(header_value("From", subject)).to include(CONTACT_EMAIL)
           expect(subject.body.to_s).not_to include("demarches.numerique.gouv.fr")
           expect(subject.body.to_s).not_to include("demarche.numerique.gouv.fr")
@@ -161,8 +161,8 @@ RSpec.describe UserMailer, type: :mailer do
       let(:role) { create(:instructeur) }
       it 'sends email with correct links to instructeur' do
         expect(subject.to).to eq([role.user.email])
-        expect(subject.body).to have_link('Consulter mes archives', href: instructeur_archives_url(procedure, host: ENV.fetch("APP_HOST_LEGACY")))
-        expect(subject.body).to have_link("#{procedure.id} − #{procedure.libelle}", href: instructeur_procedure_url(procedure, host: ENV.fetch("APP_HOST_LEGACY")))
+        expect(subject.body).to have_link('Consulter mes archives', href: instructeur_archives_url(procedure))
+        expect(subject.body).to have_link("#{procedure.id} − #{procedure.libelle}", href: instructeur_procedure_url(procedure))
       end
     end
 
@@ -170,8 +170,8 @@ RSpec.describe UserMailer, type: :mailer do
       let(:role) { administrateurs(:default_admin) }
       it 'sends email with correct links to administrateur' do
         expect(subject.to).to eq([role.user.email])
-        expect(subject.body).to have_link('Consulter mes archives', href: admin_procedure_archives_url(procedure, host: ENV.fetch("APP_HOST_LEGACY")))
-        expect(subject.body).to have_link("#{procedure.id} − #{procedure.libelle}", href: admin_procedure_url(procedure, host: ENV.fetch("APP_HOST_LEGACY")))
+        expect(subject.body).to have_link('Consulter mes archives', href: admin_procedure_archives_url(procedure))
+        expect(subject.body).to have_link("#{procedure.id} − #{procedure.libelle}", href: admin_procedure_url(procedure))
       end
     end
 

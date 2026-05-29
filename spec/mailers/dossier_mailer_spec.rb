@@ -23,19 +23,19 @@ RSpec.describe DossierMailer, type: :mailer do
       expect(subject.subject).to include("brouillon")
       expect(subject.subject).to include(dossier.procedure.libelle)
       expect(subject.body).to include(dossier.procedure.libelle)
-      expect(subject.body).to include(dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).to include(dossier_url(dossier))
       expect(subject.body).to include("Vous pouvez déposer votre dossier jusqu’au")
       expect(subject.body).to include("heure de")
     end
 
     it_behaves_like 'a dossier notification'
 
-    # pf: pas de double domaine — même avec preferred_domain "new domain", on reste sur les valeurs PF
+    # pf: garde-fou anti-fuite (78aefa3324) — même avec preferred_domain set, on reste sur le host PF (APP_HOST)
     context "when user prefers new domain" do
       let(:user) { create(:user, preferred_domain: :demarche_numerique_gouv_fr) }
 
       it 'still uses PF host and PF sender' do
-        expect(subject.body).to include(dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+        expect(subject.body).to include(dossier_url(dossier))
         expect(header_value("From", subject)).to eq(NO_REPLY_EMAIL)
         expect(subject.body).not_to include("demarches.numerique.gouv.fr")
         expect(subject.body).not_to include("demarche.numerique.gouv.fr")
@@ -49,10 +49,10 @@ RSpec.describe DossierMailer, type: :mailer do
     #   dossier.hide_and_keep_track!(user, :user_request)
     #   expect(subject.subject).to be_nil
     # end
-    #
+
     # context 'when dossier is not brouillon anymore' do
     #   let(:dossier) { create(:dossier, :en_construction, user:) }
-    #
+
     #   it 'does not send the email' do
     #     expect(subject.subject).to be_nil
     #   end
@@ -70,7 +70,7 @@ RSpec.describe DossierMailer, type: :mailer do
       expect(subject.subject).to include("Nouveau message")
       expect(subject.subject).to include(dossier.id.to_s)
       expect(subject.body).to include(dossier.procedure.service.email)
-      expect(subject.body).not_to include(messagerie_dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).not_to include(messagerie_dossier_url(dossier))
     end
 
     it_behaves_like 'a dossier notification'
@@ -90,7 +90,7 @@ RSpec.describe DossierMailer, type: :mailer do
     it 'checks email subject and body for correct inclusions' do
       expect(subject.subject).to include("Nouveau message")
       expect(subject.subject).to include(dossier.id.to_s)
-      expect(subject.body).to include(messagerie_dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).to include(messagerie_dossier_url(dossier))
     end
 
     it_behaves_like 'a dossier notification'
@@ -105,17 +105,10 @@ RSpec.describe DossierMailer, type: :mailer do
     it { expect(subject.perform_deliveries).to be_falsy }
   end
 
-  def notify_deletion_to_administration(hidden_dossier, to_email)
-    @subject = default_i18n_subject(dossier_id: hidden_dossier.id)
-    @hidden_dossier = hidden_dossier
-
-    mail(to: to_email, subject: @subject)
-  end
-
-  describe '.notify_deletion_to_administration' do
+  describe '.notify_en_construction_deletion_to_administration' do
     let(:hidden_dossier) { build(:dossier) }
 
-    subject { described_class.notify_deletion_to_administration(hidden_dossier, to_email) }
+    subject { described_class.notify_en_construction_deletion_to_administration(hidden_dossier, to_email) }
 
     it 'verifies subject and body content for deletion notification' do
       expect(subject.subject).to eq("Le dossier n° #{hidden_dossier.id} a été supprimé à la demande de l’usager")
@@ -133,6 +126,7 @@ RSpec.describe DossierMailer, type: :mailer do
     it 'checks email body for correct inclusions regarding brouillon nearing deletion' do
       expect(subject.body).to include("n° #{dossier.id} ")
       expect(subject.body).to include(dossier.procedure.libelle)
+      expect(subject.body).to include(I18n.l(Expired::REMAINING_WEEKS_BEFORE_EXPIRATION.weeks.from_now.to_date, format: :long).to_s)
     end
   end
 
@@ -145,7 +139,7 @@ RSpec.describe DossierMailer, type: :mailer do
       expect(subject.subject).to eq("Un dossier en brouillon a été supprimé")
       expect(subject.body).to include("n° #{dossier.id}")
       expect(subject.body).to include(dossier.procedure.libelle)
-      expect(subject.body).to include(commencer_url(dossier.procedure.path, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).to include(commencer_url(dossier.procedure.path))
     end
   end
 
@@ -160,6 +154,7 @@ RSpec.describe DossierMailer, type: :mailer do
         expect(subject.subject).to eq("Un dossier de votre compte a été mis à la corbeille")
         expect(subject.body).to include("N° #{hidden_dossier.id} ")
         expect(subject.body).to include(hidden_dossier.procedure.libelle)
+        expect(subject.body).to include(I18n.l(Dossier::REMAINING_WEEKS_BEFORE_DELETION.weeks.from_now.to_date, format: :long).to_s)
       end
     end
 
@@ -173,6 +168,7 @@ RSpec.describe DossierMailer, type: :mailer do
         expect(subject.subject).to eq("Un dossier de votre compte a été mis à la corbeille")
         expect(subject.body).to include("N° #{hidden_dossier.id} ")
         expect(subject.body).to include(hidden_dossier.procedure.libelle)
+        expect(subject.body).to include(I18n.l(Dossier::REMAINING_WEEKS_BEFORE_DELETION.weeks.from_now.to_date, format: :long).to_s)
       end
     end
   end
@@ -185,6 +181,7 @@ RSpec.describe DossierMailer, type: :mailer do
     it 'verifies subject and body content for automatic deletion notification' do
       expect(subject.subject).to eq("Un dossier a été mis à la corbeille")
       expect(subject.body).to include("n° #{hidden_dossier.id} (#{hidden_dossier.procedure.libelle})")
+      expect(subject.body).to include(I18n.l(Dossier::REMAINING_WEEKS_BEFORE_DELETION.weeks.from_now.to_date, format: :long).to_s)
     end
   end
 
@@ -199,7 +196,7 @@ RSpec.describe DossierMailer, type: :mailer do
         expect(subject.body).to include("N° #{dossier.id} ")
         expect(subject.body).to include(dossier.procedure.libelle)
         expect(subject.body).to include("PDF")
-        expect(subject.body).to include("il vous reste 14 jours pour démarrer l&#39;instruction ")
+        expect(subject.body).to include(I18n.l(Expired::REMAINING_WEEKS_BEFORE_EXPIRATION.weeks.from_now.to_date, format: :long).to_s)
       end
     end
 
@@ -212,7 +209,7 @@ RSpec.describe DossierMailer, type: :mailer do
         expect(subject.subject).to eq("Un dossier traité va bientôt être supprimé")
         expect(subject.body).to include("N° #{dossier.id} ")
         expect(subject.body).to include(dossier.procedure.libelle)
-        expect(subject.body).to include("il vous reste <strong>14 jours pour télécharger</strong> ce dossier")
+        expect(subject.body).to include(I18n.l(Expired::REMAINING_WEEKS_BEFORE_EXPIRATION.weeks.from_now.to_date, format: :long).to_s)
       end
     end
   end
@@ -230,6 +227,7 @@ RSpec.describe DossierMailer, type: :mailer do
         expect(subject.body).to include(dossier.procedure.libelle)
         expect(subject.body).to include("Votre compte reste activé")
         expect(subject.body).to include("Depuis la page de votre dossier vous avez la possibilité de :<br>- prolonger la durée de conservation")
+        expect(subject.body).to include(I18n.l(Expired::REMAINING_WEEKS_BEFORE_EXPIRATION.weeks.from_now.to_date, format: :long).to_s)
       end
     end
 
@@ -245,6 +243,7 @@ RSpec.describe DossierMailer, type: :mailer do
         expect(subject.body).to include(dossier.procedure.libelle)
         expect(subject.body).to include("Votre compte reste activé")
         expect(subject.body).to include("PDF")
+        expect(subject.body).to include(I18n.l(Expired::REMAINING_WEEKS_BEFORE_EXPIRATION.weeks.from_now.to_date, format: :long).to_s)
       end
     end
 
@@ -362,7 +361,7 @@ RSpec.describe DossierMailer, type: :mailer do
       end
       it 'includes a direct URL to transfers' do
         expect(subject.body).to include('Afin de pouvoir accepter ou refuser la demande vous devez vous connectez sur')
-        expect(subject.body).to include(dossiers_url(statut: 'dossiers-transferes', host: ENV.fetch("APP_HOST_LEGACY")))
+        expect(subject.body).to include(dossiers_url(statut: 'dossiers-transferes'))
       end
     end
 
@@ -373,11 +372,11 @@ RSpec.describe DossierMailer, type: :mailer do
       end
     end
 
-    # pf: pas de double domaine — même avec preferred_domain set, le lien reste sur le host PF
+    # pf: garde-fou anti-fuite (78aefa3324) — même avec preferred_domain set, le lien reste sur le host PF
     context 'when recipient has preferred domain' do
       let(:dossier_transfer) { create(:dossier_transfer, email: create(:user, preferred_domain: :demarche_numerique_gouv_fr).email) }
-      it 'includes a link with PF host in the email body' do
-        expect(subject.body).to include(dossiers_url(statut: "dossiers-transferes", host: ENV.fetch("APP_HOST_LEGACY")))
+      it 'includes a link with PF host and never leaks the upstream domain' do
+        expect(subject.body).to include(dossiers_url(statut: "dossiers-transferes"))
         expect(subject.body).not_to include("demarches.numerique.gouv.fr")
         expect(subject.body).not_to include("demarche.numerique.gouv.fr")
       end
@@ -422,7 +421,7 @@ RSpec.describe DossierMailer, type: :mailer do
 
     it 'includes unsubscribe link' do
       expect(subject.body).to include('Ne plus recevoir de mail')
-      expect(subject.body).to include(notification_preferences_instructeur_procedure_url(dossier.procedure, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).to include(notification_preferences_instructeur_procedure_url(dossier.procedure))
     end
   end
 end

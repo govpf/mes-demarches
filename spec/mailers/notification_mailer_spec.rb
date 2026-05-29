@@ -51,7 +51,7 @@ RSpec.describe NotificationMailer, type: :mailer do
     it "works" do
       expect(subject.subject).to include("La décision a été rendue pour votre dossier n°#{dossier.id} (#{dossier.procedure.libelle})")
       expect(subject.body).to include("Pour en connaitre la nature, veuillez consulter votre dossier dans votre compte mes-demarches.gov.pf")
-      expect(subject.body).to have_link("Consulter mon dossier", href: dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(subject.body).to have_link("Consulter mon dossier", href: dossier_url(dossier))
     end
   end
 
@@ -70,7 +70,7 @@ RSpec.describe NotificationMailer, type: :mailer do
         expect(body).to include(procedure.service.adresse)
         expect(body).to include(procedure.service.faq_link)
         expect(body).to include(procedure.service.contact_link)
-        expect(body).to include(messagerie_dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+        expect(body).to include(messagerie_dossier_url(dossier))
         expect(body).to include(procedure.service.telephone)
         expect(body).to include(procedure.service.horaires)
         expect(body).to include(procedure.service.other_contact_info)
@@ -129,8 +129,8 @@ RSpec.describe NotificationMailer, type: :mailer do
     end
 
     it 'renders the actions with links to dossier and messagerie' do
-      expect(mail.body).to have_link('Consulter mon dossier', href: dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
-      expect(mail.body).to have_link('J’ai une question', href: messagerie_dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+      expect(mail.body).to have_link('Consulter mon dossier', href: dossier_url(dossier))
+      expect(mail.body).to have_link('J’ai une question', href: messagerie_dossier_url(dossier))
     end
 
     context 'when the template body contains tags' do
@@ -138,15 +138,15 @@ RSpec.describe NotificationMailer, type: :mailer do
 
       it 'replaces value tags with the proper value and renders links correctly' do
         expect(mail.body).to include(dossier.individual.nom)
-        expect(mail.body).to have_link(href: dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+        expect(mail.body).to have_link(href: dossier_url(dossier))
       end
 
-      # pf: pas de double domaine — même avec preferred_domain set, les liens et le sender restent en PF
+      # pf: garde-fou anti-fuite (78aefa3324) — même avec preferred_domain set, liens et sender restent en PF
       context "when user has preferred domain" do
         let(:user) { create(:user, preferred_domain: :demarche_numerique_gouv_fr) }
 
         it 'still uses PF host and PF sender' do
-          expect(mail.body).to have_link(href: dossier_url(dossier, host: ENV.fetch("APP_HOST_LEGACY")))
+          expect(mail.body).to have_link(href: dossier_url(dossier))
           expect(header_value("From", mail)).to eq(NO_REPLY_EMAIL)
           expect(mail.body.to_s).not_to include("demarches.numerique.gouv.fr")
           expect(mail.body.to_s).not_to include("demarche.numerique.gouv.fr")

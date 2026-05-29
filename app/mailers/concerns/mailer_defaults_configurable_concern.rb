@@ -24,26 +24,11 @@ module MailerDefaultsConfigurableConcern
 
   included do
     before_action -> { self.class.save_original_defaults }
-    before_action :set_currents_for_legacy
+    # YOLO, envoie tous les liens vers le nouveau domaine
+    before_action :set_currents_for_demarche_numerique_gouv_fr
     after_action -> { self.class.reset_original_defaults }
 
-    def configure_defaults_for_user(user, forced_domain = nil)
-      return if !user.is_a?(User) # not for super-admins
-
-      # Temporaire avant migration: tous les emails partent par demarcehs-simplifiees.fr
-      # le temps de config brevo
-      set_currents_for_legacy
-
-      # if user.preferred_domain_demarche_numerique_gouv_fr?
-      #   set_currents_for_demarche_numerique_gouv_fr
-      # elsif forced_domain == ApplicationHelper::APP_HOST
-      #   set_currents_for_demarche_numerique_gouv_fr
-      # elsif forced_domain == ApplicationHelper::APP_HOST_LEGACY
-      #   set_currents_for_legacy
-      # else
-      #   set_currents_for_legacy
-      # end
-
+    def configure_defaults_for_user(_user, _forced_domain = nil)
       # Define mailer defaults
       from = derive_from_header
       self.class.default from: from, reply_to: from
@@ -54,28 +39,19 @@ module MailerDefaultsConfigurableConcern
       self.class.asset_host = "#{original_uri.scheme}://#{Current.host}"
     end
 
-    def configure_defaults_for_email(email)
-      user = User.find_by(email: email)
-      configure_defaults_for_user(user)
+    def configure_defaults_for_email(_email)
+      configure_defaults_for_user(nil)
     end
 
     private
 
     def set_currents_for_demarche_numerique_gouv_fr
-      # pf: pas de double domaine en PF — on aligne sur les valeurs PF quel que soit le domaine
-      # cible upstream (demarches.numerique.gouv.fr OU demarche.numerique.gouv.fr).
-      # Sinon fuite systématique via le branch `elsif forced_domain == APP_HOST` de
-      # configure_defaults_for_user, qui matche en PF puisque APP_HOST = www.mes-demarches.gov.pf
-      # (la sémantique upstream "user a choisi le nouveau domaine" n'a pas de sens chez nous).
+      # pf: en PF il n'y a qu'un seul domaine — APP_HOST est le host officiel (ex. www.mes-demarches.gov.pf),
+      # pas de migration double-domaine comme upstream. On force donc systématiquement les valeurs PF
+      # (host + sender), ce qui ignore preferred_domain et empêche toute fuite vers un domaine upstream
+      # (*.numerique.gouv.fr). Garde-fou issu de 78aefa3324 — voir specs de non-régression dans spec/mailers/.
       Current.application_name = APPLICATION_NAME
-      Current.host = ENV.fetch("APP_HOST")
-      Current.contact_email = CONTACT_EMAIL
-      Current.no_reply_email = NO_REPLY_EMAIL
-    end
-
-    def set_currents_for_legacy
-      Current.application_name = APPLICATION_NAME
-      Current.host = ENV["APP_HOST_LEGACY"] || ENV.fetch("APP_HOST") # APP_HOST_LEGACY is optional. Without it, we are in the situation withotu double domains
+      Current.host = ENV["APP_HOST"]
       Current.contact_email = CONTACT_EMAIL
       Current.no_reply_email = NO_REPLY_EMAIL
     end
