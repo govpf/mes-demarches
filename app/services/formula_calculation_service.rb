@@ -481,12 +481,40 @@ class FormulaCalculationService
     # RepetitionChamp de la ligne l'est) — le filtre par live_row_ids suffit à
     # exclure les lignes supprimées. (discarded? n'est d'ailleurs défini que sur
     # RepetitionChamp, pas sur les sous-champs.)
-    live_row_ids = repetition_live_row_ids(bloc_tdc).to_set
+    live_row_ids = repetition_live_row_ids(bloc_tdc)
+
+    # pf: cas d'un sous-champ FORMULE-LIGNE. Son Champ n'est pas forcément
+    # persisté (formule_champs_for_tdc fait `return [] if tdc.child?` — la
+    # cascade ne crée pas les champs formule enfants ; en preview ils n'existent
+    # que matérialisés dans project_champs). On NE peut PAS lire project_champs
+    # ici (récursion : ça recalculerait la formule-agrégat courante). On calcule
+    # donc la formule-ligne à la volée pour chaque ligne : elle ne référence que
+    # ses siblings de même ligne, qui SONT persistés dans all_champs.
+    if sub_tdc.formule?
+      return live_row_ids.sort.filter_map do |row_id|
+        value = compute_line_formula_value(sub_tdc, row_id)
+        next nil if value.blank?
+        coerce_formule_output(value, sub_tdc.formule_output_type)
+      end
+    end
+
+    live_row_ids_set = live_row_ids.to_set
     rows_champs = all_champs
-      .filter { |c| c.row_id.present? && c.stable_id == sub_tdc.stable_id && live_row_ids.include?(c.row_id) }
+      .filter { |c| c.row_id.present? && c.stable_id == sub_tdc.stable_id && live_row_ids_set.include?(c.row_id) }
       .sort_by(&:row_id)
 
     rows_champs.filter_map { |champ| coerce_repetition_champ_value(champ, sub_tdc) }
+  end
+
+  # pf: Calcule la valeur d'une formule-ligne pour une row donnée, sans dépendre
+  # d'un Champ persisté. Réutilise un Champ existant si présent, sinon en build
+  # un in-memory. Un service dédié (scopé sur le row via compute_value →
+  # @row_id) résout les siblings de la ligne. value_overrides partagé pour la
+  # transitivité amont.
+  def compute_line_formula_value(sub_tdc, row_id)
+    champ = all_champs.find { |c| c.stable_id == sub_tdc.stable_id && c.row_id == row_id }
+    champ ||= sub_tdc.build_champ(dossier: @dossier, row_id:, stream: @dossier.stream)
+    self.class.new(@dossier, locale: @locale, value_overrides: @value_overrides).compute_value(champ)
   end
 
   # pf: Conversion typée d'un champ sous-TDC vers le type Ruby attendu par

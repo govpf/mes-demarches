@@ -1280,21 +1280,19 @@ describe FormulaCalculationService do
         total_tdc.update!(formule_expression: "SOMME({tdc#{bloc_tdc.stable_id}/sub_#{ligne_formule_tdc.stable_id}})")
       end
 
-      def add_row_compute(prix)
+      # pf: on NE crée PAS le champ formule-ligne (Montant TTC) : c'est le cas
+      # réel — la cascade ne persiste pas les champs formule enfants d'un bloc
+      # (return [] if tdc.child?), et en preview ils n'existent que matérialisés.
+      # L'agrégat doit donc recalculer la formule-ligne à la volée par ligne.
+      def add_row_with_prix(prix)
         row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
-        # pf: instancie les sous-champs de la ligne comme le fait l'UI à l'ajout
-        # (formule-ligne incluse — sans son champ persisté, formule_champs_for_tdc
-        # ne la calcule pas : return [] if tdc.child?).
-        dossier.champ_for_update(ligne_formule_tdc, row_id:, updated_by: 'test')
-        sub = dossier.champ_for_update(prix_ht_tdc, row_id:, updated_by: 'test')
-        sub.update!(value: prix.to_s)
-        dossier.refresh_formulas_after(sub) # calcule la formule-ligne de cette row
+        dossier.champ_for_update(prix_ht_tdc, row_id:, updated_by: 'test').update!(value: prix.to_s)
         row_id
       end
 
-      it 'somme les résultats de la formule-ligne de chaque ligne' do
-        add_row_compute(100) # Montant TTC = 200
-        add_row_compute(50)  # Montant TTC = 100
+      it 'somme les résultats de la formule-ligne (non persistée) de chaque ligne' do
+        add_row_with_prix(100) # Montant TTC = 200
+        add_row_with_prix(50)  # Montant TTC = 100
         expect(service.compute_value(total_champ)).to eq('300')
       end
     end
