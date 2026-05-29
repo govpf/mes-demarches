@@ -266,6 +266,24 @@ class FormulaCalculationService
       n.to_f.to_i
     })
 
+    # pf: MEDIANE — pas de fonction native median en Dentaku 3.5.4. Accepte
+    # une liste d'arguments OU un array (binding {bloc/sous-champ}). nil/blank
+    # ignorés. Médiane = valeur centrale (impair) ou moyenne des deux centrales.
+    calculator.add_function(:MEDIANE, :numeric, -> (*args) {
+      nums = args.flatten.compact.map(&:to_f).sort
+      next nil if nums.empty?
+      mid = nums.size / 2
+      nums.size.odd? ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2.0
+    })
+
+    # pf: JOINDRE(array, séparateur) — concatène les valeurs d'un array en une
+    # chaîne (équivalent texte de SOMME). Pensé pour agréger un sous-champ texte
+    # d'un bloc : JOINDRE({Partenaires/Raison sociale}, ", "). nil/vide ignorés.
+    # Pas de join natif en Dentaku → lambda custom (cf. CHERCHE/SUBSTITUE).
+    calculator.add_function(:JOINDRE, :string, -> (arr, separator = ', ') {
+      Array(arr).flatten.compact.map(&:to_s).reject(&:empty?).join(separator.to_s)
+    })
+
     add_french_date_functions(calculator)
   end
 
@@ -442,7 +460,7 @@ class FormulaCalculationService
   # que si l'usager les a saisis — un row vide n'aurait sinon aucun champ).
   def repetition_live_row_ids(bloc_tdc)
     all_champs
-      .select { |c| c.stable_id == bloc_tdc.stable_id && c.row_id.present? && !c.discarded? }
+      .filter { |c| c.stable_id == bloc_tdc.stable_id && c.row_id.present? && !c.discarded? }
       .map(&:row_id)
       .uniq
   end
@@ -465,7 +483,7 @@ class FormulaCalculationService
     # RepetitionChamp, pas sur les sous-champs.)
     live_row_ids = repetition_live_row_ids(bloc_tdc).to_set
     rows_champs = all_champs
-      .select { |c| c.row_id.present? && c.stable_id == sub_tdc.stable_id && live_row_ids.include?(c.row_id) }
+      .filter { |c| c.row_id.present? && c.stable_id == sub_tdc.stable_id && live_row_ids.include?(c.row_id) }
       .sort_by(&:row_id)
 
     rows_champs.filter_map { |champ| coerce_repetition_champ_value(champ, sub_tdc) }
@@ -484,9 +502,9 @@ class FormulaCalculationService
     when 'decimal_number', 'number'
       champ.value.to_f
     when 'date'
-      Date.parse(champ.value) rescue nil # rubocop:disable Style/RescueModifier
+      Date.parse(champ.value) rescue nil
     when 'datetime'
-      DateTime.parse(champ.value) rescue nil # rubocop:disable Style/RescueModifier
+      DateTime.parse(champ.value) rescue nil
     when 'yes_no'
       champ.value == 'true'
     when 'checkbox'

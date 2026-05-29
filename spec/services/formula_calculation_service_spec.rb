@@ -78,6 +78,47 @@ describe FormulaCalculationService do
       # and SOMME receives it as a single array argument, which flatten() handles
     end
 
+    # pf: étape H du chantier agrégat — alias FR additionnels.
+    context 'alias FR additionnels (NB, COMPTE, RACINE, PLANCHER, PLAFOND, MEDIANE, JOINDRE)' do
+      let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+      def compute(expression)
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: expression))
+        service.compute_value(formule_champ)
+      end
+
+      it 'NB compte les arguments' do
+        expect(compute('NB(1, 2, 3)')).to eq('3')
+      end
+
+      it 'COMPTE est un synonyme de NB' do
+        expect(compute('COMPTE(1, 2, 3, 4)')).to eq('4')
+      end
+
+      it 'RACINE calcule la racine carrée' do
+        expect(compute('RACINE(16)')).to eq('4')
+      end
+
+      it 'PLANCHER arrondit vers le bas (floor)' do
+        expect(compute('PLANCHER(3.7)')).to eq('3')
+      end
+
+      it 'PLAFOND arrondit vers le haut (ceil)' do
+        expect(compute('PLAFOND(3.2)')).to eq('4')
+      end
+
+      it 'MEDIANE (nombre impair de valeurs) retourne la valeur centrale' do
+        expect(compute('MEDIANE(1, 2, 3, 4, 5)')).to eq('3')
+      end
+
+      it 'MEDIANE (nombre pair de valeurs) retourne la moyenne des deux centrales' do
+        expect(compute('MEDIANE(1, 2, 3, 4)')).to eq('2.5')
+      end
+
+      # pf: JOINDRE(array, separator) — testé en contexte agrégat (son usage
+      # réel : JOINDRE({bloc/sous-champ}, ", ")), cf. describe agrégation.
+    end
+
     context 'ARRONDI_INF, ARRONDI_SUP, ENTIER functions' do
       let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
 
@@ -1084,6 +1125,27 @@ describe FormulaCalculationService do
       it 'compte le nombre de lignes' do
         set_formula("COUNT({#{bloc_ref}})")
         expect(service.compute_value(formule_champ)).to eq('3')
+      end
+    end
+
+    context 'JOINDRE sur un sous-champ texte (Désignation)' do
+      let(:designation_tdc) { revision.types_de_champ.find { _1.libelle == 'Désignation' } }
+
+      def add_row_with_designation(label)
+        row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+        dossier.champ_for_update(designation_tdc, row_id:, updated_by: 'test').update!(value: label)
+        row_id
+      end
+
+      before do
+        add_row_with_designation('Pommes')
+        add_row_with_designation('Poires')
+        add_row_with_designation('Bananes')
+      end
+
+      it 'concatène les désignations de toutes les lignes' do
+        set_formula("JOINDRE({tdc#{bloc_tdc.stable_id}/sub_#{designation_tdc.stable_id}}, \", \")")
+        expect(service.compute_value(formule_champ)).to eq('Pommes, Poires, Bananes')
       end
     end
 
