@@ -10,6 +10,6 @@ class EditableChamp::FormuleComponent < EditableChamp::EditableChampBaseComponen
   def formatted_value
     return '' if @champ.value.blank?
 
-    render FormulaValueDisplayComponent.new(value: @champ.value)
+    render FormulaValueDisplayComponent.new(champ: @champ)
   end
 end

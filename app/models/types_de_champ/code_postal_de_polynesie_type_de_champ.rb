@@ -33,6 +33,17 @@ class TypesDeChamp::CodePostalDePolynesieTypeDeChamp < TypesDeChamp::TextTypeDeC
     libelle + LABELS[index]
   end
 
+  # pf: expose les sous-champs (commune, ile, archipel) comme JSONPathColumn
+  # lues depuis value_json (cache peuplé par CodePostalDePolynesieChamp#on_value_change).
+  # Cf. CommuneDePolynesieTypeDeChamp.
+  def columns(procedure:, displayable: true, prefix: nil)
+    super.concat([
+      polynesie_json_column(procedure:, prefix:, path: 'commune', suffix: 'Commune', type: :text),
+      polynesie_json_column(procedure:, prefix:, path: 'ile', suffix: 'Ile', type: :text),
+      polynesie_json_column(procedure:, prefix:, path: 'archipel', suffix: 'Archipel', type: :text),
+    ])
+  end
+
   def champ_value(champ)
     city = APIGeo::API.commune_by_postal_code_city_label(champ.value)
     city ? city[:code_postal].to_s : ''
@@ -49,5 +60,20 @@ class TypesDeChamp::CodePostalDePolynesieTypeDeChamp < TypesDeChamp::TextTypeDeC
     else
       ''
     end
+  end
+
+  private
+
+  def polynesie_json_column(procedure:, prefix:, path:, suffix:, type:)
+    Columns::JSONPathColumn.new(
+      procedure_id: procedure.id,
+      stable_id:,
+      tdc_type: type_champ,
+      label: [prefix, libelle, suffix].compact.join(' – '),
+      type:,
+      jsonpath: "$.#{path}",
+      displayable: true,
+      mandatory: mandatory?
+    )
   end
 end

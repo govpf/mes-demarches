@@ -36,9 +36,15 @@ class FormulaExpressionService
           tdc = find_type_de_champ_by_stable_id(stable_id, revision)
 
           if tdc && path
-            # Sub-property: find the label for the path
-            path_label = find_path_label(tdc, path)
-            path_label ? "{#{path_label}}" : match
+            # pf: agrégat bloc répétable {tdc<bloc>/sub_<sub_id>} → {Bloc/Sous-champ}
+            if tdc.repetition? && (m = path.match(/\Asub_(\d+)\z/))
+              sub_tdc = find_type_de_champ_by_stable_id(m[1].to_i, revision)
+              sub_tdc ? "{#{tdc.libelle}/#{sub_tdc.libelle}}" : match
+            else
+              # Sub-property: find the label for the path
+              path_label = find_path_label(tdc, path)
+              path_label ? "{#{path_label}}" : match
+            end
           elsif tdc
             "{#{tdc.libelle}}"
           else

@@ -37,6 +37,13 @@
             title: t(".hebdo_recap.title"),
             hint: t('.hebdo_recap.notice'),
             extra_class_names: 'fr-toggle--border-bottom')
+        -# pf: toggle suppression auto — flag PF câblé backend depuis 20250930, UI restée orpheline
+        %li
+          = render Dsfr::ToggleComponent.new(form:,
+            target: :deletion_email_notifications_enabled,
+            title: t(".deletion_notifications.title"),
+            hint: t('.deletion_notifications.notice'),
+            extra_class_names: 'fr-toggle--border-bottom')
 
   %ul.fr-btns-group.fr-btns-group--inline
     %li= link_to t('instructeurs.procedures.notification_preferences.buttons.cancel'), instructeur_procedure_path(procedure), class: 'fr-btn fr-btn--secondary fr-mr-2w'

@@ -16,9 +16,11 @@ class FormulaAiPromptService
     'string' => 'texte',
     'number' => 'nombre',
     'boolean' => 'booléen (true/false)',
+    'date' => 'date',
+    'datetime' => 'date et heure',
   }.freeze
 
-  # pf: Types de colonnes exposés par available_columns_for_formula_editor
+  # pf: Types de colonnes exposés par available_columns_for_formula
   # traduits en libellés parlants pour une IA francophone.
   COLUMN_TYPE_LABELS = {
     text: 'texte',
@@ -48,7 +50,7 @@ class FormulaAiPromptService
       inaccessible_variables_section,
       functions_section,
       operators_and_syntax_section,
-      unsupported_section,
+      repetition_aggregate_section,
       response_format_section,
       self_check_section,
       user_request_placeholder,
@@ -171,9 +173,15 @@ class FormulaAiPromptService
       ### Arithmétique
       - `SOMME(a, b, ...)` → nombre — somme de tous les arguments
       - `MOYENNE(a, b, ...)` → nombre — moyenne arithmétique
+      - `MEDIANE(a, b, ...)` → nombre — valeur médiane
       - `MIN(a, b, ...)` / `MAX(a, b, ...)` → nombre
+      - `NB(...)` (ou `COMPTE(...)`) → nombre — nombre d’éléments (utile sur un bloc répétable, cf. plus bas)
       - `ABS(n)` → nombre — valeur absolue
+      - `RACINE(n)` → nombre — racine carrée
       - `ARRONDI(n, [décimales])` → nombre — arrondi à `décimales` chiffres (0 par défaut)
+      - `ARRONDI_INF(n)` (ou `PLANCHER(n)`) → nombre — entier le plus grand ≤ n (floor). Ex : `ARRONDI_INF(3.7)` = 3, `ARRONDI_INF(-3.2)` = -4.
+      - `ARRONDI_SUP(n)` (ou `PLAFOND(n)`) → nombre — entier le plus petit ≥ n (ceil). Ex : `ARRONDI_SUP(3.2)` = 4, `ARRONDI_SUP(-3.7)` = -3.
+      - `ENTIER(n)` → nombre — partie entière (tronque vers zéro). Ex : `ENTIER(3.7)` = 3, `ENTIER(-3.7)` = -3. Utile pour caster un résultat numérique en entier (évite "xxx.0" en concaténation).
 
       ### Logique
       - `SI(condition, valeur_si_vrai, valeur_si_faux)` — équivalent ternaire
@@ -192,6 +200,7 @@ class FormulaAiPromptService
       - `MAJUSCULE(texte)` / `MINUSCULE(texte)` → texte
       - `SUPPRESPACE(texte)` → texte — supprime les espaces en début/fin et réduit les espaces multiples
       - `VALEUR(texte)` → nombre — convertit un texte en nombre (gère la virgule française, retourne 0 si non convertible)
+      - `JOINDRE(liste, séparateur)` → texte — concatène les valeurs d’un sous-champ de bloc répétable avec un séparateur (équivalent texte de SOMME, cf. plus bas). Ex : `JOINDRE({Partenaires/Raison sociale}, ", ")`.
 
       ### Date
       Les champs de type date sont manipulés comme des objets Date natifs. L’arithmétique `+` `-` et les comparaisons `<` `>` `==` fonctionnent directement entre deux dates, ou entre une date et une durée.
@@ -205,8 +214,12 @@ class FormulaAiPromptService
       - `AGE(date_de_naissance)` → nombre — âge en années révolues (tient compte de l’anniversaire)
       - `EST_PASSEE(date)` → booléen — la date est-elle strictement antérieure à aujourd’hui ?
       - `EST_FUTURE(date)` → booléen — la date est-elle strictement postérieure à aujourd’hui ?
-      - `DUREE_ANNEES(n)` / `DUREE_MOIS(n)` / `DUREE_JOURS(n)` → durée — à utiliser en arithmétique avec une date. Ex : `{DateNaissance} + DUREE_ANNEES(18)` → date du 18e anniversaire.
+      - `DUREE_ANNEES(n)` / `DUREE_MOIS(n)` / `DUREE_JOURS(n)` / `DUREE_SEMAINES(n)` → durée — à utiliser en arithmétique avec une date. Ex : `{DateNaissance} + DUREE_ANNEES(18)` → date du 18e anniversaire, ou `AUJOURDHUI() + DUREE_SEMAINES(2)` → date dans deux semaines.
       - `DURATION(n, years|months|days)` → durée — équivalent anglais natif, interchangeable avec les `DUREE_*`.
+      - `JOURS_ENTRE(date1, date2)` → nombre — nombre de jours entre deux dates (négatif si date2 < date1). Ex : `JOURS_ENTRE({Date d'arrivée}, AUJOURDHUI())`.
+      - `SEMAINES_ENTRE(date1, date2)` → nombre — nombre de semaines complètes (division entière par 7).
+      - `MOIS_ENTRE(date1, date2)` → nombre — différence en mois calendaires (31 jan → 28 fév vaut 1).
+      - `ANNEES_ENTRE(date1, date2)` → nombre — années révolues entre deux dates (tient compte de l'anniversaire ; équivalent à `AGE` généralisé à deux dates).
 
       Opérations dérivées de l’arithmétique native :
       - `{Date1} - {Date2}` → nombre de jours entre deux dates (entier si les deux sont des dates simples).
@@ -233,29 +246,38 @@ class FormulaAiPromptService
     TXT
   end
 
-  def unsupported_section
+  def repetition_aggregate_section
     <<~TXT
-      ## Fonctionnalités NON DISPONIBLES actuellement
+      ## Agrégation sur blocs répétables
 
-      ### Blocs répétables (tableaux)
       Un « bloc répétable » est un groupe de champs que l’usager peut dupliquer
-      (par exemple : liste d’enfants, liste de revenus, liste de dépenses).
-      On peut se les représenter comme un **tableau** :
-      - une **colonne** par champ du bloc (ex: « Prénom de l’enfant », « Âge de l’enfant »),
-      - une **ligne** par répétition remplie par l’usager.
+      (liste d’enfants, lignes de facture, ...). On peut se le représenter comme
+      un **tableau** : une **colonne** par sous-champ, une **ligne** par répétition.
 
-      ⚠️ **Aucune fonction ne peut actuellement manipuler ces tableaux.** Il est impossible de :
-      - compter le nombre de lignes (pas de NBLIGNES, NB.SI, ...),
-      - sommer une colonne sur toutes les lignes (pas de SOMME.SI, SOMMEPROD, ...),
-      - filtrer les lignes selon une condition,
-      - accéder à une ligne précise par son index.
+      Une formule placée **EN DEHORS** du bloc peut agréger ses lignes :
+      - `NB({Nom du bloc})` → nombre de lignes. Ex : `NB({Lignes de facture})`.
+      - `SOMME({Nom du bloc/Sous-champ})` → somme d’un sous-champ sur toutes les lignes.
+        Ex : `SOMME({Lignes de facture/Prix HT})`.
+      - de même `MOYENNE`, `MIN`, `MAX`, `MEDIANE` sur `{Bloc/Sous-champ}`.
+      - `JOINDRE({Bloc/Sous-champ}, ", ")` → concatène un sous-champ texte de toutes
+        les lignes. Ex : `JOINDRE({Partenaires/Raison sociale}, ", ")`.
+      - combinaisons : `SOMME({Factures/Montant}) - SOMME({Paiements/Montant})`.
 
-      Les champs situés DANS un bloc répétable ne sont référençables depuis une
-      formule située elle aussi DANS le même bloc (la formule est alors
-      évaluée ligne par ligne). **Aucun agrégat global n’est possible.**
+      ⚠️ **Placement obligatoire** : la formule-agrégat doit être située APRÈS le bloc
+      dans le formulaire (une formule ne référence que des champs qui la précèdent).
 
-      **Si le besoin implique un agrégat sur un bloc répétable** (total, moyenne,
-      nombre de lignes, ...), réponds `IMPOSSIBLE`.
+      ### Transformation par ligne (pas de SI/calcul inline sur les lignes)
+      Il n’y a pas de filtre conditionnel d’agrégat (pas de SOMME.SI, ni de calcul
+      par ligne dans l’agrégat lui-même). Pour cela, ajouter une **formule-ligne
+      intermédiaire DANS le bloc** puis l’agréger de l’extérieur. Ex : pour le total
+      TTC, créer dans le bloc « Montant TTC » = `{Prix HT} * 1.2`, puis hors bloc
+      `SOMME({Lignes de facture/Montant TTC})`.
+
+      ## Fonctionnalités NON DISPONIBLES actuellement (blocs)
+      - filtrer les lignes selon une condition au sein de l’agrégat (SOMME.SI…),
+      - accéder à une ligne précise par son index,
+      - agréger entre deux blocs différents dans une même expression de bas niveau
+        (utiliser deux agrégats combinés par un opérateur, comme l’exemple ci-dessus).
     TXT
   end
 
@@ -289,7 +311,7 @@ class FormulaAiPromptService
         réorganiser le formulaire, faire saisir autrement…).
 
       Exemples de réponses IMPOSSIBLE valides :
-      - `IMPOSSIBLE: aucune agrégation sur un bloc répétable n’est disponible.` Suggestion : faire saisir un total directement par l’usager dans un champ nombre, ou ajouter un champ formule dans le bloc qui sera ensuite exploité hors bloc une fois la Phase 2 du moteur déployée.
+      - `IMPOSSIBLE: l’agrégat doit filtrer les lignes selon une condition (SOMME.SI).` Suggestion : ajouter une formule-ligne dans le bloc qui calcule la valeur conditionnelle par ligne (ex : `SI({Type} == "A", {Montant}, 0)`), puis l’agréger hors bloc avec `SOMME({Bloc/cette formule-ligne})`.
       - `IMPOSSIBLE: le champ « Nom du conjoint » existe mais n’est pas accessible depuis cette formule.` Suggestion : placer « Nom du conjoint » avant le champ formule dans le formulaire.
     TXT
   end
@@ -323,7 +345,7 @@ class FormulaAiPromptService
   end
 
   def available_columns
-    @available_columns ||= coordinate.available_columns_for_formula_editor.filter do |col|
+    @available_columns ||= coordinate.available_columns_for_formula.filter do |col|
       col.label.present? && col.type.present?
     end
   end

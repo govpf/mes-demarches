@@ -193,6 +193,43 @@ Le champ `visa` utilise `accredited_users` (array d'emails) pour définir qui pe
 2. **Résolution automatique** : email → user_id au runtime  
 3. **Migration transparente** : table de mapping email ↔ user_id
 
+## Cascade des formules (recalcul après modification d'une source)
+
+**Convention : la cascade est explicite, pas implicite par callback.**
+
+Tout site qui modifie un champ source d'une formule (changement de `value`,
+`value_json`, `data`, `external_id`, `etablissement_id`, ou structurel sur
+une répétition) doit appeler explicitement :
+
+```ruby
+dossier.refresh_formulas_after(champ)
+```
+
+Sites qui doivent déclencher la cascade :
+- Controllers HTTP qui modifient un champ (`Users::DossiersController#update_dossier_and_compute_errors`, `Instructeurs::DossiersController#update_annotations`, `Champs::PieceJustificativeController`, `Champs::RNAController`)
+- Mutations GraphQL annotation (centralisée dans `Mutations::DossierModifierAnnotation#resolve_with_type`)
+- Services external_data qui changent `data`/`value_json` (`Champs::SiretChamp#update_external_data!`, `Champs::RnaChamp`, `Champs::PieceJustificativeChamp`, `Champs::ReferentielDePolynesieChamp`, `ChampExternalDataConcern`)
+- Helpers `Etablissement#update_champ_value_json!` (couvre les retours des jobs entreprise)
+- `Dossier#repetition_add_row` / `Dossier#repetition_remove_row` (formules `size(repetition)`, `count`...)
+- API entreprise : `APIEntrepriseService#create_etablissement` (via `update_champ_value_json!`)
+
+Sites qui ne déclenchent **pas** la cascade (recalcul géré autrement) :
+- `DossierCloneConcern#clone` : valeurs héritées de la source ; `rebase!` qui suit recalcule si la révision a changé.
+- `DossierRebaseConcern#rebase!` : appelle `compute_formulas_in_order` à la fin.
+- `DossierChampsConcern#merge_user_buffer_stream!` : appelle `compute_formulas_in_order(only: private_formula_stable_ids)` à la fin.
+- `DossierPrefillableConcern` + `Users::DossiersController#new_dossier` : appellent `compute_initial_formulas` après le prefill / la création.
+- Migrations / maintenance tasks : utilisent `update_all` / `update_columns` qui sautent les callbacks de toute façon.
+
+Pour le SIRET au niveau dossier (formulaire d'identité d'entreprise, pas de
+Champ source identifiable), on déclenche un recalcul global via
+`dossier.compute_formulas_in_order` (cf. `Etablissement#update_champ_value_json!`).
+
+Si tu ajoutes un nouveau flux qui modifie un champ source, **ajoute l'appel
+explicite** + une spec d'intégration qui vérifie que la formule dépendante
+est à jour. La spec de non-régression de référence est dans
+`spec/models/concerns/dossier_clone_concern_spec.rb` (context "with formula
+champs depending on a source") + `spec/models/champs/formule_cascade_audit_spec.rb`.
+
 ## Commandes utiles
 
 - Régénérer le schéma GraphQL : `bin/rails graphql:schema:dump`
@@ -569,6 +606,22 @@ end
 
 ### Stratégie alternative : Cherry-pick pour PRs cascadées
 
+> ⛔ **NE S'APPLIQUE JAMAIS À UNE PR D'INTÉGRATION UPSTREAM** (`feature/bump-*` dont
+> l'objectif est de tirer une ou plusieurs releases upstream). Pour ces PR — y compris
+> quand elles sont en cascade et que devpf a beaucoup divergé — la bonne stratégie reste
+> **merge `devpf` → branche + résolution de conflits au cas par cas** (cf. skill
+> `upstream-integration`). Raisons :
+> - Le cherry-pick vise à larguer du **code obsolète hérité d'une base non encore landée**.
+>   Si la PR parente est **déjà mergée dans devpf**, cette prémisse tombe : `devpf..branche`
+>   ne contient que les vrais commits upstream, pas de code obsolète.
+> - Rejouer N commits upstream (souvent 50-100) expose au piège des commits « empty »
+>   silencieux et **orpheline la base des PR empilées au-dessus**.
+> - Un merge préserve la pile et applique la discipline du skill (résolution fichier par
+>   fichier, audit MT/migrations, tests PF critiques).
+>
+> Le cherry-pick ci-dessous ne concerne que les **dev PF locaux** reconstruits sur un devpf
+> qui a divergé (jamais l'intégration upstream elle-même).
+
 #### **📌 Contexte du problème**
 
 Lorsque les PRs sont construites en cascade (PR X basée sur PR Y basée sur PR Z), et que devpf évolue entre temps, les PRs héritent de code obsolète de leur base.
@@ -657,10 +710,15 @@ Le cherry-pick **n'est PAS magique** :
 
 | Situation | Méthode recommandée |
 |-----------|---------------------|
+| **PR d'intégration upstream `feature/bump-*` (tout cas, même cascade)** | ✅ **Merge `devpf` → branche + résolution** (jamais cherry-pick) |
 | PR basée directement sur devpf | ✅ Merge classique |
-| PR basée sur une autre PR (cascade) | ✅ Cherry-pick |
-| devpf a beaucoup évolué depuis la base | ✅ Cherry-pick |
+| Dev PF local en cascade (base non landée) dont devpf a divergé | ✅ Cherry-pick |
+| devpf a beaucoup évolué depuis la base d'un dev PF local | ✅ Cherry-pick |
 | Première intégration d'un tag upstream | ✅ Merge classique |
+
+> Note : « PR basée sur une autre PR (cascade) → cherry-pick » ne vaut **que** pour les dev
+> PF locaux. Une PR `feature/bump-*` cascadée se résout **toujours** par merge (cf. encadré
+> en tête de section).
 
 #### **📝 Exemple réel : PR #223 → PR #256**
 

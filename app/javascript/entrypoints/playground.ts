@@ -9,6 +9,21 @@ import { csrfToken, getConfig } from '@utils';
 import '@graphiql/plugin-explorer/style.css';
 import 'graphiql/style.css';
 
+// pf: GraphiQL v5 utilise Monaco Editor qui exige une configuration explicite
+// des Web Workers. Sans ça, le playground charge mais les opérations multiples
+// font crasher le DropdownMenu du bouton Play (cf. erreurs MonacoEnvironment.getWorker).
+import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
+import GraphQLWorker from 'monaco-graphql/esm/graphql.worker?worker';
+
+self.MonacoEnvironment = {
+  getWorker(_workerId, label) {
+    if (label === 'json') return new JsonWorker();
+    if (label === 'graphql') return new GraphQLWorker();
+    return new EditorWorker();
+  }
+};
+
 const { defaultQuery, defaultVariables } = getConfig();
 const fetcher = createGraphiQLFetcher({
   url: '/api/v2/graphql',

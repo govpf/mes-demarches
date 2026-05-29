@@ -5,13 +5,13 @@
 # Deux familles de dépendances nécessitent des recalculs hors du flow normal
 # (le flow normal = cascade sur save d'un champ source) :
 #
-#   1. **clock_dependent** : formules qui utilisent AUJOURDHUI/MAINTENANT/
+#   1. **formule_deps['has_clock']** : formules qui utilisent AUJOURDHUI/MAINTENANT/
 #      AGE/EST_PASSEE/EST_FUTURE — leur valeur change avec le temps qui
 #      passe. Recalcul quotidien via Cron::RefreshClockDependentFormulasJob,
 #      scopé par état (brouillon → public+privé, actif non-brouillon →
 #      privé seulement).
 #
-#   2. **state_dependent** : formules qui référencent les timestamps d'état
+#   2. **formule_deps['has_state']** : formules qui référencent les timestamps d'état
 #      du dossier ({dossier_depose_at}, {dossier_en_instruction_at}, etc.).
 #      Ces valeurs changent à chaque transition. Recalcul synchrone via
 #      les hooks after_commit_passer_en_*, sans distinction public/privé
@@ -20,7 +20,7 @@ module DossierFormulaRefreshConcern
   extend ActiveSupport::Concern
 
   # pf: Timestamps d'état du dossier qui, s'ils changent, peuvent faire
-  # bouger la valeur d'une formule state_dependent.
+  # bouger la valeur d'une formule avec formule_deps['has_state'] = true.
   STATE_TIMESTAMP_COLUMNS = [:depose_at, :en_construction_at, :en_instruction_at, :processed_at].freeze
 
   included do
@@ -28,24 +28,91 @@ module DossierFormulaRefreshConcern
     # pour isoler le changement dans ce concern et éviter d'éditer
     # dossier_state_concern à chaque ajout d'un nouveau trigger. Filtré par
     # un changement effectif de timestamp d'état + présence d'au moins une
-    # formule state_dependent.
+    # formule avec formule_deps['has_state'] = true.
     after_commit :refresh_state_dependent_formulas_if_needed, on: :update
   end
 
-  # pf: Recalcule les formules state_dependent après une transition d'état.
+  # pf: Recalcule les formules avec formule_deps['has_state'] = true après une transition d'état.
   # Appelée depuis les callbacks after_commit_passer_en_* de Dossier.
   def refresh_state_dependent_formulas
-    refresh_formulas_matching(&:state_dependent)
+    refresh_formulas_matching { |tdc| tdc.formule_deps&.[]('has_state') }
   end
 
-  # pf: Recalcule les formules clock_dependent selon le scope fourni.
+  # pf: Recalcule les formules qui référencent l'identité du déclarant
+  # (champs {individual_*} ou {entreprise_*}). Appelé explicitement par les
+  # controllers après modification de l'identité — pas de callback AR sur
+  # Individual/Etablissement pour respecter la convention "cascade explicite"
+  # documentée dans CLAUDE.md.
+  def refresh_formulas_with_identite_dependents
+    matching = revision.types_de_champ.filter do |tdc|
+      tdc.formule? && tdc.formule_deps&.[]('has_identite')
+    end
+    return if matching.empty?
+
+    compute_formulas_in_order(only: matching.map(&:stable_id).to_set)
+  end
+
+  # pf: Recalcule les formules avec formule_deps['has_clock'] = true selon le scope fourni.
   # scope: :all → publiques + privées (pour dossiers en brouillon)
   # scope: :private_only → annotations privées uniquement (pour dossiers
   # actifs déposés, où les formules publiques sont figées)
   def refresh_clock_dependent_formulas(scope: :all)
     refresh_formulas_matching do |tdc|
-      next false unless tdc.clock_dependent
+      next false unless tdc.formule_deps&.[]('has_clock')
       scope == :private_only ? tdc.private? : true
+    end
+  end
+
+  # pf: Recalcule les formules dépendant d'un champ source qui vient d'être
+  # modifié. À appeler explicitement par tout site interactif qui modifie un
+  # champ source — controller usager (édition d'un champ public), controller
+  # instructeur (édition d'une annotation privée), mutations GraphQL,
+  # services external_data (SIRET, référentiels qui peuplent value_json/data).
+  #
+  # Les flux batch (clone, prefill, rebase, merge user_buffer→main) gèrent
+  # leur propre recalcul via compute_formulas_in_order et n'appellent PAS
+  # cette méthode — éviter une cascade par champ pendant un autosave de
+  # collection (cf. bug PG::UniqueViolation sur clone, MES-DEMARCHES-350).
+  #
+  # Le caller est responsable de décider qu'un changement effectif a eu lieu
+  # (sur value, value_json, data, external_id, etablissement_id). Cette
+  # méthode ne contrôle plus saved_change_to_value? — couvrir aussi les
+  # changements de data permet aux formules de réagir aux retours de webhook
+  # SIRET ou aux mises à jour de colonnes référentielles.
+  def refresh_formulas_after(champ)
+    return unless champ&.stable_id
+    # pf: Court-circuit rapide — si la révision n'a aucune formule, rien à faire.
+    return unless revision.types_de_champ.any?(&:formule?)
+    # pf: Les champs formule eux-mêmes ne déclenchent pas de recalcul (anti-boucle)
+    return if champ.type_de_champ.formule?
+
+    # pf: Pré-calcul des stable_ids transitivement dépendants via le graphe
+    # pur des types_de_champ (pas d'accès à project_champs).
+    dependent_stable_ids = champ.dependent_formula_stable_ids
+    # pf: Filtre privacy — les formules privées ne peuvent être écrites que sur
+    # main (cf. check_valid_stream_on_write?). Quand la source est sur
+    # user:buffer, on skip les formules privées : elles seront recalculées au
+    # moment où les changements sont committés vers main (dépôt / instruction).
+    if champ.stream != Champ::MAIN_STREAM && dependent_stable_ids.any?
+      formula_tdcs_by_sid = revision.types_de_champ.filter(&:formule?).index_by(&:stable_id)
+      dependent_stable_ids = dependent_stable_ids.reject { |sid| formula_tdcs_by_sid[sid]&.private? }
+    end
+    return if dependent_stable_ids.empty?
+
+    # pf: with_champ_stream propage le stream du champ source au dossier le
+    # temps de la cascade — tous les upserts de champs formule créés en
+    # cascade restent sur le même stream (cohérence avec
+    # check_valid_stream_on_write?).
+    with_champ_stream(champ) do
+      compute_formulas_in_order(
+        seed_overrides: { champ.stable_id => champ.value },
+        only: dependent_stable_ids,
+        # pf: propagation du row_id de la source — limite le recalcul aux
+        # Champs formule de la même row (cas répétition) + ceux hors
+        # répétition. Évite de recalculer toutes les rows alors que seule
+        # celle de la source modifiée a été affectée.
+        row_id: champ.row_id
+      )
     end
   end
 
@@ -74,9 +141,9 @@ module DossierFormulaRefreshConcern
   #                    certaines factories de tests).
   #   row_id         : nil par défaut (= toutes les rows). Si non-nil, limite
   #                    le recalcul aux Champs formule de cette row + ceux hors
-  #                    répétition. Utilisé par la cascade refresh_dependent_formulas
-  #                    pour ne recalculer que la row de la source modifiée
-  #                    (les autres rows ne sont pas affectées par la modif).
+  #                    répétition. Utilisé par refresh_formulas_after pour ne
+  #                    recalculer que la row de la source modifiée (les autres
+  #                    rows ne sont pas affectées par la modif).
   #
   # Retourne : le hash overrides complet { stable_id => value } incluant
   # les valeurs initiales et toutes les formules calculées. Permet à
@@ -137,8 +204,9 @@ module DossierFormulaRefreshConcern
   # - formules constantes ({1 + 1}) / sur fonctions système (AUJOURDHUI())
   # - formules sur champs source préremplis (cas Commencer)
   #
-  # Pour les formules dépendant d'un champ que l'usager modifie, c'est la
-  # cascade refresh_dependent_formulas qui prend le relais.
+  # Pour les formules dépendant d'un champ que l'usager modifie, c'est l'appel
+  # explicite à refresh_formulas_after (par les controllers / mutations /
+  # services) qui prend le relais.
   def compute_initial_formulas
     return unless revision&.types_de_champ&.any?(&:formule?)
     compute_formulas_in_order
@@ -155,7 +223,7 @@ module DossierFormulaRefreshConcern
   end
 
   def has_state_dependent_formula?
-    revision&.types_de_champ&.any? { |tdc| tdc.formule? && tdc.state_dependent }
+    revision&.types_de_champ&.any? { |tdc| tdc.formule? && tdc.formule_deps&.[]('has_state') }
   end
 
   # pf: Boucle générique de recalcul. Utilise update_column pour éviter de

@@ -195,15 +195,41 @@ export class FormulaAutocompleteController extends ApplicationController {
    * Filter columns based on query using fuzzy matching
    */
   private filterColumns(query: string): ColumnReference[] {
+    const columns = this.flattenedColumns();
+
     if (query === '') {
       // Return all columns if no query
-      return this.availableColumnsValue.slice(0, 10);
+      return columns.slice(0, 10);
     }
 
-    return matchSorter(this.availableColumnsValue, query, {
+    return matchSorter(columns, query, {
       keys: ['label'],
       threshold: matchSorter.rankings.CONTAINS
     }).slice(0, 10);
+  }
+
+  /**
+   * pf: Aplatit les colonnes et leurs sous-chemins (paths) en une liste plate
+   * de suggestions. Chaque colonne contribue elle-même (ex: "Facture" → NB/COUNT,
+   * "Numéro DN" → la valeur) PLUS une entrée par sous-chemin avec son label
+   * composite (ex: "Facture/Prix HT" → SOMME, "Numéro DN – Date de naissance").
+   * L'insertion utilise le label ; formula_editor#convertToColumnIds le remappe
+   * ensuite vers l'identifiant interne ({tdc<bloc>/sub_<id>}, {tdc<dn>/date_de_naissance}…).
+   */
+  private flattenedColumns(): ColumnReference[] {
+    const result: ColumnReference[] = [];
+    for (const column of this.availableColumnsValue) {
+      result.push(column);
+      for (const path of column.paths ?? []) {
+        result.push({
+          id: `${column.id}/${path.path}`,
+          label: path.label,
+          type: column.type,
+          category: column.category
+        });
+      }
+    }
+    return result;
   }
 
   /**

@@ -21,6 +21,10 @@ class Champs::RNAChamp < Champ
     value_json = data.blank? ? nil : extract_value_json(data:)
     data = (data.presence)
     update_columns(data:, value_json:, value:, fetch_external_data_exceptions: [])
+    # pf: cascade explicite des formules — update_columns saute les
+    # callbacks Rails, on doit donc déclencher manuellement le recalcul
+    # des formules dépendantes.
+    dossier.refresh_formulas_after(self)
   end
 
   def identifier

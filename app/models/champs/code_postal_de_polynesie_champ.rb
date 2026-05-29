@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 class Champs::CodePostalDePolynesieChamp < Champs::TextChamp
-  store_accessor :value_json, :archipel
+  # pf: value_json = cache normalisé des sous-champs (commune, ile, code_postal,
+  # archipel), dérivés de `value` via APIGeo. Cf. CommuneDePolynesieChamp.
+  store_accessor :value_json, :archipel, :ile, :code_postal, :commune
   before_save :on_value_change, if: :should_refresh_after_value_change?
 
   def self.options
@@ -27,18 +29,24 @@ class Champs::CodePostalDePolynesieChamp < Champs::TextChamp
   private
 
   def on_value_change
-    return if value.blank?
+    if value.blank?
+      self.archipel = self.ile = self.code_postal = self.commune = nil
+      return
+    end
 
-    commune = APIGeo::API.commune_by_postal_code_city_label(value)
+    city = APIGeo::API.commune_by_postal_code_city_label(value)
 
-    if commune.present?
-      self.archipel = commune[:archipel]
+    if city.present?
+      self.archipel = city[:archipel]
+      self.ile = city[:ile]
+      self.code_postal = city[:code_postal]
+      self.commune = city[:commune]
     else
-      self.archipel = nil
+      self.archipel = self.ile = self.code_postal = self.commune = nil
     end
   end
 
   def should_refresh_after_value_change?
-    !archipel? || value_changed?
+    ile.blank? || value_changed?
   end
 end

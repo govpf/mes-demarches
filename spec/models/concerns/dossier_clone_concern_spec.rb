@@ -196,5 +196,56 @@ RSpec.describe DossierCloneConcern do
         end
       end
     end
+
+    # pf: non-régression MES-DEMARCHES-350
+    # Avant le refactor « cascade explicite » : pendant cloned_dossier.save!,
+    # autosave_association itérait sur la collection champs et déclenchait
+    # le callback after_save :refresh_dependent_formulas pour chaque champ
+    # source inséré. La cascade appelait champ_upsert_by! qui faisait un
+    # save! prématuré sur le champ formule (déjà présent in-memory dans
+    # cloned_dossier.champs). Quand autosave_association arrivait à ce
+    # champ formule, il tentait un second INSERT → PG::UniqueViolation
+    # sur (dossier_id, stream, stable_id, row_id) avec row_id IS NULL.
+    context 'with formula champs depending on a source' do
+      let(:types_de_champ_public) do
+        [
+          { type: :integer_number, libelle: 'Source', stable_id: 100 },
+          { type: :formule, libelle: 'Doublé', stable_id: 101 },
+        ]
+      end
+      let(:types_de_champ_private) { [] }
+      let(:dossier) { create(:dossier, :en_construction, procedure: procedure) }
+
+      before do
+        formule_tdc = procedure.active_revision.types_de_champ.find(&:formule?)
+        expr, _ = FormulaExpressionService.convert_to_stable_ids('{Source} * 2', procedure.active_revision)
+        formule_tdc.update!(formule_expression: expr)
+
+        # Remplir le champ source pour que la formule ait une valeur calculée
+        source_champ = dossier.project_champ(dossier.revision.types_de_champ.find { _1.stable_id == 100 })
+        source_champ.update!(value: '21')
+        dossier.compute_formulas_in_order
+        dossier.reload
+      end
+
+      it 'does not create duplicate champs in the cloned dossier' do
+        cloned = dossier.clone
+        # Avant le fix : 3 INSERTs (la cascade after_save:refresh_dependent_formulas
+        # déclenchée pendant l'autosave_association faisait un save! prématuré du
+        # champ formule via champ_upsert_by!, puis autosave_association tentait un
+        # second INSERT du même champ → 1 source + 2 formules = 3 lignes).
+        # Après le fix : 2 INSERTs (1 source + 1 formule), le clone n'a plus de
+        # cascade callback parasite, les valeurs sont héritées telles quelles.
+        champs_par_stable_id = Champ.where(dossier_id: cloned.id, stream: 'main').group(:stable_id).count
+        expect(champs_par_stable_id).to eq({ 100 => 1, 101 => 1 })
+      end
+
+      it 'preserves formula values on the cloned dossier' do
+        cloned = dossier.clone
+        cloned_formule_champ = Champ.where(dossier_id: cloned.id, stable_id: 101).first
+        expect(cloned_formule_champ).to be_present
+        expect(cloned_formule_champ.value.to_s).to eq('42')
+      end
+    end
   end
 end

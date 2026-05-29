@@ -226,7 +226,7 @@ class ProcedureRevision < ApplicationRecord
     (tdc.public? ? types_de_champ_public : types_de_champ_private).filter do |other_tdc|
       next if !other_tdc.formule?
 
-      other_tdc.dependent_stable_ids.include?(stable_id)
+      (other_tdc.formule_deps&.[]('champs') || []).include?(stable_id)
     end
   end
 

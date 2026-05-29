@@ -44,6 +44,9 @@ en:
         avis_notifications:
           title: Receive an email for each opinion issued by an expert
           notice: This email notifies you of a new opinion posted by an expert you have consulted on a file. It is sent each time an expert issues an opinion.
+        deletion_notifications:
+          title: Receive an automatic deletion notification email
+          notice: This email notifies you of the automatic deletion of expired files. It is sent when files of this procedure are automatically deleted.
       apercu:
         title_with_libelle: Preview of « %{libelle} »
         title: Procedure preview

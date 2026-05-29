@@ -35,6 +35,8 @@ class Champs::PieceJustificativeChamp < Champ
   # as there is no transformation to do
   def update_external_data!(data:)
     update!(value_json: data, fetch_external_data_exceptions: [])
+    # pf: cascade explicite des formules — value_json a changé.
+    dossier.refresh_formulas_after(self)
   end
 
   def ready_for_external_call?

@@ -60,12 +60,24 @@ class TypesDeChamp::FormulaValidator < ActiveModel::EachValidator
     # Extract all references {tdc456}, {dossier_number}, {tdc456/commune}
     referenced_ids = tdc.formule_expression.scan(/\{([^}]+)\}/).map(&:first)
 
+    # pf: stable_ids des blocs répétables agrégables (placés avant la formule).
+    allowed_bloc_sids = allowed_repetition_bloc_stable_ids(coordinate, revision)
+
     # Validate each reference
     referenced_ids.each do |ref|
       column, _ = resolver.resolve_with_path(ref)
 
       if column.nil?
         add_error(procedure, collection, tdc, "Colonne inconnue : #{ref}")
+        next
+      end
+
+      # pf: référence à un bloc répétable (agrégat) — {tdc<bloc>} ou
+      # {tdc<bloc>/sub_<id>}. On vérifie que le bloc précède la formule.
+      if column.is_a?(FormulaColumnResolver::RepetitionRef) || column.is_a?(FormulaColumnResolver::RepetitionSubChampRef)
+        unless allowed_bloc_sids.include?(column.bloc_tdc.stable_id)
+          add_error(procedure, collection, tdc, "ne peut référencer le bloc « #{column.bloc_tdc.libelle} » car une formule ne peut utiliser que les champs qui la précèdent")
+        end
         next
       end
 
@@ -92,6 +104,25 @@ class TypesDeChamp::FormulaValidator < ActiveModel::EachValidator
       end
       # System columns (dossier_*, individual_*, etc.) are always accessible
     end
+  end
+
+  # pf: blocs répétables (stable_ids) référençables en agrégat par une formule :
+  # ceux placés AVANT la formule (ou avant le bloc parent si la formule est
+  # elle-même dans un bloc), hors bloc parent. Aligné sur
+  # FormuleTypeDeChamp#allowed_repetition_bloc_stable_ids.
+  def allowed_repetition_bloc_stable_ids(coordinate, revision)
+    reference_position = coordinate.parent&.position || coordinate.position
+    own_parent_sid = coordinate.parent_type_de_champ&.stable_id
+
+    revision.types_de_champ.filter_map do |tdc|
+      next unless tdc.repetition?
+      next if tdc.stable_id == own_parent_sid
+
+      bloc_coordinate = revision.coordinate_for(tdc)
+      next if bloc_coordinate.nil? || bloc_coordinate.position >= reference_position
+
+      tdc.stable_id
+    end.to_set
   end
 
   # Old validation for backward compatibility (format {Label} or {123})

@@ -3,6 +3,23 @@
 # Service to resolve formula column references to actual Column objects
 # Converts semantic identifiers like "tdc456" or "dossier_number" to Column instances
 class FormulaColumnResolver
+  # pf: Référence à un bloc répétable, pour les formules-agrégat hors bloc
+  # (ex: SOMME({Lignes de facture/Prix HT}), NB({Lignes de facture})).
+  # Le consommateur (FormulaCalculationService) dispatche sur le type
+  # retourné par #resolve pour construire le binding Dentaku adapté.
+  RepetitionRef = Struct.new(:bloc_tdc, keyword_init: true) do
+    def repetition_ref? = true
+    def sub_champ_ref? = false
+  end
+
+  # pf: Référence à un sous-champ d'un bloc répétable, accédé via la
+  # syntaxe {tdc<bloc>/sub_<sub_id>} après résolution du libellé. Encodage
+  # par stable_id (option A') pour résister au renommage du sous-champ.
+  RepetitionSubChampRef = Struct.new(:bloc_tdc, :sub_tdc, keyword_init: true) do
+    def repetition_ref? = false
+    def sub_champ_ref? = true
+  end
+
   def initialize(revision, row_id: nil)
     @revision = revision
     @procedure = revision.procedure
@@ -16,9 +33,23 @@ class FormulaColumnResolver
   end
 
   # Resolves {tdc456/date_de_naissance} → [Column, path]
+  #
+  # pf: Les références composites "tdc<N>/<...>" sont indexées sous leur clé
+  # COMPLÈTE par build_columns_index : JSONPathColumn / LinkedDropDownColumn
+  # (sous-chemins type DN/date_de_naissance, commune/ile, SIRET/raison_sociale)
+  # ET les RepetitionSubChampRef des blocs répétables (tdc<bloc>/sub_<id>). On
+  # consulte donc d'abord la clé complète : l'objet trouvé porte déjà sa propre
+  # logique d'extraction, on renvoie path=nil.
+  # Avant ce correctif, resolve_with_path splittait systématiquement et ne
+  # résolvait que le préfixe "tdc<N>" → la ChampColumn de base, jamais la
+  # JSONPathColumn — donc {Numéro DN/date_de_naissance}, {SIRET/raison_sociale}
+  # etc. retournaient nil en formule. Le fallback split conserve l'ancien
+  # comportement pour toute clé composite non indexée.
   def resolve_with_path(reference)
-    # Parse the reference: {tdc456/path} or {tdc456}
     if reference.include?('/')
+      full_column = @columns_by_id[reference]
+      return [full_column, nil] if full_column
+
       column_id, path = reference.split('/', 2)
       [resolve(column_id), path.to_sym]
     else
@@ -43,7 +74,40 @@ class FormulaColumnResolver
       end
     end
 
+    # pf: Blocs répétables — entrées dédiées aux formules-agrégat hors bloc.
+    # Cohabite avec l'indexation scalaire des sous-TDC (utilisée par les
+    # formules-ligne dans le bloc, via leur stable_id à eux).
+    build_repetition_index(index)
+
     index
+  end
+
+  def build_repetition_index(index)
+    # pf: Une passe sur revision_types_de_champ pour grouper les sous-TDC
+    # par stable_id du bloc parent. Évite d'appeler children_of une fois
+    # par bloc — qui re-scanne lui-même tous les revision_types_de_champ
+    # (O(n) par appel, soit O(B × n) globalement).
+    rtdcs = @revision.revision_types_de_champ
+    rtdc_by_id = rtdcs.index_by(&:id)
+
+    children_by_parent_sid = Hash.new { |h, k| h[k] = [] }
+    rtdcs.each do |rtdc|
+      next if rtdc.parent_id.nil?
+      parent_rtdc = rtdc_by_id[rtdc.parent_id]
+      next if parent_rtdc.nil?
+      children_by_parent_sid[parent_rtdc.stable_id] << rtdc.type_de_champ
+    end
+
+    rtdcs.each do |rtdc|
+      tdc = rtdc.type_de_champ
+      next unless tdc.repetition?
+
+      index["tdc#{tdc.stable_id}"] = RepetitionRef.new(bloc_tdc: tdc)
+      children_by_parent_sid[tdc.stable_id].each do |sub_tdc|
+        key = "tdc#{tdc.stable_id}/sub_#{sub_tdc.stable_id}"
+        index[key] = RepetitionSubChampRef.new(bloc_tdc: tdc, sub_tdc: sub_tdc)
+      end
+    end
   end
 
   def build_system_columns_index(index)
