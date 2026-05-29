@@ -353,9 +353,12 @@ class Champ < ApplicationRecord
       (tdc.formule_deps&.[]('champs') || []).each { |dep_sid| deps_graph[dep_sid].add(tdc.stable_id) }
     end
 
-    # BFS topologique depuis self.stable_id
+    # pf: BFS topologique depuis self.stable_id ET, si ce champ est dans un bloc
+    # répétable, depuis le stable_id du bloc parent. Une formule-agrégat dépend
+    # du stable_id du BLOC ({tdc<bloc>/sub_<id>} → dep = bloc), donc modifier un
+    # sous-champ d'une ligne doit déclencher les formules qui dépendent du bloc.
     visited = Set.new
-    queue = deps_graph[stable_id].to_a
+    queue = (dependency_seed_stable_ids).flat_map { |sid| deps_graph[sid].to_a }
     result = []
     while (sid = queue.shift)
       next if visited.include?(sid)
@@ -391,10 +394,22 @@ class Champ < ApplicationRecord
 
   private
 
+  # pf: stable_ids "sources" qui doivent déclencher une cascade de formules
+  # quand ce champ change : lui-même, plus le bloc répétable parent le cas
+  # échéant (granularité bloc des formules-agrégat — cf. dependent_formula_stable_ids).
+  def dependency_seed_stable_ids
+    seeds = [stable_id]
+    parent_bloc_sid = dossier.revision.parent_of(type_de_champ)&.stable_id
+    seeds << parent_bloc_sid if parent_bloc_sid
+    seeds
+  end
+
   def dependent_formula_champs_from(all_champs)
+    source_sids = dependency_seed_stable_ids
     all_champs.filter do |formula_champ|
       next false if formula_champ.stable_id.nil?
-      next false unless formula_champ.formule? && (formula_champ.type_de_champ.formule_deps&.[]('champs') || []).include?(stable_id)
+      deps = formula_champ.type_de_champ.formule_deps&.[]('champs') || []
+      next false unless formula_champ.formule? && (deps & source_sids).any?
 
       if row_id.present?
         formula_champ.row_id == row_id || formula_champ.row_id.nil?

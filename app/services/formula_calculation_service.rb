@@ -434,25 +434,38 @@ class FormulaCalculationService
     end
   end
 
-  # pf: Renvoie l'array des row_ids du bloc — utilisé pour COUNT/NB({bloc}).
-  # On lit les RepetitionChamps (un par row, créé dès repetition_add_row),
-  # plus fiable que de passer par les sous-champs (qui n'existent que si
-  # l'usager les a saisis — un row vide n'aurait sinon aucun champ).
-  def extract_repetition_row_ids(bloc_tdc)
+  # pf: Renvoie l'array des row_ids VIVANTS du bloc — utilisé pour COUNT/NB({bloc}).
+  # On lit les RepetitionChamps (un par row, créé dès repetition_add_row) en
+  # excluant les lignes supprimées : repetition_remove_row fait discard! sur le
+  # RepetitionChamp de la ligne (cf. repetition_row_ids qui filtre aussi
+  # !discarded?). Plus fiable que de passer par les sous-champs (qui n'existent
+  # que si l'usager les a saisis — un row vide n'aurait sinon aucun champ).
+  def repetition_live_row_ids(bloc_tdc)
     all_champs
-      .select { |c| c.stable_id == bloc_tdc.stable_id && c.row_id.present? }
+      .select { |c| c.stable_id == bloc_tdc.stable_id && c.row_id.present? && !c.discarded? }
       .map(&:row_id)
       .uniq
   end
 
-  # pf: Renvoie l'array des valeurs (type-aware) d'un sous-champ de toutes
-  # les lignes du bloc. Les valeurs nil sont filtrées pour éviter qu'une
-  # ligne incomplète n'écrase une agrégation (SUM, MAX) — comportement
-  # cohérent avec les agrégateurs SQL et avec format_result qui rend nil
-  # quand le calcul échoue (ex: MAX sur array vide).
-  def extract_repetition_values(_bloc_tdc, sub_tdc)
+  def extract_repetition_row_ids(bloc_tdc)
+    repetition_live_row_ids(bloc_tdc)
+  end
+
+  # pf: Renvoie l'array des valeurs (type-aware) d'un sous-champ pour toutes les
+  # lignes VIVANTES du bloc. On filtre par les row_ids vivants : quand une ligne
+  # est supprimée, c'est son RepetitionChamp qui est discardé, pas le sous-champ
+  # lui-même — il faut donc l'exclure via la liste des lignes vivantes.
+  # Les valeurs nil sont filtrées pour éviter qu'une ligne incomplète n'écrase
+  # une agrégation (SUM, MAX) — cohérent avec les agrégateurs SQL et avec
+  # format_result qui rend nil sur array vide (ex: MAX).
+  def extract_repetition_values(bloc_tdc, sub_tdc)
+    # pf: les sous-champs ne sont jamais discardés individuellement (seul le
+    # RepetitionChamp de la ligne l'est) — le filtre par live_row_ids suffit à
+    # exclure les lignes supprimées. (discarded? n'est d'ailleurs défini que sur
+    # RepetitionChamp, pas sur les sous-champs.)
+    live_row_ids = repetition_live_row_ids(bloc_tdc).to_set
     rows_champs = all_champs
-      .select { |c| c.row_id.present? && c.stable_id == sub_tdc.stable_id }
+      .select { |c| c.row_id.present? && c.stable_id == sub_tdc.stable_id && live_row_ids.include?(c.row_id) }
       .sort_by(&:row_id)
 
     rows_champs.filter_map { |champ| coerce_repetition_champ_value(champ, sub_tdc) }
