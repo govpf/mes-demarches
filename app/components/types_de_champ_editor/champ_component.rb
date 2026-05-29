@@ -46,7 +46,20 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     # Optimize: create hash map to avoid N+1 queries
     @types_de_champ_by_stable_id ||= revision.types_de_champ.index_by(&:stable_id)
 
-    base = coordinate.available_columns_for_formula.map do |col|
+    own_parent_sid = coordinate.parent_type_de_champ&.stable_id
+
+    base = coordinate.available_columns_for_formula.filter_map do |col|
+      # pf: pour une formule HORS d'un bloc, on retire les sous-champs-ligne des
+      # répétitions (label "Bloc – Sous-champ", réf {tdc<sub_id>}) : ils ne sont
+      # référençables qu'au sein de leur propre ligne. Hors bloc, c'est la forme
+      # agrégat "Bloc/Sous-champ" (cf. repetition_aggregate_columns) qui doit être
+      # proposée. On garde les siblings quand la formule est DANS le même bloc.
+      if col.is_a?(Columns::ChampColumn) && col.stable_id.present?
+        col_tdc = @types_de_champ_by_stable_id[col.stable_id]
+        parent = col_tdc && revision.parent_of(col_tdc)
+        next if parent&.repetition? && parent.stable_id != own_parent_sid
+      end
+
       {
         id: encode_column_id(col),
         label: col.label,
