@@ -94,9 +94,11 @@ RSpec.describe TypesDeChamp::FormulaValidator do
   context 'with an aggregate formula referencing a preceding repetition block' do
     let(:types) do
       [
-        { type: :repetition, libelle: 'Facture', mandatory: false, children: [
-          { type: :integer_number, libelle: 'Prix HT' },
-        ] },
+        {
+          type: :repetition, libelle: 'Facture', mandatory: false, children: [
+            { type: :integer_number, libelle: 'Prix HT' },
+          ],
+        },
         { type: :formule, libelle: 'Total' },
       ]
     end
@@ -120,9 +122,11 @@ RSpec.describe TypesDeChamp::FormulaValidator do
     let(:types) do
       [
         { type: :formule, libelle: 'Total' },
-        { type: :repetition, libelle: 'Facture', mandatory: false, children: [
-          { type: :integer_number, libelle: 'Prix HT' },
-        ] },
+        {
+          type: :repetition, libelle: 'Facture', mandatory: false, children: [
+            { type: :integer_number, libelle: 'Prix HT' },
+          ],
+        },
       ]
     end
     let(:revision) { procedure.draft_revision }
