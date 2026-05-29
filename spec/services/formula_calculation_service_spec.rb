@@ -1254,5 +1254,49 @@ describe FormulaCalculationService do
         expect(service.compute_value(formule_champ)).to eq('150')
       end
     end
+
+    # pf: agréger un sous-champ FORMULE (formule-ligne dans le bloc) — son
+    # résultat est stocké en string, il faut le coercer selon formule_output_type
+    # (sinon SOMME("200") = 0). Pattern du catalogue : transformation par ligne
+    # via formule-ligne intermédiaire, puis agrégation extérieure.
+    context 'agrégation sur un sous-champ formule-ligne' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          {
+            type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+              { type: :integer_number, libelle: 'Prix HT' },
+              { type: :formule, libelle: 'Montant TTC' },
+            ],
+          },
+          { type: :formule, libelle: 'Total TTC' },
+        ])
+      end
+      let(:ligne_formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Montant TTC' } }
+      let(:total_tdc) { revision.types_de_champ.find { _1.libelle == 'Total TTC' } }
+      let(:total_champ) { dossier.project_champs_public.find { _1.stable_id == total_tdc.stable_id } }
+
+      before do
+        ligne_formule_tdc.update!(formule_expression: "{tdc#{prix_ht_tdc.stable_id}} * 2")
+        total_tdc.update!(formule_expression: "SOMME({tdc#{bloc_tdc.stable_id}/sub_#{ligne_formule_tdc.stable_id}})")
+      end
+
+      def add_row_compute(prix)
+        row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+        # pf: instancie les sous-champs de la ligne comme le fait l'UI à l'ajout
+        # (formule-ligne incluse — sans son champ persisté, formule_champs_for_tdc
+        # ne la calcule pas : return [] if tdc.child?).
+        dossier.champ_for_update(ligne_formule_tdc, row_id:, updated_by: 'test')
+        sub = dossier.champ_for_update(prix_ht_tdc, row_id:, updated_by: 'test')
+        sub.update!(value: prix.to_s)
+        dossier.refresh_formulas_after(sub) # calcule la formule-ligne de cette row
+        row_id
+      end
+
+      it 'somme les résultats de la formule-ligne de chaque ligne' do
+        add_row_compute(100) # Montant TTC = 200
+        add_row_compute(50)  # Montant TTC = 100
+        expect(service.compute_value(total_champ)).to eq('300')
+      end
+    end
   end
 end

@@ -509,8 +509,28 @@ class FormulaCalculationService
       champ.value == 'true'
     when 'checkbox'
       champ.value == 'on'
+    when 'formule'
+      # pf: un sous-champ formule stocke un résultat en string ; on coerce selon
+      # son type de sortie inféré pour que SOMME/MOYENNE/MAX… sur une colonne
+      # formule fonctionnent (sinon "1000" reste une string → SOMME = 0).
+      coerce_formule_output(champ.value, tdc.formule_output_type)
     else
       champ.value.to_s
+    end
+  end
+
+  def coerce_formule_output(value, output_type)
+    case output_type
+    when 'number'
+      value.match?(/\A-?\d+\z/) ? value.to_i : value.to_f
+    when 'boolean'
+      value == Champs::BooleanChamp::TRUE_VALUE
+    when 'date'
+      Date.parse(value) rescue nil
+    when 'datetime'
+      DateTime.parse(value) rescue nil
+    else # 'string' ou nil
+      value.to_s
     end
   end
 
