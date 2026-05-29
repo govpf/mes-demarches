@@ -144,4 +144,31 @@ describe FormulaExpressionService do
       expect(result).to eq('{Commune} + {DN} + {dossier_number}')
     end
   end
+
+  # pf: agrégat sur bloc répétable — l'interne {tdc<bloc>/sub_<sub_id>} doit
+  # se réafficher en {Bloc/Sous-champ} dans l'éditeur (sinon l'admin voit le brut).
+  describe '.convert_to_libelles avec agrégat de bloc répétable' do
+    let(:bloc_tdc) { build(:type_de_champ, type_champ: :repetition, stable_id: 100, libelle: 'Facture') }
+    let(:prix_tdc) { build(:type_de_champ, type_champ: :integer_number, stable_id: 101, libelle: 'Prix HT') }
+    let(:revision) { build(:procedure_revision) }
+
+    before do
+      allow(revision).to receive(:types_de_champ).and_return([bloc_tdc, prix_tdc])
+    end
+
+    it 'convertit {tdc100/sub_101} en {Facture/Prix HT}' do
+      result = FormulaExpressionService.convert_to_libelles('SOMME({tdc100/sub_101})', revision)
+      expect(result).to eq('SOMME({Facture/Prix HT})')
+    end
+
+    it 'convertit {tdc100} (bloc nu) en {Facture}' do
+      result = FormulaExpressionService.convert_to_libelles('NB({tdc100})', revision)
+      expect(result).to eq('NB({Facture})')
+    end
+
+    it 'laisse le brut si le sous-champ est inconnu' do
+      result = FormulaExpressionService.convert_to_libelles('SOMME({tdc100/sub_99999})', revision)
+      expect(result).to eq('SOMME({tdc100/sub_99999})')
+    end
+  end
 end
