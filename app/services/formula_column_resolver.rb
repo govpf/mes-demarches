@@ -16,9 +16,21 @@ class FormulaColumnResolver
   end
 
   # Resolves {tdc456/date_de_naissance} → [Column, path]
+  #
+  # pf: Les colonnes à sous-chemin (JSONPathColumn, LinkedDropDownColumn) sont
+  # indexées sous leur clé COMPLÈTE "tdc<N>/<path>" par encode_column_id. On
+  # consulte donc d'abord la clé complète : la colonne trouvée porte déjà sa
+  # propre logique d'extraction (jsonpath / path), on renvoie path=nil.
+  # Avant ce correctif, resolve_with_path splittait systématiquement et ne
+  # résolvait que le préfixe "tdc<N>" → la ChampColumn de base, jamais la
+  # JSONPathColumn — donc {Numéro DN/date_de_naissance}, {SIRET/raison_sociale}
+  # etc. retournaient nil en formule. Le fallback split conserve l'ancien
+  # comportement pour toute clé composite non indexée.
   def resolve_with_path(reference)
-    # Parse the reference: {tdc456/path} or {tdc456}
     if reference.include?('/')
+      full_column = @columns_by_id[reference]
+      return [full_column, nil] if full_column
+
       column_id, path = reference.split('/', 2)
       [resolve(column_id), path.to_sym]
     else
