@@ -446,6 +446,36 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       end
     end
 
+    # pf: étape D du chantier agrégat — une formule-agrégat référence un bloc
+    # répétable via {tdc<bloc>} ou un de ses sous-champs via {tdc<bloc>/sub_<id>}.
+    # Dans les deux cas, c'est le stable_id du BLOC qui doit être enregistré
+    # comme dépendance (granularité bloc : toute modif d'une ligne ou ajout/
+    # suppression recalcule l'agrégat). Le path /sub_<id> est ignoré comme
+    # n'importe quel suffixe.
+    context 'with a repetition aggregate reference {tdc<bloc>/sub_<id>}' do
+      let(:expression) { 'SOMME({tdc100/sub_101})' }
+
+      it 'stores the bloc stable_id (not the sub-champ)' do
+        expect(deps['champs']).to eq([100])
+      end
+    end
+
+    context 'with a bare bloc reference {tdc<bloc>}' do
+      let(:expression) { 'NB({tdc100})' }
+
+      it 'stores the bloc stable_id' do
+        expect(deps['champs']).to eq([100])
+      end
+    end
+
+    context 'mixing aggregate refs of the same bloc' do
+      let(:expression) { 'SOMME({tdc100/sub_101}) - SOMME({tdc100/sub_102})' }
+
+      it 'deduplicates to a single bloc dependency' do
+        expect(deps['champs']).to eq([100])
+      end
+    end
+
     context 'with AUJOURDHUI() (clock function)' do
       let(:expression) { 'AUJOURDHUI() + DUREE_JOURS(7)' }
 

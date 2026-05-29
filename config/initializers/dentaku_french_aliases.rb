@@ -39,6 +39,16 @@ require 'dentaku'
   DROITE:       :right,
   STXT:         :mid,
   NBCAR:        :len,
+  # pf: étape H — agrégation / maths. count et sqrt sont natifs Dentaku 3.5.4.
+  # NB / COMPTE comptent les éléments (utile sur un bloc : NB({Lignes})).
+  NB:           :count,
+  COMPTE:       :count,
+  RACINE:       :sqrt,
+  # pf: PLANCHER / PLAFOND = floor / ceil. Les natifs floor/ceil sont ABSENTS
+  # en 3.5.4 ; on réutilise rounddown / roundup (déjà employés par
+  # ARRONDI_INF / ARRONDI_SUP) — synonymes "math" pour la découvrabilité.
+  PLANCHER:     :rounddown,
+  PLAFOND:      :roundup,
 }.each do |fr_name, native_name|
   native_class = Dentaku::AST::Function.get(native_name)
   Dentaku::AST::Function.register_class(fr_name, native_class)

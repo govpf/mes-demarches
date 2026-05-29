@@ -266,6 +266,24 @@ class FormulaCalculationService
       n.to_f.to_i
     })
 
+    # pf: MEDIANE — pas de fonction native median en Dentaku 3.5.4. Accepte
+    # une liste d'arguments OU un array (binding {bloc/sous-champ}). nil/blank
+    # ignorés. Médiane = valeur centrale (impair) ou moyenne des deux centrales.
+    calculator.add_function(:MEDIANE, :numeric, -> (*args) {
+      nums = args.flatten.compact.map(&:to_f).sort
+      next nil if nums.empty?
+      mid = nums.size / 2
+      nums.size.odd? ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2.0
+    })
+
+    # pf: JOINDRE(array, séparateur) — concatène les valeurs d'un array en une
+    # chaîne (équivalent texte de SOMME). Pensé pour agréger un sous-champ texte
+    # d'un bloc : JOINDRE({Partenaires/Raison sociale}, ", "). nil/vide ignorés.
+    # Pas de join natif en Dentaku → lambda custom (cf. CHERCHE/SUBSTITUE).
+    calculator.add_function(:JOINDRE, :string, -> (arr, separator = ', ') {
+      Array(arr).flatten.compact.map(&:to_s).reject(&:empty?).join(separator.to_s)
+    })
+
     add_french_date_functions(calculator)
   end
 
@@ -414,12 +432,140 @@ class FormulaCalculationService
       # New column-based resolution
       column, path = @resolver.resolve_with_path(reference)
 
+      # pf: Blocs répétables — agrégation hors bloc (chantier formule-agrégat).
+      # Dentaku 3.5.4 supporte SUM/COUNT/MAX/MIN/AVG sur arrays bindings.
+      # Le binding {bloc} reçoit la liste des row_ids (suffit pour COUNT) ;
+      # {bloc/sub} reçoit un array de scalaires type-aware.
+      case column
+      when FormulaColumnResolver::RepetitionRef
+        next register_variable(extract_repetition_row_ids(column.bloc_tdc))
+      when FormulaColumnResolver::RepetitionSubChampRef
+        next register_variable(extract_repetition_values(column.bloc_tdc, column.sub_tdc))
+      end
+
       if column.nil?
         raise InvalidFieldReferenceError, reference
       end
 
       value = extract_column_value(column, path)
       register_variable(format_value_for_dentaku(value, column.type))
+    end
+  end
+
+  # pf: Renvoie l'array des row_ids VIVANTS du bloc — utilisé pour COUNT/NB({bloc}).
+  # On lit les RepetitionChamps (un par row, créé dès repetition_add_row) en
+  # excluant les lignes supprimées : repetition_remove_row fait discard! sur le
+  # RepetitionChamp de la ligne (cf. repetition_row_ids qui filtre aussi
+  # !discarded?). Plus fiable que de passer par les sous-champs (qui n'existent
+  # que si l'usager les a saisis — un row vide n'aurait sinon aucun champ).
+  def repetition_live_row_ids(bloc_tdc)
+    all_champs
+      .filter { |c| c.stable_id == bloc_tdc.stable_id && c.row_id.present? && !c.discarded? }
+      .map(&:row_id)
+      .uniq
+  end
+
+  def extract_repetition_row_ids(bloc_tdc)
+    repetition_live_row_ids(bloc_tdc)
+  end
+
+  # pf: Renvoie l'array des valeurs (type-aware) d'un sous-champ pour toutes les
+  # lignes VIVANTES du bloc. On filtre par les row_ids vivants : quand une ligne
+  # est supprimée, c'est son RepetitionChamp qui est discardé, pas le sous-champ
+  # lui-même — il faut donc l'exclure via la liste des lignes vivantes.
+  # Les valeurs nil sont filtrées pour éviter qu'une ligne incomplète n'écrase
+  # une agrégation (SUM, MAX) — cohérent avec les agrégateurs SQL et avec
+  # format_result qui rend nil sur array vide (ex: MAX).
+  def extract_repetition_values(bloc_tdc, sub_tdc)
+    # pf: les sous-champs ne sont jamais discardés individuellement (seul le
+    # RepetitionChamp de la ligne l'est) — le filtre par live_row_ids suffit à
+    # exclure les lignes supprimées. (discarded? n'est d'ailleurs défini que sur
+    # RepetitionChamp, pas sur les sous-champs.)
+    live_row_ids = repetition_live_row_ids(bloc_tdc)
+
+    # pf: cas d'un sous-champ FORMULE-LIGNE. Son Champ n'est pas forcément
+    # persisté (formule_champs_for_tdc fait `return [] if tdc.child?` — la
+    # cascade ne crée pas les champs formule enfants ; en preview ils n'existent
+    # que matérialisés dans project_champs). On NE peut PAS lire project_champs
+    # ici (récursion : ça recalculerait la formule-agrégat courante). On calcule
+    # donc la formule-ligne à la volée pour chaque ligne : elle ne référence que
+    # ses siblings de même ligne, qui SONT persistés dans all_champs.
+    if sub_tdc.formule?
+      return live_row_ids.sort.filter_map do |row_id|
+        value = compute_line_formula_value(sub_tdc, row_id)
+        next nil if value.blank?
+        coerce_formule_output(value, sub_tdc.formule_output_type)
+      end
+    end
+
+    live_row_ids_set = live_row_ids.to_set
+    rows_champs = all_champs
+      .filter { |c| c.row_id.present? && c.stable_id == sub_tdc.stable_id && live_row_ids_set.include?(c.row_id) }
+      .sort_by(&:row_id)
+
+    rows_champs.filter_map { |champ| coerce_repetition_champ_value(champ, sub_tdc) }
+  end
+
+  # pf: Calcule la valeur d'une formule-ligne pour une row donnée, sans dépendre
+  # d'un Champ persisté. Réutilise un Champ existant si présent, sinon en build
+  # un in-memory. Un service dédié (scopé sur le row via compute_value → @row_id)
+  # résout les siblings de la ligne depuis all_champs (valeurs par ligne).
+  #
+  # pf: on NE propage PAS @value_overrides : il est keyé par stable_id (row-aveugle),
+  # donc l'override d'un sous-champ d'UNE ligne (ex: Prix HT row1 = 150 fraîchement
+  # modifié) fuirait sur TOUTES les lignes et corromprait l'agrégat (row2 calculerait
+  # avec 150 au lieu de sa propre valeur). Les valeurs par ligne sont lues fraîches
+  # depuis all_champs (sources persistées). La limitation per-row de value_overrides
+  # est ce que la refonte « passe accumulante » (keyée par (stable_id, row_id))
+  # résoudra proprement — cf. docs/superpowers/specs/2026-05-28-formule-passe-accumulante-design.md.
+  def compute_line_formula_value(sub_tdc, row_id)
+    champ = all_champs.find { |c| c.stable_id == sub_tdc.stable_id && c.row_id == row_id }
+    champ ||= sub_tdc.build_champ(dossier: @dossier, row_id:, stream: @dossier.stream)
+    self.class.new(@dossier, locale: @locale).compute_value(champ)
+  end
+
+  # pf: Conversion typée d'un champ sous-TDC vers le type Ruby attendu par
+  # Dentaku. Distincte de format_value_for_dentaku (qui prend un type Column,
+  # pas type_champ). Retourne nil pour les champs vides afin d'être filtrés
+  # par filter_map dans extract_repetition_values.
+  def coerce_repetition_champ_value(champ, tdc)
+    return nil if champ.value.blank?
+
+    case tdc.type_champ
+    when 'integer_number'
+      champ.value.to_i
+    when 'decimal_number', 'number'
+      champ.value.to_f
+    when 'date'
+      Date.parse(champ.value) rescue nil
+    when 'datetime'
+      DateTime.parse(champ.value) rescue nil
+    when 'yes_no'
+      champ.value == 'true'
+    when 'checkbox'
+      champ.value == 'on'
+    when 'formule'
+      # pf: un sous-champ formule stocke un résultat en string ; on coerce selon
+      # son type de sortie inféré pour que SOMME/MOYENNE/MAX… sur une colonne
+      # formule fonctionnent (sinon "1000" reste une string → SOMME = 0).
+      coerce_formule_output(champ.value, tdc.formule_output_type)
+    else
+      champ.value.to_s
+    end
+  end
+
+  def coerce_formule_output(value, output_type)
+    case output_type
+    when 'number'
+      value.match?(/\A-?\d+\z/) ? value.to_i : value.to_f
+    when 'boolean'
+      value == Champs::BooleanChamp::TRUE_VALUE
+    when 'date'
+      Date.parse(value) rescue nil
+    when 'datetime'
+      DateTime.parse(value) rescue nil
+    else # 'string' ou nil
+      value.to_s
     end
   end
 

@@ -335,8 +335,39 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
       .filter_map { |col| col.stable_id if col.is_a?(Columns::ChampColumn) }
       .to_set
 
+    # pf: Les TDC repetition n'apparaissent pas dans available_columns_for_formula
+    # (repetition.columns retourne les columns des sous-TDC, pas du bloc). Pour
+    # les formules-agrégat ({tdc<bloc>}, {tdc<bloc>/sub_<id>}), on autorise les
+    # blocs placés AVANT la formule.
+    allowed_stable_ids.merge(allowed_repetition_bloc_stable_ids(coordinate))
+
     extract_dependent_stable_ids(@type_de_champ.formule_expression)
       .any? { |dep_id| !allowed_stable_ids.include?(dep_id) }
+  end
+
+  # pf: Renvoie les stable_id des TDC repetition placés avant la formule,
+  # éligibles comme cible d'agrégation. Le bloc parent de la formule (si
+  # formule dans un bloc) est exclu pour éviter une auto-référence.
+  def allowed_repetition_bloc_stable_ids(coordinate)
+    revision = coordinate.revision
+    formula_position = coordinate.position
+    own_parent_position = coordinate.parent&.position
+    own_parent_sid = coordinate.parent_type_de_champ&.stable_id
+
+    revision.types_de_champ.filter_map do |tdc|
+      next unless tdc.repetition?
+      next if tdc.stable_id == own_parent_sid
+
+      bloc_coordinate = revision.coordinate_for(tdc)
+      next if bloc_coordinate.nil?
+
+      # Si formule top-level : bloc accepté s'il précède la formule.
+      # Si formule dans un bloc : bloc accepté s'il précède le bloc parent.
+      reference_position = own_parent_position || formula_position
+      next unless bloc_coordinate.position < reference_position
+
+      tdc.stable_id
+    end
   end
 
   # pf: Construit le Hash formule_deps depuis l'expression brute (regex).

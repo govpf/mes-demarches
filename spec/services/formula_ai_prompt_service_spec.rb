@@ -31,6 +31,18 @@ describe FormulaAiPromptService do
       expect(subject).to include('DUREE_SEMAINES')
     end
 
+    it 'documents l’agrégation sur blocs répétables et les nouvelles fonctions' do
+      expect(subject).to include('Agrégation sur blocs répétables')
+      expect(subject).to include('SOMME({Lignes de facture/Prix HT})')
+      expect(subject).to include('NB({Lignes de facture})')
+      expect(subject).to include('JOINDRE')
+      expect(subject).to include('MEDIANE')
+      # la formule-agrégat doit être placée APRÈS le bloc
+      expect(subject).to match(/APRÈS le bloc/)
+      # plus de mention "agrégat impossible"
+      expect(subject).not_to include('Aucun agrégat global n’est possible')
+    end
+
     context 'when output_type is "date"' do
       let(:output_type) { 'date' }
 
