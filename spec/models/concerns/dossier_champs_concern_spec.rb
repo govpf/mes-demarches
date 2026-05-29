@@ -220,8 +220,8 @@ RSpec.describe DossierChampsConcern do
     end
 
     # pf: sur un dossier soumis à une révision publiée (figée), on ne force
-    # pas le recalcul : refresh_dependent_formulas a déjà fait son travail
-    # au moment du save d'une source, et la révision ne bougera plus.
+    # pas le recalcul : refresh_formulas_after a déjà fait son travail au
+    # moment de la modification d'une source, et la révision ne bougera plus.
     context 'formule field on a dossier attached to a published revision' do
       let(:procedure) do
         create(:procedure, :published, types_de_champ_public: [

@@ -62,4 +62,15 @@ describe VirusScannerJob, type: :job do
       expect { subject }.not_to raise_error
     end
   end
+
+  context "when the file is missing from the S3 backend (race with deletion)" do
+    before do
+      allow(blob).to receive(:open).and_raise(Aws::S3::Errors::NotFound.new(nil, "Not Found"))
+    end
+
+    it "discards the job without marking the blob as corrupt" do
+      expect { subject }.not_to raise_error
+      expect(blob.reload.virus_scanner.corrupt?).to be_falsy
+    end
+  end
 end

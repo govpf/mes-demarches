@@ -935,44 +935,49 @@ describe TypeDeChamp do
       end
     end
 
-    # pf: Tests for dependent_stable_ids with new format
-    describe '#dependent_stable_ids with new format' do
+    # pf: Tests for formule_deps['champs'] (replaces removed dependent_stable_ids)
+    describe "formule_deps['champs']" do
       let(:formule_tdc) { build(:type_de_champ_formule) }
+
+      def champs_for(tdc)
+        tdc.valid?
+        tdc.formule_deps&.[]('champs') || []
+      end
 
       it 'extracts stable_ids from {tdc456} format' do
         formule_tdc.formule_expression = '{tdc456} + {tdc789}'
 
-        expect(formule_tdc.dependent_stable_ids).to contain_exactly(456, 789)
+        expect(champs_for(formule_tdc)).to contain_exactly(456, 789)
       end
 
       it 'extracts stable_ids from {tdc456/path} format' do
         formule_tdc.formule_expression = '{tdc123/commune} + {tdc456/date_de_naissance}'
 
-        expect(formule_tdc.dependent_stable_ids).to contain_exactly(123, 456)
+        expect(champs_for(formule_tdc)).to contain_exactly(123, 456)
       end
 
       it 'supports old format {123} (backward compatibility)' do
         formule_tdc.formule_expression = '{123} + {456}'
 
-        expect(formule_tdc.dependent_stable_ids).to contain_exactly(123, 456)
+        expect(champs_for(formule_tdc)).to contain_exactly(123, 456)
       end
 
       it 'supports mixed format {123} + {tdc456}' do
         formule_tdc.formule_expression = '{123} + {tdc456}'
 
-        expect(formule_tdc.dependent_stable_ids).to contain_exactly(123, 456)
+        expect(champs_for(formule_tdc)).to contain_exactly(123, 456)
       end
 
       it 'ignores system columns {dossier_number}' do
         formule_tdc.formule_expression = '{dossier_number} + {tdc456}'
 
-        expect(formule_tdc.dependent_stable_ids).to contain_exactly(456)
+        expect(champs_for(formule_tdc)).to contain_exactly(456)
       end
 
       it 'extracts from complex expressions with functions' do
         formule_tdc.formule_expression = 'SI({tdc123} > 10, SOMME({tdc456}, {tdc789}), 0)'
 
-        expect(formule_tdc.dependent_stable_ids).to contain_exactly(123, 456, 789)
+        expect(champs_for(formule_tdc)).to contain_exactly(123, 456, 789)
       end
     end
   end

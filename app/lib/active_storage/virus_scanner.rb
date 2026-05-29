@@ -44,6 +44,13 @@ class ActiveStorage::VirusScanner
         { virus_scan_result: INFECTED, virus_scanned_at: Time.zone.now }
       end
     end
+  rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey
+    # Le blob a été supprimé du backend S3 entre la mise en queue du job et son
+    # exécution. On traduit en ActiveStorage::FileNotFoundError pour que le job
+    # le discard (cohérent avec `discard_on ActiveStorage::FileNotFoundError`
+    # dans VirusScannerJob) au lieu de marquer le blob INTEGRITY_ERROR, qui
+    # afficherait un faux message "fichier corrompu" en UI.
+    raise ActiveStorage::FileNotFoundError
   end
 
   private

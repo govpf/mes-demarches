@@ -46,6 +46,10 @@ module MailerDefaultsConfigurableConcern
     private
 
     def set_currents_for_demarche_numerique_gouv_fr
+      # pf: en PF il n'y a qu'un seul domaine — APP_HOST est le host officiel (ex. www.mes-demarches.gov.pf),
+      # pas de migration double-domaine comme upstream. On force donc systématiquement les valeurs PF
+      # (host + sender), ce qui ignore preferred_domain et empêche toute fuite vers un domaine upstream
+      # (*.numerique.gouv.fr). Garde-fou issu de 78aefa3324 — voir specs de non-régression dans spec/mailers/.
       Current.application_name = APPLICATION_NAME
       Current.host = ENV["APP_HOST"]
       Current.contact_email = CONTACT_EMAIL

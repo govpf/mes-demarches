@@ -190,6 +190,7 @@ module Users
         end
 
         @dossier.update!(autorisation_donnees: true, identity_updated_at: Time.zone.now)
+        @dossier.refresh_formulas_with_identite_dependents
 
         flash.notice = t('.identity_saved')
 
@@ -487,7 +488,8 @@ module Users
       dossier.save!
       # pf: calcul initial des formules — couvre les formules constantes et
       # sur fonctions système (AUJOURDHUI, MAINTENANT). Pour les formules
-      # dépendant d'un champ usager, c'est la cascade refresh_dependent_formulas
+      # dépendant d'un champ usager, c'est l'appel explicite à
+      # dossier.refresh_formulas_after(champ) (cf. update_dossier_and_compute_errors)
       # qui prend le relais à la première édition.
       dossier.compute_initial_formulas
       # pf: notifications différées pour réduire le spam (délai basé sur estimation de remplissage)
@@ -630,6 +632,7 @@ module Users
 
       current_user.update!(siret: siret)
       @dossier.update!(autorisation_donnees: true, last_champ_updated_at: Time.zone.now)
+      @dossier.refresh_formulas_with_identite_dependents
       redirect_to etablissement_dossier_path
     end
 
@@ -736,6 +739,11 @@ module Users
             @update_contact_information = true
             RoutingEngine.compute(dossier)
           end
+
+          # pf: cascade explicite des formules dépendantes — remplace l'ancien
+          # callback after_save sur Champ. Le caller (ce controller) sait
+          # qu'un changement effectif a eu lieu (champ_changed).
+          dossier.refresh_formulas_after(champ)
         end
 
         if params[:validate].present? && !champ.pending?

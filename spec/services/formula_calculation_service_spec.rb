@@ -78,6 +78,108 @@ describe FormulaCalculationService do
       # and SOMME receives it as a single array argument, which flatten() handles
     end
 
+    # pf: étape H du chantier agrégat — alias FR additionnels.
+    context 'alias FR additionnels (NB, COMPTE, RACINE, PLANCHER, PLAFOND, MEDIANE, JOINDRE)' do
+      let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+      def compute(expression)
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: expression))
+        service.compute_value(formule_champ)
+      end
+
+      it 'NB compte les arguments' do
+        expect(compute('NB(1, 2, 3)')).to eq('3')
+      end
+
+      it 'COMPTE est un synonyme de NB' do
+        expect(compute('COMPTE(1, 2, 3, 4)')).to eq('4')
+      end
+
+      it 'RACINE calcule la racine carrée' do
+        expect(compute('RACINE(16)')).to eq('4')
+      end
+
+      it 'PLANCHER arrondit vers le bas (floor)' do
+        expect(compute('PLANCHER(3.7)')).to eq('3')
+      end
+
+      it 'PLAFOND arrondit vers le haut (ceil)' do
+        expect(compute('PLAFOND(3.2)')).to eq('4')
+      end
+
+      it 'MEDIANE (nombre impair de valeurs) retourne la valeur centrale' do
+        expect(compute('MEDIANE(1, 2, 3, 4, 5)')).to eq('3')
+      end
+
+      it 'MEDIANE (nombre pair de valeurs) retourne la moyenne des deux centrales' do
+        expect(compute('MEDIANE(1, 2, 3, 4)')).to eq('2.5')
+      end
+
+      # pf: JOINDRE(array, separator) — testé en contexte agrégat (son usage
+      # réel : JOINDRE({bloc/sous-champ}, ", ")), cf. describe agrégation.
+    end
+
+    context 'ARRONDI_INF, ARRONDI_SUP, ENTIER functions' do
+      let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
+
+      def compute(expression)
+        allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: expression))
+        service.compute_value(formule_champ)
+      end
+
+      # ARRONDI_INF (floor)
+      it 'ARRONDI_INF floors a positive non-integer' do
+        expect(compute('ARRONDI_INF(3.7)')).to eq('3')
+      end
+
+      it 'ARRONDI_INF floors a negative non-integer' do
+        expect(compute('ARRONDI_INF(-3.2)')).to eq('-4')
+      end
+
+      it 'ARRONDI_INF is a no-op on an exact integer' do
+        expect(compute('ARRONDI_INF(5)')).to eq('5')
+      end
+
+      # ARRONDI_SUP (ceil)
+      it 'ARRONDI_SUP ceils a positive non-integer' do
+        expect(compute('ARRONDI_SUP(3.2)')).to eq('4')
+      end
+
+      it 'ARRONDI_SUP ceils a negative non-integer' do
+        expect(compute('ARRONDI_SUP(-3.7)')).to eq('-3')
+      end
+
+      it 'ARRONDI_SUP is a no-op on an exact integer' do
+        expect(compute('ARRONDI_SUP(5)')).to eq('5')
+      end
+
+      # ENTIER (truncation toward zero)
+      it 'ENTIER truncates a positive non-integer toward zero' do
+        expect(compute('ENTIER(3.7)')).to eq('3')
+      end
+
+      it 'ENTIER truncates a negative non-integer toward zero' do
+        expect(compute('ENTIER(-3.7)')).to eq('-3')
+      end
+
+      it 'ENTIER is a no-op on an exact integer' do
+        expect(compute('ENTIER(5)')).to eq('5')
+      end
+
+      it 'ENTIER on zero returns zero' do
+        expect(compute('ENTIER(0)')).to eq('0')
+      end
+
+      # Cross-check: floor vs truncation differ for negatives
+      it 'ARRONDI_INF and ENTIER differ for negative non-integers' do
+        floor_result    = compute('ARRONDI_INF(-3.5)')
+        truncate_result = compute('ENTIER(-3.5)')
+        expect(floor_result).to    eq('-4')
+        expect(truncate_result).to eq('-3')
+        expect(floor_result).not_to eq(truncate_result)
+      end
+    end
+
     context 'ET/OU/NON functions with real procedure and revision' do
       let(:procedure) {
         create(:procedure, :published, types_de_champ_public: [
@@ -390,6 +492,52 @@ describe FormulaCalculationService do
       end
     end
 
+    # pf: non-régression — une formule qui retourne un entier (ex: ARRONDI(x, 0)
+    # ou un simple {champ_entier}) ne doit PAS introduire un "x.0" quand elle
+    # est référencée par une autre formule. format_value_for_dentaku case :decimal
+    # doit préserver le type Integer si la valeur stockée est sans décimale.
+    context 'when a formula references another numeric formula that returned an integer' do
+      let(:procedure) {
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :decimal_number, libelle: 'X' },
+          { type: :formule, libelle: 'Rounded' }, # ARRONDI({X}, 0)
+          { type: :formule, libelle: 'Label' }, # CONCATENER("00", {Rounded}, "000")
+        ])
+      }
+      let(:dossier) { create(:dossier, :with_populated_champs, procedure: procedure) }
+      let(:x_champ) { dossier.project_champs_public[0] }
+      let(:rounded_champ) { dossier.project_champs_public[1] }
+      let(:label_champ) { dossier.project_champs_public[2] }
+      let(:service) { described_class.new(dossier, locale: :fr) }
+
+      before do
+        expr_r, _ = FormulaExpressionService.convert_to_stable_ids('ARRONDI({X}, 0)', procedure.active_revision)
+        rounded_champ.type_de_champ.update(formule_expression: expr_r)
+        rounded_champ.type_de_champ.valid?
+        rounded_champ.type_de_champ.save!
+
+        expr_l, _ = FormulaExpressionService.convert_to_stable_ids('CONCATENER("00", {Rounded}, "000")', procedure.active_revision)
+        label_champ.type_de_champ.update(formule_expression: expr_l)
+      end
+
+      it 'does not introduce a ".0" artifact when concatenating a formula that returned an integer' do
+        x_champ.update(value: '3.7')
+        rounded_champ.update(value: service.compute_value(rounded_champ)) # "4"
+        expect(rounded_champ.reload.value).to eq('4')
+        expect(service.compute_value(label_champ)).to eq('004000')
+      end
+
+      it 'preserves the decimal when the upstream formula actually returns a decimal' do
+        x_champ.update(value: '3.74')
+        # une formule décimale réelle ne doit pas perdre ses décimales
+        decimal_expr, _ = FormulaExpressionService.convert_to_stable_ids('{X} * 2', procedure.active_revision)
+        rounded_champ.type_de_champ.update(formule_expression: decimal_expr)
+        rounded_champ.update(value: service.compute_value(rounded_champ)) # "7.48"
+        expect(rounded_champ.reload.value).to eq('7.48')
+        expect(service.compute_value(label_champ)).to eq('007.48000')
+      end
+    end
+
     # pf: non-régression — une formule qui référence juste un champ booléen
     # (checkbox, yes_no, ou formule booléenne) doit rendre "true"/"false",
     # pas "1"/"0". Le typage boolean doit se propager jusqu'à format_result.
@@ -575,6 +723,81 @@ describe FormulaCalculationService do
         it 'Date - DUREE_ANNEES subtracts years' do
           travel_to Time.zone.local(2026, 4, 19) do
             expect(compute('AUJOURDHUI() - DUREE_ANNEES(1)')).to eq('2025-04-19')
+          end
+        end
+      end
+
+      describe 'DUREE_SEMAINES' do
+        it 'Date + DUREE_SEMAINES adds n * 7 days' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() + DUREE_SEMAINES(2)')).to eq('2026-05-03')
+          end
+        end
+
+        it 'Date - DUREE_SEMAINES subtracts n * 7 days' do
+          travel_to Time.zone.local(2026, 4, 19) do
+            expect(compute('AUJOURDHUI() - DUREE_SEMAINES(1)')).to eq('2026-04-12')
+          end
+        end
+      end
+
+      describe 'JOURS_ENTRE / SEMAINES_ENTRE / MOIS_ENTRE / ANNEES_ENTRE' do
+        it 'JOURS_ENTRE returns the day difference' do
+          expect(compute('JOURS_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(10))')).to eq('10')
+        end
+
+        it 'JOURS_ENTRE can be negative when d2 is before d1' do
+          expect(compute('JOURS_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_JOURS(3))')).to eq('-3')
+        end
+
+        it 'SEMAINES_ENTRE returns integer weeks (truncated toward zero)' do
+          # 13 jours → 1 semaine
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(13))')).to eq('1')
+          # 14 jours → 2 semaines
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(14))')).to eq('2')
+        end
+
+        it 'SEMAINES_ENTRE truncates toward zero on negative ranges' do
+          # -5 jours → 0 semaine (et pas -1 comme le ferait la division entière Ruby)
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_JOURS(5))')).to eq('0')
+          # -13 jours → -1 semaine
+          expect(compute('SEMAINES_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_JOURS(13))')).to eq('-1')
+        end
+
+        it 'MOIS_ENTRE handles month boundary (31 jan → 28 feb = 1 month)' do
+          travel_to Time.zone.local(2026, 1, 31) do
+            expect(compute('MOIS_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_JOURS(28))')).to eq('1')
+          end
+        end
+
+        it 'MOIS_ENTRE returns 12 across a full year' do
+          travel_to Time.zone.local(2026, 1, 1) do
+            expect(compute('MOIS_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(1))')).to eq('12')
+          end
+        end
+
+        it 'ANNEES_ENTRE handles 29 feb leap-year edge (anniversary not yet passed)' do
+          # d1 = 2020-02-29, d2 = 2024-02-28 → 3 ans (anniv pas encore atteint)
+          travel_to Time.zone.local(2020, 2, 29) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(4) - DUREE_JOURS(1))')).to eq('3')
+          end
+        end
+
+        it 'ANNEES_ENTRE returns 4 once the anniversary is reached' do
+          # d1 = 2020-02-29, d2 = 2024-02-29 → 4 ans
+          travel_to Time.zone.local(2020, 2, 29) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(4))')).to eq('4')
+          end
+        end
+
+        it 'ANNEES_ENTRE is symmetric: f(a, b) == -f(b, a)' do
+          # d1 = 2020-02-28, d2 = 2024-02-29 → 4 ans
+          # Inversé : d1 = 2024-02-29, d2 = 2020-02-28 → -4 ans (pas -5)
+          travel_to Time.zone.local(2020, 2, 28) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() + DUREE_ANNEES(4) + DUREE_JOURS(1))')).to eq('4')
+          end
+          travel_to Time.zone.local(2024, 2, 29) do
+            expect(compute('ANNEES_ENTRE(AUJOURDHUI(), AUJOURDHUI() - DUREE_ANNEES(4) - DUREE_JOURS(1))')).to eq('-4')
           end
         end
       end
@@ -774,6 +997,304 @@ describe FormulaCalculationService do
       allow(formule_champ).to receive(:type_de_champ).and_return(build(:type_de_champ_formule, formule_expression: 'AGE(d)'))
       # d not provided → AGE receives nil → returns nil → compute returns nil
       expect(service.compute_value(formule_champ)).to be_nil
+    end
+  end
+
+  # pf: normalisation value_json + JSONPathColumn des types PF — les références
+  # à sous-chemin {Champ/Path} étaient cassées en formule (resolve_with_path ne
+  # consultait que le préfixe tdc<N>). Cf. branche normalize-pf-champs-value-json.
+  describe '#compute_value with PF field sub-paths' do
+    context 'Numéro DN / date_de_naissance' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :numero_dn, libelle: 'DN' },
+          { type: :formule, libelle: 'Annee' },
+        ])
+      end
+      let(:dossier) { create(:dossier, procedure: procedure) }
+      let(:revision) { procedure.active_revision }
+      let(:dn_tdc) { revision.types_de_champ.find { _1.libelle == 'DN' } }
+      let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Annee' } }
+      let(:formule_champ) { dossier.project_champs_public.find { _1.stable_id == formule_tdc.stable_id } }
+      let(:service) { described_class.new(dossier) }
+
+      before do
+        dossier.project_champs_public.find { _1.stable_id == dn_tdc.stable_id }
+          .update!(value_json: { 'numero_dn' => '1234567', 'date_de_naissance' => '2015-06-15' })
+        formule_tdc.update!(formule_expression: "ANNEE({tdc#{dn_tdc.stable_id}/date_de_naissance})")
+      end
+
+      it 'résout la date de naissance via JSONPathColumn et calcule' do
+        expect(service.compute_value(formule_champ)).to eq('2015')
+      end
+    end
+
+    context 'Commune de Polynésie / ile' do
+      let(:sample) { APIGeo::API.communes_de_polynesie.find { !_1.start_with?('---') } }
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :commune_de_polynesie, libelle: 'Commune' },
+          { type: :formule, libelle: 'Ile' },
+        ])
+      end
+      let(:dossier) { create(:dossier, procedure: procedure) }
+      let(:revision) { procedure.active_revision }
+      let(:com_tdc) { revision.types_de_champ.find { _1.libelle == 'Commune' } }
+      let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Ile' } }
+      let(:formule_champ) { dossier.project_champs_public.find { _1.stable_id == formule_tdc.stable_id } }
+      let(:service) { described_class.new(dossier) }
+
+      before do
+        dossier.project_champs_public.find { _1.stable_id == com_tdc.stable_id }.update!(value: sample)
+        formule_tdc.update!(formule_expression: "{tdc#{com_tdc.stable_id}/ile}")
+      end
+
+      it 'résout l\'île via le cache value_json et la JSONPathColumn' do
+        city = APIGeo::API.commune_by_city_postal_code(sample)
+        expect(service.compute_value(formule_champ)).to eq(city[:ile])
+      end
+    end
+  end
+
+  # pf: chantier formule-agrégat — une formule placée hors bloc peut agréger
+  # un sous-champ de toutes les lignes via {bloc/sub}, ou compter le bloc
+  # via {bloc}. Cf. docs/superpowers/specs/2026-05-21-formule-repetitions-design.md
+  describe '#compute_value with aggregation over a repetition block' do
+    let(:procedure) do
+      create(:procedure, :published, types_de_champ_public: [
+        {
+          type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+            { type: :text, libelle: 'Désignation' },
+            { type: :integer_number, libelle: 'Prix HT' },
+          ],
+        },
+        { type: :formule, libelle: 'Total' },
+      ])
+    end
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:revision) { procedure.active_revision }
+    let(:bloc_tdc) { revision.types_de_champ.find { _1.libelle == 'Lignes' } }
+    let(:prix_ht_tdc) { revision.types_de_champ.find { _1.libelle == 'Prix HT' } }
+    let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Total' } }
+    let(:formule_champ) { dossier.project_champs_public.find { _1.stable_id == formule_tdc.stable_id } }
+    let(:service) { described_class.new(dossier) }
+
+    def add_row_with_prix_ht(value)
+      row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+      if value
+        # pf: repetition_add_row crée juste le RepetitionChamp pour le row_id ;
+        # les sous-champs sont créés à la demande via champ_for_update.
+        sub_champ = dossier.champ_for_update(prix_ht_tdc, row_id: row_id, updated_by: 'test')
+        sub_champ.update!(value: value.to_s)
+      end
+      row_id
+    end
+
+    def set_formula(expression)
+      formule_tdc.update!(formule_expression: expression)
+    end
+
+    def sub_ref
+      "tdc#{bloc_tdc.stable_id}/sub_#{prix_ht_tdc.stable_id}"
+    end
+
+    def bloc_ref
+      "tdc#{bloc_tdc.stable_id}"
+    end
+
+    context 'SOMME sur un sous-champ numérique' do
+      before do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(200)
+        add_row_with_prix_ht(50)
+      end
+
+      it 'somme les prix de toutes les lignes' do
+        set_formula("SOMME({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('350')
+      end
+    end
+
+    context 'COUNT sur le bloc entier' do
+      before do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(200)
+        add_row_with_prix_ht(50)
+      end
+
+      it 'compte le nombre de lignes' do
+        set_formula("COUNT({#{bloc_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('3')
+      end
+    end
+
+    context 'JOINDRE sur un sous-champ texte (Désignation)' do
+      let(:designation_tdc) { revision.types_de_champ.find { _1.libelle == 'Désignation' } }
+
+      def add_row_with_designation(label)
+        row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+        dossier.champ_for_update(designation_tdc, row_id:, updated_by: 'test').update!(value: label)
+        row_id
+      end
+
+      before do
+        add_row_with_designation('Pommes')
+        add_row_with_designation('Poires')
+        add_row_with_designation('Bananes')
+      end
+
+      it 'concatène les désignations de toutes les lignes' do
+        set_formula("JOINDRE({tdc#{bloc_tdc.stable_id}/sub_#{designation_tdc.stable_id}}, \", \")")
+        expect(service.compute_value(formule_champ)).to eq('Pommes, Poires, Bananes')
+      end
+    end
+
+    context 'MAX et MIN sur un sous-champ' do
+      before do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(200)
+        add_row_with_prix_ht(50)
+      end
+
+      it 'MAX retourne le plus grand' do
+        set_formula("MAX({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('200')
+      end
+
+      it 'MIN retourne le plus petit' do
+        set_formula("MIN({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('50')
+      end
+    end
+
+    context 'MOYENNE sur un sous-champ' do
+      before do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(200)
+        add_row_with_prix_ht(150)
+      end
+
+      it 'retourne la moyenne arithmétique' do
+        set_formula("MOYENNE({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('150')
+      end
+    end
+
+    context 'bloc vide' do
+      it 'SOMME retourne 0' do
+        set_formula("SOMME({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('0')
+      end
+
+      it 'COUNT retourne 0' do
+        set_formula("COUNT({#{bloc_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('0')
+      end
+
+      # pf: Dentaku natif MAX/[] = nil (cf. spec sentinelle dentaku_array_functions).
+      # Le service propage le nil → champ formule reste vide (pas d'erreur).
+      it 'MAX retourne nil (rien à comparer)' do
+        set_formula("MAX({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to be_nil
+      end
+    end
+
+    context 'ligne avec sous-champ vide' do
+      before do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(nil) # ligne sans Prix HT saisi
+        add_row_with_prix_ht(50)
+      end
+
+      it 'SOMME ignore les valeurs nil (somme les 2 lignes valides)' do
+        set_formula("SOMME({#{sub_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('150')
+      end
+
+      it 'COUNT compte toutes les lignes (3) — la cardinalité ne dépend pas des nil' do
+        set_formula("COUNT({#{bloc_ref}})")
+        expect(service.compute_value(formule_champ)).to eq('3')
+      end
+    end
+
+    context 'combinaison : reste à payer' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          {
+            type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+              { type: :integer_number, libelle: 'Prix HT' },
+            ],
+          },
+          {
+            type: :repetition, libelle: 'Paiements', mandatory: false, children: [
+              { type: :integer_number, libelle: 'Montant' },
+            ],
+          },
+          { type: :formule, libelle: 'Total' },
+        ])
+      end
+      let(:paiement_tdc) { revision.types_de_champ.find { _1.libelle == 'Paiements' } }
+      let(:montant_tdc) { revision.types_de_champ.find { _1.libelle == 'Montant' } }
+
+      def add_paiement(value)
+        row_id = dossier.repetition_add_row(paiement_tdc, updated_by: 'test')
+        sub_champ = dossier.champ_for_update(montant_tdc, row_id: row_id, updated_by: 'test')
+        sub_champ.update!(value: value.to_s)
+      end
+
+      it 'SOMME(lignes/prix) - SOMME(paiements/montant) = reste à payer' do
+        add_row_with_prix_ht(100)
+        add_row_with_prix_ht(200)
+        add_paiement(150)
+
+        sub_prix = "tdc#{bloc_tdc.stable_id}/sub_#{prix_ht_tdc.stable_id}"
+        sub_montant = "tdc#{paiement_tdc.stable_id}/sub_#{montant_tdc.stable_id}"
+
+        set_formula("SOMME({#{sub_prix}}) - SOMME({#{sub_montant}})")
+        expect(service.compute_value(formule_champ)).to eq('150')
+      end
+    end
+
+    # pf: agréger un sous-champ FORMULE (formule-ligne dans le bloc) — son
+    # résultat est stocké en string, il faut le coercer selon formule_output_type
+    # (sinon SOMME("200") = 0). Pattern du catalogue : transformation par ligne
+    # via formule-ligne intermédiaire, puis agrégation extérieure.
+    context 'agrégation sur un sous-champ formule-ligne' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          {
+            type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+              { type: :integer_number, libelle: 'Prix HT' },
+              { type: :formule, libelle: 'Montant TTC' },
+            ],
+          },
+          { type: :formule, libelle: 'Total TTC' },
+        ])
+      end
+      let(:ligne_formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Montant TTC' } }
+      let(:total_tdc) { revision.types_de_champ.find { _1.libelle == 'Total TTC' } }
+      let(:total_champ) { dossier.project_champs_public.find { _1.stable_id == total_tdc.stable_id } }
+
+      before do
+        ligne_formule_tdc.update!(formule_expression: "{tdc#{prix_ht_tdc.stable_id}} * 2")
+        total_tdc.update!(formule_expression: "SOMME({tdc#{bloc_tdc.stable_id}/sub_#{ligne_formule_tdc.stable_id}})")
+      end
+
+      # pf: on NE crée PAS le champ formule-ligne (Montant TTC) : c'est le cas
+      # réel — la cascade ne persiste pas les champs formule enfants d'un bloc
+      # (return [] if tdc.child?), et en preview ils n'existent que matérialisés.
+      # L'agrégat doit donc recalculer la formule-ligne à la volée par ligne.
+      def add_row_with_prix(prix)
+        row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+        dossier.champ_for_update(prix_ht_tdc, row_id:, updated_by: 'test').update!(value: prix.to_s)
+        row_id
+      end
+
+      it 'somme les résultats de la formule-ligne (non persistée) de chaque ligne' do
+        add_row_with_prix(100) # Montant TTC = 200
+        add_row_with_prix(50)  # Montant TTC = 100
+        expect(service.compute_value(total_champ)).to eq('300')
+      end
     end
   end
 end

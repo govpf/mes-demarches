@@ -355,6 +355,10 @@ module Instructeurs
           annotation.fetch_later! if annotation.may_fetch_later?
         end
 
+        # pf: cascade explicite des formules dépendantes — remplace l'ancien
+        # callback after_save sur Champ.
+        dossier.refresh_formulas_after(annotation)
+
         dossier.index_search_terms_later
         DossierNotification.create_notification(dossier, :annotation_instructeur, except_instructeur: current_instructeur) if !dossier.brouillon?
       end

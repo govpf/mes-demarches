@@ -24,6 +24,11 @@ module Mutations
 
       if annotation.validate(:champs_private_value) && annotation.save
         ChampRevision.create_or_update_revision(annotation, instructeur.id)
+        # pf: cascade explicite des formules dépendantes — remplace l'ancien
+        # callback after_save sur Champ. Couvre toutes les mutations qui
+        # héritent via resolve_with_type (text, checkbox, date, decimal,
+        # integer, datetime, drop_down_list, piece_justificative).
+        dossier.refresh_formulas_after(annotation)
         { annotation: }
       else
         { errors: annotation.errors.full_messages }

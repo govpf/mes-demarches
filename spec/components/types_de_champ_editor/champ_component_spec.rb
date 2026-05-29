@@ -137,6 +137,45 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
     end
   end
 
+  # pf: la liste de colonnes alimente l'autocomplete de l'éditeur formule.
+  # Pour l'agrégat sur bloc répétable, on expose le bloc + des sous-chemins
+  # composites "Bloc/Sous-champ" (slash), et on RETIRE les sous-champs-ligne
+  # "Bloc – Sous-champ" (tiret) hors du bloc (inutiles, source de confusion).
+  describe '#available_columns_for_formula avec bloc répétable' do
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        {
+          type: :repetition, libelle: 'Facture', children: [
+            { type: :integer_number, libelle: 'Prix HT' },
+          ],
+        },
+        { type: :formule, libelle: 'Total' },
+      ])
+    end
+    let(:formule_tdc) { procedure.draft_revision.types_de_champ.find { _1.libelle == 'Total' } }
+    let(:coordinate) { procedure.draft_revision.coordinate_for(formule_tdc) }
+    let(:component) { described_class.new(coordinate:, upper_coordinates: []) }
+    let(:columns) { component.available_columns_for_formula }
+
+    it 'expose le bloc comme colonne agrégable' do
+      bloc = columns.find { _1[:label] == 'Facture' }
+      expect(bloc).to be_present
+      expect(bloc[:id]).to match(/\Atdc\d+\z/)
+    end
+
+    it 'expose le sous-champ en label composite "Facture/Prix HT" (slash)' do
+      bloc = columns.find { _1[:label] == 'Facture' }
+      sub = bloc[:paths].find { _1[:label] == 'Facture/Prix HT' }
+      expect(sub).to be_present
+      expect(sub[:path]).to match(/\Asub_\d+\z/)
+    end
+
+    it 'ne propose PAS la référence-ligne "Facture – Prix HT" (tiret) hors du bloc' do
+      labels = columns.map { _1[:label] }
+      expect(labels).not_to include(a_string_matching(/Facture – Prix HT|Facture - Prix HT/))
+    end
+  end
+
   describe 'ACCEPTED_TYPES' do
     it 'contains expected conversions' do
       expect(described_class::ACCEPTED_TYPES).to include(

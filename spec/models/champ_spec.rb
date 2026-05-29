@@ -799,7 +799,7 @@ describe Champ do
       end
     end
 
-    context 'when dependent_stable_ids is nil' do
+    context 'when formule has no champ dependencies' do
       let!(:formule_tdc_without_deps) do
         create(:type_de_champ_formule,
           procedure: procedure,

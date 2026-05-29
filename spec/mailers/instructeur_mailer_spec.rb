@@ -48,6 +48,18 @@ RSpec.describe InstructeurMailer, type: :mailer do
 
       it { expect(subject.body).to include(ApplicationHelper::APP_HOST) }
     end
+
+    # pf: garde-fou anti-fuite (78aefa3324) — en PF on force toujours le host PF ;
+    # un host forcé (même un domaine upstream) ne doit jamais surcharger ni fuiter.
+    context 'with a forced upstream host' do
+      subject { described_class.send_login_token(user, token, "demarche.numerique.gouv.fr") }
+
+      it 'keeps the PF host and never leaks the upstream domain' do
+        expect(subject.body).to include(ApplicationHelper::APP_HOST)
+        expect(subject.body).not_to include("demarche.numerique.gouv.fr")
+        expect(subject.body).not_to include("demarches.numerique.gouv.fr")
+      end
+    end
   end
 
   describe '#trusted_device_token_renewal' do
