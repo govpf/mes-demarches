@@ -187,33 +187,6 @@ class FormulaCalculationService
     end
   end
 
-  # pf: Pattern de détection des fonctions qui dépendent de l'instant présent
-  # (i.e. qui renvoient une valeur différente au fil du temps sans qu'aucun
-  # champ source n'ait changé). Utilisé par le TDC pour marquer la formule,
-  # et par RefreshFormulasJob pour cibler les formules à recalculer à minuit.
-  # AGE/EST_PASSEE/EST_FUTURE dépendent implicitement de Date.current.
-  # JOUR/MOIS/ANNEE/JOURSEM ne sont PAS clock-dependent (dépendent uniquement
-  # de leur argument).
-  CLOCK_DEPENDENT_PATTERN = /\b(AUJOURDHUI|MAINTENANT|AGE|EST_PASSEE|EST_FUTURE)\s*\(/
-
-  def self.clock_dependent?(expression)
-    return false if expression.blank?
-    expression.match?(CLOCK_DEPENDENT_PATTERN)
-  end
-
-  # pf: Pattern de détection des références aux timestamps d'état du dossier.
-  # Ces valeurs changent à chaque transition (depose_at au dépôt,
-  # en_instruction_at au passage en instruction, etc.), et nécessitent donc
-  # un recalcul synchrone au moment de la transition — le job quotidien
-  # créerait un lag max 24h inacceptable pour des formules type "jours en
-  # instruction".
-  STATE_DEPENDENT_PATTERN = /\{dossier_(depose|en_construction|en_instruction|processed)_at\}/
-
-  def self.state_dependent?(expression)
-    return false if expression.blank?
-    expression.match?(STATE_DEPENDENT_PATTERN)
-  end
-
   private
 
   def create_calculator
@@ -284,6 +257,33 @@ class FormulaCalculationService
       match ? match[0].tr(',', '.').to_f : 0
     })
 
+    # pf: ENTIER tronque vers zéro (to_i Ruby) — différent de ARRONDI_INF (floor).
+    # ENTIER(-3.7) = -3 alors que ARRONDI_INF(-3.7) = -4.
+    # Utile pour caster un résultat numérique en entier afin d'éviter "xxx.0"
+    # en concaténation : CONCATENER("00", ENTIER({tdc750}), "000").
+    calculator.add_function(:ENTIER, :numeric, -> (n) {
+      next nil if n.nil?
+      n.to_f.to_i
+    })
+
+    # pf: MEDIANE — pas de fonction native median en Dentaku 3.5.4. Accepte
+    # une liste d'arguments OU un array (binding {bloc/sous-champ}). nil/blank
+    # ignorés. Médiane = valeur centrale (impair) ou moyenne des deux centrales.
+    calculator.add_function(:MEDIANE, :numeric, -> (*args) {
+      nums = args.flatten.compact.map(&:to_f).sort
+      next nil if nums.empty?
+      mid = nums.size / 2
+      nums.size.odd? ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2.0
+    })
+
+    # pf: JOINDRE(array, séparateur) — concatène les valeurs d'un array en une
+    # chaîne (équivalent texte de SOMME). Pensé pour agréger un sous-champ texte
+    # d'un bloc : JOINDRE({Partenaires/Raison sociale}, ", "). nil/vide ignorés.
+    # Pas de join natif en Dentaku → lambda custom (cf. CHERCHE/SUBSTITUE).
+    calculator.add_function(:JOINDRE, :string, -> (arr, separator = ', ') {
+      Array(arr).flatten.compact.map(&:to_s).reject(&:empty?).join(separator.to_s)
+    })
+
     add_french_date_functions(calculator)
   end
 
@@ -340,6 +340,48 @@ class FormulaCalculationService
     calculator.add_function(:DUREE_JOURS, :duration, -> (n) {
       Dentaku::AST::Duration::Value.new(n.to_i, 'days')
     })
+    # pf: DUREE_SEMAINES(n) = n * 7 jours — pas de unit 'weeks' dans Dentaku,
+    # on retombe sur 'days'.
+    calculator.add_function(:DUREE_SEMAINES, :duration, -> (n) {
+      Dentaku::AST::Duration::Value.new(n.to_i * 7, 'days')
+    })
+
+    # pf: Intervalles entre deux dates. Toutes nil-safe (n'importe quel
+    # argument nil → retourne nil pour propager le manque de donnée).
+    calculator.add_function(:JOURS_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      (to_date(d2) - to_date(d1)).to_i
+    })
+    # pf: Troncature vers zéro (5 jours → 0 semaine, -5 jours → 0 semaine).
+    # Pas la division entière Ruby (qui fait floor vers -∞).
+    calculator.add_function(:SEMAINES_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      days = (to_date(d2) - to_date(d1)).to_i
+      days.abs.div(7) * (days.negative? ? -1 : 1)
+    })
+    # pf: Différence en mois calendaires, indépendante du jour du mois
+    # (31 jan → 28 fév = 1, comme attendu par les usagers).
+    calculator.add_function(:MOIS_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      a = to_date(d1)
+      b = to_date(d2)
+      (b.year - a.year) * 12 + (b.month - a.month)
+    })
+    # pf: Années révolues (même logique que AGE, généralisée à deux dates).
+    # Symétrique : ANNEES_ENTRE(a, b) == -ANNEES_ENTRE(b, a).
+    # On calcule toujours sur (min, max) puis on rétablit le signe.
+    calculator.add_function(:ANNEES_ENTRE, :numeric, -> (d1, d2) {
+      next nil if d1.nil? || d2.nil?
+      a = to_date(d1)
+      b = to_date(d2)
+      sign = b >= a ? 1 : -1
+      from, to = sign == 1 ? [a, b] : [b, a]
+      years = to.year - from.year
+      if to.month < from.month || (to.month == from.month && to.day < from.day)
+        years -= 1
+      end
+      years * sign
+    })
   end
 
   # pf: Les fonctions date acceptent indifféremment Date/DateTime/Time.
@@ -390,12 +432,140 @@ class FormulaCalculationService
       # New column-based resolution
       column, path = @resolver.resolve_with_path(reference)
 
+      # pf: Blocs répétables — agrégation hors bloc (chantier formule-agrégat).
+      # Dentaku 3.5.4 supporte SUM/COUNT/MAX/MIN/AVG sur arrays bindings.
+      # Le binding {bloc} reçoit la liste des row_ids (suffit pour COUNT) ;
+      # {bloc/sub} reçoit un array de scalaires type-aware.
+      case column
+      when FormulaColumnResolver::RepetitionRef
+        next register_variable(extract_repetition_row_ids(column.bloc_tdc))
+      when FormulaColumnResolver::RepetitionSubChampRef
+        next register_variable(extract_repetition_values(column.bloc_tdc, column.sub_tdc))
+      end
+
       if column.nil?
         raise InvalidFieldReferenceError, reference
       end
 
       value = extract_column_value(column, path)
       register_variable(format_value_for_dentaku(value, column.type))
+    end
+  end
+
+  # pf: Renvoie l'array des row_ids VIVANTS du bloc — utilisé pour COUNT/NB({bloc}).
+  # On lit les RepetitionChamps (un par row, créé dès repetition_add_row) en
+  # excluant les lignes supprimées : repetition_remove_row fait discard! sur le
+  # RepetitionChamp de la ligne (cf. repetition_row_ids qui filtre aussi
+  # !discarded?). Plus fiable que de passer par les sous-champs (qui n'existent
+  # que si l'usager les a saisis — un row vide n'aurait sinon aucun champ).
+  def repetition_live_row_ids(bloc_tdc)
+    all_champs
+      .filter { |c| c.stable_id == bloc_tdc.stable_id && c.row_id.present? && !c.discarded? }
+      .map(&:row_id)
+      .uniq
+  end
+
+  def extract_repetition_row_ids(bloc_tdc)
+    repetition_live_row_ids(bloc_tdc)
+  end
+
+  # pf: Renvoie l'array des valeurs (type-aware) d'un sous-champ pour toutes les
+  # lignes VIVANTES du bloc. On filtre par les row_ids vivants : quand une ligne
+  # est supprimée, c'est son RepetitionChamp qui est discardé, pas le sous-champ
+  # lui-même — il faut donc l'exclure via la liste des lignes vivantes.
+  # Les valeurs nil sont filtrées pour éviter qu'une ligne incomplète n'écrase
+  # une agrégation (SUM, MAX) — cohérent avec les agrégateurs SQL et avec
+  # format_result qui rend nil sur array vide (ex: MAX).
+  def extract_repetition_values(bloc_tdc, sub_tdc)
+    # pf: les sous-champs ne sont jamais discardés individuellement (seul le
+    # RepetitionChamp de la ligne l'est) — le filtre par live_row_ids suffit à
+    # exclure les lignes supprimées. (discarded? n'est d'ailleurs défini que sur
+    # RepetitionChamp, pas sur les sous-champs.)
+    live_row_ids = repetition_live_row_ids(bloc_tdc)
+
+    # pf: cas d'un sous-champ FORMULE-LIGNE. Son Champ n'est pas forcément
+    # persisté (formule_champs_for_tdc fait `return [] if tdc.child?` — la
+    # cascade ne crée pas les champs formule enfants ; en preview ils n'existent
+    # que matérialisés dans project_champs). On NE peut PAS lire project_champs
+    # ici (récursion : ça recalculerait la formule-agrégat courante). On calcule
+    # donc la formule-ligne à la volée pour chaque ligne : elle ne référence que
+    # ses siblings de même ligne, qui SONT persistés dans all_champs.
+    if sub_tdc.formule?
+      return live_row_ids.sort.filter_map do |row_id|
+        value = compute_line_formula_value(sub_tdc, row_id)
+        next nil if value.blank?
+        coerce_formule_output(value, sub_tdc.formule_output_type)
+      end
+    end
+
+    live_row_ids_set = live_row_ids.to_set
+    rows_champs = all_champs
+      .filter { |c| c.row_id.present? && c.stable_id == sub_tdc.stable_id && live_row_ids_set.include?(c.row_id) }
+      .sort_by(&:row_id)
+
+    rows_champs.filter_map { |champ| coerce_repetition_champ_value(champ, sub_tdc) }
+  end
+
+  # pf: Calcule la valeur d'une formule-ligne pour une row donnée, sans dépendre
+  # d'un Champ persisté. Réutilise un Champ existant si présent, sinon en build
+  # un in-memory. Un service dédié (scopé sur le row via compute_value → @row_id)
+  # résout les siblings de la ligne depuis all_champs (valeurs par ligne).
+  #
+  # pf: on NE propage PAS @value_overrides : il est keyé par stable_id (row-aveugle),
+  # donc l'override d'un sous-champ d'UNE ligne (ex: Prix HT row1 = 150 fraîchement
+  # modifié) fuirait sur TOUTES les lignes et corromprait l'agrégat (row2 calculerait
+  # avec 150 au lieu de sa propre valeur). Les valeurs par ligne sont lues fraîches
+  # depuis all_champs (sources persistées). La limitation per-row de value_overrides
+  # est ce que la refonte « passe accumulante » (keyée par (stable_id, row_id))
+  # résoudra proprement — cf. docs/superpowers/specs/2026-05-28-formule-passe-accumulante-design.md.
+  def compute_line_formula_value(sub_tdc, row_id)
+    champ = all_champs.find { |c| c.stable_id == sub_tdc.stable_id && c.row_id == row_id }
+    champ ||= sub_tdc.build_champ(dossier: @dossier, row_id:, stream: @dossier.stream)
+    self.class.new(@dossier, locale: @locale).compute_value(champ)
+  end
+
+  # pf: Conversion typée d'un champ sous-TDC vers le type Ruby attendu par
+  # Dentaku. Distincte de format_value_for_dentaku (qui prend un type Column,
+  # pas type_champ). Retourne nil pour les champs vides afin d'être filtrés
+  # par filter_map dans extract_repetition_values.
+  def coerce_repetition_champ_value(champ, tdc)
+    return nil if champ.value.blank?
+
+    case tdc.type_champ
+    when 'integer_number'
+      champ.value.to_i
+    when 'decimal_number', 'number'
+      champ.value.to_f
+    when 'date'
+      Date.parse(champ.value) rescue nil
+    when 'datetime'
+      DateTime.parse(champ.value) rescue nil
+    when 'yes_no'
+      champ.value == 'true'
+    when 'checkbox'
+      champ.value == 'on'
+    when 'formule'
+      # pf: un sous-champ formule stocke un résultat en string ; on coerce selon
+      # son type de sortie inféré pour que SOMME/MOYENNE/MAX… sur une colonne
+      # formule fonctionnent (sinon "1000" reste une string → SOMME = 0).
+      coerce_formule_output(champ.value, tdc.formule_output_type)
+    else
+      champ.value.to_s
+    end
+  end
+
+  def coerce_formule_output(value, output_type)
+    case output_type
+    when 'number'
+      value.match?(/\A-?\d+\z/) ? value.to_i : value.to_f
+    when 'boolean'
+      value == Champs::BooleanChamp::TRUE_VALUE
+    when 'date'
+      Date.parse(value) rescue nil
+    when 'datetime'
+      DateTime.parse(value) rescue nil
+    else # 'string' ou nil
+      value.to_s
     end
   end
 
@@ -459,7 +629,21 @@ class FormulaCalculationService
     when :integer
       value.present? ? value.to_i : 0
     when :decimal
-      value.present? ? value.to_f : 0
+      # pf: une formule de type 'number' qui retourne un entier (ex: ARRONDI(x, 0)
+      # → Integer 3 → stocké "3") doit rester Integer quand elle est référencée
+      # par une autre formule, sinon CONCATENER("00", {tdc_A}, "000") ressort
+      # "003.0000" parce qu'un Float 3.0 est injecté dans Dentaku.
+      # La value reçue peut être String ("3.7"), Float (4.0 après cast colonne)
+      # ou Integer — on normalise vers Integer quand la valeur est sans partie
+      # décimale, Float sinon.
+      return 0 if value.blank?
+      case value
+      when Integer then value
+      when Float, BigDecimal then value % 1 == 0 ? value.to_i : value.to_f
+      else
+        s = value.to_s
+        Integer(s, exception: false) || s.to_f
+      end
     when :boolean
       # pf: on passe des booléens natifs à Dentaku (pas 0/1) pour que le
       # typage soit préservé jusqu'à format_result. Une formule `{CaseACocher}`

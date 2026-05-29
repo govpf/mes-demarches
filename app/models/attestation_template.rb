@@ -112,7 +112,8 @@ class AttestationTemplate < ApplicationRecord
 
   def logo_url
     if logo.attached?
-      logo_variant = logo.variant(resize_to_limit: [400, 400])
+      # pf: 1200px max pour rester ~300 DPI sur les 100x50mm autorisés en mode libre (et 80x50mm en mode charte)
+      logo_variant = logo.variant(resize_to_limit: [1200, 1200])
       logo_variant.key.present? ? logo_variant.processed.url : Rails.application.routes.url_helpers.url_for(logo)
     end
   end

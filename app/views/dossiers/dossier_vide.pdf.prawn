@@ -30,10 +30,14 @@ def format_in_2_lines(pdf, champ, nb_lines = 1)
   pdf.text "\n"
 end
 
-def format_in_2_columns(pdf, label)
+def format_in_2_columns(pdf, label, value = nil)
   pdf.text_box label, width: 200, height: 100, overflow: :expand, at: [0, pdf.cursor]
-  pdf.bounding_box([110, pdf.cursor + 5], :width => 350, :height => 20) do
-    pdf.stroke_bounds
+  if value.present?
+    render_expanding_text_box(pdf, value, width: 350, height: 100, at: [110, pdf.cursor])
+  else
+    pdf.bounding_box([110, pdf.cursor + 5], :width => 350, :height => 20) do
+      pdf.stroke_bounds
+    end
   end
 
   pdf.text "\n"

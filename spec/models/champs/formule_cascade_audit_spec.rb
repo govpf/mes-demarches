@@ -2,10 +2,12 @@
 
 require 'rails_helper'
 
-# pf: Audit de performance et de comportement de la cascade refresh_dependent_formulas
-# Ce test sert de garde-fou CI pour détecter les régressions de performance
-# et vérifier le comportement du recalcul en chaîne.
-RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
+# pf: Audit de performance et de comportement de la cascade explicite des
+# formules — Dossier#refresh_formulas_after, appelée par les controllers
+# (users/instructeurs/champs), les mutations GraphQL et les services
+# external_data. Ce test sert de garde-fou CI pour détecter les régressions
+# de performance et vérifier le comportement du recalcul en chaîne.
+RSpec.describe 'Formule cascade refresh_formulas_after', type: :model do
   # ------------------------------------------------------------------
   # Helpers
   # ------------------------------------------------------------------
@@ -20,7 +22,11 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
   end
 
   def set_formule_expression(dossier, formule_tdc, expression)
-    formule_tdc.update_column(:options, formule_tdc.options.merge('formule_expression' => expression))
+    # pf: passe par update! (avec validation) pour que formule_deps soit recalculé
+    # en même temps que formule_expression — update_column bypasse les callbacks
+    # et laisserait formule_deps stale, ce qui romprait la construction du graphe
+    # de dépendances via formule_deps['champs'].
+    formule_tdc.update!(formule_expression: expression)
   end
 
   def find_champ(dossier, tdc)
@@ -97,7 +103,7 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
       set_formule_expression(dossier, quadruple_tdc, "{tdc#{double_tdc.stable_id}} * 2")
     end
 
-    it 'propage la transitivité A → B → C via propagate_formula_updates' do
+    it 'propage la transitivité A → B → C via refresh_formulas_after' do
       # Persister les champs formule pour que update_column fonctionne
       dossier.reload
       double_champ = find_champ(dossier, double_tdc)
@@ -107,6 +113,10 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
 
       montant = find_champ(dossier, montant_tdc)
       montant.update!(value: '10')
+      # pf: cascade explicite — c'est désormais le caller (controller,
+      # mutation, service) qui déclenche le recalcul après modification
+      # d'un champ source. Ici on simule l'appel typique d'un controller.
+      dossier.refresh_formulas_after(montant)
 
       # Vérifier que les DEUX niveaux sont recalculés en DB
       expect(double_champ.reload.read_attribute(:value)).to eq('20')
@@ -115,7 +125,10 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
 
     it 'ne provoque pas de cascade infinie (pas de StackOverflow)' do
       montant = find_champ(dossier, montant_tdc)
-      expect { montant.update!(value: '999') }.not_to raise_error
+      expect {
+        montant.update!(value: '999')
+        dossier.refresh_formulas_after(montant)
+      }.not_to raise_error
     end
   end
 
@@ -257,6 +270,134 @@ RSpec.describe 'Formule cascade refresh_dependent_formulas', type: :model do
       source_champ.update_column(:stream, Champ::USER_BUFFER_STREAM)
 
       expect { source_champ.update!(value: '50') }.not_to raise_error
+    end
+  end
+
+  # ----------------------------------------------------------------------
+  # Scénario : formule-agrégat sur bloc répétable (étape E du chantier)
+  # ----------------------------------------------------------------------
+  # pf: Une formule HORS bloc agrège un sous-champ de toutes les lignes
+  # (SOMME({Lignes/Prix HT})) ou compte les lignes (NB({Lignes})). Sa
+  # dépendance est enregistrée au niveau BLOC (granularité bloc). On vérifie
+  # que la cascade explicite la recalcule dans les 3 déclencheurs :
+  #   - modification d'un sous-champ d'une ligne existante
+  #   - ajout d'une ligne
+  #   - suppression d'une ligne
+  describe 'agrégat sur bloc répétable' do
+    let(:procedure) do
+      create(:procedure, :published, types_de_champ_public: [
+        {
+          type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+            { type: :integer_number, libelle: 'Prix HT' },
+          ],
+        },
+        { type: :formule, libelle: 'Total' },
+        { type: :formule, libelle: 'Nb lignes' },
+      ])
+    end
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:bloc_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Lignes' } }
+    let(:prix_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Prix HT' } }
+    let(:total_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Total' } }
+    let(:nb_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Nb lignes' } }
+
+    def add_row(prix)
+      row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+      # pf: simule le flux controller — la saisie du sous-champ déclenche elle
+      # aussi refresh_formulas_after (repetition_add_row ne refresh qu'à l'ajout,
+      # quand le sous-champ est encore vide).
+      sub = dossier.champ_for_update(prix_tdc, row_id:, updated_by: 'test')
+      sub.update!(value: prix.to_s)
+      dossier.refresh_formulas_after(sub)
+      row_id
+    end
+
+    before do
+      set_formule_expression(dossier, total_tdc, "SOMME({tdc#{bloc_tdc.stable_id}/sub_#{prix_tdc.stable_id}})")
+      set_formule_expression(dossier, nb_tdc, "COUNT({tdc#{bloc_tdc.stable_id}})")
+    end
+
+    it 'recalcule SOMME et NB à l\'ajout d\'une ligne' do
+      add_row(100)
+      add_row(200)
+      expect(find_champ(dossier, total_tdc).reload.read_attribute(:value)).to eq('300')
+      expect(find_champ(dossier, nb_tdc).reload.read_attribute(:value)).to eq('2')
+    end
+
+    it 'recalcule SOMME à la modification d\'un sous-champ d\'une ligne existante' do
+      row_id = add_row(100)
+      add_row(200)
+      expect(find_champ(dossier, total_tdc).reload.read_attribute(:value)).to eq('300')
+
+      # modification d'un sous-champ de la 1ʳᵉ ligne → l'agrégat (dépendance
+      # niveau bloc) doit se recalculer même si sa dépendance directe est le bloc
+      sub_champ = dossier.champ_for_update(prix_tdc, row_id:, updated_by: 'test')
+      sub_champ.update!(value: '150')
+      dossier.refresh_formulas_after(sub_champ)
+
+      expect(find_champ(dossier, total_tdc).reload.read_attribute(:value)).to eq('350')
+    end
+
+    it 'recalcule SOMME et NB à la suppression d\'une ligne' do
+      add_row(100)
+      row2 = add_row(200)
+      expect(find_champ(dossier, total_tdc).reload.read_attribute(:value)).to eq('300')
+
+      dossier.repetition_remove_row(bloc_tdc, row2, updated_by: 'test')
+      expect(find_champ(dossier, total_tdc).reload.read_attribute(:value)).to eq('100')
+      expect(find_champ(dossier, nb_tdc).reload.read_attribute(:value)).to eq('1')
+    end
+  end
+
+  # ----------------------------------------------------------------------
+  # Scénario : agrégat d'une FORMULE-LIGNE (test opérationnel pour la refonte)
+  # ----------------------------------------------------------------------
+  # pf: Total = SOMME({Lignes/Montant TTC}) où Montant TTC = Prix HT × 2 (formule
+  # par ligne). Vérifie que modifier UNE source recalcule la formule-ligne PUIS
+  # l'agrégat, SANS corrompre les autres lignes. Non-régression de la fuite
+  # value_overrides (keyé stable_id, row-aveugle) : l'override d'une ligne ne
+  # doit pas s'appliquer aux autres lignes lors du recalcul des formules-ligne.
+  describe 'agrégat d\'une formule-ligne (valeurs par ligne distinctes)' do
+    let(:procedure) do
+      create(:procedure, :published, types_de_champ_public: [
+        {
+          type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+            { type: :integer_number, libelle: 'Prix HT' },
+            { type: :formule, libelle: 'Montant TTC' },
+          ],
+        },
+        { type: :formule, libelle: 'Total' },
+      ])
+    end
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:bloc_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Lignes' } }
+    let(:prix_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Prix HT' } }
+    let(:ttc_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Montant TTC' } }
+    let(:total_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Total' } }
+
+    before do
+      set_formule_expression(dossier, ttc_tdc, "{tdc#{prix_tdc.stable_id}} * 2")
+      set_formule_expression(dossier, total_tdc, "SOMME({tdc#{bloc_tdc.stable_id}/sub_#{ttc_tdc.stable_id}})")
+    end
+
+    def add_row_prix(prix)
+      row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+      dossier.champ_for_update(prix_tdc, row_id:, updated_by: 'test').update!(value: prix.to_s)
+      row_id
+    end
+
+    it 'modifier la source d\'une ligne recalcule l\'agrégat sans corrompre les autres lignes' do
+      row1 = add_row_prix(100) # TTC 200
+      add_row_prix(200)        # TTC 400
+      dossier.compute_formulas_in_order
+      expect(find_champ(dossier, total_tdc).reload.read_attribute(:value)).to eq('600')
+
+      # row1 Prix HT 100 → 150 : TTC row1 = 300, row2 reste 400 ⇒ Total 700
+      p1 = dossier.champ_for_update(prix_tdc, row_id: row1, updated_by: 'test')
+      p1.update!(value: '150')
+      dossier.refresh_formulas_after(p1)
+
+      expect(find_champ(dossier, total_tdc).reload.read_attribute(:value)).to eq('700')
     end
   end
 end

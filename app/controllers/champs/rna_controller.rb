@@ -7,5 +7,9 @@ class Champs::RNAController < Champs::ChampController
 
     @champ.fetch_association!(rna)
     @champ.update_timestamps
+    # pf: cascade explicite des formules dépendantes après mise à jour des
+    # données externes (data/value via fetch_association!). Le callback
+    # after_save sur saved_change_to_value? ratait les modifications de data.
+    @champ.dossier.refresh_formulas_after(@champ)
   end
 end

@@ -82,12 +82,19 @@ fr:
           rnf: Numéro RNF
         not_filled: Non renseigné
     errors:
+      # pf: header_section_level.gap_error est résolu par un I18n.t EXPLICITE
+      # (cf. TypeDeChamp#check_coherent_header_level) → chemin SANS `models`.
       type_de_champ:
         attributes:
           header_section_level:
             gap_error: "devrait être précédé d'un titre de niveau %{level}"
-          formule_expression:
-            invalid_field_reference: "Référence de champ invalide"
-            invalid_syntax: "Syntaxe invalide: %{message}"
-            circular_reference: "Référence circulaire détectée — cette formule s'auto-référence directement ou via une chaîne d'autres formules"
-            forward_reference: "Référence à un champ situé après la formule — une formule ne peut référencer que des champs qui la précèdent"
+      # pf: formule_expression.* est ajouté via errors.add → lookup ActiveModel
+      # standard qui passe par `models.<model>.attributes`.
+      models:
+        type_de_champ:
+          attributes:
+            formule_expression:
+              invalid_field_reference: "Référence de champ invalide"
+              invalid_syntax: "Syntaxe invalide: %{detail}"
+              circular_reference: "Référence circulaire détectée — cette formule s'auto-référence directement ou via une chaîne d'autres formules"
+              forward_reference: "Référence à un champ situé après la formule — une formule ne peut référencer que des champs qui la précèdent"

@@ -18,6 +18,18 @@ RSpec.describe UserMailer, type: :mailer do
       subject { described_class.new_account_warning(user, procedure) }
 
       it { expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path)) }
+
+      # pf: garde-fou anti-fuite (78aefa3324) — même avec preferred_domain set, lien et sender restent en PF
+      context "when user has preferred domain" do
+        let(:user) { create(:user, preferred_domain: :demarche_numerique_gouv_fr) }
+
+        it 'still uses PF host and PF sender' do
+          expect(subject.body).to have_link("Commencer la démarche « #{procedure.libelle} »", href: commencer_sign_in_url(path: procedure.path))
+          expect(header_value("From", subject)).to include(CONTACT_EMAIL)
+          expect(subject.body.to_s).not_to include("demarches.numerique.gouv.fr")
+          expect(subject.body.to_s).not_to include("demarche.numerique.gouv.fr")
+        end
+      end
     end
 
     context 'without SafeMailer configured' do

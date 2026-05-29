@@ -140,6 +140,18 @@ RSpec.describe NotificationMailer, type: :mailer do
         expect(mail.body).to include(dossier.individual.nom)
         expect(mail.body).to have_link(href: dossier_url(dossier))
       end
+
+      # pf: garde-fou anti-fuite (78aefa3324) — même avec preferred_domain set, liens et sender restent en PF
+      context "when user has preferred domain" do
+        let(:user) { create(:user, preferred_domain: :demarche_numerique_gouv_fr) }
+
+        it 'still uses PF host and PF sender' do
+          expect(mail.body).to have_link(href: dossier_url(dossier))
+          expect(header_value("From", mail)).to eq(NO_REPLY_EMAIL)
+          expect(mail.body.to_s).not_to include("demarches.numerique.gouv.fr")
+          expect(mail.body.to_s).not_to include("demarche.numerique.gouv.fr")
+        end
+      end
     end
 
     context 'when the template body contains HTML' do

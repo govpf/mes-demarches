@@ -90,6 +90,56 @@ RSpec.describe TypesDeChamp::FormulaValidator do
     end
   end
 
+  # pf: agrégat sur bloc répétable — {tdc<bloc>} (COUNT) et {tdc<bloc>/sub_<id>} (SOMME).
+  context 'with an aggregate formula referencing a preceding repetition block' do
+    let(:types) do
+      [
+        {
+          type: :repetition, libelle: 'Facture', mandatory: false, children: [
+            { type: :integer_number, libelle: 'Prix HT' },
+          ],
+        },
+        { type: :formule, libelle: 'Total' },
+      ]
+    end
+    let(:revision) { procedure.draft_revision }
+    let(:bloc_tdc) { revision.types_de_champ.find { _1.libelle == 'Facture' } }
+    let(:prix_tdc) { revision.types_de_champ.find { _1.libelle == 'Prix HT' } }
+    let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Total' } }
+
+    it 'accepts NB({bloc}) sans erreur' do
+      formule_tdc.update_column(:options, { 'formule_expression' => "NB({tdc#{bloc_tdc.stable_id}})" })
+      expect { subject }.not_to change { procedure.errors.count }
+    end
+
+    it 'accepts SOMME({bloc/sous-champ}) sans erreur' do
+      formule_tdc.update_column(:options, { 'formule_expression' => "SOMME({tdc#{bloc_tdc.stable_id}/sub_#{prix_tdc.stable_id}})" })
+      expect { subject }.not_to change { procedure.errors.count }
+    end
+  end
+
+  context 'with an aggregate referencing a repetition block placed AFTER the formula' do
+    let(:types) do
+      [
+        { type: :formule, libelle: 'Total' },
+        {
+          type: :repetition, libelle: 'Facture', mandatory: false, children: [
+            { type: :integer_number, libelle: 'Prix HT' },
+          ],
+        },
+      ]
+    end
+    let(:revision) { procedure.draft_revision }
+    let(:bloc_tdc) { revision.types_de_champ.find { _1.libelle == 'Facture' } }
+    let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Total' } }
+
+    it 'adds an error (le bloc ne précède pas la formule)' do
+      formule_tdc.update_column(:options, { 'formule_expression' => "NB({tdc#{bloc_tdc.stable_id}})" })
+      expect { subject }.to change { procedure.errors.count }.by_at_least(1)
+      expect(procedure.errors.full_messages.join).to include('bloc')
+    end
+  end
+
   context 'with a private formula referencing a public champ' do
     let(:procedure) do
       create(:procedure, types_de_champ_public: [

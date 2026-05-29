@@ -160,6 +160,38 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       expect(formule_tdc).not_to be_valid
       expect(formule_tdc.errors[:formule_expression]).to be_present
     end
+
+    # pf: Non-régression — l'éditeur propose les siblings antérieurs d'un même
+    # bloc, la validation backend doit accepter cette référence (le bug
+    # historique faisait diverger éditeur et validation, les siblings étaient
+    # rejetés alors qu'ils étaient proposés).
+    context 'formula in repetition referencing a sibling field' do
+      let(:procedure) {
+        create(:procedure, :published, types_de_champ_public: [
+          {
+            type: :repetition, libelle: 'Bloc', children: [
+              { type: :integer_number, libelle: 'Sibling antérieur' },
+              { type: :formule, libelle: 'Formule sibling' },
+              { type: :integer_number, libelle: 'Sibling postérieur' },
+            ],
+          },
+        ])
+      }
+      let(:sibling_before_tdc) { revision.types_de_champ.find { |t| t.libelle == 'Sibling antérieur' } }
+      let(:sibling_after_tdc) { revision.types_de_champ.find { |t| t.libelle == 'Sibling postérieur' } }
+      let(:formule_in_bloc_tdc) { revision.types_de_champ.find { |t| t.libelle == 'Formule sibling' } }
+
+      it 'accepts a sibling that precedes the formula in the same row' do
+        formule_in_bloc_tdc.formule_expression = "{tdc#{sibling_before_tdc.stable_id}} * 2"
+        expect(formule_in_bloc_tdc).to be_valid
+      end
+
+      it 'rejects a sibling that follows the formula in the same row' do
+        formule_in_bloc_tdc.formule_expression = "{tdc#{sibling_after_tdc.stable_id}} * 2"
+        expect(formule_in_bloc_tdc).not_to be_valid
+        expect(formule_in_bloc_tdc.errors[:formule_expression]).to be_present
+      end
+    end
   end
 
   describe '#infer_output_type' do
@@ -378,6 +410,204 @@ describe TypesDeChamp::FormuleTypeDeChamp do
 
     it 'returns 0 seconds as formule fields are not fillable' do
       expect(formule_type_de_champ.estimated_fill_duration(revision)).to eq(0.seconds)
+    end
+  end
+
+  # pf: formule_deps est un Hash structuré stocké dans options['formule_deps']
+  # calculé à chaque validation. Il remplace les anciens flags booléens
+  # clock_dependent / state_dependent (supprimés à l'étape F). Convention : clés absentes <=> false.
+  describe 'formule_deps computation' do
+    subject(:deps) do
+      type_de_champ.valid?
+      type_de_champ.options['formule_deps']
+    end
+
+    context 'with a single tdc reference' do
+      let(:expression) { '{tdc42}' }
+
+      it 'stores the stable_id in champs, no other keys' do
+        expect(deps).to eq('champs' => [42])
+      end
+    end
+
+    context 'with duplicate tdc references' do
+      let(:expression) { '{tdc42} + {tdc78} + {tdc42}' }
+
+      it 'deduplicates and sorts the stable_ids' do
+        expect(deps['champs']).to eq([42, 78])
+      end
+    end
+
+    context 'with a path suffix in the tdc reference' do
+      let(:expression) { '{tdc42/nom}' }
+
+      it 'strips the path and stores only the stable_id' do
+        expect(deps['champs']).to eq([42])
+      end
+    end
+
+    # pf: étape D du chantier agrégat — une formule-agrégat référence un bloc
+    # répétable via {tdc<bloc>} ou un de ses sous-champs via {tdc<bloc>/sub_<id>}.
+    # Dans les deux cas, c'est le stable_id du BLOC qui doit être enregistré
+    # comme dépendance (granularité bloc : toute modif d'une ligne ou ajout/
+    # suppression recalcule l'agrégat). Le path /sub_<id> est ignoré comme
+    # n'importe quel suffixe.
+    context 'with a repetition aggregate reference {tdc<bloc>/sub_<id>}' do
+      let(:expression) { 'SOMME({tdc100/sub_101})' }
+
+      it 'stores the bloc stable_id (not the sub-champ)' do
+        expect(deps['champs']).to eq([100])
+      end
+    end
+
+    context 'with a bare bloc reference {tdc<bloc>}' do
+      let(:expression) { 'NB({tdc100})' }
+
+      it 'stores the bloc stable_id' do
+        expect(deps['champs']).to eq([100])
+      end
+    end
+
+    context 'mixing aggregate refs of the same bloc' do
+      let(:expression) { 'SOMME({tdc100/sub_101}) - SOMME({tdc100/sub_102})' }
+
+      it 'deduplicates to a single bloc dependency' do
+        expect(deps['champs']).to eq([100])
+      end
+    end
+
+    context 'with AUJOURDHUI() (clock function)' do
+      let(:expression) { 'AUJOURDHUI() + DUREE_JOURS(7)' }
+
+      it 'sets has_clock, no champs' do
+        expect(deps['has_clock']).to be(true)
+        expect(deps['champs']).to eq([])
+      end
+    end
+
+    # pf: BUG cible de l'étape D — REGEX matche "AGE(" dans un littéral string,
+    # l'AST ne le fait pas. Ce test garantit que la détection via l'AST est
+    # correcte et que le regex naïf n'est PAS utilisé pour has_clock.
+    context 'with AGE inside a string literal (not a function call)' do
+      let(:expression) { 'CONCATENER("AGE(x) literal", {tdc42})' }
+
+      it 'does not set has_clock (AGE inside string does not count)' do
+        expect(deps).not_to have_key('has_clock')
+      end
+
+      it 'still captures the tdc reference' do
+        expect(deps['champs']).to eq([42])
+      end
+    end
+
+    context 'with a dossier state timestamp reference' do
+      let(:expression) { '{dossier_depose_at}' }
+
+      it 'sets has_state' do
+        expect(deps['has_state']).to be(true)
+        expect(deps['champs']).to eq([])
+      end
+    end
+
+    context 'with individual identity reference' do
+      let(:expression) { '{individual_last_name}' }
+
+      it 'sets has_identite' do
+        expect(deps['has_identite']).to be(true)
+        expect(deps['champs']).to eq([])
+      end
+    end
+
+    context 'with entreprise identity reference' do
+      let(:expression) { '{entreprise_siret}' }
+
+      it 'sets has_identite' do
+        expect(deps['has_identite']).to be(true)
+        expect(deps['champs']).to eq([])
+      end
+    end
+
+    context 'with mixed champ reference, clock function, no state/identite' do
+      let(:expression) { 'SI(AGE({tdc42}) > 18, "OK", "KO")' }
+
+      it 'captures champ and clock, but not state or identite' do
+        expect(deps['champs']).to eq([42])
+        expect(deps['has_clock']).to be(true)
+        expect(deps).not_to have_key('has_state')
+        expect(deps).not_to have_key('has_identite')
+      end
+    end
+
+    # pf: non-régression — Dentaku::AST::Negation stocke son opérande dans @node,
+    # pas dans :left/:right. Sans le guard :node, -AGE({tdc42}) retournait
+    # has_clock=false (enfant ignoré silencieusement).
+    context 'with clock function nested under a Negation node' do
+      let(:expression) { '-AGE({tdc42}) + 100' }
+
+      it 'detects clock function nested under a Negation node' do
+        expect(deps['has_clock']).to be(true)
+      end
+    end
+
+    context 'with blank expression' do
+      let(:expression) { '' }
+
+      it 'stores only the champs key with empty array' do
+        expect(deps).to eq('champs' => [])
+      end
+    end
+
+    # pf: non-régression — formule_deps doit couvrir les cas has_clock et has_state
+    # (les anciens flags clock_dependent / state_dependent ont été supprimés à l'étape F).
+    context 'non-regression: formule_deps covers clock and state detection' do
+      context "AUJOURDHUI() sets has_clock" do
+        let(:expression) { 'AUJOURDHUI()' }
+
+        it "sets formule_deps['has_clock'] to true" do
+          type_de_champ.valid?
+          expect(type_de_champ.formule_deps&.[]('has_clock')).to be(true)
+        end
+      end
+
+      context "dossier timestamp reference sets has_state" do
+        let(:expression) { '{dossier_en_instruction_at}' }
+
+        it "sets formule_deps['has_state'] to true" do
+          type_de_champ.valid?
+          expect(type_de_champ.formule_deps&.[]('has_state')).to be(true)
+        end
+      end
+
+      context 'no clock, no state' do
+        let(:expression) { '1 + 1' }
+
+        it "does not set formule_deps['has_clock']" do
+          type_de_champ.valid?
+          expect(type_de_champ.formule_deps).not_to have_key('has_clock')
+        end
+
+        it "does not set formule_deps['has_state']" do
+          type_de_champ.valid?
+          expect(type_de_champ.formule_deps).not_to have_key('has_state')
+        end
+      end
+    end
+  end
+
+  # pf: invariant de durabilité — les symboles de CLOCK_FUNCTION_NAMES doivent
+  # correspondre à des fonctions effectivement enregistrées dans le calculateur
+  # Dentaku. Ce test échouera si une fonction est renommée ou supprimée sans
+  # mettre à jour la constante, signalant que le discriminant class.name.is_a?(Symbol)
+  # n'est plus fiable pour cette fonction.
+  describe 'CLOCK_FUNCTION_NAMES invariant' do
+    it 'all clock function names are registered in the Dentaku calculator' do
+      calc = FormulaCalculationService.new_calculator
+      registry = calc.instance_variable_get(:@function_registry)
+      TypesDeChamp::FormuleTypeDeChamp::CLOCK_FUNCTION_NAMES.each do |sym|
+        klass = registry.get(sym)
+        expect(klass).not_to be_nil, "#{sym} is listed in CLOCK_FUNCTION_NAMES but not registered in the calculator"
+        expect(klass.name).to eq(sym), "#{sym} registered class name mismatch: expected #{sym.inspect}, got #{klass.name.inspect}"
+      end
     end
   end
 end

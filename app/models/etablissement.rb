@@ -233,9 +233,21 @@ class Etablissement < ApplicationRecord
   end
 
   def update_champ_value_json!
-    return if champ.nil?
-
-    champ.update!(value_json: champ_value_json)
+    if champ.present?
+      champ.update!(value_json: champ_value_json)
+      # pf: cascade explicite des formules — value_json vient de changer,
+      # déclenche le recalcul transitif des formules qui en dépendent.
+      # Couvre aussi les retours des jobs entreprise (kbis, exercices...)
+      # qui rapatrient des données et rappellent cette méthode.
+      champ.dossier.refresh_formulas_after(champ)
+    elsif dossier.present?
+      # pf: SIRET au niveau dossier (formulaire d'identité d'entreprise) —
+      # pas de Champ source identifiable. Une formule peut lire
+      # entreprise.raison_commerciale, etablissement.adresse, etc., qui
+      # sont résolues via dossier.etablissement. Recalcul global pour
+      # toutes les formules de la révision.
+      dossier.compute_formulas_in_order
+    end
   end
 
   def champ_value_json

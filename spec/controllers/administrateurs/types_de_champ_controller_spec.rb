@@ -103,6 +103,38 @@ describe Administrateurs::TypesDeChampController, type: :controller do
       end
     end
 
+    context 'when updating a formule TDC with an invalid expression' do
+      let(:procedure) do
+        create(:procedure,
+               types_de_champ_public: [
+                 { type: :formule, libelle: 'Ma formule', formule_expression: '1 + 1' },
+               ])
+      end
+
+      def formule_coordinate = procedure.draft_revision.revision_types_de_champ_public.first
+
+      it 'sets @has_errors so the view shows the failure toast' do
+        post :update, params: {
+          procedure_id: procedure.id,
+          stable_id: formule_coordinate.stable_id,
+          type_de_champ: { formule_expression: 'FONCTION_INEXISTANTE()' },
+        }, format: :turbo_stream
+        expect(assigns(:has_errors)).to be true
+        expect(assigns(:morphed)).to be_present
+        expect(flash.alert).to be_nil
+      end
+
+      it 'does NOT set @has_errors on successful update' do
+        post :update, params: {
+          procedure_id: procedure.id,
+          stable_id: formule_coordinate.stable_id,
+          type_de_champ: { formule_expression: '2 + 2' },
+        }, format: :turbo_stream
+        expect(assigns(:has_errors)).to be_falsey
+        expect(flash.alert).to be_nil
+      end
+    end
+
     context 'rejected if type changed and routing involved' do
       let(:params) do
         default_params.deep_merge(type_de_champ: { type_champ: 'text', stable_id: third_coordinate.stable_id })

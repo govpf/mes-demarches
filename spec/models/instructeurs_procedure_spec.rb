@@ -1,6 +1,32 @@
 # frozen_string_literal: true
 
 RSpec.describe InstructeursProcedure, type: :model do
+  # pf: défauts PF historiques préservés lors de la migration upstream des préférences email
+  # vers instructeurs_procedures (cf. migration 20230907 sur assign_tos + PF 20260525).
+  describe 'PF email notification defaults' do
+    it 'defaults instant_email_new_dossier / new_message to true via ActiveRecord' do
+      ip = create(:instructeurs_procedure)
+      expect(ip.reload.instant_email_new_dossier).to eq(true)
+      expect(ip.reload.instant_email_new_message).to eq(true)
+    end
+
+    it 'defaults instant_email_new_dossier / new_message to true via insert_all (bypass AR)' do
+      instructeur = create(:instructeur)
+      procedure = create(:procedure)
+      InstructeursProcedure.insert_all([{ instructeur_id: instructeur.id, procedure_id: procedure.id, position: 0 }])
+      ip = InstructeursProcedure.find_by!(instructeur:, procedure:)
+      expect(ip.instant_email_new_dossier).to eq(true)
+      expect(ip.instant_email_new_message).to eq(true)
+    end
+
+    it 'keeps upstream defaults (false) for daily / weekly / avis summaries' do
+      ip = create(:instructeurs_procedure)
+      expect(ip.daily_email_summary).to eq(false)
+      expect(ip.weekly_email_summary).to eq(false)
+      expect(ip.instant_email_new_expert_avis).to eq(false)
+    end
+  end
+
   describe '.update_instructeur_procedures_positions' do
     let(:instructeur) { create(:instructeur) }
     let!(:procedures) { create_list(:procedure, 5, published_at: Time.current) }
