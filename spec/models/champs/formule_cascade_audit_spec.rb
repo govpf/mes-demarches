@@ -348,4 +348,56 @@ RSpec.describe 'Formule cascade refresh_formulas_after', type: :model do
       expect(find_champ(dossier, nb_tdc).reload.read_attribute(:value)).to eq('1')
     end
   end
+
+  # ----------------------------------------------------------------------
+  # Scénario : agrégat d'une FORMULE-LIGNE (test opérationnel pour la refonte)
+  # ----------------------------------------------------------------------
+  # pf: Total = SOMME({Lignes/Montant TTC}) où Montant TTC = Prix HT × 2 (formule
+  # par ligne). Vérifie que modifier UNE source recalcule la formule-ligne PUIS
+  # l'agrégat, SANS corrompre les autres lignes. Non-régression de la fuite
+  # value_overrides (keyé stable_id, row-aveugle) : l'override d'une ligne ne
+  # doit pas s'appliquer aux autres lignes lors du recalcul des formules-ligne.
+  describe 'agrégat d\'une formule-ligne (valeurs par ligne distinctes)' do
+    let(:procedure) do
+      create(:procedure, :published, types_de_champ_public: [
+        {
+          type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+            { type: :integer_number, libelle: 'Prix HT' },
+            { type: :formule, libelle: 'Montant TTC' },
+          ],
+        },
+        { type: :formule, libelle: 'Total' },
+      ])
+    end
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:bloc_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Lignes' } }
+    let(:prix_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Prix HT' } }
+    let(:ttc_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Montant TTC' } }
+    let(:total_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Total' } }
+
+    before do
+      set_formule_expression(dossier, ttc_tdc, "{tdc#{prix_tdc.stable_id}} * 2")
+      set_formule_expression(dossier, total_tdc, "SOMME({tdc#{bloc_tdc.stable_id}/sub_#{ttc_tdc.stable_id}})")
+    end
+
+    def add_row_prix(prix)
+      row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+      dossier.champ_for_update(prix_tdc, row_id:, updated_by: 'test').update!(value: prix.to_s)
+      row_id
+    end
+
+    it 'modifier la source d\'une ligne recalcule l\'agrégat sans corrompre les autres lignes' do
+      row1 = add_row_prix(100) # TTC 200
+      add_row_prix(200)        # TTC 400
+      dossier.compute_formulas_in_order
+      expect(find_champ(dossier, total_tdc).reload.read_attribute(:value)).to eq('600')
+
+      # row1 Prix HT 100 → 150 : TTC row1 = 300, row2 reste 400 ⇒ Total 700
+      p1 = dossier.champ_for_update(prix_tdc, row_id: row1, updated_by: 'test')
+      p1.update!(value: '150')
+      dossier.refresh_formulas_after(p1)
+
+      expect(find_champ(dossier, total_tdc).reload.read_attribute(:value)).to eq('700')
+    end
+  end
 end

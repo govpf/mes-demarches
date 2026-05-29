@@ -508,13 +508,20 @@ class FormulaCalculationService
 
   # pf: Calcule la valeur d'une formule-ligne pour une row donnée, sans dépendre
   # d'un Champ persisté. Réutilise un Champ existant si présent, sinon en build
-  # un in-memory. Un service dédié (scopé sur le row via compute_value →
-  # @row_id) résout les siblings de la ligne. value_overrides partagé pour la
-  # transitivité amont.
+  # un in-memory. Un service dédié (scopé sur le row via compute_value → @row_id)
+  # résout les siblings de la ligne depuis all_champs (valeurs par ligne).
+  #
+  # pf: on NE propage PAS @value_overrides : il est keyé par stable_id (row-aveugle),
+  # donc l'override d'un sous-champ d'UNE ligne (ex: Prix HT row1 = 150 fraîchement
+  # modifié) fuirait sur TOUTES les lignes et corromprait l'agrégat (row2 calculerait
+  # avec 150 au lieu de sa propre valeur). Les valeurs par ligne sont lues fraîches
+  # depuis all_champs (sources persistées). La limitation per-row de value_overrides
+  # est ce que la refonte « passe accumulante » (keyée par (stable_id, row_id))
+  # résoudra proprement — cf. docs/superpowers/specs/2026-05-28-formule-passe-accumulante-design.md.
   def compute_line_formula_value(sub_tdc, row_id)
     champ = all_champs.find { |c| c.stable_id == sub_tdc.stable_id && c.row_id == row_id }
     champ ||= sub_tdc.build_champ(dossier: @dossier, row_id:, stream: @dossier.stream)
-    self.class.new(@dossier, locale: @locale, value_overrides: @value_overrides).compute_value(champ)
+    self.class.new(@dossier, locale: @locale).compute_value(champ)
   end
 
   # pf: Conversion typée d'un champ sous-TDC vers le type Ruby attendu par
