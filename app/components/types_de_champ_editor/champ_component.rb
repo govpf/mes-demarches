@@ -46,7 +46,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     # Optimize: create hash map to avoid N+1 queries
     @types_de_champ_by_stable_id ||= revision.types_de_champ.index_by(&:stable_id)
 
-    coordinate.available_columns_for_formula.map do |col|
+    base = coordinate.available_columns_for_formula.map do |col|
       {
         id: encode_column_id(col),
         label: col.label,
@@ -54,6 +54,39 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
         category: col.table,
         paths: extract_sub_paths(col),
       }.compact
+    end
+
+    # pf: entrées bloc-agrégat — un bloc répétable placé AVANT la formule peut
+    # être agrégé : NB({Bloc}) ou SOMME({Bloc/Sous-champ}). On expose le bloc
+    # comme colonne (label = libellé du bloc → {tdc<bloc>}) avec un `path` par
+    # sous-champ (label composite "Bloc/Sous-champ" → {tdc<bloc>/sub_<id>}). Le
+    # JS convertToColumnIds mappe ces labels sans modification (cf.
+    # formula_editor_controller.ts).
+    base + repetition_aggregate_columns
+  end
+
+  # pf: blocs répétables agrégables (placés avant la formule) + leurs sous-champs.
+  def repetition_aggregate_columns
+    reference_position = coordinate.parent&.position || coordinate.position
+    own_parent_sid = coordinate.parent_type_de_champ&.stable_id
+
+    revision.types_de_champ.filter_map do |tdc|
+      next unless tdc.repetition?
+      next if tdc.stable_id == own_parent_sid
+
+      bloc_coordinate = revision.coordinate_for(tdc)
+      next if bloc_coordinate.nil? || bloc_coordinate.position >= reference_position
+
+      sub_paths = revision.children_of(tdc).filter(&:fillable?).map do |sub|
+        { path: "sub_#{sub.stable_id}", label: "#{tdc.libelle}/#{sub.libelle}" }
+      end
+
+      {
+        id: "tdc#{tdc.stable_id}",
+        label: tdc.libelle,
+        type: 'repetition',
+        paths: sub_paths,
+      }
     end
   end
 
