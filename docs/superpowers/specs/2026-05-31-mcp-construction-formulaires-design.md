@@ -55,6 +55,19 @@ Machine de l'admin                                  mes-demarches
 - **Lecture** : réutilise les `query` GraphQL existantes (procédure, descripteurs de champ),
   enrichies (cf. §6). L'introspection GraphQL sert de documentation aux outils MCP.
 
+### Organisation : deux repos (décidé)
+
+- **Mutations GraphQL** → dans `mes-demarches` (code Rails, indissociable de l'API).
+- **Serveur MCP (TypeScript)** → **repo séparé** (`mcp_mes_demarches`, voisin de
+  `mes-demarches`). Motifs : cloisonnement (accès/déploiement/secrets séparés), hygiène
+  vis-à-vis de la sync upstream permanente de `mes-demarches` (le serveur MCP est insensible
+  aux `feature/bump-*`), toolchain Node isolée du repo Ruby, mapping direct sur le service
+  déployable de la Phase B.
+- **Contrat de schéma** : le serveur MCP consomme l'API comme un client GraphQL classique. Il
+  s'appuie sur l'artefact déjà versionné `app/graphql/schema.graphql` (dump
+  `graphql:schema:dump`) pour son codegen de types, en épinglant une version. Pas de couplage
+  runtime.
+
 ### Pourquoi GraphQL (vs REST dédié)
 
 Réutilise l'auth scopée (`APIToken`), le routing, le rate-limiting et le typage déjà en
