@@ -159,32 +159,30 @@ Sur une démarche publiée, un champ ne peut presque jamais changer de type (pou
 migration / le *cast* des valeurs des dossiers existants). **La règle existe déjà et vit dans
 le code Rails, pas dans le prompt.**
 
-**Source de vérité repérée :**
-- `Columns::ChampColumn::CAST` — matrice des conversions de type autorisées (quels types
-  cibles permettent de caster les valeurs des dossiers existants).
-- `TypesDeChampEditor::ChampComponent#accepted_type_champs` — calcule les types cibles
-  valides : si le champ existe dans la **révision publiée**, autorisés =
-  `[type_publié] + CAST[type_publié]` ; sinon (champ neuf, brouillon seulement) → tous les
-  types. C'est exactement la logique qui grise les options impossibles dans le dropdown de
-  l'éditeur.
-- `#disabled_type_de_champ_select?` — verrouille aussi le type si `used_by_routing_rules?`
-  ou `used_by_ineligibilite_rules?`, ou s'il ne reste qu'un seul type accepté.
+**Contexte de friction upstream :** la règle fine vit dans le composant d'éditeur
+`TypesDeChampEditor::ChampComponent#accepted_type_champs` (via `Columns::ChampColumn::CAST`),
+qui grise les types impossibles dans le dropdown. C'est une **feature upstream récente et
+volatile** : la déplacer ou la refactorer créerait des conflits de merge à chaque
+`feature/bump-*`. De plus, la sécurité de migration n'est **pas** une validation modèle —
+c'est l'UI qui contraint. Une mutation doit donc porter sa **propre** garde.
 
-**Action d'architecture (amélioration ciblée du code touché) :** cette logique vit
-aujourd'hui dans un **composant de vue** (`ChampComponent`), inaccessible à une mutation
-GraphQL. Il faut l'**extraire dans un point partagé** (méthode sur `TypeDeChamp` /
-`ProcedureRevisionTypeDeChamp` ou un petit service) que **trois consommateurs** réutilisent :
-l'éditeur web (existant), la mutation `demarcheModifierChamp`, et le descripteur lu par
-Claude. Source unique, zéro duplication de la règle.
+**Décision (mode simple, MVP) : aucun refactor de mes-demarches.** `demarcheModifierChamp`
+applique une règle conservatrice, dans du **code PF isolé** (`# pf:`) qui ne dépend ni de
+`ChampComponent` ni de `Columns::ChampColumn::CAST` :
 
-Deux mécanismes complémentaires côté MCP, branchés sur cette logique partagée :
+1. **Garde-fou dur** — changement de type **interdit dès que le champ existe dans la révision
+   publiée**. Test sur modèles stables : `procedure.published_revision&.types_de_champ&.exists?(stable_id:)`.
+   → mutation **échoue avec message explicite** (« le type d'un champ déjà publié n'est pas
+   modifiable via le MCP, utilisez l'éditeur web »). Claude ne peut pas contourner.
+2. **Champ neuf (brouillon seul)** — tous les types permis (aucun dossier à migrer).
+3. **Lecture proactive** — le descripteur porte `type_modifiable: bool` (= le champ n'est pas
+   dans la révision publiée). Claude sait avant d'essayer et l'explique à l'admin.
 
-1. **Refus structuré (garde-fou dur)** — `demarcheModifierChamp` rejette un changement vers
-   un type hors `accepted_type_champs` (et hérite des garde-fous routage / inéligibilité) →
-   mutation **échoue avec message explicite** remonté à Claude. Claude ne peut pas contourner.
-2. **Lecture proactive (UX)** — le descripteur de champ lu par Claude porte `type_modifiable:
-   bool` et `types_cibles_autorisés: [...]` (dérivés de `accepted_type_champs`). Claude sait
-   **avant d'essayer** et l'explique à l'admin.
+C'est volontairement **plus restrictif** que l'éditeur web (qui autorise les morphs
+*compatibles* via `CAST`) : changer le type d'un champ publié vers un type compatible reste
+faisable à la main dans l'UI. On évite ainsi tout refactor de code upstream volatile. Un mode
+plus fin (lecture seule de `Columns::ChampColumn::CAST`, sans toucher au composant) est
+possible en v2 si le besoin émerge.
 
 ## 8. Hors périmètre
 
@@ -210,10 +208,10 @@ Deux mécanismes complémentaires côté MCP, branchés sur cette logique partag
 
 ## 10. Risques & points ouverts
 
-- ~~Localisation de la validation de changement de type~~ **Résolu** (cf. §7) :
-  `Columns::ChampColumn::CAST` + `ChampComponent#accepted_type_champs`. Reste à **extraire**
-  cette logique du composant de vue vers un point partagé avant d'implémenter
-  `demarcheModifierChamp`.
+- **Changement de type** (cf. §7) : mode simple MVP = interdiction sur champ déjà publié,
+  dans du **code PF isolé**, **sans aucun refactor** du composant upstream volatile
+  `ChampComponent`. Compromis assumé : plus restrictif que l'UI web (pas de morph compatible
+  via MCP). Évite la friction de merge upstream.
 - Verrouillage concurrent : `find_and_ensure_exclusive_use` existe déjà côté Rails ; vérifier
   son comportement quand Claude enchaîne plusieurs mutations rapprochées.
 - Coût de la plomberie GraphQL pour chaque mutation (type + descriptor + résolution + dump).
