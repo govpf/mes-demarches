@@ -142,6 +142,7 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
     it 'supprime le champ du brouillon' do
       expect(data[:demarcheSupprimerChamp][:errors]).to be_nil
+      expect(data[:demarcheSupprimerChamp][:champStableId]).to eq(stable_id.to_s)
       expect(procedure.draft_revision.reload.types_de_champ).to be_empty
     end
 
