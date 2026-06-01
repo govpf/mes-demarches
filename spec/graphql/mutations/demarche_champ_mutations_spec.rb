@@ -81,4 +81,67 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
       end
     end
   end
+
+  describe 'demarcheModifierChamp' do
+    let(:query) do
+      <<-GRAPHQL
+      mutation($input: DemarcheModifierChampInput!) {
+        demarcheModifierChamp(input: $input) {
+          champStableId
+          errors { message }
+        }
+      }
+      GRAPHQL
+    end
+    let(:stable_id) { procedure.draft_revision.types_de_champ.first.stable_id }
+
+    context 'modification du libellé' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, libelle: 'Nom complet' } }
+      end
+
+      it 'met à jour le libellé' do
+        expect(data[:demarcheModifierChamp][:errors]).to be_nil
+        expect(procedure.draft_revision.reload.types_de_champ.first.libelle).to eq('Nom complet')
+      end
+    end
+
+    context 'changement de type INCOMPATIBLE sur un champ déjà publié' do
+      # text → date n'est pas dans ACCEPTED_TYPES["text"], donc interdit
+      let(:procedure) { create(:procedure, :published, administrateurs: [admin], types_de_champ_public: [{ type: :text, libelle: 'Nom' }]) }
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'date' } }
+      end
+
+      it 'est refusé' do
+        expect(data[:demarcheModifierChamp][:champStableId]).to be_nil
+        expect(data[:demarcheModifierChamp][:errors].first[:message]).to include('compatible')
+      end
+    end
+
+    context 'changement de type COMPATIBLE sur un champ déjà publié' do
+      # text → textarea est dans ACCEPTED_TYPES["text"] (dérivé de Columns::ChampColumn::CAST)
+      let(:procedure) { create(:procedure, :published, administrateurs: [admin], types_de_champ_public: [{ type: :text, libelle: 'Nom' }]) }
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'textarea' } }
+      end
+
+      it 'est autorisé (réutilise ACCEPTED_TYPES)' do
+        expect(data[:demarcheModifierChamp][:errors]).to be_nil
+        expect(procedure.draft_revision.reload.types_de_champ.first.type_champ).to eq('textarea')
+      end
+    end
+
+    context 'changement de type sur un champ seulement en brouillon' do
+      # Aucune restriction : le champ n'est pas encore publié, aucun dossier existant à migrer
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'date' } }
+      end
+
+      it 'est autorisé (aucun dossier à migrer)' do
+        expect(data[:demarcheModifierChamp][:errors]).to be_nil
+        expect(procedure.draft_revision.reload.types_de_champ.first.type_champ).to eq('date')
+      end
+    end
+  end
 end
