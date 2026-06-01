@@ -37,6 +37,9 @@ module Types
     field :groupe_instructeur_creer, mutation: Mutations::GroupeInstructeurCreer
     field :groupe_instructeur_ajouter_instructeurs, mutation: Mutations::GroupeInstructeurAjouterInstructeurs
     field :groupe_instructeur_supprimer_instructeurs, mutation: Mutations::GroupeInstructeurSupprimerInstructeurs
+    # pf: mutations MCP — construction de la structure d'une démarche (brouillon)
+    field :demarche_ajouter_champ, mutation: Mutations::DemarcheAjouterChamp
+
     field :demarche_cloner, mutation: Mutations::DemarcheCloner
   end
 end
