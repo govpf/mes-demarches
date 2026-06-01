@@ -261,8 +261,9 @@ Ajouter dans `spec/graphql/mutations/demarche_champ_mutations_spec.rb`, à l'int
     context 'changement de type INCOMPATIBLE sur un champ déjà publié' do
       let(:procedure) { create(:procedure, :published, administrateurs: [admin], types_de_champ_public: [{ type: :text, libelle: 'Nom' }]) }
       let(:variables) do
-        # text -> integer_number n'est PAS dans ACCEPTED_TYPES[text] (incompatible migration)
-        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'integer_number' } }
+        # text -> date n'est PAS dans ACCEPTED_TYPES["text"] (incompatible migration).
+        # NB : text -> integer_number/decimal_number/email/phone/textarea/formatted SONT compatibles (cf. CAST).
+        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'date' } }
       end
 
       it 'est refusé' do
@@ -286,12 +287,14 @@ Ajouter dans `spec/graphql/mutations/demarche_champ_mutations_spec.rb`, à l'int
 
     context 'changement de type sur un champ seulement en brouillon' do
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'integer_number' } }
+        # date est incompatible avec text en cas de migration, mais ici le champ n'est qu'en
+        # brouillon (aucun dossier) → tout type est permis.
+        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'date' } }
       end
 
       it 'est autorisé (aucun dossier à migrer)' do
         expect(data[:demarcheModifierChamp][:errors]).to be_nil
-        expect(procedure.draft_revision.reload.types_de_champ.first.type_champ).to eq('integer_number')
+        expect(procedure.draft_revision.reload.types_de_champ.first.type_champ).to eq('date')
       end
     end
   end

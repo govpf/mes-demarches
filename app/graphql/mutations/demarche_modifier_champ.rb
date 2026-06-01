@@ -34,7 +34,7 @@ module Mutations
           &.types_de_champ&.find { _1.stable_id.to_s == stable_id.to_s }&.type_champ
 
         if published_type_champ.present?
-          accepted = [published_type_champ] + TypesDeChampEditor::ChampComponent::ACCEPTED_TYPES.fetch(published_type_champ, [])
+          accepted = ([published_type_champ] + TypesDeChampEditor::ChampComponent::ACCEPTED_TYPES.fetch(published_type_champ, [])).uniq
           unless accepted.map(&:to_s).include?(type_champ.to_s)
             return { errors: ["Ce champ est déjà publié : son type ne peut être changé que vers un type compatible (#{accepted.join(', ')}), pour préserver les dossiers existants."] }
           end
@@ -45,7 +45,7 @@ module Mutations
       attrs[:libelle] = libelle unless libelle.nil?
       attrs[:description] = description unless description.nil?
       attrs[:mandatory] = obligatoire unless obligatoire.nil?
-      attrs[:type_champ] = type_champ unless type_champ.nil?
+      attrs[:type_champ] = type_champ if type_champ.present?
       return { errors: ["Aucune modification fournie."] } if attrs.empty?
 
       type_de_champ = draft.find_and_ensure_exclusive_use(stable_id)
