@@ -58,7 +58,7 @@ Machine de l'admin                                  mes-demarches
 ### Organisation : deux repos (décidé)
 
 - **Mutations GraphQL** → dans `mes-demarches` (code Rails, indissociable de l'API).
-- **Serveur MCP (TypeScript)** → **repo séparé** (`mcp_mes_demarches`, voisin de
+- **Serveur MCP (TypeScript)** → **repo séparé** (`mcp-mes-demarches`, voisin de
   `mes-demarches`). Motifs : cloisonnement (accès/déploiement/secrets séparés), hygiène
   vis-à-vis de la sync upstream permanente de `mes-demarches` (le serveur MCP est insensible
   aux `feature/bump-*`), toolchain Node isolée du repo Ruby, mapping direct sur le service
