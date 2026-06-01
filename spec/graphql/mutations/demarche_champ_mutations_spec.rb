@@ -51,6 +51,28 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
       end
     end
 
+    context 'parent_stable_id inexistant' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, typeChamp: 'text', libelle: 'X', parentStableId: '999999' } }
+      end
+
+      it 'retourne une erreur' do
+        expect(data[:demarcheAjouterChamp][:champStableId]).to be_nil
+        expect(data[:demarcheAjouterChamp][:errors].first[:message]).to include("n'existe pas")
+      end
+    end
+
+    context 'apres_stable_id inexistant' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, typeChamp: 'text', libelle: 'X', apresStableId: '999999' } }
+      end
+
+      it 'retourne une erreur' do
+        expect(data[:demarcheAjouterChamp][:champStableId]).to be_nil
+        expect(data[:demarcheAjouterChamp][:errors].first[:message]).to include("n'existe pas")
+      end
+    end
+
     context 'type inconnu' do
       let(:variables) do
         { input: { demarche: { number: procedure.id }, typeChamp: 'pas_un_type', libelle: 'X' } }

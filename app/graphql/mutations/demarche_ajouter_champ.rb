@@ -19,12 +19,22 @@ module Mutations
 
       return { errors: ["Type de champ inconnu : \"#{type_champ}\"."] } unless TypeDeChamp.type_champs.key?(type_champ)
 
+      draft = procedure.draft_revision
+
+      if parent_stable_id.present? && draft.coordinate_and_tdc(parent_stable_id).first.nil?
+        return { errors: ["Le champ parent \"#{parent_stable_id}\" n'existe pas dans cette démarche."] }
+      end
+
+      if apres_stable_id.present? && draft.coordinate_and_tdc(apres_stable_id).first.nil?
+        return { errors: ["Le champ \"#{apres_stable_id}\" (après lequel insérer) n'existe pas dans cette démarche."] }
+      end
+
       params = { type_champ:, libelle:, mandatory: obligatoire, private: prive }
       params[:description] = description if description.present?
       params[:parent_stable_id] = parent_stable_id if parent_stable_id.present?
       params[:after_stable_id] = apres_stable_id if apres_stable_id.present?
 
-      type_de_champ = procedure.draft_revision.add_type_de_champ(params)
+      type_de_champ = draft.add_type_de_champ(params)
 
       if type_de_champ.valid?
         { champ_stable_id: type_de_champ.stable_id.to_s }
