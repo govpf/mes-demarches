@@ -82,6 +82,47 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
     end
   end
 
+  describe 'demarcheDeplacerChamp' do
+    let(:procedure) do
+      create(:procedure, administrateurs: [admin], types_de_champ_public: [
+        { type: :text, libelle: 'Premier' },
+        { type: :text, libelle: 'Second' },
+      ])
+    end
+    let(:premier) { procedure.draft_revision.types_de_champ.first }
+    let(:second) { procedure.draft_revision.types_de_champ.second }
+
+    let(:query) do
+      <<-GRAPHQL
+      mutation($input: DemarcheDeplacerChampInput!) {
+        demarcheDeplacerChamp(input: $input) {
+          champStableId
+          errors { message }
+        }
+      }
+      GRAPHQL
+    end
+    let(:variables) do
+      { input: { demarche: { number: procedure.id }, stableId: premier.stable_id.to_s, apresStableId: second.stable_id.to_s } }
+    end
+
+    it 'place le premier champ après le second' do
+      expect(data[:demarcheDeplacerChamp][:errors]).to be_nil
+      libelles = procedure.draft_revision.reload.types_de_champ.map(&:libelle)
+      expect(libelles).to eq(['Second', 'Premier'])
+    end
+
+    context 'champ de destination inexistant' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: premier.stable_id.to_s, apresStableId: '999999' } }
+      end
+
+      it 'retourne une erreur' do
+        expect(data[:demarcheDeplacerChamp][:errors].first[:message]).to include('destination')
+      end
+    end
+  end
+
   describe 'demarcheModifierChamp' do
     let(:query) do
       <<-GRAPHQL
