@@ -53,7 +53,7 @@ Créer `spec/graphql/mutations/demarche_champ_mutations_spec.rb` :
 
 RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
   let(:admin) { create(:administrateur) }
-  let(:procedure) { create(:procedure, administrateurs: [admin], types_de_champ: [{ type: :text, libelle: 'Nom' }]) }
+  let(:procedure) { create(:procedure, administrateurs: [admin], types_de_champ_public: [{ type: :text, libelle: 'Nom' }]) }
   let(:context) { { administrateur_id: admin.id, procedure_ids: admin.procedure_ids, write_access: true } }
   let(:variables) { {} }
 
@@ -259,7 +259,7 @@ Ajouter dans `spec/graphql/mutations/demarche_champ_mutations_spec.rb`, à l'int
     end
 
     context 'changement de type INCOMPATIBLE sur un champ déjà publié' do
-      let(:procedure) { create(:procedure, :published, administrateurs: [admin], types_de_champ: [{ type: :text, libelle: 'Nom' }]) }
+      let(:procedure) { create(:procedure, :published, administrateurs: [admin], types_de_champ_public: [{ type: :text, libelle: 'Nom' }]) }
       let(:variables) do
         # text -> integer_number n'est PAS dans ACCEPTED_TYPES[text] (incompatible migration)
         { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'integer_number' } }
@@ -272,7 +272,7 @@ Ajouter dans `spec/graphql/mutations/demarche_champ_mutations_spec.rb`, à l'int
     end
 
     context 'changement de type COMPATIBLE sur un champ déjà publié' do
-      let(:procedure) { create(:procedure, :published, administrateurs: [admin], types_de_champ: [{ type: :text, libelle: 'Nom' }]) }
+      let(:procedure) { create(:procedure, :published, administrateurs: [admin], types_de_champ_public: [{ type: :text, libelle: 'Nom' }]) }
       let(:variables) do
         # text -> textarea EST dans Columns::ChampColumn::CAST (morph compatible, comme l'éditeur web)
         { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'textarea' } }
@@ -407,7 +407,7 @@ Ajouter dans le spec, dans le `RSpec.describe` racine. On part d'une procédure 
 ```ruby
   describe 'demarcheDeplacerChamp' do
     let(:procedure) do
-      create(:procedure, administrateurs: [admin], types_de_champ: [
+      create(:procedure, administrateurs: [admin], types_de_champ_public: [
         { type: :text, libelle: 'Premier' },
         { type: :text, libelle: 'Second' },
       ])
