@@ -160,29 +160,29 @@ migration / le *cast* des valeurs des dossiers existants). **La règle existe d�
 le code Rails, pas dans le prompt.**
 
 **Contexte de friction upstream :** la règle fine vit dans le composant d'éditeur
-`TypesDeChampEditor::ChampComponent#accepted_type_champs` (via `Columns::ChampColumn::CAST`),
-qui grise les types impossibles dans le dropdown. C'est une **feature upstream récente et
-volatile** : la déplacer ou la refactorer créerait des conflits de merge à chaque
-`feature/bump-*`. De plus, la sécurité de migration n'est **pas** une validation modèle —
-c'est l'UI qui contraint. Une mutation doit donc porter sa **propre** garde.
+`TypesDeChampEditor::ChampComponent#accepted_type_champs`, via la **constante publique**
+`TypesDeChampEditor::ChampComponent::ACCEPTED_TYPES` (dérivée de `Columns::ChampColumn::CAST`).
+C'est une feature upstream récente : il ne faut **ni la déplacer ni la refactorer** (conflits
+de merge à chaque `feature/bump-*`). De plus, la sécurité de migration n'est **pas** une
+validation modèle — c'est l'UI qui contraint via cette constante. Une mutation doit donc
+porter sa propre garde.
 
-**Décision (mode simple, MVP) : aucun refactor de mes-demarches.** `demarcheModifierChamp`
-applique une règle conservatrice, dans du **code PF isolé** (`# pf:`) qui ne dépend ni de
-`ChampComponent` ni de `Columns::ChampColumn::CAST` :
+**Décision : ne pas refactorer, mais RÉUTILISER en lecture sans casser l'existant.**
+`demarcheModifierChamp` référence directement la constante publique `ACCEPTED_TYPES` et les
+garde-fous de coordonnée déjà en place. Aucun fichier upstream n'est déplacé ni modifié.
+Comportement **identique à l'éditeur web** :
 
-1. **Garde-fou dur** — changement de type **interdit dès que le champ existe dans la révision
-   publiée**. Test sur modèles stables : `procedure.published_revision&.types_de_champ&.exists?(stable_id:)`.
-   → mutation **échoue avec message explicite** (« le type d'un champ déjà publié n'est pas
-   modifiable via le MCP, utilisez l'éditeur web »). Claude ne peut pas contourner.
-2. **Champ neuf (brouillon seul)** — tous les types permis (aucun dossier à migrer).
-3. **Lecture proactive** — le descripteur porte `type_modifiable: bool` (= le champ n'est pas
-   dans la révision publiée). Claude sait avant d'essayer et l'explique à l'admin.
+1. **Champ seulement en brouillon** → tout type permis (aucun dossier à migrer).
+2. **Champ déjà publié** → type changeable uniquement vers
+   `[type_publié] + ACCEPTED_TYPES[type_publié]` (morphs compatibles, comme le dropdown de
+   l'éditeur) ; sinon **refus structuré** avec la liste des types compatibles.
+3. **Champ utilisé par routage/éligibilité** (`coordinate.used_by_routing_rules?` /
+   `used_by_ineligibilite_rules?`) → type figé.
 
-C'est volontairement **plus restrictif** que l'éditeur web (qui autorise les morphs
-*compatibles* via `CAST`) : changer le type d'un champ publié vers un type compatible reste
-faisable à la main dans l'UI. On évite ainsi tout refactor de code upstream volatile. Un mode
-plus fin (lecture seule de `Columns::ChampColumn::CAST`, sans toucher au composant) est
-possible en v2 si le besoin émerge.
+Avantage de la réutilisation par constante : si upstream fait évoluer la matrice de cast, le
+MCP en bénéficie **automatiquement** ; s'il la renomme/supprime, nos specs détectent la
+rupture de comportement (pas un conflit de merge). Côté lecture (Plan C), le descripteur
+exposera `type_modifiable` + `types_cibles_autorisés` dérivés de la même constante.
 
 ## 8. Hors périmètre
 
@@ -194,6 +194,32 @@ possible en v2 si le besoin émerge.
 - **Cycle complet de démarche** (création de la procedure, service, libellés, routage,
   attestation) : hors MVP. Le MVP suppose une procédure existante avec un brouillon.
 - **Phase B (hébergement + OAuth)** : documentée ici comme cap, implémentée ultérieurement.
+
+### Options par type de champ (design futur, brainstorm acté)
+
+Les mutations structurelles MVP ne configurent **pas** les options spécifiques par type
+(valeurs d'une liste déroulante, min/max d'un scalaire, etc.), stockées en JSON via
+`store_accessor :options` sur `TypeDeChamp`. Conception retenue pour les ajouter plus tard,
+**sans rendre les mutations MVP incompatibles** (ajout d'arguments optionnels uniquement) :
+
+- **Écriture = scalaire JSON.** Ajouter `argument :options, Types::Json, required: false` à
+  `demarcheModifierChamp` (ou une mutation dédiée). `Types::Json` se définit en quelques
+  lignes sur le modèle de `Types::GeoJson` / `Types::BaseScalar` existants. Avantage :
+  une seule surface pour tous les types, **aucun changement de schéma quand un type PF
+  ajoute une option**. Le serveur **valide** le JSON contre les `store_accessor` autorisés du
+  `dynamic_type` (clés inconnues → erreur structurée).
+- **Pourquoi pas des input objects typés par type ?** (`DropDownOptionsInput`,
+  `NumberRangeOptionsInput`…) : introspection parfaite, mais surface de maintenance large et
+  **fortement couplée aux formes d'options upstream** (friction de bump). Rejeté pour le MVP+1.
+- **Guidage de Claude = par la donnée, pas par le schéma.** L'inconvénient du JSON non typé
+  (Claude ne « voit » pas les options valides dans le schéma) est compensé par la **query de
+  description (Plan C)** qui expose, par type, la liste des clés d'options valides + leur
+  forme attendue. Claude lit ce descripteur (donnée live, pas schéma figé) et construit un
+  JSON correct. Combo : écriture flexible + guidage introspectable côté lecture.
+
+Recommandation : **scalaire JSON en écriture + descripteur d'options en lecture (Plan C)**.
+Un mode hybride (champs typés pour drop-down/min-max + `extra: JSON` pour le reste) reste
+possible si on veut durcir les options les plus courantes.
 
 ## 9. Tests
 
@@ -208,10 +234,11 @@ possible en v2 si le besoin émerge.
 
 ## 10. Risques & points ouverts
 
-- **Changement de type** (cf. §7) : mode simple MVP = interdiction sur champ déjà publié,
-  dans du **code PF isolé**, **sans aucun refactor** du composant upstream volatile
-  `ChampComponent`. Compromis assumé : plus restrictif que l'UI web (pas de morph compatible
-  via MCP). Évite la friction de merge upstream.
+- **Changement de type** (cf. §7) : on **réutilise** la constante publique
+  `TypesDeChampEditor::ChampComponent::ACCEPTED_TYPES` (+ garde-fous routage/éligibilité)
+  **sans refactorer** le composant upstream. Même comportement que l'éditeur web (morphs
+  compatibles autorisés). Risque résiduel : si upstream renomme/supprime la constante, nos
+  specs cassent (comportement) — pas un conflit de merge. À surveiller au moment des bumps.
 - Verrouillage concurrent : `find_and_ensure_exclusive_use` existe déjà côté Rails ; vérifier
   son comportement quand Claude enchaîne plusieurs mutations rapprochées.
 - Coût de la plomberie GraphQL pour chaque mutation (type + descriptor + résolution + dump).

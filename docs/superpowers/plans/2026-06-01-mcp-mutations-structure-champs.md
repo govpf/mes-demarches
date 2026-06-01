@@ -17,7 +17,7 @@
 
 **Branche :** `feature/mcp-construction-formulaires` (déjà créée, courante).
 
-**Garde-fou changement de type (mode simple, cf. spec §7) :** `demarcheModifierChamp` refuse tout changement de type dès que le champ existe dans la révision **publiée** (`procedure.published_revision&.types_de_champ&.exists?(stable_id:)`). On ne réutilise PAS `ChampComponent#accepted_type_champs` ni `Columns::ChampColumn::CAST` (feature upstream volatile → friction de merge).
+**Garde-fou changement de type (cf. spec §7) :** `demarcheModifierChamp` **réutilise** (sans la refactorer ni la déplacer) la constante publique `TypesDeChampEditor::ChampComponent::ACCEPTED_TYPES` (dérivée de `Columns::ChampColumn::CAST`) + les garde-fous `coordinate.used_by_routing_rules?` / `used_by_ineligibilite_rules?`. Comportement identique à l'éditeur web : champ en brouillon seul → tout type ; champ publié → uniquement `[type_publié] + ACCEPTED_TYPES[type_publié]`. Aucun code upstream n'est modifié (on référence une constante publique existante).
 
 ---
 
@@ -258,15 +258,29 @@ Ajouter dans `spec/graphql/mutations/demarche_champ_mutations_spec.rb`, à l'int
       end
     end
 
-    context 'changement de type sur un champ déjà publié' do
+    context 'changement de type INCOMPATIBLE sur un champ déjà publié' do
       let(:procedure) { create(:procedure, :published, administrateurs: [admin], types_de_champ: [{ type: :text, libelle: 'Nom' }]) }
       let(:variables) do
+        # text -> integer_number n'est PAS dans ACCEPTED_TYPES[text] (incompatible migration)
         { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'integer_number' } }
       end
 
       it 'est refusé' do
         expect(data[:demarcheModifierChamp][:champStableId]).to be_nil
-        expect(data[:demarcheModifierChamp][:errors].first[:message]).to include('déjà publié')
+        expect(data[:demarcheModifierChamp][:errors].first[:message]).to include('compatible')
+      end
+    end
+
+    context 'changement de type COMPATIBLE sur un champ déjà publié' do
+      let(:procedure) { create(:procedure, :published, administrateurs: [admin], types_de_champ: [{ type: :text, libelle: 'Nom' }]) }
+      let(:variables) do
+        # text -> textarea EST dans Columns::ChampColumn::CAST (morph compatible, comme l'éditeur web)
+        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'textarea' } }
+      end
+
+      it 'est autorisé (réutilise ACCEPTED_TYPES)' do
+        expect(data[:demarcheModifierChamp][:errors]).to be_nil
+        expect(procedure.draft_revision.reload.types_de_champ.first.type_champ).to eq('textarea')
       end
     end
 
@@ -275,7 +289,7 @@ Ajouter dans `spec/graphql/mutations/demarche_champ_mutations_spec.rb`, à l'int
         { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, typeChamp: 'integer_number' } }
       end
 
-      it 'est autorisé' do
+      it 'est autorisé (aucun dossier à migrer)' do
         expect(data[:demarcheModifierChamp][:errors]).to be_nil
         expect(procedure.draft_revision.reload.types_de_champ.first.type_champ).to eq('integer_number')
       end
@@ -317,10 +331,22 @@ module Mutations
       if type_champ.present? && type_champ != current_tdc.type_champ
         return { errors: ["Type de champ inconnu : \"#{type_champ}\"."] } unless TypeDeChamp.type_champs.key?(type_champ)
 
-        # pf: garde-fou migration — pas de changement de type sur un champ déjà publié.
-        # On ne réutilise pas ChampComponent#accepted_type_champs (feature upstream volatile).
-        if procedure.published_revision&.types_de_champ&.exists?(stable_id:)
-          return { errors: ["Le type d'un champ déjà publié n'est pas modifiable via l'API ; utilisez l'éditeur web."] }
+        # pf: on RÉUTILISE (sans la refactorer ni la déplacer) la logique de l'éditeur upstream
+        # qui détermine les types cibles compatibles, via sa constante publique ACCEPTED_TYPES
+        # (dérivée de Columns::ChampColumn::CAST) + les garde-fous routage/éligibilité de la
+        # coordonnée. Si upstream fait évoluer la matrice, le MCP en bénéficie automatiquement.
+        if coordinate.used_by_routing_rules? || coordinate.used_by_ineligibilite_rules?
+          return { errors: ["Le type de ce champ n'est pas modifiable : il est utilisé par une règle de routage ou d'éligibilité."] }
+        end
+
+        published_type_champ = procedure.published_revision
+          &.types_de_champ&.find { _1.stable_id.to_s == stable_id.to_s }&.type_champ
+
+        if published_type_champ.present?
+          accepted = [published_type_champ] + TypesDeChampEditor::ChampComponent::ACCEPTED_TYPES.fetch(published_type_champ, [])
+          unless accepted.map(&:to_s).include?(type_champ.to_s)
+            return { errors: ["Ce champ est déjà publié : son type ne peut être changé que vers un type compatible (#{accepted.join(', ')}), pour préserver les dossiers existants."] }
+          end
         end
       end
 
