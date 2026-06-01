@@ -19,7 +19,8 @@ module Mutations
 
       return { errors: ["Type de champ inconnu : \"#{type_champ}\"."] } unless TypeDeChamp.type_champs.key?(type_champ)
 
-      params = { type_champ:, libelle:, description:, mandatory: obligatoire, private: prive }
+      params = { type_champ:, libelle:, mandatory: obligatoire, private: prive }
+      params[:description] = description if description.present?
       params[:parent_stable_id] = parent_stable_id if parent_stable_id.present?
       params[:after_stable_id] = apres_stable_id if apres_stable_id.present?
 

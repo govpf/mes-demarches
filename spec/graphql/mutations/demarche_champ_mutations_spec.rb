@@ -27,9 +27,28 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
     it 'ajoute le champ au brouillon' do
       expect(data[:demarcheAjouterChamp][:errors]).to be_nil
-      expect(data[:demarcheAjouterChamp][:champStableId]).to be_present
-      libelles = procedure.draft_revision.reload.types_de_champ.map(&:libelle)
-      expect(libelles).to include('Courriel')
+      new_tdc = procedure.draft_revision.reload.types_de_champ.find { _1.libelle == 'Courriel' }
+      expect(new_tdc).to be_present
+      expect(data[:demarcheAjouterChamp][:champStableId]).to eq(new_tdc.stable_id.to_s)
+    end
+
+    context 'insertion dans une répétition via parent_stable_id' do
+      let(:procedure) do
+        create(:procedure, administrateurs: [admin],
+          types_de_champ_public: [{ type: :repetition, libelle: 'Lignes', children: [{ type: :text, libelle: 'Existant' }] }])
+      end
+      let(:repetition_stable_id) { procedure.draft_revision.types_de_champ.find { _1.libelle == 'Lignes' }.stable_id.to_s }
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, typeChamp: 'text', libelle: 'Quantité', parentStableId: repetition_stable_id } }
+      end
+
+      it 'insère le champ enfant dans la répétition' do
+        expect(data[:demarcheAjouterChamp][:errors]).to be_nil
+        new_tdc = procedure.draft_revision.reload.types_de_champ.find { _1.libelle == 'Quantité' }
+        expect(new_tdc).to be_present
+        coordinate = procedure.draft_revision.revision_types_de_champ.find { _1.stable_id == new_tdc.stable_id }
+        expect(coordinate.child?).to be(true)
+      end
     end
 
     context 'type inconnu' do
