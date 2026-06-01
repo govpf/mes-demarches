@@ -123,6 +123,39 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
     end
   end
 
+  describe 'demarcheSupprimerChamp' do
+    let(:procedure) { create(:procedure, administrateurs: [admin], types_de_champ_public: [{ type: :text, libelle: 'Nom' }]) }
+    let(:stable_id) { procedure.draft_revision.types_de_champ.first.stable_id }
+    let(:query) do
+      <<-GRAPHQL
+      mutation($input: DemarcheSupprimerChampInput!) {
+        demarcheSupprimerChamp(input: $input) {
+          champStableId
+          errors { message }
+        }
+      }
+      GRAPHQL
+    end
+    let(:variables) do
+      { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s } }
+    end
+
+    it 'supprime le champ du brouillon' do
+      expect(data[:demarcheSupprimerChamp][:errors]).to be_nil
+      expect(procedure.draft_revision.reload.types_de_champ).to be_empty
+    end
+
+    context 'champ inexistant' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: '999999' } }
+      end
+
+      it 'retourne une erreur' do
+        expect(data[:demarcheSupprimerChamp][:errors].first[:message]).to include("n'existe pas")
+      end
+    end
+  end
+
   describe 'demarcheModifierChamp' do
     let(:query) do
       <<-GRAPHQL
