@@ -19,6 +19,8 @@ class AttachmentsController < ApplicationController
   end
 
   def destroy
+    return head(:not_found) if @attachment.nil?
+
     if champ?
       @attachment = champ.piece_justificative_file.find { _1.blob.id == @blob.id }
       if @attachment.present?
@@ -93,7 +95,7 @@ class AttachmentsController < ApplicationController
     avis? && current_expert == record.expert
   end
 
-  def record = @attachment.record
+  def record = @attachment&.record
   def champ? = record.is_a?(Champ)
   def procedure? = record.is_a?(Procedure)
   def avis? = record.is_a?(Avis)
