@@ -21277,6 +21277,55 @@
           "description": null,
           "fields": [
             {
+              "name": "aideFormule",
+              "description": "Documentation pour écrire l'expression d'un champ formule (variables, fonctions, syntaxe).",
+              "args": [
+                {
+                  "name": "demarche",
+                  "description": "La démarche cible.",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "FindDemarcheInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null,
+                  "isDeprecated": false,
+                  "deprecationReason": null
+                },
+                {
+                  "name": "stableId",
+                  "description": "stable_id du champ formule.",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "String",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null,
+                  "isDeprecated": false,
+                  "deprecationReason": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "demarche",
               "description": "Informations concernant une démarche.",
               "args": [

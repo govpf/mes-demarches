@@ -51,6 +51,9 @@ module Types
     # pf: lecture de la structure d'une démarche pour le serveur MCP (expose les stable_id)
     field :demarche_champs, resolver: Resolvers::Mcp::DemarcheChamps, description: "Champs de la révision brouillon d'une démarche (pour le MCP)."
 
+    # pf: documentation d'écriture de formule (pour le MCP), via FormulaAiPromptService
+    field :aide_formule, resolver: Resolvers::Mcp::AideFormule, description: "Documentation pour écrire l'expression d'un champ formule (variables, fonctions, syntaxe)."
+
     def self.accessible?(context)
       context[:token] || context[:administrateur_id]
     end

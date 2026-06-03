@@ -5204,6 +5204,21 @@ input ProfileInput @oneOf {
 
 type Query {
   """
+  Documentation pour écrire l'expression d'un champ formule (variables, fonctions, syntaxe).
+  """
+  aideFormule(
+    """
+    La démarche cible.
+    """
+    demarche: FindDemarcheInput!
+
+    """
+    stable_id du champ formule.
+    """
+    stableId: String!
+  ): String!
+
+  """
   Informations concernant une démarche.
   """
   demarche(
