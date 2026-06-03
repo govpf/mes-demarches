@@ -30,6 +30,10 @@ module Mutations
     def appliquer_options!(type_de_champ, options)
       return nil if options.blank?
 
+      unless options.is_a?(Hash)
+        return "Le paramètre « options » doit être un objet JSON (clé/valeur), reçu : #{options.class}."
+      end
+
       allowed = TypeDeChamp::OPTS_BY_TYPE.fetch(type_de_champ.type_champ) { [] }.map(&:to_s)
       unknown = options.keys.map(&:to_s) - allowed
       if unknown.any?

@@ -42,7 +42,7 @@ module Mutations
       if options.present?
         error = appliquer_options!(type_de_champ, options)
         return { errors: [error] } if error
-        type_de_champ.save!
+        return { errors: type_de_champ.errors.full_messages } unless type_de_champ.save
       end
 
       { champ_stable_id: type_de_champ.stable_id.to_s }

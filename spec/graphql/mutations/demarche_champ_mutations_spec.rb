@@ -430,5 +430,16 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
         expect(data[:demarcheModifierChamp][:errors].first[:message]).to include('non autorisées')
       end
     end
+
+    context 'avec des options qui ne sont pas un objet' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s, options: 'pas_un_objet' } }
+      end
+
+      it 'retourne une erreur propre (pas un 500)' do
+        expect { subject }.not_to raise_error
+        expect(data[:demarcheModifierChamp][:errors].first[:message]).to include('objet')
+      end
+    end
   end
 end

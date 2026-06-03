@@ -51,6 +51,10 @@ module Mutations
 
       type_de_champ = draft.find_and_ensure_exclusive_use(stable_id)
 
+      # pf: limitation connue — si on change `type_champ` ET fournit `options` dans le même
+      # appel, les options sont validées contre l'ANCIEN type (le nouveau type n'est appliqué
+      # qu'au save). Pour configurer les options d'un nouveau type, faire deux appels
+      # (changer le type, puis poser les options). À améliorer si le besoin se confirme.
       if options.present?
         error = appliquer_options!(type_de_champ, options)
         return { errors: [error] } if error
