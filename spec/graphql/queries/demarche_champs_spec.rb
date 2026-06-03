@@ -49,6 +49,32 @@ RSpec.describe 'Query demarcheChamps', type: :graphql do
     end
   end
 
+  context 'champ avec options' do
+    let(:procedure) do
+      create(:procedure, administrateurs: [admin], types_de_champ_public: [
+        { type: :drop_down_list, libelle: 'Civilité' },
+      ])
+    end
+
+    before do
+      tdc = procedure.draft_revision.types_de_champ.first
+      tdc.update!(options: { 'drop_down_options' => ['M.', 'Mme'], 'drop_down_other' => '1' })
+    end
+
+    let(:query) do
+      <<-GRAPHQL
+      query($demarche: FindDemarcheInput!) {
+        demarcheChamps(demarche: $demarche) { stableId typeChamp libelle options }
+      }
+      GRAPHQL
+    end
+
+    it 'expose les options du champ' do
+      champ = data[:demarcheChamps].first
+      expect(champ[:options]).to include(drop_down_options: ['M.', 'Mme'], drop_down_other: '1')
+    end
+  end
+
   context 'champ enfant dans une répétition' do
     let(:procedure) do
       create(:procedure, administrateurs: [admin], types_de_champ_public: [

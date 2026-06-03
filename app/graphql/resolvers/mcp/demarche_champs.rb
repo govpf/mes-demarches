@@ -31,6 +31,7 @@ module Resolvers
             parent_stable_id: parent&.type_de_champ&.stable_id&.to_s,
             position: coordinate.position,
             a_condition: tdc.condition.present?,
+            options: tdc.options || {},
           }
         end
       end

@@ -16,6 +16,7 @@ module Types
       field :parent_stable_id, String, null: true
       field :position, Integer, null: false
       field :a_condition, Boolean, null: false
+      field :options, Types::OptionsBlob, "Options spécifiques au type (drop_down_options, min_number, accredited_users, …).", null: false
     end
   end
 end

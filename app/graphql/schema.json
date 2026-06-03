@@ -17340,6 +17340,22 @@
               "deprecationReason": null
             },
             {
+              "name": "options",
+              "description": "Options spécifiques au type (drop_down_options, min_number, accredited_users, …).",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "OptionsBlob",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "parentStableId",
               "description": null,
               "args": [],

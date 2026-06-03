@@ -4278,6 +4278,11 @@ type McpChampStructure {
   description: String
   libelle: String!
   obligatoire: Boolean!
+
+  """
+  Options spécifiques au type (drop_down_options, min_number, accredited_users, …).
+  """
+  options: OptionsBlob!
   parentStableId: String
   position: Int!
   prive: Boolean!
