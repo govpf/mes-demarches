@@ -48,6 +48,9 @@ module Types
       GroupeInstructeur.for_api_v2.find(number)
     end
 
+    # pf: lecture de la structure d'une démarche pour le serveur MCP (expose les stable_id)
+    field :demarche_champs, resolver: Resolvers::Mcp::DemarcheChamps, description: "Champs de la révision brouillon d'une démarche (pour le MCP)."
+
     def self.accessible?(context)
       context[:token] || context[:administrateur_id]
     end

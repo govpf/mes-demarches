@@ -4263,6 +4263,18 @@ type LinkedDropDownListChampDescriptor implements ChampDescriptor {
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
 
+type McpChampStructure {
+  aCondition: Boolean!
+  description: String
+  libelle: String!
+  obligatoire: Boolean!
+  parentStableId: String
+  position: Int!
+  prive: Boolean!
+  stableId: String!
+  typeChamp: String!
+}
+
 type MesriChampDescriptor implements ChampDescriptor {
   """
   Description des champs d’un bloc répétable.
@@ -5180,6 +5192,16 @@ type Query {
     """
     number: Int!
   ): Demarche!
+
+  """
+  Champs de la révision brouillon d'une démarche (pour le MCP).
+  """
+  demarcheChamps(
+    """
+    La démarche cible.
+    """
+    demarche: FindDemarcheInput!
+  ): [McpChampStructure!]!
   demarcheDescriptor(
     """
     La démarche.
