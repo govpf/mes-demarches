@@ -179,6 +179,125 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
     end
   end
 
+  describe 'demarcheDefinirCondition' do
+    let(:procedure) do
+      create(:procedure, administrateurs: [admin], types_de_champ_public: [
+        { type: :integer_number, libelle: 'Âge' },
+        { type: :text, libelle: 'Détail' },
+      ])
+    end
+    let(:source) { procedure.draft_revision.types_de_champ.first }
+    let(:cible)  { procedure.draft_revision.types_de_champ.second }
+
+    let(:query) do
+      <<-GRAPHQL
+      mutation($input: DemarcheDefinirConditionInput!) {
+        demarcheDefinirCondition(input: $input) {
+          champStableId
+          errors { message }
+        }
+      }
+      GRAPHQL
+    end
+
+    def cible_condition
+      procedure.draft_revision.reload.types_de_champ.find { _1.stable_id == cible.stable_id }.condition
+    end
+
+    context 'condition numérique simple' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
+                   termes: [{ champSourceStableId: source.stable_id.to_s, operateur: 'superieur_ou_egal', valeur: '18' }] } }
+      end
+
+      it 'pose la condition' do
+        expect(data[:demarcheDefinirCondition][:errors]).to be_nil
+        expect(data[:demarcheDefinirCondition][:champStableId]).to eq(cible.stable_id.to_s)
+        condition = cible_condition
+        expect(condition).to be_a(Logic::GreaterThanEq)
+        expect(condition.left).to be_a(Logic::ChampValue)
+        expect(condition.left.stable_id).to eq(source.stable_id)
+        expect(condition.right).to be_a(Logic::Constant)
+        expect(condition.right.value).to eq(18)
+      end
+    end
+
+    context 'combinateur OU avec deux termes' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s, combinateur: 'OU',
+                   termes: [
+                     { champSourceStableId: source.stable_id.to_s, operateur: 'superieur', valeur: '18' },
+                     { champSourceStableId: source.stable_id.to_s, operateur: 'inferieur', valeur: '5' },
+                   ] } }
+      end
+
+      it 'construit un Logic::Or à deux opérandes' do
+        expect(data[:demarcheDefinirCondition][:errors]).to be_nil
+        condition = cible_condition
+        expect(condition).to be_a(Logic::Or)
+        expect(condition.operands.size).to eq(2)
+      end
+    end
+
+    context 'liste de termes vide' do
+      before do
+        cible.update!(condition: Logic::GreaterThanEq.new(Logic::ChampValue.new(source.stable_id), Logic::Constant.new(1)))
+      end
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s, termes: [] } }
+      end
+
+      it 'retire la condition' do
+        expect(data[:demarcheDefinirCondition][:errors]).to be_nil
+        expect(cible_condition).to be_nil
+      end
+    end
+
+    context 'opérateur inconnu' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
+                   termes: [{ champSourceStableId: source.stable_id.to_s, operateur: 'entre', valeur: '18' }] } }
+      end
+
+      it 'retourne une erreur' do
+        expect(data[:demarcheDefinirCondition][:champStableId]).to be_nil
+        expect(data[:demarcheDefinirCondition][:errors].first[:message]).to include('Opérateur inconnu')
+      end
+    end
+
+    context 'opérateur incompatible (champ source = la cible texte, non amont)' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
+                   termes: [{ champSourceStableId: cible.stable_id.to_s, operateur: 'superieur', valeur: '3' }] } }
+      end
+
+      it 'retourne une erreur (pas un 500)' do
+        expect(data[:demarcheDefinirCondition][:champStableId]).to be_nil
+        expect(data[:demarcheDefinirCondition][:errors]).to be_present
+      end
+    end
+
+    context 'champ source non situé en amont' do
+      let(:procedure) do
+        create(:procedure, administrateurs: [admin], types_de_champ_public: [
+          { type: :text, libelle: 'Cible' },
+          { type: :integer_number, libelle: 'AprèsSource' },
+        ])
+      end
+      let(:cible)  { procedure.draft_revision.types_de_champ.first }
+      let(:apres)  { procedure.draft_revision.types_de_champ.second }
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
+                   termes: [{ champSourceStableId: apres.stable_id.to_s, operateur: 'superieur', valeur: '1' }] } }
+      end
+
+      it 'retourne une erreur' do
+        expect(data[:demarcheDefinirCondition][:champStableId]).to be_nil
+        expect(data[:demarcheDefinirCondition][:errors]).to be_present
+      end
+    end
+  end
+
   describe 'demarcheModifierChamp' do
     let(:query) do
       <<-GRAPHQL

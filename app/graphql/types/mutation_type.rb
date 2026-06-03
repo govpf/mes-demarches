@@ -42,6 +42,7 @@ module Types
     field :demarche_modifier_champ, mutation: Mutations::DemarcheModifierChamp
     field :demarche_deplacer_champ, mutation: Mutations::DemarcheDeplacerChamp
     field :demarche_supprimer_champ, mutation: Mutations::DemarcheSupprimerChamp
+    field :demarche_definir_condition, mutation: Mutations::DemarcheDefinirCondition
 
     field :demarche_cloner, mutation: Mutations::DemarcheCloner
   end
