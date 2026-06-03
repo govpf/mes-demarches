@@ -31,6 +31,10 @@ module Mutations
       procedure, error = find_authorized_procedure(demarche)
       return { errors: [error] } if error
 
+      unless %w[ET OU].include?(combinateur)
+        return { errors: ["Le combinateur doit être « ET » ou « OU » (reçu : « #{combinateur} »)."] }
+      end
+
       draft = procedure.draft_revision
       coordinate, _ = draft.coordinate_and_tdc(stable_id)
       return { errors: ["Le champ \"#{stable_id}\" n'existe pas dans cette démarche."] } if coordinate.nil?

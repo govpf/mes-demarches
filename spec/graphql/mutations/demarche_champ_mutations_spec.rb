@@ -296,6 +296,21 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
         expect(data[:demarcheDefinirCondition][:errors]).to be_present
       end
     end
+
+    context 'combinateur invalide' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s, combinateur: 'XOR',
+                   termes: [
+                     { champSourceStableId: source.stable_id.to_s, operateur: 'superieur', valeur: '18' },
+                     { champSourceStableId: source.stable_id.to_s, operateur: 'inferieur', valeur: '5' },
+                   ] } }
+      end
+
+      it 'retourne une erreur' do
+        expect(data[:demarcheDefinirCondition][:champStableId]).to be_nil
+        expect(data[:demarcheDefinirCondition][:errors].first[:message]).to include('combinateur')
+      end
+    end
   end
 
   describe 'demarcheModifierChamp' do
