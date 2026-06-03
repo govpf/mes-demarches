@@ -102,6 +102,27 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
         expect(data[:demarcheAjouterChamp][:errors].first[:message]).to include('lecture')
       end
     end
+
+    context 'avec options (liste déroulante)' do
+      let(:query) do
+        <<-GRAPHQL
+        mutation($input: DemarcheAjouterChampInput!) {
+          demarcheAjouterChamp(input: $input) { champStableId errors { message } }
+        }
+        GRAPHQL
+      end
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, typeChamp: 'drop_down_list', libelle: 'Civilité',
+                   options: { drop_down_options: ['M.', 'Mme'], drop_down_other: true } } }
+      end
+
+      it 'crée le champ avec ses options' do
+        expect(data[:demarcheAjouterChamp][:errors]).to be_nil
+        tdc = procedure.draft_revision.reload.types_de_champ.find { _1.libelle == 'Civilité' }
+        expect(tdc.drop_down_options).to include('M.', 'Mme')
+        expect(tdc.drop_down_other).to eq('1')
+      end
+    end
   end
 
   describe 'demarcheDeplacerChamp' do
@@ -372,6 +393,41 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
       it 'est autorisé (aucun dossier à migrer)' do
         expect(data[:demarcheModifierChamp][:errors]).to be_nil
         expect(procedure.draft_revision.reload.types_de_champ.first.type_champ).to eq('date')
+      end
+    end
+
+    context 'avec options valides (bornes numériques)' do
+      let(:procedure) { create(:procedure, administrateurs: [admin], types_de_champ_public: [{ type: :integer_number, libelle: 'Âge' }]) }
+      let(:query) do
+        <<-GRAPHQL
+        mutation($input: DemarcheModifierChampInput!) {
+          demarcheModifierChamp(input: $input) { champStableId errors { message } }
+        }
+        GRAPHQL
+      end
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s,
+                   options: { positive_number: true, min_number: '0', max_number: '120' } } }
+      end
+
+      it 'applique les options' do
+        expect(data[:demarcheModifierChamp][:errors]).to be_nil
+        tdc = procedure.draft_revision.reload.types_de_champ.first
+        expect(tdc.positive_number?).to eq(true)
+        expect(tdc.min_number).to eq('0')
+        expect(tdc.max_number).to eq('120')
+      end
+    end
+
+    context 'avec une option non autorisée pour le type' do
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s,
+                   options: { min_number: '0' } } }
+      end
+
+      it 'est refusé avec la liste des options valides' do
+        expect(data[:demarcheModifierChamp][:champStableId]).to be_nil
+        expect(data[:demarcheModifierChamp][:errors].first[:message]).to include('non autorisées')
       end
     end
   end

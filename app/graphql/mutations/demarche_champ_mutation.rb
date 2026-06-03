@@ -22,5 +22,33 @@ module Mutations
 
       [procedure, nil]
     end
+
+    # pf: valide + normalise + applique un blob d'options sur un type de champ.
+    # Réutilise TypeDeChamp::OPTS_BY_TYPE (map canonique, options standard + PF) pour
+    # rejeter toute clé non autorisée. Retourne nil si OK, ou un message d'erreur.
+    # N'applique que sur le tdc (en mémoire) ; l'appelant doit sauvegarder.
+    def appliquer_options!(type_de_champ, options)
+      return nil if options.blank?
+
+      allowed = TypeDeChamp::OPTS_BY_TYPE.fetch(type_de_champ.type_champ) { [] }.map(&:to_s)
+      unknown = options.keys.map(&:to_s) - allowed
+      if unknown.any?
+        return "Options non autorisées pour le type « #{type_de_champ.type_champ} » : #{unknown.join(', ')}." \
+               " Options valides : #{allowed.empty? ? '(aucune)' : allowed.join(', ')}."
+      end
+
+      normalized = options.to_h.to_h do |key, value|
+        normalized_value = case value
+        when true then '1'
+        when false then '0'
+        when Numeric then value.to_s
+        else value
+        end
+        [key.to_s, normalized_value]
+      end
+
+      type_de_champ.editable_options = normalized
+      nil
+    end
   end
 end

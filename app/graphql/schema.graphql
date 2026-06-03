@@ -1456,6 +1456,11 @@ input DemarcheAjouterChampInput {
   obligatoire: Boolean = false
 
   """
+  Options spécifiques au type (ex. { drop_down_options: [...] }).
+  """
+  options: OptionsBlob
+
+  """
   Pour insérer dans une répétition/bloc.
   """
   parentStableId: String
@@ -1735,6 +1740,11 @@ input DemarcheModifierChampInput {
   description: String
   libelle: String
   obligatoire: Boolean
+
+  """
+  Options spécifiques au type (ex. { positive_number: true, max_number: '100' }).
+  """
+  options: OptionsBlob
 
   """
   stable_id du champ à modifier.
@@ -4847,6 +4857,11 @@ type NumeroDnChampDescriptor implements ChampDescriptor {
   """
   type: TypeDeChamp! @deprecated(reason: "Utilisez le champ `__typename` à la place.")
 }
+
+"""
+Objet JSON arbitraire (clé/valeur).
+"""
+scalar OptionsBlob
 
 enum Order {
   """

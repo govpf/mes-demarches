@@ -12,8 +12,9 @@ module Mutations
     argument :prive, Boolean, "Annotation privée (instructeur) plutôt que champ usager.", required: false, default_value: false
     argument :parent_stable_id, String, "Pour insérer dans une répétition/bloc.", required: false
     argument :apres_stable_id, String, "Insérer juste après ce champ (sinon en tête).", required: false
+    argument :options, Types::OptionsBlob, "Options spécifiques au type (ex. { drop_down_options: [...] }).", required: false
 
-    def resolve(demarche:, type_champ:, libelle:, description: nil, obligatoire: false, prive: false, parent_stable_id: nil, apres_stable_id: nil)
+    def resolve(demarche:, type_champ:, libelle:, description: nil, obligatoire: false, prive: false, parent_stable_id: nil, apres_stable_id: nil, options: nil)
       procedure, error = find_authorized_procedure(demarche)
       return { errors: [error] } if error
 
@@ -36,11 +37,15 @@ module Mutations
 
       type_de_champ = draft.add_type_de_champ(params)
 
-      if type_de_champ.valid?
-        { champ_stable_id: type_de_champ.stable_id.to_s }
-      else
-        { errors: type_de_champ.errors.full_messages }
+      return { errors: type_de_champ.errors.full_messages } unless type_de_champ.valid?
+
+      if options.present?
+        error = appliquer_options!(type_de_champ, options)
+        return { errors: [error] } if error
+        type_de_champ.save!
       end
+
+      { champ_stable_id: type_de_champ.stable_id.to_s }
     end
   end
 end

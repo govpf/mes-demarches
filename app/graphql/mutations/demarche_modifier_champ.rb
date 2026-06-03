@@ -10,8 +10,9 @@ module Mutations
     argument :description, String, required: false
     argument :obligatoire, Boolean, required: false
     argument :type_champ, String, "Nouveau type. Restreint aux types compatibles si le champ est déjà publié.", required: false
+    argument :options, Types::OptionsBlob, "Options spécifiques au type (ex. { positive_number: true, max_number: '100' }).", required: false
 
-    def resolve(demarche:, stable_id:, libelle: nil, description: nil, obligatoire: nil, type_champ: nil)
+    def resolve(demarche:, stable_id:, libelle: nil, description: nil, obligatoire: nil, type_champ: nil, options: nil)
       procedure, error = find_authorized_procedure(demarche)
       return { errors: [error] } if error
 
@@ -46,11 +47,18 @@ module Mutations
       attrs[:description] = description unless description.nil?
       attrs[:mandatory] = obligatoire unless obligatoire.nil?
       attrs[:type_champ] = type_champ if type_champ.present?
-      return { errors: ["Aucune modification fournie."] } if attrs.empty?
+      return { errors: ["Aucune modification fournie."] } if attrs.empty? && options.blank?
 
       type_de_champ = draft.find_and_ensure_exclusive_use(stable_id)
 
-      if type_de_champ.update(attrs)
+      if options.present?
+        error = appliquer_options!(type_de_champ, options)
+        return { errors: [error] } if error
+      end
+
+      type_de_champ.assign_attributes(attrs)
+
+      if type_de_champ.save
         { champ_stable_id: stable_id.to_s }
       else
         { errors: type_de_champ.errors.full_messages }

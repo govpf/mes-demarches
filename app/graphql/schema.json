@@ -6250,6 +6250,18 @@
               "defaultValue": null,
               "isDeprecated": false,
               "deprecationReason": null
+            },
+            {
+              "name": "options",
+              "description": "Options spécifiques au type (ex. { drop_down_options: [...] }).",
+              "type": {
+                "kind": "SCALAR",
+                "name": "OptionsBlob",
+                "ofType": null
+              },
+              "defaultValue": null,
+              "isDeprecated": false,
+              "deprecationReason": null
             }
           ],
           "interfaces": null,
@@ -7216,6 +7228,18 @@
               "type": {
                 "kind": "SCALAR",
                 "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null,
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "options",
+              "description": "Options spécifiques au type (ex. { positive_number: true, max_number: '100' }).",
+              "type": {
+                "kind": "SCALAR",
+                "name": "OptionsBlob",
                 "ofType": null
               },
               "defaultValue": null,
@@ -19454,6 +19478,16 @@
               "ofType": null
             }
           ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "SCALAR",
+          "name": "OptionsBlob",
+          "description": "Objet JSON arbitraire (clé/valeur).",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
           "enumValues": null,
           "possibleTypes": null
         },
