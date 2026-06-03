@@ -15,8 +15,12 @@ module Resolvers
         raise GraphQL::ExecutionError, "La démarche \"#{number}\" n'existe pas." if procedure.nil?
         raise GraphQL::ExecutionError, "Vous n'avez pas accès à la démarche \"#{number}\"." unless context.authorized_demarche?(procedure)
 
-        procedure.draft_revision.revision_types_de_champ.map do |coordinate|
+        coordinates = procedure.draft_revision.revision_types_de_champ
+        by_id = coordinates.index_by(&:id)
+
+        coordinates.map do |coordinate|
           tdc = coordinate.type_de_champ
+          parent = coordinate.parent_id ? by_id[coordinate.parent_id] : nil
           {
             stable_id: tdc.stable_id.to_s,
             type_champ: tdc.type_champ,
@@ -24,7 +28,7 @@ module Resolvers
             description: tdc.description,
             obligatoire: tdc.mandatory?,
             prive: coordinate.private?,
-            parent_stable_id: coordinate.parent&.stable_id&.to_s,
+            parent_stable_id: parent&.type_de_champ&.stable_id&.to_s,
             position: coordinate.position,
             a_condition: tdc.condition.present?,
           }
