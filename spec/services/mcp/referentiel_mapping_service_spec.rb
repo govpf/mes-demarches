@@ -89,5 +89,37 @@ RSpec.describe Mcp::ReferentielMappingService do
       expect(mapping).not_to have_key('$.ColonneDisparue')
       expect(mapping).to have_key('$.RaisonSociale')
     end
+
+    it 'refuse un prefill quand le référentiel est imbriqué dans une répétition' do
+      proc_rep = create(:procedure, types_de_champ_public: [
+        { type: :repetition, libelle: 'Lignes', children: [
+          { type: :referentiel_de_polynesie, libelle: 'Ref imbriqué', table_id: '24' },
+          { type: :text, libelle: 'Cible imbriquée' }
+        ] }
+      ])
+      ref = proc_rep.draft_revision.types_de_champ.find { _1.type_champ == 'referentiel_de_polynesie' }
+      cible = proc_rep.draft_revision.types_de_champ.find { _1.libelle == 'Cible imbriquée' }
+      svc = described_class.new(ref)
+      expect { svc.configurer!([{ colonne: 'RaisonSociale', prefill_stable_id: cible.stable_id.to_s }]) }
+        .to raise_error(described_class::CibleInvalide, /répétition/)
+    end
+
+    context 'référentiel privé (annotation)' do
+      let(:procedure) do
+        create(:procedure,
+          types_de_champ_public: [],
+          types_de_champ_private: [
+            { type: :referentiel_de_polynesie, libelle: 'Ref privé', table_id: '24' },
+            { type: :text, libelle: 'Annotation cible' }
+          ])
+      end
+      let(:ref_prive) { draft.types_de_champ.find { _1.type_champ == 'referentiel_de_polynesie' } }
+      let(:annotation_cible) { draft.types_de_champ.find { _1.libelle == 'Annotation cible' } }
+
+      it 'autorise le prefill vers une annotation privée située après' do
+        described_class.new(ref_prive).configurer!([{ colonne: 'RaisonSociale', prefill_stable_id: annotation_cible.stable_id.to_s }])
+        expect(ref_prive.reload.safe_referentiel_mapping['$.RaisonSociale']['prefill_stable_id']).to eq(annotation_cible.stable_id.to_s)
+      end
+    end
   end
 end

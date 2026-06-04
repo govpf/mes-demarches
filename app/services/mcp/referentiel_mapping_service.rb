@@ -91,8 +91,16 @@ module Mcp
       end
     end
 
+    # pf: MVP — seuls les champs ROOT situés après le référentiel sont des cibles éligibles.
+    # Les champs imbriqués dans une répétition (coordinate.child?) ne sont pas supportés comme
+    # source ni comme cible (contrairement à elements_after_current_root upstream qui traverse
+    # les répétitions). Lever CibleInvalide explicitement si le référentiel lui-même est imbriqué.
     def eligible_target_tdcs
       coordinate = @draft.coordinate_for(@tdc)
+      if coordinate.child?
+        raise CibleInvalide, "Le pré-remplissage depuis un référentiel imbriqué dans une répétition n'est pas supporté (configurez-le dans l'éditeur web)."
+      end
+
       coords =
         if @tdc.public?
           roots_after(coordinate, @draft.revision_types_de_champ.filter { _1.public? && _1.root? }) +
