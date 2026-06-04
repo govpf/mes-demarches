@@ -38,6 +38,7 @@ RSpec.describe 'Query referentielChampConfig', type: :graphql do
     before { allow(ReferentielDePolynesie::API).to receive(:engine).and_return(nil) }
     it 'remonte une erreur' do
       expect(subject['errors']).to be_present
+      expect(subject['errors'].first['message']).to include("Baserow n'est pas configuré")
     end
   end
 end
