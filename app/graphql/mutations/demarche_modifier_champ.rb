@@ -56,7 +56,7 @@ module Mutations
       # qu'au save). Pour configurer les options d'un nouveau type, faire deux appels
       # (changer le type, puis poser les options). À améliorer si le besoin se confirme.
       if options.present?
-        error = appliquer_options!(type_de_champ, options)
+        error = appliquer_options!(type_de_champ, options, draft)
         return { errors: [error] } if error
       end
 

@@ -40,7 +40,7 @@ module Mutations
       return { errors: type_de_champ.errors.full_messages } unless type_de_champ.valid?
 
       if options.present?
-        error = appliquer_options!(type_de_champ, options)
+        error = appliquer_options!(type_de_champ, options, draft)
         return { errors: [error] } if error
         return { errors: type_de_champ.errors.full_messages } unless type_de_champ.save
       end

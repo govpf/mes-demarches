@@ -441,5 +441,36 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
         expect(data[:demarcheModifierChamp][:errors].first[:message]).to include('objet')
       end
     end
+
+    context 'expression de formule avec références en libellé' do
+      let(:procedure) do
+        create(:procedure, administrateurs: [admin], types_de_champ_public: [
+          { type: :integer_number, libelle: 'Quantité' },
+          { type: :formule, libelle: 'Calcul' },
+        ])
+      end
+      let(:quantite) { procedure.draft_revision.types_de_champ.find { _1.libelle == 'Quantité' } }
+      let(:formule)  { procedure.draft_revision.types_de_champ.find(&:formule?) }
+      let(:query) do
+        <<-GRAPHQL
+        mutation($input: DemarcheModifierChampInput!) {
+          demarcheModifierChamp(input: $input) { champStableId errors { message } }
+        }
+        GRAPHQL
+      end
+      let(:variables) do
+        { input: { demarche: { number: procedure.id }, stableId: formule.stable_id.to_s,
+                   options: { formule_expression: '{Quantité} * 2' } } }
+      end
+
+      it 'convertit les libellés en tokens stable_id et peuple les dépendances' do
+        expect(data[:demarcheModifierChamp][:errors]).to be_nil
+        reloaded = procedure.draft_revision.reload.types_de_champ.find(&:formule?)
+        # l'expression stockée utilise le token stable_id, pas le libellé
+        expect(reloaded.formule_expression).to eq("{tdc#{quantite.stable_id}} * 2")
+        # les dépendances sont peuplées (déclencheur de recalcul) — c'était [] avant le fix
+        expect(reloaded.formule_deps['champs']).to include(quantite.stable_id)
+      end
+    end
   end
 end

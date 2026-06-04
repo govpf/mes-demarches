@@ -27,7 +27,7 @@ module Mutations
     # Réutilise TypeDeChamp::OPTS_BY_TYPE (map canonique, options standard + PF) pour
     # rejeter toute clé non autorisée. Retourne nil si OK, ou un message d'erreur.
     # N'applique que sur le tdc (en mémoire) ; l'appelant doit sauvegarder.
-    def appliquer_options!(type_de_champ, options)
+    def appliquer_options!(type_de_champ, options, revision)
       return nil if options.blank?
 
       unless options.is_a?(Hash)
@@ -49,6 +49,16 @@ module Mutations
         else value
         end
         [key.to_s, normalized_value]
+      end
+
+      # pf: pour une formule, convertir les références libellé {Libellé} en tokens stable_id
+      # {tdcNNN} (forme canonique). Sans ça, validate_expression ne détecte aucune dépendance
+      # (formule_deps['champs'] vide) → aucun déclencheur de recalcul et la formule reste inerte
+      # jusqu'à une ré-édition dans l'UI. convert_to_stable_ids garde les références inconnues
+      # telles quelles (idempotent pour un {tdcNNN} déjà converti).
+      if type_de_champ.formule? && normalized['formule_expression'].present?
+        converted, = FormulaExpressionService.convert_to_stable_ids(normalized['formule_expression'], revision)
+        normalized['formule_expression'] = converted
       end
 
       type_de_champ.editable_options = normalized
