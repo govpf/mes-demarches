@@ -55,4 +55,35 @@ RSpec.describe Mutations::DemarcheConfigurerReferentielMapping, type: :graphql d
       expect(data[:demarcheConfigurerReferentielMapping][:errors]).to be_present
     end
   end
+
+  context 'champ inexistant' do
+    let(:variables) do
+      { input: { demarche: { number: procedure.id }, stableId: '999999',
+                 colonnes: [{ colonne: 'RaisonSociale', displayUsager: true }] } }
+    end
+
+    it 'retourne une erreur' do
+      expect(data[:demarcheConfigurerReferentielMapping][:champStableId]).to be_nil
+      expect(data[:demarcheConfigurerReferentielMapping][:errors].first[:message]).to include("n'existe pas")
+    end
+  end
+
+  context 'champ qui n\'est pas un référentiel' do
+    let(:procedure) do
+      create(:procedure, administrateurs: [admin], types_de_champ_public: [
+        { type: :referentiel_de_polynesie, libelle: 'Entreprise', table_id: '24' },
+        { type: :text, libelle: 'Texte simple' },
+      ])
+    end
+    let(:texte) { procedure.draft_revision.types_de_champ.find { _1.libelle == 'Texte simple' } }
+    let(:variables) do
+      { input: { demarche: { number: procedure.id }, stableId: texte.stable_id.to_s,
+                 colonnes: [{ colonne: 'RaisonSociale', displayUsager: true }] } }
+    end
+
+    it 'retourne une erreur' do
+      expect(data[:demarcheConfigurerReferentielMapping][:champStableId]).to be_nil
+      expect(data[:demarcheConfigurerReferentielMapping][:errors].first[:message]).to include('référentiel')
+    end
+  end
 end
