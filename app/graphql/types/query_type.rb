@@ -54,6 +54,9 @@ module Types
     # pf: documentation d'écriture de formule (pour le MCP), via FormulaAiPromptService
     field :aide_formule, resolver: Resolvers::Mcp::AideFormule, description: "Documentation pour écrire l'expression d'un champ formule (variables, fonctions, syntaxe)."
 
+    # pf: colonnes Baserow + mapping courant d'un champ référentiel (pour le MCP)
+    field :referentiel_champ_config, resolver: Resolvers::Mcp::ReferentielChampConfig, description: "Colonnes Baserow + mapping courant d'un champ référentiel (pour le MCP)."
+
     def self.accessible?(context)
       context[:token] || context[:administrateur_id]
     end
