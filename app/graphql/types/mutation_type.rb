@@ -43,6 +43,7 @@ module Types
     field :demarche_deplacer_champ, mutation: Mutations::DemarcheDeplacerChamp
     field :demarche_supprimer_champ, mutation: Mutations::DemarcheSupprimerChamp
     field :demarche_definir_condition, mutation: Mutations::DemarcheDefinirCondition
+    field :demarche_configurer_referentiel_mapping, mutation: Mutations::DemarcheConfigurerReferentielMapping
 
     field :demarche_cloner, mutation: Mutations::DemarcheCloner
   end
