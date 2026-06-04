@@ -54,11 +54,16 @@ Le serveur fusionne dans `referentiel_mapping` (merge par clé `"$.<colonne>"`),
 ## 4. Validations à réutiliser (pas de réimplémentation)
 
 - **Cible existe** : `prefill_stable_id` ∈ champs de la révision.
-- **Ordre** : la cible de pré-remplissage doit être située **après** le champ référentiel (cf. `Referentiels::ReferentielPrefillComponent`, contrainte de position).
-- **Scope privé/public** : référentiel public → cible publique ; référentiel privé (annotation) → cible privée (même logique que le component prefill).
-- **Compat de type** : `MAPPING_TYPE_TO_TYPE_DE_CHAMP` (dans `ReferentielPrefillComponent`) — le type de la colonne doit être compatible avec le type du champ cible.
+**Décision sur la réutilisation (point bloquant résolu) :** l'éligibilité des cibles vit dans `ReferentielPrefillComponent` (component de vue, volatile vis-à-vis des bumps upstream). On **ne fait PAS de `send`** sur ses méthodes d'instance privées. Elle se **décompose** en deux morceaux de natures différentes :
 
-Idéalement, exposer ces contraintes en lecture (l'outil `lire_referentiel_champ` pourrait indiquer, par colonne, les champs cibles éligibles) — mais en MVP, validation au write + message d'erreur clair suffit.
+- **Compat de type** = `ReferentielPrefillComponent::MAPPING_TYPE_TO_TYPE_DE_CHAMP` — **constante publique** → on la **réutilise** (même pattern que `ChampComponent::ACCEPTED_TYPES`, accepté précédemment), backée par un **spec canari** qui échoue en CI si upstream la renomme/supprime/modifie (blast radius = 1 spec + 1 ligne).
+- **Ordre + scope** (« cible située APRÈS le référentiel, même visibilité public/privé ») = uniquement des **primitifs de coordonnée stables** (`coordinate.siblings`, `coordinate.position`, `coordinate.child?`) — on **réécrit ces ~5 lignes en code PF isolé** (ce sont des primitifs Rails stables, déjà utilisés par `demarcheDeplacerChamp`), donc aucun couplage au component volatile.
+
+Validations restantes :
+- **Cible existe** : `prefill_stable_id` ∈ champs de la révision.
+- **Cible éligible** : après le référentiel + scope cohérent (logique ci-dessus) + type compatible (constante réutilisée).
+
+En MVP, validation au write + message d'erreur clair. Bonus possible : l'outil `lire_referentiel_champ` indique par colonne les cibles éligibles.
 
 ## 5. Approche backend (isolée, sans refactor)
 
@@ -71,8 +76,9 @@ Idéalement, exposer ces contraintes en lecture (l'outil `lire_referentiel_champ
 
 🟢 **Faisable** pour le câblage du mapping. C'est du JSONB structuré + des validations déjà factorisées. La source étant pré-existante, on évite tout le flux gnarly (création de `Referentiel`, auth, test).
 
-**Dépendances / limites :**
-- **Baserow doit être joignable** au moment de la config (pour lister les colonnes). En cas d'indispo, l'outil de lecture renvoie une erreur claire (et on peut accepter une config « à l'aveugle » sur des noms de colonnes fournis par l'admin en fallback).
+**Dépendances / limites (décidées) :**
+- **Baserow injoignable → on BLOQUE** : les outils (lecture ET écriture) renvoient une erreur claire, pas de config « à l'aveugle ». Rien n'est possible sans la liste réelle des colonnes.
+- **Colonne disparue de Baserow → on NETTOIE** : à la (re)configuration, les entrées de `referentiel_mapping` dont la colonne n'existe plus dans Baserow sont supprimées (et signalées dans le retour).
 - `table_id` doit déjà être posé sur le champ (hors scope : le poser).
 - Pas de gestion des sous-chemins complexes / agrégats de colonnes Baserow imbriquées (MVP = colonnes plates).
 
@@ -82,12 +88,13 @@ Idéalement, exposer ces contraintes en lecture (l'outil `lire_referentiel_champ
 - **Référentiels API génériques** (`Referentiels::APIReferentiel`, JSONPath arbitraires, datasource/template) → non couverts ici (ce plan cible Baserow/PF).
 - Config Baserow legacy (champs usager/instructeur côté Baserow) → ignorée, non gérée.
 
-## 8. Points à confirmer à l'implémentation
+## 8. Points résolus / à confirmer
 
-- Format exact de la clé de mapping pour une colonne Baserow : `"$.<NomColonne>"` (confirmé via `ReferentielDePolynesieTypeDeChamp#paths` qui fait `jsonpath.delete_prefix('$.')`) — vérifier l'échappement si un nom de colonne contient des caractères spéciaux.
-- Réutilisation exacte de la logique d'éligibilité des cibles de prefill (extraire/`send` depuis `ReferentielPrefillComponent` sans refactor, ou répliquer la règle d'ordre+scope en code PF isolé — décision selon la volatilité du component).
-- Comportement quand une colonne du mapping n'existe plus dans Baserow (nettoyage ? avertissement ?).
-- Test système formule-like : un scénario d'intégration « configurer un prefill via le MCP → remplir le champ référentiel → le champ cible est pré-rempli » (conforme à la discipline de tests de cascade du projet).
+- **Éligibilité des cibles (résolu) :** réutiliser la constante publique `ReferentielPrefillComponent::MAPPING_TYPE_TO_TYPE_DE_CHAMP` (+ **spec canari** qui casse si upstream la renomme/modifie) ; réécrire l'ordre/scope en **code PF isolé** via les primitifs stables `coordinate.siblings`/`position`/`child?`. **Pas de `send`** sur une méthode d'instance volatile.
+- **Colonne disparue (résolu) :** nettoyage des entrées orphelines à la (re)config, signalé dans le retour.
+- **Baserow injoignable (résolu) :** blocage avec erreur claire (pas de config à l'aveugle).
+- **Stratégie de test (résolu, allège le point #4) :** (1) tests cœur *cheap* — la mutation écrit le bon `referentiel_mapping` (assert), le read stube `BaserowAPI.fields` ; (2) la propagation prefill (`propagate_prefill`) est **déjà testée upstream** → non re-testée ; (3) test e2e **optionnel** réutilisant le stub existant `allow(ReferentielDePolynesie::API).to receive(:fetch_row)` (pattern présent dans `spec/models/champs/referentiel_de_polynesie_champ_spec.rb`).
+- **À confirmer (mineur) :** échappement de la clé `"$.<NomColonne>"` si un nom de colonne Baserow contient des caractères spéciaux.
 
 ## 9. Recommandation
 
