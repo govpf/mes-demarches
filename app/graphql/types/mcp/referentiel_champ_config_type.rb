@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# pf: configuration complète du mapping d'un champ referentiel_de_polynesie, exposée au MCP.
 module Types
   module Mcp
     class ReferentielChampConfigType < Types::BaseObject
