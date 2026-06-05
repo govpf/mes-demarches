@@ -9,15 +9,55 @@ module Mcp
     class BaserowIndisponible < StandardError; end
     class ColonneInconnue < StandardError; end
     class CibleInvalide < StandardError; end
+    class SourceInvalide < StandardError; end
+
+    VALID_MODES = %w[autocomplete exact_match].freeze
 
     def initialize(type_de_champ)
       @tdc = type_de_champ
       @draft = type_de_champ.revisions.last
     end
 
+    # pf: liste les tables Baserow disponibles (référentiels actifs)
+    def tables_disponibles
+      ReferentielDePolynesie::API.available_tables
+    end
+
+    # [{ nom:, type_mapping: }] pour n'importe quelle table_id (pas seulement @tdc.table_id)
+    def colonnes_pour_table(table_id)
+      fields = baserow_fields_for(table_id)
+      fields.map { |_id, f| { nom: f[:name] || f['name'], type_mapping: mapping_type_for(f) } }
+    end
+
     # [{ nom:, type_mapping: }]
     def colonnes
-      baserow_fields.map { |_id, f| { nom: f[:name] || f['name'], type_mapping: mapping_type_for(f) } }
+      colonnes_pour_table(@tdc.table_id)
+    end
+
+    # pf: configure les attributs de base (source) du champ RDP. Ces attributs vivent sur
+    # le BaserowReferentiel lié (pas dans options jsonb) ; on réplique le comportement de
+    # l'éditeur : purge du mapping si l'url change + dual-write legacy options['table_id'].
+    def configurer_source!(table_id: nil, mode: nil, hint: nil)
+      if mode.present? && VALID_MODES.exclude?(mode.to_s)
+        raise SourceInvalide, "mode invalide : « #{mode} » (attendu : #{VALID_MODES.join(' ou ')})."
+      end
+
+      referentiel = @tdc.referentiel
+      referentiel = nil unless referentiel.is_a?(Referentiels::BaserowReferentiel)
+      referentiel ||= @tdc.build_referentiel(type: 'Referentiels::BaserowReferentiel')
+
+      referentiel.mode = mode if mode.present?
+      referentiel.hint = hint unless hint.nil?
+      referentiel.table_id = table_id.to_s if table_id.present?
+
+      url_changed = referentiel.url_changed?
+      raise SourceInvalide, "Configuration de la source incomplète (table_id requis)." unless referentiel.configured?
+
+      referentiel.save!
+      @tdc.update!(referentiel_id: referentiel.id) if @tdc.referentiel_id != referentiel.id
+      @tdc.update!(referentiel_mapping: {}) if url_changed
+      @tdc.update_column(:options, @tdc.options.merge('table_id' => referentiel.table_id.to_s))
+      referentiel
     end
 
     def mapping_actuel
@@ -57,11 +97,15 @@ module Mcp
     private
 
     def baserow_fields
+      baserow_fields_for(@tdc.table_id)
+    end
+
+    def baserow_fields_for(table_id)
       engine = ReferentielDePolynesie::API.engine
       raise BaserowIndisponible, "Baserow n'est pas configuré." if engine.nil?
 
-      config = engine.config(@tdc.table_id)
-      raise BaserowIndisponible, "Référentiel Baserow introuvable (table_id=#{@tdc.table_id})." if config.nil?
+      config = engine.config(table_id)
+      raise BaserowIndisponible, "Référentiel Baserow introuvable (table_id=#{table_id})." if config.nil?
 
       fields = engine.fields(config)
       raise BaserowIndisponible, 'Impossible de récupérer les colonnes du référentiel Baserow.' if fields.nil?

@@ -29,6 +29,87 @@ RSpec.describe Mcp::ReferentielMappingService do
 
   subject(:service) { described_class.new(referentiel_tdc) }
 
+  # pf: stub `available_tables` pour les tests de découverte (pas de réseau)
+  let(:available_tables) { [{ name: 'Communes', id: 24 }, { name: 'Entreprises', id: 42 }] }
+
+  describe '#tables_disponibles' do
+    before do
+      allow(ReferentielDePolynesie::API).to receive(:available_tables).and_return(available_tables)
+    end
+
+    it 'délègue à ReferentielDePolynesie::API.available_tables' do
+      expect(service.tables_disponibles).to eq(available_tables)
+    end
+  end
+
+  describe '#colonnes_pour_table' do
+    it 'liste les colonnes de la table donnée avec leur type de mapping' do
+      allow(engine).to receive(:config).with('99').and_return({ 'Table' => '99', 'Token' => 't' })
+      cols = service.colonnes_pour_table('99')
+      expect(cols).to contain_exactly(
+        { nom: 'RaisonSociale', type_mapping: 'string' },
+        { nom: 'Effectif', type_mapping: 'integer_number' }
+      )
+    end
+
+    it 'lève BaserowIndisponible si Baserow est injoignable' do
+      allow(ReferentielDePolynesie::API).to receive(:engine).and_return(nil)
+      expect { service.colonnes_pour_table('24') }.to raise_error(Mcp::ReferentielMappingService::BaserowIndisponible)
+    end
+
+    it '#colonnes délègue à colonnes_pour_table(@tdc.table_id)' do
+      cols = service.colonnes
+      expect(cols).to contain_exactly(
+        { nom: 'RaisonSociale', type_mapping: 'string' },
+        { nom: 'Effectif', type_mapping: 'integer_number' }
+      )
+    end
+  end
+
+  describe '#configurer_source!' do
+    it 'crée le BaserowReferentiel (mode autocomplete + hint + table_id)' do
+      service.configurer_source!(table_id: '24', mode: 'autocomplete', hint: 'Saisissez le nom de votre commune')
+      ref = referentiel_tdc.reload.referentiel
+      expect(ref).to be_a(Referentiels::BaserowReferentiel)
+      expect(ref.autocomplete?).to be(true)
+      expect(ref.hint).to eq('Saisissez le nom de votre commune')
+      expect(ref.table_id).to eq('24')
+      expect(referentiel_tdc.options['table_id']).to eq('24') # dual-write legacy
+    end
+
+    it 'purge le mapping quand la table change' do
+      service.configurer_source!(table_id: '24', mode: 'exact_match')
+      referentiel_tdc.update!(referentiel_mapping: { '$.X' => { 'type' => 'string', 'display_usager' => '1' } })
+      allow(engine).to receive(:config).with('99').and_return({ 'Table' => '99', 'Token' => 't' })
+      described_class.new(referentiel_tdc.reload).configurer_source!(table_id: '99', mode: 'exact_match')
+      expect(referentiel_tdc.reload.safe_referentiel_mapping).to be_empty
+    end
+
+    it 'refuse un mode invalide' do
+      expect { service.configurer_source!(table_id: '24', mode: 'xxx') }
+        .to raise_error(described_class::SourceInvalide, /mode/)
+    end
+
+    it 'met à jour le referentiel existant si on reconfigure sans changer de table' do
+      service.configurer_source!(table_id: '24', mode: 'exact_match')
+      referentiel_tdc.update!(referentiel_mapping: { '$.Y' => { 'type' => 'string', 'display_usager' => '1' } })
+      described_class.new(referentiel_tdc.reload).configurer_source!(table_id: '24', mode: 'autocomplete', hint: 'Nouveau hint')
+      ref = referentiel_tdc.reload.referentiel
+      expect(ref.autocomplete?).to be(true)
+      expect(ref.hint).to eq('Nouveau hint')
+      # le mapping ne doit PAS être purgé si l'url n'a pas changé
+      expect(referentiel_tdc.reload.safe_referentiel_mapping).not_to be_empty
+    end
+
+    it 'lève SourceInvalide si table_id est absent (referentiel non configured?)' do
+      # On crée un service sur un tdc sans table_id
+      tdc_sans_table = draft.types_de_champ.find { _1.type_champ == 'referentiel_de_polynesie' }
+      tdc_sans_table.update_column(:options, {})
+      expect { described_class.new(tdc_sans_table).configurer_source!(mode: 'autocomplete') }
+        .to raise_error(described_class::SourceInvalide, /table_id/)
+    end
+  end
+
   describe '#colonnes' do
     it 'liste les colonnes Baserow avec leur type de mapping' do
       cols = service.colonnes
