@@ -22,6 +22,10 @@ class AttachmentsController < ApplicationController
     return head(:not_found) if @attachment.nil?
 
     if champ?
+      # `find` avec bloc (Enumerable) renvoie nil si le blob ciblé n'est plus
+      # parmi les PJ du champ courant (ex: suppression « stale » sur le champ
+      # buffer en_construction, double-clic). On réassigne donc @attachment à
+      # nil ici ; `record` doit rester nil-safe pour les appels qui suivent.
       @attachment = champ.piece_justificative_file.find { _1.blob.id == @blob.id }
       if @attachment.present?
         champ.reset_external_data!

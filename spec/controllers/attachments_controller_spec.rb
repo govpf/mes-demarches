@@ -83,6 +83,26 @@ describe AttachmentsController, type: :controller do
         end
       end
 
+      # Régression MES-DEMARCHES-371 : en en_construction, la suppression passe par
+      # le champ buffer. Une 2e suppression « stale » (double-clic) retrouve encore
+      # l'attachment public via set_attachment, mais le buffer ne contient plus le
+      # blob → le find-bloc (Enumerable) renvoie nil. `record` doit rester nil-safe,
+      # sinon `champ?` planterait (NoMethodError sur nil) → 500.
+      context 'and the blob was already removed from the buffer (stale double delete)' do
+        let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, user:, procedure:) }
+
+        it 'returns 200 on the second delete instead of crashing' do
+          perform_enqueued_jobs do
+            delete :destroy, params: { id: attachment.id, signed_id:, dossier_id: dossier.id, stable_id: champ.stable_id }, format: :turbo_stream
+          end
+          expect(response).to have_http_status(200)
+          expect(user_buffer_champ.piece_justificative_file.attached?).to be(false)
+
+          delete :destroy, params: { id: attachment.id, signed_id:, dossier_id: dossier.id, stable_id: champ.stable_id }, format: :turbo_stream
+          expect(response).to have_http_status(200)
+        end
+      end
+
       context 'and signed_id is invalid' do
         let(:signed_id) { 'yolo' }
 
