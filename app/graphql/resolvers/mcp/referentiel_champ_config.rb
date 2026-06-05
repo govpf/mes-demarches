@@ -21,7 +21,13 @@ module Resolvers
         raise GraphQL::ExecutionError, "Le champ \"#{tdc.libelle}\" n'est pas un référentiel de Polynésie." unless tdc.type_champ == 'referentiel_de_polynesie'
 
         service = ::Mcp::ReferentielMappingService.new(tdc)
-        { table_id: tdc.table_id, colonnes: service.colonnes, mapping_actuel: service.mapping_actuel }
+        {
+          table_id: tdc.table_id,
+          colonnes: service.colonnes,
+          mapping_actuel: service.mapping_actuel,
+          mode: tdc.referentiel&.mode,
+          hint: tdc.referentiel&.hint,
+        }
       rescue ::Mcp::ReferentielMappingService::BaserowIndisponible => e
         raise GraphQL::ExecutionError, e.message
       end

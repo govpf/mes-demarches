@@ -173,10 +173,12 @@ RSpec.describe Mcp::ReferentielMappingService do
 
     it 'refuse un prefill quand le référentiel est imbriqué dans une répétition' do
       proc_rep = create(:procedure, types_de_champ_public: [
-        { type: :repetition, libelle: 'Lignes', children: [
-          { type: :referentiel_de_polynesie, libelle: 'Ref imbriqué', table_id: '24' },
-          { type: :text, libelle: 'Cible imbriquée' }
-        ] }
+        {
+          type: :repetition, libelle: 'Lignes', children: [
+            { type: :referentiel_de_polynesie, libelle: 'Ref imbriqué', table_id: '24' },
+            { type: :text, libelle: 'Cible imbriquée' },
+          ],
+        },
       ])
       ref = proc_rep.draft_revision.types_de_champ.find { _1.type_champ == 'referentiel_de_polynesie' }
       cible = proc_rep.draft_revision.types_de_champ.find { _1.libelle == 'Cible imbriquée' }
@@ -191,7 +193,7 @@ RSpec.describe Mcp::ReferentielMappingService do
           types_de_champ_public: [],
           types_de_champ_private: [
             { type: :referentiel_de_polynesie, libelle: 'Ref privé', table_id: '24' },
-            { type: :text, libelle: 'Annotation cible' }
+            { type: :text, libelle: 'Annotation cible' },
           ])
       end
       let(:ref_prive) { draft.types_de_champ.find { _1.type_champ == 'referentiel_de_polynesie' } }

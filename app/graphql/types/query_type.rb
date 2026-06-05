@@ -57,6 +57,12 @@ module Types
     # pf: colonnes Baserow + mapping courant d'un champ référentiel (pour le MCP)
     field :referentiel_champ_config, resolver: Resolvers::Mcp::ReferentielChampConfig, description: "Colonnes Baserow + mapping courant d'un champ référentiel (pour le MCP)."
 
+    # pf: liste les référentiels Baserow disponibles (découverte, pour le MCP — token admin requis)
+    field :referentiels_de_polynesie, resolver: Resolvers::Mcp::ReferentielsDePolynesie, description: "Tables Baserow disponibles comme référentiel (pour le MCP)."
+
+    # pf: colonnes d'un référentiel Baserow par table_id (découverte, pour le MCP — token admin requis)
+    field :referentiel_colonnes, resolver: Resolvers::Mcp::ReferentielColonnes, description: "Colonnes d'un référentiel Baserow (pour le MCP)."
+
     def self.accessible?(context)
       context[:token] || context[:administrateur_id]
     end

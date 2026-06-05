@@ -14,6 +14,8 @@ RSpec.describe 'Query referentielChampConfig', type: :graphql do
         tableId
         colonnes { nom typeMapping }
         mappingActuel
+        mode
+        hint
       }
     }
     GRAPHQL
@@ -32,6 +34,24 @@ RSpec.describe 'Query referentielChampConfig', type: :graphql do
     cfg = data['referentielChampConfig']
     expect(cfg['tableId']).to eq('24')
     expect(cfg['colonnes']).to include({ 'nom' => 'RaisonSociale', 'typeMapping' => 'string' })
+  end
+
+  it 'retourne mode et hint nils par défaut (pas de BaserowReferentiel configuré)' do
+    cfg = data['referentielChampConfig']
+    expect(cfg['mode']).to be_nil
+    expect(cfg['hint']).to be_nil
+  end
+
+  context 'avec un BaserowReferentiel configuré via configurer_source!' do
+    before do
+      Mcp::ReferentielMappingService.new(tdc).configurer_source!(table_id: '24', mode: 'autocomplete', hint: 'Saisissez le nom')
+    end
+
+    it 'retourne mode et hint du BaserowReferentiel' do
+      cfg = data['referentielChampConfig']
+      expect(cfg['mode']).to eq('autocomplete')
+      expect(cfg['hint']).to eq('Saisissez le nom')
+    end
   end
 
   context 'Baserow indisponible' do

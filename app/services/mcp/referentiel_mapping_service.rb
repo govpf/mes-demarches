@@ -18,15 +18,33 @@ module Mcp
       @draft = type_de_champ.revisions.last
     end
 
-    # pf: liste les tables Baserow disponibles (référentiels actifs)
-    def tables_disponibles
-      ReferentielDePolynesie::API.available_tables
+    # pf: méthodes de classe pour la découverte (pas de champ requis — config globale Baserow)
+
+    def self.tables_disponibles
+      ReferentielDePolynesie::API.available_tables || []
     end
 
-    # [{ nom:, type_mapping: }] pour n'importe quelle table_id (pas seulement @tdc.table_id)
+    def self.colonnes_pour_table(table_id)
+      engine = ReferentielDePolynesie::API.engine
+      raise BaserowIndisponible, "Baserow n'est pas configuré." if engine.nil?
+
+      config = engine.config(table_id)
+      raise BaserowIndisponible, "Référentiel Baserow introuvable (table_id=#{table_id})." if config.nil?
+
+      fields = engine.fields(config)
+      raise BaserowIndisponible, 'Impossible de récupérer les colonnes du référentiel Baserow.' if fields.nil?
+
+      fields.map { |_id, f| { nom: f[:name] || f['name'], type_mapping: ReferentielDePolynesie::BaserowAPI.baserow_type_to_mapping_type(f) } }
+    end
+
+    # pf: liste les tables Baserow disponibles (référentiels actifs) — délègue à la méthode de classe
+    def tables_disponibles
+      self.class.tables_disponibles
+    end
+
+    # [{ nom:, type_mapping: }] pour n'importe quelle table_id — délègue à la méthode de classe
     def colonnes_pour_table(table_id)
-      fields = baserow_fields_for(table_id)
-      fields.map { |_id, f| { nom: f[:name] || f['name'], type_mapping: mapping_type_for(f) } }
+      self.class.colonnes_pour_table(table_id)
     end
 
     # [{ nom:, type_mapping: }]
