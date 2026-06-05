@@ -55,7 +55,10 @@ module Mcp
 
       referentiel.save!
       @tdc.update!(referentiel_id: referentiel.id) if @tdc.referentiel_id != referentiel.id
-      @tdc.update!(referentiel_mapping: {}) if url_changed
+      if url_changed
+        @tdc.update!(referentiel_mapping: {})
+        referentiel.update!(last_response: nil, autocomplete_configuration: {})
+      end
       @tdc.update_column(:options, @tdc.options.merge('table_id' => referentiel.table_id.to_s))
       referentiel
     end
