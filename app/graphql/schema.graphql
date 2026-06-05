@@ -4331,9 +4331,19 @@ type McpReferentielChampConfig {
   colonnes: [McpReferentielColonne!]!
 
   """
+  Indications de saisie affichées à l'usager.
+  """
+  hint: String
+
+  """
   Mapping courant (par colonne).
   """
   mappingActuel: OptionsBlob!
+
+  """
+  Mode de saisie (autocomplete ou exact_match).
+  """
+  mode: String
   tableId: String
 }
 
@@ -4359,6 +4369,18 @@ input McpReferentielColonneInput {
   Si fourni : pré-remplit ce champ.
   """
   prefillStableId: String
+}
+
+type McpReferentielTable {
+  """
+  Identifiant Baserow de la table.
+  """
+  id: String!
+
+  """
+  Nom du référentiel.
+  """
+  nom: String!
 }
 
 type MesriChampDescriptor implements ChampDescriptor {
@@ -5359,6 +5381,21 @@ type Query {
     """
     stableId: String!
   ): McpReferentielChampConfig!
+
+  """
+  Colonnes d'un référentiel Baserow (pour le MCP).
+  """
+  referentielColonnes(
+    """
+    Identifiant Baserow de la table.
+    """
+    tableId: String!
+  ): [McpReferentielColonne!]!
+
+  """
+  Tables Baserow disponibles comme référentiel (pour le MCP).
+  """
+  referentielsDePolynesie: [McpReferentielTable!]!
 }
 
 type RNA {
