@@ -73,7 +73,13 @@ module Mcp
       referentiel.table_id = table_id.to_s if table_id.present?
 
       url_changed = referentiel.url_changed?
-      raise SourceInvalide, "Configuration de la source incomplète (table_id requis)." unless referentiel.configured?
+
+      manquants = []
+      manquants << 'table_id' if referentiel.table_id.blank? || referentiel.table_id.to_i <= 0
+      manquants << 'mode (autocomplete ou exact_match)' if referentiel.mode.blank?
+      if manquants.any?
+        raise SourceInvalide, "Configuration de la source incomplète, champ(s) requis : #{manquants.join(', ')}."
+      end
 
       referentiel.save!
       @tdc.update!(referentiel_id: referentiel.id) if @tdc.referentiel_id != referentiel.id

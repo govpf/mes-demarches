@@ -108,6 +108,16 @@ RSpec.describe Mcp::ReferentielMappingService do
       expect { described_class.new(tdc_sans_table).configurer_source!(mode: 'autocomplete') }
         .to raise_error(described_class::SourceInvalide, /table_id/)
     end
+
+    it 'lève SourceInvalide avec mention de "mode" si table_id est fourni mais mode absent' do
+      # Champ sans referentiel pré-existant — seul table_id est passé, mode omis
+      tdc_sans_ref = draft.types_de_champ.find { _1.type_champ == 'referentiel_de_polynesie' }
+      # Supprimer le referentiel existant s'il y en a un
+      tdc_sans_ref.referentiel&.destroy
+      tdc_sans_ref.reload
+      expect { described_class.new(tdc_sans_ref).configurer_source!(table_id: '24') }
+        .to raise_error(described_class::SourceInvalide, /mode/)
+    end
   end
 
   describe '#colonnes' do
