@@ -24,6 +24,9 @@ module Mutations
     end
 
     REFERENTIEL_SOURCE_KEYS = %w[table_id mode hint].freeze
+    # pf: champs dérivés inférés automatiquement par validate_expression — silencieusement ignorés
+    # si Claude les passe quand même (via .passthrough() sur le schéma MCP).
+    DERIVED_OPTIONS = %w[formule_output_type formule_deps].freeze
 
     # pf: pour un champ RDP, extrait table_id/mode/hint des options et configure la source
     # (BaserowReferentiel) via le service. Ces attributs vivent sur le BaserowReferentiel lié,
@@ -62,6 +65,8 @@ module Mutations
       unless options.is_a?(Hash)
         return "Le paramètre « options » doit être un objet JSON (clé/valeur), reçu : #{options.class}."
       end
+
+      options = options.reject { |k, _| DERIVED_OPTIONS.include?(k.to_s) }
 
       allowed = TypeDeChamp::OPTS_BY_TYPE.fetch(type_de_champ.type_champ) { [] }.map(&:to_s)
       unknown = options.keys.map(&:to_s) - allowed
