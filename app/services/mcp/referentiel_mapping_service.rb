@@ -68,7 +68,7 @@ module Mcp
       referentiel = nil unless referentiel.is_a?(Referentiels::BaserowReferentiel)
       referentiel ||= @tdc.build_referentiel(type: 'Referentiels::BaserowReferentiel')
 
-      referentiel.mode = mode if mode.present?
+      referentiel.mode = mode.present? ? mode : (referentiel.mode.presence || 'autocomplete')
       referentiel.hint = hint unless hint.nil?
       referentiel.table_id = table_id.to_s if table_id.present?
 
@@ -76,7 +76,6 @@ module Mcp
 
       manquants = []
       manquants << 'table_id' if referentiel.table_id.blank? || referentiel.table_id.to_i <= 0
-      manquants << 'mode (autocomplete ou exact_match)' if referentiel.mode.blank?
       if manquants.any?
         raise SourceInvalide, "Configuration de la source incomplète, champ(s) requis : #{manquants.join(', ')}."
       end
