@@ -56,8 +56,16 @@ module Mutations
       # qu'au save). Pour configurer les options d'un nouveau type, faire deux appels
       # (changer le type, puis poser les options). À améliorer si le besoin se confirme.
       if options.present?
-        error = appliquer_options!(type_de_champ, options, draft)
-        return { errors: [error] } if error
+        # pf: extraire table_id/mode/hint et les router vers configurer_source! (BaserowReferentiel),
+        # puis passer les options restantes (ex: drop_down_other) au chemin générique appliquer_options!.
+        remaining_options, source_error = extraire_et_appliquer_source_referentiel!(type_de_champ, options)
+        return { errors: [source_error] } if source_error
+
+        options = remaining_options
+        if options.present?
+          error = appliquer_options!(type_de_champ, options, draft)
+          return { errors: [error] } if error
+        end
       end
 
       type_de_champ.assign_attributes(attrs)

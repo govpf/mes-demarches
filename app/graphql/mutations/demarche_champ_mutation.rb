@@ -23,6 +23,35 @@ module Mutations
       [procedure, nil]
     end
 
+    REFERENTIEL_SOURCE_KEYS = %w[table_id mode hint].freeze
+
+    # pf: pour un champ RDP, extrait table_id/mode/hint des options et configure la source
+    # (BaserowReferentiel) via le service. Ces attributs vivent sur le BaserowReferentiel lié,
+    # pas dans le jsonb options — ils ne passent donc PAS par appliquer_options! (qui les
+    # rejetterait pour mode/hint, et qui ne sait pas faire le dual-write pour table_id).
+    # Retourne [options_restantes, erreur|nil].
+    def extraire_et_appliquer_source_referentiel!(type_de_champ, options)
+      return [options, nil] unless type_de_champ.type_champ == 'referentiel_de_polynesie'
+      return [options, nil] if options.blank?
+
+      opts = options.to_h.deep_dup
+      source = {}
+      REFERENTIEL_SOURCE_KEYS.each do |k|
+        source[k] = opts.delete(k) if opts.key?(k)
+        source[k] = opts.delete(k.to_sym) if opts.key?(k.to_sym)
+      end
+      return [options, nil] if source.empty?
+
+      ::Mcp::ReferentielMappingService.new(type_de_champ).configurer_source!(
+        table_id: source['table_id'],
+        mode:     source['mode'],
+        hint:     source['hint']
+      )
+      [opts, nil]
+    rescue ::Mcp::ReferentielMappingService::SourceInvalide, ::Mcp::ReferentielMappingService::BaserowIndisponible => e
+      [options, e.message]
+    end
+
     # pf: valide + normalise + applique un blob d'options sur un type de champ.
     # Réutilise TypeDeChamp::OPTS_BY_TYPE (map canonique, options standard + PF) pour
     # rejeter toute clé non autorisée. Retourne nil si OK, ou un message d'erreur.

@@ -6,6 +6,16 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
   let(:context) { { administrateur_id: admin.id, procedure_ids: admin.procedure_ids, write_access: true } }
   let(:variables) { {} }
 
+  # pf: stub Baserow pour les tests RDP (pas de réseau)
+  let(:baserow_fields) { { 1 => { name: 'Nom', type: 'text' } } }
+  let(:engine) { class_double(ReferentielDePolynesie::BaserowAPI) }
+
+  before do
+    allow(ReferentielDePolynesie::API).to receive(:engine).and_return(engine)
+    allow(engine).to receive(:config).and_return({ 'Table' => '24', 'Token' => 't' })
+    allow(engine).to receive(:fields).and_return(baserow_fields)
+  end
+
   subject { API::V2::Schema.execute(query, variables:, context:) }
 
   let(:data) { subject['data'].deep_symbolize_keys }
@@ -121,6 +131,64 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
         tdc = procedure.draft_revision.reload.types_de_champ.find { _1.libelle == 'Civilité' }
         expect(tdc.drop_down_options).to include('M.', 'Mme')
         expect(tdc.drop_down_other).to eq('1')
+      end
+    end
+
+    # pf: options source RDP (table_id/mode/hint) routées vers configurer_source!
+    context 'champ referentiel_de_polynesie avec options source' do
+      let(:query) do
+        <<-GRAPHQL
+        mutation($input: DemarcheAjouterChampInput!) {
+          demarcheAjouterChamp(input: $input) { champStableId errors { message } }
+        }
+        GRAPHQL
+      end
+
+      context 'table_id + mode + hint' do
+        let(:variables) do
+          { input: { demarche: { number: procedure.id }, typeChamp: 'referentiel_de_polynesie',
+                     libelle: 'Commune',
+                     options: { table_id: '24', mode: 'autocomplete', hint: 'Saisissez…' } } }
+        end
+
+        it 'crée le champ et configure la source (autocomplete, hint, table_id)' do
+          expect(data[:demarcheAjouterChamp][:errors]).to be_nil
+          tdc = procedure.draft_revision.reload.types_de_champ.find { _1.libelle == 'Commune' }
+          expect(tdc).to be_present
+          expect(tdc.referentiel).to be_a(Referentiels::BaserowReferentiel)
+          expect(tdc.referentiel.autocomplete?).to be(true)
+          expect(tdc.referentiel.hint).to eq('Saisissez…')
+          expect(tdc.referentiel.table_id).to eq('24')
+        end
+      end
+
+      context 'mode invalide' do
+        let(:variables) do
+          { input: { demarche: { number: procedure.id }, typeChamp: 'referentiel_de_polynesie',
+                     libelle: 'Commune',
+                     options: { table_id: '24', mode: 'xxx' } } }
+        end
+
+        it 'retourne une erreur (SourceInvalide)' do
+          expect(data[:demarcheAjouterChamp][:champStableId]).to be_nil
+          expect(data[:demarcheAjouterChamp][:errors].first[:message]).to include('mode')
+        end
+      end
+
+      context 'table_id + mode + drop_down_other (split routing)' do
+        let(:variables) do
+          { input: { demarche: { number: procedure.id }, typeChamp: 'referentiel_de_polynesie',
+                     libelle: 'Commune',
+                     options: { table_id: '24', mode: 'autocomplete', drop_down_other: true } } }
+        end
+
+        it 'configure la source ET applique drop_down_other comme option normale' do
+          expect(data[:demarcheAjouterChamp][:errors]).to be_nil
+          tdc = procedure.draft_revision.reload.types_de_champ.find { _1.libelle == 'Commune' }
+          expect(tdc.referentiel).to be_a(Referentiels::BaserowReferentiel)
+          expect(tdc.referentiel.autocomplete?).to be(true)
+          expect(tdc.drop_down_other).to eq('1')
+        end
       end
     end
   end
@@ -439,6 +507,39 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
       it 'retourne une erreur propre (pas un 500)' do
         expect { subject }.not_to raise_error
         expect(data[:demarcheModifierChamp][:errors].first[:message]).to include('objet')
+      end
+    end
+
+    # pf: options source RDP (table_id/mode/hint) routées vers configurer_source!
+    context 'champ referentiel_de_polynesie — modifier mode via options' do
+      let(:rdp_procedure) do
+        create(:procedure, administrateurs: [admin],
+          types_de_champ_public: [{ type: :referentiel_de_polynesie, libelle: 'Commune', table_id: '24' }])
+      end
+      let(:rdp_tdc) { rdp_procedure.draft_revision.types_de_champ.find { _1.type_champ == 'referentiel_de_polynesie' } }
+      let(:query) do
+        <<-GRAPHQL
+        mutation($input: DemarcheModifierChampInput!) {
+          demarcheModifierChamp(input: $input) { champStableId errors { message } }
+        }
+        GRAPHQL
+      end
+
+      before do
+        # Configurer la source initiale avant de modifier
+        Mcp::ReferentielMappingService.new(rdp_tdc).configurer_source!(table_id: '24', mode: 'exact_match')
+      end
+
+      context 'changement de mode via options' do
+        let(:variables) do
+          { input: { demarche: { number: rdp_procedure.id }, stableId: rdp_tdc.stable_id.to_s,
+                     options: { mode: 'autocomplete' } } }
+        end
+
+        it 'met à jour le mode du referentiel' do
+          expect(data[:demarcheModifierChamp][:errors]).to be_nil
+          expect(rdp_tdc.reload.referentiel.autocomplete?).to be(true)
+        end
       end
     end
 
