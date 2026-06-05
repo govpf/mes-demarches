@@ -31,8 +31,12 @@ RSpec.describe Mutations::DemarcheConfigurerReferentielMapping, type: :graphql d
 
   context 'prefill valide' do
     let(:variables) do
-      { input: { demarche: { number: procedure.id }, stableId: tdc.stable_id.to_s,
-                 colonnes: [{ colonne: 'RaisonSociale', prefillStableId: cible.stable_id.to_s }] } }
+      {
+        input: {
+          demarche: { number: procedure.id }, stableId: tdc.stable_id.to_s,
+                         colonnes: [{ colonne: 'RaisonSociale', prefillStableId: cible.stable_id.to_s }],
+        },
+      }
     end
 
     it 'configure le mapping et retourne le stable_id' do
@@ -46,8 +50,12 @@ RSpec.describe Mutations::DemarcheConfigurerReferentielMapping, type: :graphql d
 
   context 'cible incompatible (referentiel_de_polynesie ne peut pas être cible)' do
     let(:variables) do
-      { input: { demarche: { number: procedure.id }, stableId: tdc.stable_id.to_s,
-                 colonnes: [{ colonne: 'RaisonSociale', prefillStableId: tdc.stable_id.to_s }] } }
+      {
+        input: {
+          demarche: { number: procedure.id }, stableId: tdc.stable_id.to_s,
+                         colonnes: [{ colonne: 'RaisonSociale', prefillStableId: tdc.stable_id.to_s }],
+        },
+      }
     end
 
     it 'retourne une erreur sans persister' do
@@ -58,8 +66,12 @@ RSpec.describe Mutations::DemarcheConfigurerReferentielMapping, type: :graphql d
 
   context 'champ inexistant' do
     let(:variables) do
-      { input: { demarche: { number: procedure.id }, stableId: '999999',
-                 colonnes: [{ colonne: 'RaisonSociale', displayUsager: true }] } }
+      {
+        input: {
+          demarche: { number: procedure.id }, stableId: '999999',
+                         colonnes: [{ colonne: 'RaisonSociale', displayUsager: true }],
+        },
+      }
     end
 
     it 'retourne une erreur' do
@@ -77,8 +89,12 @@ RSpec.describe Mutations::DemarcheConfigurerReferentielMapping, type: :graphql d
     end
     let(:texte) { procedure.draft_revision.types_de_champ.find { _1.libelle == 'Texte simple' } }
     let(:variables) do
-      { input: { demarche: { number: procedure.id }, stableId: texte.stable_id.to_s,
-                 colonnes: [{ colonne: 'RaisonSociale', displayUsager: true }] } }
+      {
+        input: {
+          demarche: { number: procedure.id }, stableId: texte.stable_id.to_s,
+                         colonnes: [{ colonne: 'RaisonSociale', displayUsager: true }],
+        },
+      }
     end
 
     it 'retourne une erreur' do

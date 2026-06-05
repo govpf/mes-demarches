@@ -122,8 +122,12 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
         GRAPHQL
       end
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, typeChamp: 'drop_down_list', libelle: 'Civilité',
-                   options: { drop_down_options: ['M.', 'Mme'], drop_down_other: true } } }
+        {
+          input: {
+            demarche: { number: procedure.id }, typeChamp: 'drop_down_list', libelle: 'Civilité',
+                             options: { drop_down_options: ['M.', 'Mme'], drop_down_other: true },
+          },
+        }
       end
 
       it 'crée le champ avec ses options' do
@@ -146,9 +150,13 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
       context 'table_id + mode + hint' do
         let(:variables) do
-          { input: { demarche: { number: procedure.id }, typeChamp: 'referentiel_de_polynesie',
-                     libelle: 'Commune',
-                     options: { table_id: '24', mode: 'autocomplete', hint: 'Saisissez…' } } }
+          {
+            input: {
+              demarche: { number: procedure.id }, typeChamp: 'referentiel_de_polynesie',
+                                 libelle: 'Commune',
+                                 options: { table_id: '24', mode: 'autocomplete', hint: 'Saisissez…' },
+            },
+          }
         end
 
         it 'crée le champ et configure la source (autocomplete, hint, table_id)' do
@@ -164,9 +172,13 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
       context 'mode invalide' do
         let(:variables) do
-          { input: { demarche: { number: procedure.id }, typeChamp: 'referentiel_de_polynesie',
-                     libelle: 'Commune',
-                     options: { table_id: '24', mode: 'xxx' } } }
+          {
+            input: {
+              demarche: { number: procedure.id }, typeChamp: 'referentiel_de_polynesie',
+                                 libelle: 'Commune',
+                                 options: { table_id: '24', mode: 'xxx' },
+            },
+          }
         end
 
         it 'retourne une erreur (SourceInvalide)' do
@@ -177,9 +189,13 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
       context 'table_id + mode + drop_down_other (split routing)' do
         let(:variables) do
-          { input: { demarche: { number: procedure.id }, typeChamp: 'referentiel_de_polynesie',
-                     libelle: 'Commune',
-                     options: { table_id: '24', mode: 'autocomplete', drop_down_other: true } } }
+          {
+            input: {
+              demarche: { number: procedure.id }, typeChamp: 'referentiel_de_polynesie',
+                                 libelle: 'Commune',
+                                 options: { table_id: '24', mode: 'autocomplete', drop_down_other: true },
+            },
+          }
         end
 
         it 'configure la source ET applique drop_down_other comme option normale' do
@@ -295,8 +311,12 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
     context 'condition numérique simple' do
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
-                   termes: [{ champSourceStableId: source.stable_id.to_s, operateur: 'superieur_ou_egal', valeur: '18' }] } }
+        {
+          input: {
+            demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
+                             termes: [{ champSourceStableId: source.stable_id.to_s, operateur: 'superieur_ou_egal', valeur: '18' }],
+          },
+        }
       end
 
       it 'pose la condition' do
@@ -313,11 +333,15 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
     context 'combinateur OU avec deux termes' do
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s, combinateur: 'OU',
-                   termes: [
-                     { champSourceStableId: source.stable_id.to_s, operateur: 'superieur', valeur: '18' },
-                     { champSourceStableId: source.stable_id.to_s, operateur: 'inferieur', valeur: '5' },
-                   ] } }
+        {
+          input: {
+            demarche: { number: procedure.id }, stableId: cible.stable_id.to_s, combinateur: 'OU',
+                             termes: [
+                               { champSourceStableId: source.stable_id.to_s, operateur: 'superieur', valeur: '18' },
+                               { champSourceStableId: source.stable_id.to_s, operateur: 'inferieur', valeur: '5' },
+                             ],
+          },
+        }
       end
 
       it 'construit un Logic::Or à deux opérandes' do
@@ -344,8 +368,12 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
     context 'opérateur inconnu' do
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
-                   termes: [{ champSourceStableId: source.stable_id.to_s, operateur: 'entre', valeur: '18' }] } }
+        {
+          input: {
+            demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
+                             termes: [{ champSourceStableId: source.stable_id.to_s, operateur: 'entre', valeur: '18' }],
+          },
+        }
       end
 
       it 'retourne une erreur' do
@@ -356,8 +384,12 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
     context 'opérateur incompatible (champ source = la cible texte, non amont)' do
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
-                   termes: [{ champSourceStableId: cible.stable_id.to_s, operateur: 'superieur', valeur: '3' }] } }
+        {
+          input: {
+            demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
+                             termes: [{ champSourceStableId: cible.stable_id.to_s, operateur: 'superieur', valeur: '3' }],
+          },
+        }
       end
 
       it 'retourne une erreur (pas un 500)' do
@@ -376,8 +408,12 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
       let(:cible)  { procedure.draft_revision.types_de_champ.first }
       let(:apres)  { procedure.draft_revision.types_de_champ.second }
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
-                   termes: [{ champSourceStableId: apres.stable_id.to_s, operateur: 'superieur', valeur: '1' }] } }
+        {
+          input: {
+            demarche: { number: procedure.id }, stableId: cible.stable_id.to_s,
+                             termes: [{ champSourceStableId: apres.stable_id.to_s, operateur: 'superieur', valeur: '1' }],
+          },
+        }
       end
 
       it 'retourne une erreur' do
@@ -388,11 +424,15 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
     context 'combinateur invalide' do
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, stableId: cible.stable_id.to_s, combinateur: 'XOR',
-                   termes: [
-                     { champSourceStableId: source.stable_id.to_s, operateur: 'superieur', valeur: '18' },
-                     { champSourceStableId: source.stable_id.to_s, operateur: 'inferieur', valeur: '5' },
-                   ] } }
+        {
+          input: {
+            demarche: { number: procedure.id }, stableId: cible.stable_id.to_s, combinateur: 'XOR',
+                             termes: [
+                               { champSourceStableId: source.stable_id.to_s, operateur: 'superieur', valeur: '18' },
+                               { champSourceStableId: source.stable_id.to_s, operateur: 'inferieur', valeur: '5' },
+                             ],
+          },
+        }
       end
 
       it 'retourne une erreur' do
@@ -474,8 +514,12 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
         GRAPHQL
       end
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s,
-                   options: { positive_number: true, min_number: '0', max_number: '120' } } }
+        {
+          input: {
+            demarche: { number: procedure.id }, stableId: stable_id.to_s,
+                             options: { positive_number: true, min_number: '0', max_number: '120' },
+          },
+        }
       end
 
       it 'applique les options' do
@@ -489,8 +533,12 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
     context 'avec une option non autorisée pour le type' do
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, stableId: stable_id.to_s,
-                   options: { min_number: '0' } } }
+        {
+          input: {
+            demarche: { number: procedure.id }, stableId: stable_id.to_s,
+                             options: { min_number: '0' },
+          },
+        }
       end
 
       it 'est refusé avec la liste des options valides' do
@@ -532,8 +580,12 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
 
       context 'changement de mode via options' do
         let(:variables) do
-          { input: { demarche: { number: rdp_procedure.id }, stableId: rdp_tdc.stable_id.to_s,
-                     options: { mode: 'autocomplete' } } }
+          {
+            input: {
+              demarche: { number: rdp_procedure.id }, stableId: rdp_tdc.stable_id.to_s,
+                                 options: { mode: 'autocomplete' },
+            },
+          }
         end
 
         it 'met à jour le mode du referentiel' do
@@ -560,8 +612,12 @@ RSpec.describe 'Mutations MCP construction de champs', type: :graphql do
         GRAPHQL
       end
       let(:variables) do
-        { input: { demarche: { number: procedure.id }, stableId: formule.stable_id.to_s,
-                   options: { formule_expression: '{Quantité} * 2' } } }
+        {
+          input: {
+            demarche: { number: procedure.id }, stableId: formule.stable_id.to_s,
+                             options: { formule_expression: '{Quantité} * 2' },
+          },
+        }
       end
 
       it 'convertit les libellés en tokens stable_id et peuple les dépendances' do
