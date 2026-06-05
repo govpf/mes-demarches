@@ -75,6 +75,35 @@ RSpec.describe 'Query demarcheChamps', type: :graphql do
     end
   end
 
+  context 'champ formule : formule_expression convertie en libellés' do
+    let(:procedure) do
+      create(:procedure, administrateurs: [admin], types_de_champ_public: [
+        { type: :integer_number, libelle: 'Quantité' },
+        { type: :formule, libelle: 'Total' },
+      ])
+    end
+
+    before do
+      revision = procedure.draft_revision
+      quantite_stable_id = revision.types_de_champ.find { _1.libelle == 'Quantité' }.stable_id
+      tdc_total = revision.types_de_champ.find { _1.libelle == 'Total' }
+      tdc_total.update!(options: tdc_total.options.merge('formule_expression' => "{tdc#{quantite_stable_id}} * 2"))
+    end
+
+    let(:query) do
+      <<-GRAPHQL
+      query($demarche: FindDemarcheInput!) {
+        demarcheChamps(demarche: $demarche) { libelle typeChamp options }
+      }
+      GRAPHQL
+    end
+
+    it 'expose formule_expression avec les libellés (pas les tokens internes)' do
+      total = data[:demarcheChamps].find { _1[:libelle] == 'Total' }
+      expect(total[:options][:formule_expression]).to eq('{Quantité} * 2')
+    end
+  end
+
   context 'champ enfant dans une répétition' do
     let(:procedure) do
       create(:procedure, administrateurs: [admin], types_de_champ_public: [
