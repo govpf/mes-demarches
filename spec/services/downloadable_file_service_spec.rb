@@ -29,7 +29,7 @@ describe DownloadableFileService do
 
     it 'creates a zip with zip utility' do
       expected_zip_path = File.join(DownloadableFileService::ARCHIVE_CREATION_DIR, "#{service.send(:zip_root_folder, archive)}.zip")
-      expect(DownloadableFileService).to receive(:system).with('zip', '-0', '-r', expected_zip_path, an_instance_of(String), chdir: an_instance_of(String))
+      expect(DownloadableFileService).to receive(:system).with('zip', '-0', '-r', '-UN=UTF8', expected_zip_path, an_instance_of(String), chdir: an_instance_of(String))
       DownloadableFileService.download_and_zip(procedure, [], filename) { |zip_path| }
     end
 

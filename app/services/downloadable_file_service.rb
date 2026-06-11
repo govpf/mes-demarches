@@ -17,7 +17,7 @@ class DownloadableFileService
         download_manager.download_all
 
         File.delete(zip_path) if File.exist?(zip_path)
-        system 'zip', '-0', '-r', zip_path, EXPORT_DIRNAME, chdir: tmp_dir
+        system 'zip', '-0', '-r', '-UN=UTF8', zip_path, EXPORT_DIRNAME, chdir: tmp_dir
         yield(zip_path)
       ensure
         FileUtils.remove_entry_secure(export_dir) if Dir.exist?(export_dir)
