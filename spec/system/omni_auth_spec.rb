@@ -38,7 +38,11 @@ describe 'Omni Auth Connexion' do
 
       context 'when authentification is ok' do
         before do
-          allow_any_instance_of(OmniAuthClient).to receive(:authorization_uri).and_return(omniauth_callback_path(provider: 'google', code: code))
+          # pf: sécurité (F2) — simule l'écho du state par le provider : l'URL de callback
+          # reçoit le state généré au login, pour passer la validation anti-CSRF.
+          allow(OmniAuthService).to receive(:authorization_uri) do |_provider, state:, nonce:|
+            omniauth_callback_path(provider: 'google', code: code, state: state)
+          end
           allow(OmniAuthService).to receive(:retrieve_user_informations).and_return(france_connect_information)
         end
 
@@ -132,7 +136,11 @@ describe 'Omni Auth Connexion' do
 
       context 'when authentification is not ok' do
         before do
-          allow_any_instance_of(OmniAuthClient).to receive(:authorization_uri).and_return(omniauth_callback_path(provider: 'google', code: code))
+          # pf: sécurité (F2) — simule l'écho du state par le provider : l'URL de callback
+          # reçoit le state généré au login, pour passer la validation anti-CSRF.
+          allow(OmniAuthService).to receive(:authorization_uri) do |_provider, state:, nonce:|
+            omniauth_callback_path(provider: 'google', code: code, state: state)
+          end
           allow(OmniAuthService).to receive(:retrieve_user_informations) { raise Rack::OAuth2::Client::Error.new(500, error: 'Unknown') }
           page.find("a[href='#{omniauth_path('google')}']").click
         end
