@@ -51,7 +51,11 @@ class OmniAuthService
 
   def self.find_or_retrieve_user_informations(provider, code)
     fetched_fci = retrieve_user_informations(provider, code)
-    FranceConnectInformation.find_by(france_connect_particulier_id: fetched_fci[:france_connect_particulier_id]) || fetched_fci
+    fci = FranceConnectInformation.find_by(france_connect_particulier_id: fetched_fci.france_connect_particulier_id) || fetched_fci
+    # pf: sécurité (F3/F4) — la confiance est transitoire (claims de l'auth courante),
+    # à reporter sur la FCI persistée éventuellement retrouvée.
+    fci.trusted_email_assertion = fetched_fci.trusted_email_assertion
+    fci
   end
 
   private
@@ -62,11 +66,11 @@ class OmniAuthService
     end
     client = OmniAuthClient.new(PF_OMNIAUTH_PROVIDERS[provider], code)
 
-    user_info = client.access_token!(client_auth_method: :secret)
-      .userinfo!
-      .raw_attributes
+    access_token = client.access_token!(client_auth_method: :secret)
+    user_info = access_token.userinfo!.raw_attributes
+    id_token_claims = decode_id_token_claims(access_token)
 
-    FranceConnectInformation.new(
+    fci = FranceConnectInformation.new(
       gender: user_info[:gender],
       given_name: user_info[:given_name],
       family_name: user_info[:family_name],
@@ -75,5 +79,29 @@ class OmniAuthService
       birthplace: user_info[:birthplace],
       france_connect_particulier_id: user_info[:sub]
     )
+
+    # pf: sécurité (F3/F4) — tid et email_verified viennent de l'id_token (le userinfo
+    # Microsoft ne porte pas tid). email_verified peut aussi être dans le userinfo.
+    email_verified = id_token_claims['email_verified']
+    email_verified = user_info[:email_verified] if email_verified.nil?
+    fci.trusted_email_assertion = trusted_email_assertion?(
+      provider:,
+      email_verified:,
+      tid: id_token_claims['tid']
+    )
+    fci
+  end
+
+  # pf: sécurité — décode les claims de l'id_token. En flux authorization-code, l'id_token
+  # vient du token endpoint en back-channel TLS direct => authentique sans vérif de
+  # signature (les providers PF n'ont pas de jwks configuré ; vérif JWKS = suivi).
+  def self.decode_id_token_claims(access_token)
+    raw = access_token.id_token
+    return {} if raw.blank?
+
+    JSON::JWT.decode(raw, :skip_verification).to_h
+  rescue => e
+    Rails.logger.error("OmniAuth id_token decode failed: #{e.message}")
+    {}
   end
 end

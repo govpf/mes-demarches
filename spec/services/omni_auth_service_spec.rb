@@ -96,12 +96,16 @@ describe OmniAuthService do
 
     let(:user_info_hash) { { sub: france_connect_particulier_id, given_name: given_name, family_name: family_name, birthdate: birthdate, gender: gender, birthplace: birthplace, email: email, phone: phone } }
     let(:user_info) { instance_double('OpenIDConnect::ResponseObject::UserInfo', raw_attributes: user_info_hash) }
+    let(:id_token) { 'fake.jwt.token' }
+    let(:id_token_claims) { { 'email_verified' => true } }
 
     subject { described_class.retrieve_user_informations 'google', code }
 
     before do
       allow_any_instance_of(OmniAuthClient).to receive(:access_token!).and_return(access_token)
       allow(access_token).to receive(:userinfo!).and_return(user_info)
+      allow(access_token).to receive(:id_token).and_return(id_token)
+      allow(JSON::JWT).to receive(:decode).with(id_token, :skip_verification).and_return(id_token_claims)
     end
 
     it 'set code for OmniAuthClient' do
@@ -119,6 +123,54 @@ describe OmniAuthService do
         email_france_connect:          email,
         france_connect_particulier_id: france_connect_particulier_id,
       })
+    end
+
+    context 'confiance basée sur les claims de l’id_token (F3/F4)' do
+      context 'google avec email_verified=true' do
+        let(:id_token_claims) { { 'email_verified' => true } }
+
+        it 'marque l’assertion comme fiable' do
+          expect(subject.trusted_email_assertion).to be(true)
+        end
+      end
+
+      context 'google sans email_verified' do
+        let(:id_token_claims) { {} }
+
+        it 'marque l’assertion comme non fiable' do
+          expect(subject.trusted_email_assertion).to be(false)
+        end
+      end
+
+      context 'microsoft avec tid dans l’allowlist' do
+        subject { described_class.retrieve_user_informations 'microsoft', code }
+
+        let(:id_token_claims) { { 'tid' => 'tenant-idt-pf' } }
+
+        before do
+          allow(ENV).to receive(:fetch).and_call_original
+          allow(ENV).to receive(:fetch).with('MICROSOFT_ALLOWED_TENANTS', '').and_return('tenant-idt-pf')
+        end
+
+        it 'marque l’assertion comme fiable' do
+          expect(subject.trusted_email_assertion).to be(true)
+        end
+      end
+
+      context 'microsoft nOAuth : tid d’un tenant attaquant' do
+        subject { described_class.retrieve_user_informations 'microsoft', code }
+
+        let(:id_token_claims) { { 'tid' => 'tenant-attaquant', 'email' => 'victime@gov.pf', 'email_verified' => true } }
+
+        before do
+          allow(ENV).to receive(:fetch).and_call_original
+          allow(ENV).to receive(:fetch).with('MICROSOFT_ALLOWED_TENANTS', '').and_return('tenant-idt-pf')
+        end
+
+        it 'marque l’assertion comme NON fiable malgré email_verified' do
+          expect(subject.trusted_email_assertion).to be(false)
+        end
+      end
     end
   end
 end
