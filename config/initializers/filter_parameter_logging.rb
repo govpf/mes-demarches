@@ -7,4 +7,7 @@
 # See the ActiveSupport::ParameterFilter documentation for supported notations and behaviors.
 Rails.application.config.filter_parameters += [
   :passw, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :authentication_data,
+  # pf: sécurité (F6) — PII spécifiques Polynésie française reçues en query string / POST
+  # sur les routes de vérification DN (Champs::NumeroDnController). À filtrer des logs.
+  :dn, :ddn, :numero_dn, :date_de_naissance,
 ]
