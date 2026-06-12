@@ -35,7 +35,10 @@ class OmniAuthService
     ENV.fetch('MICROSOFT_ALLOWED_TENANTS', '').split(',').map(&:strip).compact_blank
   end
 
-  def self.authorization_uri(provider)
+  # pf: sécurité (F2) — state et nonce sont fournis par le contrôleur qui les stocke en
+  # session, pour pouvoir les valider au callback (anti-CSRF OAuth). Ils ne doivent plus
+  # être générés ici (sinon non vérifiables au retour).
+  def self.authorization_uri(provider, state:, nonce:)
     if provider.blank?
       raise "provider should not be nil"
     end
@@ -44,8 +47,8 @@ class OmniAuthService
 
     client.authorization_uri(
       scope: scope,
-      state: SecureRandom.hex(16),
-      nonce: SecureRandom.hex(16)
+      state:,
+      nonce:
     )
   end
 

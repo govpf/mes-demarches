@@ -10,7 +10,12 @@ class OmniauthController < ApplicationController
     provider = provider_param
     # already checked in routes.rb but brakeman complains
     if OmniAuthService.enabled?(provider)
-      redirect_to OmniAuthService.authorization_uri(provider), allow_other_host: true
+      # pf: sécurité (F2) — state/nonce stockés en session pour validation au callback
+      state = SecureRandom.hex(16)
+      nonce = SecureRandom.hex(16)
+      session[:omniauth_state] = state
+      session[:omniauth_nonce] = nonce
+      redirect_to OmniAuthService.authorization_uri(provider, state:, nonce:), allow_other_host: true
     else
       redirect_to new_user_session_path
     end
@@ -18,6 +23,8 @@ class OmniauthController < ApplicationController
 
   def callback
     provider = provider_param
+    return redirect_to(new_user_session_path) unless valid_omniauth_state?
+
     @fci = OmniAuthService.find_or_retrieve_user_informations(provider, params[:code])
 
     if @fci.user.nil?
@@ -214,6 +221,17 @@ class OmniauthController < ApplicationController
     if params[:code].blank?
       redirect_to new_user_session_path
     end
+  end
+
+  # pf: sécurité (F2) — valide le state OAuth contre la valeur stockée en session au
+  # login (anti-CSRF). Usage unique : la valeur de session est purgée à la lecture.
+  def valid_omniauth_state?
+    expected_state = session.delete(:omniauth_state)
+    received_state = params[:state]
+
+    expected_state.present? &&
+      received_state.present? &&
+      ActiveSupport::SecurityUtils.secure_compare(received_state, expected_state)
   end
 
   def connect_user(provider, user)

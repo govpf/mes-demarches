@@ -25,11 +25,31 @@ describe OmniauthController, type: :controller do
 
   describe '#callback' do
     let(:code) { 'plop' }
+    let(:state) { 'valid-state' }
 
-    subject { get :callback, params: { code: code, provider: provider } }
+    # pf: sécurité (F2) — le state est validé contre la session ; on simule un login
+    # antérieur ayant stocké le state.
+    before { request.session[:omniauth_state] = 'valid-state' }
+
+    subject { get :callback, params: { code: code, state: state, provider: provider } }
 
     context 'when params are missing' do
       subject { get :callback, params: { provider: provider } }
+
+      it { is_expected.to redirect_to(new_user_session_path) }
+    end
+
+    context 'when the OAuth state is invalid (CSRF)' do
+      let(:state) { 'forged-state' }
+
+      it 'rejects and redirects to login without retrieving user informations' do
+        expect(OmniAuthService).not_to receive(:find_or_retrieve_user_informations)
+        expect(subject).to redirect_to(new_user_session_path)
+      end
+    end
+
+    context 'when the OAuth state is missing from session' do
+      before { request.session.delete(:omniauth_state) }
 
       it { is_expected.to redirect_to(new_user_session_path) }
     end
