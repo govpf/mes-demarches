@@ -6,6 +6,11 @@ class FranceConnectInformation < ApplicationRecord
 
   belongs_to :user, optional: true
 
+  # pf: sécurité (F3/F4) — confiance transitoire dans l'assertion d'email du provider
+  # OmniAuth pour l'authentification courante (non persistée). Détermine si la fusion
+  # peut se faire sans mot de passe. Voir OmniAuthService.trusted_email_assertion?.
+  attr_accessor :trusted_email_assertion
+
   validates :france_connect_particulier_id, presence: true, allow_blank: false, allow_nil: false
 
   def safely_associate_user!(email)
