@@ -1,11 +1,21 @@
 name: Continuous Integration
 on:
+  # pf: push ne déclenche la CI que pour les branches qu'on merge en direct (sans PR) :
+  # branches d'intégration + hotfix/*. Tout le reste (fix/*, feature/*, issue/*) passe
+  # par une PR et n'est testé que via l'événement pull_request, pour éviter le doublon
+  # de runs push + pull_request sur une même branche de PR.
   push:
-    branches: ['main', 'devpf', 'masterpf', 'issue/*', 'feature/*', 'feature-ouidou/*', 'hotfix/*', 'fix/*']
+    branches: ['main', 'devpf', 'masterpf', 'hotfix/*']
   pull_request:
-    branches: ['main', 'devpf', 'masterpf', 'issue/*', 'feature/*', 'feature-ouidou/*', 'hotfix/*', 'fix/*']
+    branches: ['main', 'devpf', 'masterpf']
   merge_group:
     branches: ['main', 'devpf']
+
+# pf: un nouveau push sur une ref annule le run précédent encore en cours sur cette même
+# ref (évite l'empilement de runs obsolètes lors de pushes/rebases successifs).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   DISABLE_SPRING: '1'
