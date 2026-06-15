@@ -184,8 +184,12 @@ prawn_document(margin: [top_margin, right_margin, bottom_margin, left_margin], p
     italic: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf'),
   })
 
+  noto_math = Rails.root.join('lib/prawn/fonts/noto/NotoSansMath-Regular.ttf')
+  pdf.font_families.update('noto-math' => {
+    normal: noto_math, bold: noto_math, italic: noto_math, bold_italic: noto_math,
+  })
   pdf.font 'marianne'
-  pdf.fallback_fonts = ['Helvetica']
+  pdf.fallback_fonts = ['noto-math', 'Helvetica']
 
   grey = '555555'
   black = '000000'
