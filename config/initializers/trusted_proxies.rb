@@ -20,9 +20,9 @@ cloudflare_file = Rails.root.join("config", "cloudflare_ips.txt")
 cloudflare_cidrs =
   if File.exist?(cloudflare_file)
     File.readlines(cloudflare_file, chomp: true)
-        .map(&:strip)
-        .reject { |line| line.empty? || line.start_with?("#") }
-        .filter_map { |cidr| IPAddr.new(cidr) rescue nil }
+      .map(&:strip)
+      .reject { |line| line.empty? || line.start_with?("#") }
+      .filter_map { |cidr| IPAddr.new(cidr) rescue nil }
   else
     []
   end
