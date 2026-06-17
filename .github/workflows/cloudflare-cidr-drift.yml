@@ -1,0 +1,60 @@
+name: Cloudflare CIDR drift check
+
+# Vérifie que config/cloudflare_ips.txt (source unique des proxies de confiance
+# Cloudflare pour trusted_proxies) est à jour vis-à-vis des plages publiées par
+# Cloudflare. Les plages changent rarement et sont annoncées à l'avance, donc un
+# passage hebdomadaire suffit. En cas de changement, ouvre une PR (jamais de
+# mutation silencieuse d'un contrôle de sécurité).
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'   # tous les lundis 06:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest   # runner GitHub-hébergé : egress internet direct (pas de proxy HDS)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Cloudflare ranges and compare
+        id: diff
+        run: |
+          set -euo pipefail
+          { curl -fsS https://www.cloudflare.com/ips-v4; echo; \
+            curl -fsS https://www.cloudflare.com/ips-v6; } \
+            | grep -vE '^\s*$' | sort -V > /tmp/cloudflare_ips.txt
+          touch config/cloudflare_ips.txt
+          if diff -q <(sort -V config/cloudflare_ips.txt) /tmp/cloudflare_ips.txt >/dev/null; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Aucun changement des plages Cloudflare."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Changement détecté :"
+            diff <(sort -V config/cloudflare_ips.txt) /tmp/cloudflare_ips.txt || true
+            cp /tmp/cloudflare_ips.txt config/cloudflare_ips.txt
+          fi
+
+      - name: Open pull request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/cloudflare-cidr-update
+          base: devpf
+          title: "chore: mise à jour des CIDR Cloudflare (trusted_proxies)"
+          commit-message: "chore: refresh Cloudflare CIDRs (trusted_proxies)"
+          body: |
+            Les plages IP publiées par Cloudflare ont changé.
+
+            Ce fichier (`config/cloudflare_ips.txt`) alimente `config.action_dispatch.trusted_proxies`
+            (voir `config/initializers/trusted_proxies.rb`) — il conditionne la résolution de
+            `request.remote_ip` et donc :
+            - la restriction réseau des jetons API (`ApiToken#forbidden_network?`)
+            - le rate-limiting Rack::Attack
+            - `IPService.ip_trusted?`
+
+            **À revoir avant merge.** Après merge, déployer pour propager la nouvelle liste.
