@@ -133,3 +133,54 @@ Le scan antivirus ActiveStorage tourne ensuite via le flux normal (la PJ reste �
 - **Autorisation / fuite** : s'assurer que la ligne de référentiel rapatriée appartient bien à l'usager/asso qui la sélectionne (pas d'accès aux PJ d'une autre asso via une sélection arbitraire).
 - **Poids / timeout** : fichiers jusqu'à 200 Mo + scan → le job doit être robuste (retry, timeout généreux) ; l'état pending peut durer.
 - **Dépendance synchro externe** : la qualité du prefill dépend de ce que la synchro écrit dans Baserow (URL valide, fichier réellement copié, type autorisé). Hors périmètre de ce dev mais condition de bon fonctionnement.
+
+## 9. Affichage de PJ — hors périmètre (et pourquoi)
+
+Question soulevée (juin 2026) : un champ référentiel sert traditionnellement soit à
+**pré-remplir**, soit à **afficher** une donnée à l'usager/l'instructeur. Doit-on
+aussi pouvoir **afficher** une PJ issue du référentiel (à côté du prefill) ?
+
+**Décision : non. L'affichage de PJ est explicitement hors périmètre.** On autorise le
+prefill de PJ (cette spec) mais on **n'expose pas** les colonnes fichier comme colonnes
+*displayable* (config d'affichage usager/instructeur).
+
+### Raisonnement (immuabilité)
+
+Pour un **scalaire**, l'immuabilité est gratuite : la valeur Baserow est recopiée dans
+`value_json` à la sélection et figée au dépôt — même si Baserow change ensuite, le
+dossier garde sa copie.
+
+Pour un **fichier**, il n'existe **aucun équivalent à un « lien live immuable »** :
+
+- soit on **copie les octets** dans le stockage du dossier → immuable, mais c'est
+  *exactement* le mécanisme de prefill décrit ici (la PJ devient une pièce normale du
+  dossier, figée au dépôt) ;
+- soit on **pointe vers le fichier Baserow** (lien) → **mutable** : l'instructeur
+  pourrait voir un fichier différent de celui « déposé », ce qui casse l'immuabilité
+  légale.
+
+Conséquence : « afficher une PJ de façon immuable » **se réduit à « copier la PJ »**.
+Pour les fichiers, prefill et affichage-immuable **convergent** ; il n'y a pas de
+troisième voie. Le seul « affichage » distinct serait un **lien live assumé non figé**,
+sans valeur de pièce déposée.
+
+### Pourquoi ne pas trancher maintenant
+
+Pas de use case terrain solide pour l'affichage de PJ à ce jour (le seul candidat —
+référencer un permis de construire — porte sur un objet qui sera lui-même déjà devenu
+immuable). On **limite donc la fonction** pour la faire évoluer le jour où le besoin
+réel se présentera, plutôt que de coder spéculativement la gestion « figé vs live ».
+
+### Bénéfice de cadrage
+
+En n'offrant **aucun chemin d'affichage live**, on supprime **tout trou d'immuabilité
+possible** : la seule PJ qui peut exister dans un dossier est une copie snapshotée
+(immuable par construction). Aucun arbitrage figé/live n'est nécessaire aujourd'hui ; la
+porte reste ouverte (read-only figé *ou* lien live) pour un futur use case.
+
+### Implication d'implémentation (un seul garde-fou)
+
+Dans l'éditeur de mapping (`referentiel_mapping`) : une colonne de **type fichier**
+Baserow est éligible comme **cible de prefill** (`prefill_stable_id` → champ PJ) mais
+**jamais** listée comme colonne *displayable*. Un type, deux traitements — cohérent avec
+la logique d'éligibilité de `2026-06-03-mcp-referentiel-mapping-design.md` §4.
