@@ -9,7 +9,7 @@ describe 'shared/champs/referentiel_de_polynesie/show', type: :view do
   let(:referentiel_mapping) do
     {
       '$.Nom' => { 'type' => 'string', 'libelle' => 'Nom', 'display_instructeur' => '1', 'display_usager' => '1' },
-      '$.Secret' => { 'type' => 'string', 'libelle' => 'Secret', 'display_usager' => '1' }
+      '$.Secret' => { 'type' => 'string', 'libelle' => 'Secret', 'display_usager' => '1' },
     }
   end
   let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, libelle: 'Commune', referentiel_mapping: }] }
