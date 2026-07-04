@@ -346,5 +346,18 @@ describe OmniauthController, type: :controller do
       expect { post :resend_and_renew_merge_confirmation, params: { merge_token:, provider: } }.to change { fci.reload.merge_token }
       expect(response).to redirect_to(omniauth_merge_path(provider, fci.reload.merge_token))
     end
+
+    # pf: régression prod 2026-07 — le mail partait avec un email_merge_token nil
+    # (jamais créé sur ce chemin), son rendu échouait en job et l'usager ne
+    # recevait jamais le mail de fusion.
+    it 'creates the email_merge_token and sends the mail with it' do
+      mailer_double = double('mailer', deliver_later: nil)
+      expect(UserMailer).to receive(:omniauth_merge_confirmation)
+        .with(fci.email_france_connect, kind_of(String), kind_of(Time), provider)
+        .and_return(mailer_double)
+
+      expect { post :resend_and_renew_merge_confirmation, params: { merge_token:, provider: } }
+        .to change { fci.reload.email_merge_token }.from(nil)
+    end
   end
 end
