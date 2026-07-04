@@ -11,7 +11,9 @@ module Maintenance
 
     # Uncomment only if this task MUST run imperatively on its first deployment.
     # If possible, leave commented for manual execution later.
-    # run_on_first_deploy
+    # pf: auto-run au déploiement — nettoyage idempotent, volume digeste en PF,
+    # et les tâches manuelles finissent oubliées.
+    run_on_first_deploy
 
     def collection
       AssignTo
