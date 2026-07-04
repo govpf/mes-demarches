@@ -1,19 +1,23 @@
+<%# pf: Page adaptée pour Microsoft @administration.gov.pf au lieu de ProConnect (non configuré sur le fork PF) %>
 <%= render partial: 'administrateurs/breadcrumbs',
   locals: { steps: [['Démarches', admin_procedures_back_path(@procedure)],
                     [@procedure.libelle.truncate_words(10), admin_procedure_path(@procedure)],
-                    ['ProConnect']] } %>
+                    ['Authentification professionnelle']] } %>
+<%# pf: upstream breadcrumb: ['ProConnect'] %>
 
 <div class="fr-container">
   <div class="fr-grid-row">
     <div class="fr-col-12 fr-col-offset-md-2 fr-col-md-8">
-      <h1 class="fr-h2">Connexion ProConnect</h1>
+      <%# pf: upstream: Connexion ProConnect %>
+      <h1 class="fr-h2">Authentification professionnelle</h1>
 
       <%= render Dsfr::CalloutComponent.new(title: nil) do |c| %>
         <% c.with_body do %>
           <p>
             Cette option permet de limiter l'accès à la démarche selon le niveau de restriction choisi.
             Les utilisateurs concernés pourront accéder à la démarche
-            <strong>uniquement en se connectant via ProConnect.</strong>
+            <%# pf: upstream: uniquement en se connectant via ProConnect. %>
+            <strong>uniquement en se connectant via leur compte @administration.gov.pf (Microsoft).</strong>
           </p>
         <% end %>
       <% end %>
@@ -23,7 +27,8 @@
           <% c.with_body do %>
             <p>
               Pour activer cette fonctionnalité, vous devez commencer par
-              <%= link_to "vous connecter avec ProConnect", pro_connect_path %>
+              <%# pf: upstream: vous connecter avec ProConnect %>
+              <%= link_to "vous connecter avec votre compte @administration.gov.pf", pro_connect_path %>
             </p>
           <% end %>
         <% end %>
@@ -41,7 +46,8 @@
               <%= f.radio_button :pro_connect_restriction, 'none', class: 'fr-radio' %>
               <%= f.label :pro_connect_restriction_none, class: 'fr-label' do %>
                 Aucune restriction
-                <p class="fr-hint-text">Les instructeurs et usagers peuvent accéder à cette démarche, qu'ils soient connectés à ProConnect ou non.</p>
+                <%# pf: upstream: qu'ils soient connectés à ProConnect ou non %>
+                <p class="fr-hint-text">Les instructeurs et usagers peuvent accéder à cette démarche, qu'ils soient connectés avec un compte @administration.gov.pf ou non.</p>
               <% end %>
             </div>
           </div>
@@ -51,7 +57,8 @@
               <%= f.radio_button :pro_connect_restriction, 'instructeurs', class: 'fr-radio' %>
               <%= f.label :pro_connect_restriction_instructeurs, class: 'fr-label' do %>
                 Administrateurs et instructeurs
-                <p class="fr-hint-text">Seuls les administrateurs et instructeurs authentifiés via ProConnect peuvent accéder à la démarche. Les usagers peuvent toujours y accéder normalement.</p>
+                <%# pf: upstream: authentifiés via ProConnect %>
+                <p class="fr-hint-text">Seuls les administrateurs et instructeurs authentifiés avec leur compte @administration.gov.pf peuvent accéder à la démarche. Les usagers peuvent toujours y accéder normalement.</p>
               <% end %>
             </div>
           </div>
@@ -61,7 +68,8 @@
               <%= f.radio_button :pro_connect_restriction, 'all', class: 'fr-radio' %>
               <%= f.label :pro_connect_restriction_all, class: 'fr-label' do %>
                 Tous les utilisateurs
-                <p class="fr-hint-text">Seuls les usagers authentifiés via ProConnect pourront déposer de nouveaux dossiers. Administrateurs et instructeurs doivent aussi s'authentifier via ProConnect.</p>
+                <%# pf: upstream: authentifiés via ProConnect %>
+                <p class="fr-hint-text">Seuls les usagers authentifiés avec un compte @administration.gov.pf pourront déposer de nouveaux dossiers. Administrateurs et instructeurs doivent aussi s'authentifier avec leur compte @administration.gov.pf.</p>
               <% end %>
             </div>
             <% if @logged_in_with_pro_connect && @procedure.publiee? && @procedure.robots_indexable? %>
