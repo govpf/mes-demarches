@@ -1,11 +1,11 @@
-- content_for(:title, 'Confirmez votre email')
+- content_for(:title, 'Confirmez votre adresse électronique')
 %p
   Bonjour
   = @user.email
   !
 
 %p
-  Veuillez confirmer votre email en cliquant sur le lien ci-dessous:
+  Veuillez confirmer votre adresse électronique en cliquant sur le lien ci-dessous:
   -# pf: URL dynamique selon provider (France Connect vs OmniAuth Tatou/Microsoft)
   = round_button 'Je confirme', (@provider_type == :omniauth ? omniauth_confirm_email_url(@token) : france_connect_confirm_email_url(@token)), :primary
 
@@ -13,7 +13,7 @@
 %p Ce lien est valide #{distance_of_time_in_words(FranceConnectInformation::CONFIRMATION_EMAIL_VALIDITY)}.
 
 %p
-  Tant que vous n'aurez pas confirmé votre email, vous ne recevrez aucune notification sur l'avancement de vos dossiers.
+  Tant que vous n'aurez pas confirmé votre adresse électronique, vous ne recevrez aucune notification sur l'avancement de vos dossiers.
 
 %p
   Si vous n’êtes pas à l’origine de cette demande, vous pouvez ignorer ce message. Et si vous avez besoin d’assistance, n’hésitez pas à nous contacter à

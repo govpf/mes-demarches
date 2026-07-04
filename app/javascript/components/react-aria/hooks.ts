@@ -22,6 +22,8 @@ export interface ComboBoxProps extends Omit<
 > {
   children: React.ReactNode | ((item: Item) => React.ReactNode);
   label?: string;
+  labelId?: string;
+  ariaLabelledbyPrefix?: string;
   description?: string;
   isLoading?: boolean;
 }

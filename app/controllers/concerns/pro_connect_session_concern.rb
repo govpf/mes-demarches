@@ -9,6 +9,8 @@ module ProConnectSessionConcern
   SESSION_INFO_COOKIE_NAME = :pro_connect_session_info
 
   included do
+    helper_method :logged_in_with_pro_connect?
+
     def logged_in_with_pro_connect?
       # pf: Gestion hybride pour supporter à la fois :
       # - upstream ProConnect (cookie chiffré)
