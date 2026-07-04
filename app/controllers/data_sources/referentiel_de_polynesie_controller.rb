@@ -11,9 +11,8 @@ class DataSources::ReferentielDePolynesieController < ApplicationController
       drop_down_other = ActiveModel::Type::Boolean.new.cast(@params[:drop_down_other])
       results = ReferentielDePolynesie::API.search_with_data(@params[:table], @params[:q], drop_down_other:)
       render json: results.map { |r|
-        r.slice(:label, :value).merge(
-          data: message_encryptor_service.encrypt_and_sign(r[:row_data].to_json, purpose: :storage, expires_in: 1.hour)
-        )
+        data = r[:row_data].present? ? message_encryptor_service.encrypt_and_sign(r[:row_data].to_json, purpose: :storage, expires_in: 1.hour) : ""
+        r.slice(:label, :value).merge(data:)
       }
     end
   end

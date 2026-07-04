@@ -78,11 +78,27 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
   end
 
   def selected_items
-    if external_id.present? && value.present?
+    if other?
+      [{ label: I18n.t('shared.champs.drop_down_list.other'), value: external_id }]
+    elsif external_id.present? && value.present?
       [{ label: value, value: external_id }]
     else
       []
     end
+  end
+
+  def other?
+    external_id == Champs::DropDownListChamp::OTHER
+  end
+
+  def value_other
+    return "" unless other?
+    return "" if value == I18n.t('shared.champs.drop_down_list.other')
+    value.to_s
+  end
+
+  def value_other=(text)
+    write_attribute(:value, text.presence) if other?
   end
 
   # pf: helper pour savoir si le champ est en mode autocomplete
