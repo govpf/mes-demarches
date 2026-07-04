@@ -118,6 +118,11 @@ class APIEntrepriseService
     end
 
     def perform_later_fetch_jobs(etablissement, procedure_id, user_id, wait: nil)
+      # pf: pas de jeton API Entreprise en Polynésie — sans jeton (procédure ou ENV),
+      # ces jobs lèvent tous TokenError et finissent morts dans Sidekiq. On ne les
+      # lance pas ; un jeton spécifique configuré sur la procédure reste honoré.
+      return if Procedure.find_by(id: procedure_id)&.api_entreprise_token&.jwt_token.blank?
+
       jobs = [
         APIEntreprise::EntrepriseJob, APIEntreprise::ExtraitKbisJob, APIEntreprise::TvaJob,
         APIEntreprise::AssociationJob, APIEntreprise::ExercicesJob,
