@@ -9,6 +9,6 @@ class GraphqlController < ApplicationController
     }.compact.to_json
     gon.default_query = API::V2::StoredQuery.get('ds-query-v2')
 
-    render :playground, layout: false
+    render :playground, layout: false, formats: [:html]
   end
 end

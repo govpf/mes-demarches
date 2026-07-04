@@ -48,6 +48,21 @@ module Types
       GroupeInstructeur.for_api_v2.find(number)
     end
 
+    # pf: lecture de la structure d'une démarche pour le serveur MCP (expose les stable_id)
+    field :demarche_champs, resolver: Resolvers::Mcp::DemarcheChamps, description: "Champs de la révision brouillon d'une démarche (pour le MCP)."
+
+    # pf: documentation d'écriture de formule (pour le MCP), via FormulaAiPromptService
+    field :aide_formule, resolver: Resolvers::Mcp::AideFormule, description: "Documentation pour écrire l'expression d'un champ formule (variables, fonctions, syntaxe)."
+
+    # pf: colonnes Baserow + mapping courant d'un champ référentiel (pour le MCP)
+    field :referentiel_champ_config, resolver: Resolvers::Mcp::ReferentielChampConfig, description: "Colonnes Baserow + mapping courant d'un champ référentiel (pour le MCP)."
+
+    # pf: liste les référentiels Baserow disponibles (découverte, pour le MCP — token admin requis)
+    field :referentiels_de_polynesie, resolver: Resolvers::Mcp::ReferentielsDePolynesie, description: "Tables Baserow disponibles comme référentiel (pour le MCP)."
+
+    # pf: colonnes d'un référentiel Baserow par table_id (découverte, pour le MCP — token admin requis)
+    field :referentiel_colonnes, resolver: Resolvers::Mcp::ReferentielColonnes, description: "Colonnes d'un référentiel Baserow (pour le MCP)."
+
     def self.accessible?(context)
       context[:token] || context[:administrateur_id]
     end

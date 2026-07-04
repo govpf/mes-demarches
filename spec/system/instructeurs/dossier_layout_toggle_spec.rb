@@ -16,7 +16,11 @@ describe 'Instructeur dossier layout toggle (grid/stacked)', js: true do
     context 'user habitué, dans la fenêtre de rollout' do
       before do
         instructeur.user.update!(created_at: Date.new(2025, 1, 1))
-        travel_to(InstructeurChampDisplayHelper::FEATURE_ROLLOUT_DATE + 5.days)
+        # Le navigateur vit en temps réel : travel_to rendrait l'expiration absolue du
+        # cookie de dismiss (FEATURE_ROLLOUT_DATE + BANNER_DURATION) antérieure à
+        # l'horloge du navigateur une fois la fenêtre de rollout réelle passée.
+        # On déplace donc la fenêtre plutôt que l'horloge.
+        stub_const('InstructeurChampDisplayHelper::FEATURE_ROLLOUT_DATE', Date.current - 5.days)
       end
 
       it 'affiche le bandeau avec les deux boutons "garder" et "revenir"' do

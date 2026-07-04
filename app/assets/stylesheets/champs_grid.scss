@@ -155,3 +155,47 @@
     opacity: 1;
   }
 }
+
+// pf: colonnes d'un champ Référentiel de Polynésie.
+// Base = mono-colonne (contexte hors grille : impression, mails, fallback).
+.referentiel-champ__header {
+  margin-bottom: 0.5rem;
+}
+
+.referentiel-columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  column-gap: 1rem;
+  row-gap: 0.5rem;
+
+  .referentiel-column {
+    min-width: 0; // autorise le retour à la ligne des valeurs longues
+  }
+
+  .champ-label {
+    font-weight: 700;
+  }
+}
+
+// pf: en contexte grille instructeur, on aligne les colonnes du référentiel sur le
+// rythme 3 colonnes de la grille parente (même approche que .gallery-items-list),
+// avec repli 2 puis 1 colonne, et 1 colonne quand l'instructeur choisit le mode "stacked".
+.dossier-show .champs-grid {
+  .champ-grid-item--full .referentiel-columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    @media (min-width: 62em) and (max-width: 80em) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (max-width: 62em) {
+      grid-template-columns: 1fr;
+    }
+    @media print {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &.champs-grid--stacked .champ-grid-item--full .referentiel-columns {
+    grid-template-columns: 1fr;
+  }
+}

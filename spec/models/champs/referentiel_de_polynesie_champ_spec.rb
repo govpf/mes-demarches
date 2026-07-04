@@ -338,6 +338,46 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
         expect(champ.selected_items).to eq([])
       end
     end
+
+    context 'when external_id is __other__ (drop_down_other selected)' do
+      before do
+        champ.external_id = Champs::DropDownListChamp::OTHER
+        champ.value = 'whatever'
+      end
+
+      it 'returns the "Autre" label so the combobox shows the selected option' do
+        expect(champ.selected_items).to eq([
+          { label: I18n.t('shared.champs.drop_down_list.other'), value: Champs::DropDownListChamp::OTHER },
+        ])
+      end
+    end
+  end
+
+  describe 'drop_down_other (option "Autre" + texte libre)' do
+    let(:referentiel) { create(:baserow_referentiel, :autocomplete) }
+    let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, referentiel:, drop_down_other: '1', mandatory: true }] }
+    let(:autre_label) { I18n.t('shared.champs.drop_down_list.other') }
+
+    it 'persiste la saisie libre et passe le mandatory check' do
+      champ.update!(value: autre_label, external_id: Champs::DropDownListChamp::OTHER)
+      expect(champ.other?).to be true
+      expect(champ.value_other).to eq('')
+
+      champ.update!(value_other: 'Mon texte')
+      expect(champ.reload.value).to eq('Mon texte')
+      expect(champ.type_de_champ.champ_blank?(champ)).to be false
+    end
+
+    it 'efface value quand l\'usager vide l\'input texte libre' do
+      champ.update!(external_id: Champs::DropDownListChamp::OTHER, value: 'old')
+      champ.update!(value_other: '')
+      expect(champ.value).to be_nil
+    end
+
+    it 'ignore value_other hors mode "Autre"' do
+      champ.update!(external_id: '24:123', value: 'Papeete', value_other: 'ignored')
+      expect(champ.reload.value).to eq('Papeete')
+    end
   end
 
   describe '#referentiel_item_value' do

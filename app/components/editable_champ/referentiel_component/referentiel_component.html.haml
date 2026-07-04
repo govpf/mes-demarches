@@ -1,6 +1,6 @@
 - if exact_match?
   = @form.text_field :external_id, input_opts(id: @champ.focusable_input_id, required: @champ.required?, class: "width-33-desktop fr-input", novalidate: 'true', aria: { **labelledby_id_attr, describedby: "#{@champ.describedby_id} #{@champ.error_id}" })
-- else
+- elsif referentiel.present?
   .fr-input-group.address-ban
     %react-fragment
       = render ReactComponent.new "ComboBox/RemoteComboBox", **react_autocomplete_props do

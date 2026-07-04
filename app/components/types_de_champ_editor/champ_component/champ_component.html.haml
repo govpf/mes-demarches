@@ -369,6 +369,12 @@
                     = form.label :te_fenua_layer, for: dom_id(type_de_champ, "layer_#{layer}") do
                       = form.radio_button :te_fenua_layer, layer, checked: type_de_champ.options["te_fenua_layer"] == layer.to_s, class: 'small-margin small', id: dom_id(type_de_champ, "layer_#{layer}")
                       = t(".layers.#{layer}")
+          -# pf: option « autre » avec texte libre pour le référentiel de Polynésie
+          - if type_de_champ.referentiel_de_polynesie?
+            .cell.flex.align-center.fr-mt-1w
+              = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
+              = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
+                Proposer une option « autre » avec un texte libre
           - if type_de_champ.carte?
             - type_de_champ.editable_options.each do |slice|
               .cell

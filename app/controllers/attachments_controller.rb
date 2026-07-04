@@ -19,7 +19,13 @@ class AttachmentsController < ApplicationController
   end
 
   def destroy
+    return head(:not_found) if @attachment.nil?
+
     if champ?
+      # `find` avec bloc (Enumerable) renvoie nil si le blob ciblé n'est plus
+      # parmi les PJ du champ courant (ex: suppression « stale » sur le champ
+      # buffer en_construction, double-clic). On réassigne donc @attachment à
+      # nil ici ; `record` doit rester nil-safe pour les appels qui suivent.
       @attachment = champ.piece_justificative_file.find { _1.blob.id == @blob.id }
       if @attachment.present?
         champ.reset_external_data!
@@ -93,7 +99,7 @@ class AttachmentsController < ApplicationController
     avis? && current_expert == record.expert
   end
 
-  def record = @attachment.record
+  def record = @attachment&.record
   def champ? = record.is_a?(Champ)
   def procedure? = record.is_a?(Procedure)
   def avis? = record.is_a?(Avis)

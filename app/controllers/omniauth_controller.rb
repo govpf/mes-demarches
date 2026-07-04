@@ -2,7 +2,7 @@
 
 class OmniauthController < ApplicationController
   before_action :redirect_to_login_if_connection_aborted, only: [:callback]
-  before_action :securely_retrieve_fci, only: [:merge, :merge_with_existing_account, :merge_with_new_account, :mail_merge_with_existing_account, :resend_and_renew_merge_confirmation, :send_email_merge_request, :merge_using_provider_email]
+  before_action :securely_retrieve_fci, only: [:merge, :merge_with_existing_account, :merge_with_new_account, :resend_and_renew_merge_confirmation, :send_email_merge_request, :merge_using_provider_email]
   before_action :securely_retrieve_fci_from_email_merge_token, only: [:merge_using_email_link]
   before_action :set_user_by_confirmation_token, only: [:confirm_email]
 
@@ -10,7 +10,12 @@ class OmniauthController < ApplicationController
     provider = provider_param
     # already checked in routes.rb but brakeman complains
     if OmniAuthService.enabled?(provider)
-      redirect_to OmniAuthService.authorization_uri(provider), allow_other_host: true
+      # pf: sécurité (F2) — state/nonce stockés en session pour validation au callback
+      state = SecureRandom.hex(16)
+      nonce = SecureRandom.hex(16)
+      session[:omniauth_state] = state
+      session[:omniauth_nonce] = nonce
+      redirect_to OmniAuthService.authorization_uri(provider, state:, nonce:), allow_other_host: true
     else
       redirect_to new_user_session_path
     end
@@ -18,6 +23,8 @@ class OmniauthController < ApplicationController
 
   def callback
     provider = provider_param
+    return redirect_to(new_user_session_path) unless valid_omniauth_state?
+
     @fci = OmniAuthService.find_or_retrieve_user_informations(provider, params[:code])
 
     if @fci.user.nil?
@@ -30,7 +37,17 @@ class OmniauthController < ApplicationController
       elsif !preexisting_unlinked_user.can_openid_connect?(provider)
         @fci.destroy
         redirect_to new_user_session_path, alert: t('errors.messages.omniauth.forbidden_html', reset_link: new_user_password_path, provider: t("omniauth.provider.#{provider}"))
+      elsif @fci.trusted_email_assertion
+        # pf: sécurité (F4) — assertion d'email digne de confiance
+        # (cf. OmniAuthService.trusted_email_assertion?) => fusion sans mot de passe,
+        # friction zéro. Forger un email côté provider ne suffit pas (Microsoft : tid).
+        @fci.safely_update_user(user: preexisting_unlinked_user)
+        preexisting_unlinked_user.update!(email_verified_at: Time.current)
+        flash.notice = t('omniauth.flash.connection_done', application_name: Current.application_name, provider: t("omniauth.provider.#{provider}"))
+        connect_user(provider, preexisting_unlinked_user)
       else
+        # pf: sécurité (F4) — assertion non fiable => page de fusion exigeant une preuve
+        # (mot de passe, ou lien de confirmation envoyé à l'email du compte existant).
         redirect_to omniauth_merge_path(provider, @fci.create_merge_token!)
       end
     else
@@ -72,20 +89,6 @@ class OmniauthController < ApplicationController
     else
       flash.alert = t('omniauth.flash.invalid_password')
       redirect_to omniauth_merge_path(provider, @fci.merge_token)
-    end
-  end
-
-  def mail_merge_with_existing_account
-    user = User.find_by(email: sanitize(@fci.email_france_connect))
-    provider = provider_param
-    if user.can_openid_connect?(provider)
-      @fci.safely_update_user(user: user)
-      user.update!(email_verified_at: Time.current)
-
-      flash.notice = t('omniauth.flash.connection_done', application_name: Current.application_name, provider: t("omniauth.provider.#{provider}"))
-      connect_user(provider, user)
-    else # same behaviour as redirect nicely with message when instructeur/administrateur
-      destroy_fci_and_redirect_to_login(@fci)
     end
   end
 
@@ -214,6 +217,17 @@ class OmniauthController < ApplicationController
     if params[:code].blank?
       redirect_to new_user_session_path
     end
+  end
+
+  # pf: sécurité (F2) — valide le state OAuth contre la valeur stockée en session au
+  # login (anti-CSRF). Usage unique : la valeur de session est purgée à la lecture.
+  def valid_omniauth_state?
+    expected_state = session.delete(:omniauth_state)
+    received_state = params[:state]
+
+    expected_state.present? &&
+      received_state.present? &&
+      ActiveSupport::SecurityUtils.secure_compare(received_state, expected_state)
   end
 
   def connect_user(provider, user)
