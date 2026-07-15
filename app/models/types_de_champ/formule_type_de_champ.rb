@@ -216,7 +216,8 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     misuse = find_non_boolean_condition(ast_node, ref_map)
     if misuse
       @type_de_champ.errors.add(:formule_expression, :non_boolean_condition,
-                                function: misuse[:function], label: misuse[:label])
+                                function: misuse[:function], label: misuse[:label],
+                                example: misuse[:example])
       return
     end
 
@@ -468,8 +469,14 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
 
     condition_args, function_label = logical_condition_args(node)
     condition_args&.each do |arg|
-      label = non_boolean_reference_label(arg, ref_map)
-      return { function: function_label, label: label } if label
+      tdc = non_boolean_reference_tdc(arg, ref_map)
+      if tdc
+        return {
+          function: function_label,
+          label: tdc.libelle,
+          example: comparison_example_for(tdc),
+        }
+      end
     end
 
     ast_children(node).each do |child|
@@ -500,13 +507,13 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     nil
   end
 
-  # pf: Libellé du TDC référencé si `arg` est une référence nue vers un champ
-  # non booléen ; nil dans tous les cas légitimes. Prudence par défaut :
+  # pf: TDC référencé si `arg` est une référence nue vers un champ non
+  # booléen ; nil dans tous les cas légitimes. Prudence par défaut :
   # - sous-propriété ({tdc123/path}) : type non trivial → laissé passer ;
   # - colonne système ({dossier_number}, ...) : pas un TDC → laissé passer ;
   # - date/datetime : passés nil quand vides (falsy) → NON({Date}) teste
   #   « non renseignée », usage légitime.
-  def non_boolean_reference_label(arg, ref_map)
+  def non_boolean_reference_tdc(arg, ref_map)
     return nil unless arg.is_a?(Dentaku::AST::Identifier)
 
     ref = ref_map[arg.identifier.to_s]
@@ -518,7 +525,27 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     tdc = find_referenced_tdc(ref, revision)
     return nil if tdc.nil? || boolean_condition_compatible_tdc?(tdc)
 
-    tdc.libelle
+    tdc
+  end
+
+  # pf: Exemple de comparaison explicite adapté au champ fautif, injecté dans
+  # le message d'erreur. Pour un champ à choix, on reprend la PREMIÈRE option
+  # réelle (un exemple avec « Oui » n'aiderait pas l'admin d'un select
+  # « Fruits »/« Légumes ») ; pour un numérique, une comparaison > 0 ; sinon
+  # un placeholder neutre « … » (valable fr/en).
+  def comparison_example_for(tdc)
+    label = tdc.libelle
+    case tdc.type_champ
+    when 'integer_number', 'decimal_number'
+      "{#{label}} > 0"
+    when 'formule'
+      tdc.formule_output_type == 'number' ? "{#{label}} > 0" : %({#{label}} == "…")
+    when 'drop_down_list', 'multiple_drop_down_list'
+      option = tdc.drop_down_options.find(&:present?)
+      %({#{label}} == "#{option || '…'}")
+    else
+      %({#{label}} == "…")
+    end
   end
 
   def boolean_condition_compatible_tdc?(tdc)

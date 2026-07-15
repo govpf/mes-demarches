@@ -111,4 +111,4 @@ fr:
               invalid_syntax: "Syntaxe invalide: %{detail}"
               circular_reference: "Référence circulaire détectée — cette formule s'auto-référence directement ou via une chaîne d'autres formules"
               forward_reference: "Référence à un champ situé après la formule — une formule ne peut référencer que des champs qui la précèdent"
-              non_boolean_condition: "Le champ « %{label} » utilisé comme condition dans %{function} n’est pas un champ « Oui/Non » : la condition serait toujours vraie. Écrivez une comparaison explicite, par exemple {%{label}} == \"Oui\""
+              non_boolean_condition: "Le champ « %{label} » utilisé comme condition dans %{function} n’est pas un champ « Oui/Non » : la condition serait toujours vraie. Écrivez une comparaison explicite, par exemple %{example}"

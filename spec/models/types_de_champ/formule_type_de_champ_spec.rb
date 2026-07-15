@@ -228,6 +228,19 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       expect(tdc.errors[:formule_expression].join).to include('NON')
     end
 
+    # pf: l'exemple du message reprend une VRAIE option du select — suggérer
+    # == "Oui" à l'admin d'un select « Fruits »/« Légumes » ne l'aiderait pas.
+    it 'suggests a comparison with the first actual option of the drop-down' do
+      choix_tdc.update!(drop_down_options: ['Fruits', 'Légumes'])
+      tdc = validate_with("NON({tdc#{choix_tdc.stable_id}})")
+      expect(tdc.errors[:formule_expression].join).to include('{Choix} == "Fruits"')
+    end
+
+    it 'suggests a numeric comparison for a number field' do
+      tdc = validate_with("NON({tdc#{nombre_tdc.stable_id}})")
+      expect(tdc.errors[:formule_expression].join).to include('{Nombre} > 0')
+    end
+
     it 'rejects lowercase not on a drop-down reference' do
       tdc = validate_with("not({tdc#{choix_tdc.stable_id}})")
       expect(tdc.errors[:formule_expression]).to be_present
