@@ -194,6 +194,106 @@ describe TypesDeChamp::FormuleTypeDeChamp do
     end
   end
 
+  # pf: garde-fou — un champ non booléen référencé tel quel comme condition
+  # (NON({Liste}), ET({Texte}, ...), SI({Nombre}, ...)) est toujours truthy en
+  # sémantique Ruby : la condition est constante, c'est une erreur d'admin
+  # quasi certaine (cf. piège du select « Oui »/« Non »).
+  describe 'non-boolean condition detection' do
+    let(:procedure) {
+      create(:procedure, :published, types_de_champ_public: [
+        { type: :drop_down_list, libelle: 'Choix' },
+        { type: :yes_no, libelle: 'OuiNon' },
+        { type: :date, libelle: 'Echeance' },
+        { type: :integer_number, libelle: 'Nombre' },
+        { type: :formule, libelle: 'Formule' },
+      ])
+    }
+    let(:revision) { procedure.active_revision }
+    let(:choix_tdc) { revision.types_de_champ_public.find { |t| t.libelle == 'Choix' } }
+    let(:ouinon_tdc) { revision.types_de_champ_public.find { |t| t.libelle == 'OuiNon' } }
+    let(:date_tdc) { revision.types_de_champ_public.find { |t| t.libelle == 'Echeance' } }
+    let(:nombre_tdc) { revision.types_de_champ_public.find { |t| t.libelle == 'Nombre' } }
+    let(:formule_tdc) { revision.types_de_champ_public.find { |t| t.libelle == 'Formule' } }
+
+    def validate_with(expression)
+      formule_tdc.formule_expression = expression
+      formule_tdc.valid?
+      formule_tdc
+    end
+
+    it 'rejects NON on a drop-down reference and names the field' do
+      tdc = validate_with("NON({tdc#{choix_tdc.stable_id}})")
+      expect(tdc.errors[:formule_expression]).to be_present
+      expect(tdc.errors[:formule_expression].join).to include('Choix')
+      expect(tdc.errors[:formule_expression].join).to include('NON')
+    end
+
+    it 'rejects lowercase not on a drop-down reference' do
+      tdc = validate_with("not({tdc#{choix_tdc.stable_id}})")
+      expect(tdc.errors[:formule_expression]).to be_present
+    end
+
+    it 'rejects NON on a number reference (0 is truthy)' do
+      tdc = validate_with("NON({tdc#{nombre_tdc.stable_id}})")
+      expect(tdc.errors[:formule_expression]).to be_present
+    end
+
+    it 'rejects a bare non-boolean reference among ET arguments' do
+      tdc = validate_with("ET({tdc#{choix_tdc.stable_id}}, {tdc#{nombre_tdc.stable_id}} > 3)")
+      expect(tdc.errors[:formule_expression]).to be_present
+    end
+
+    it 'rejects a bare non-boolean reference as SI condition' do
+      tdc = validate_with("SI({tdc#{choix_tdc.stable_id}}, \"a\", \"b\")")
+      expect(tdc.errors[:formule_expression]).to be_present
+      expect(tdc.errors[:formule_expression].join).to include('SI')
+    end
+
+    it 'rejects a nested misuse (SI(ET(...)))' do
+      tdc = validate_with("SI(ET({tdc#{choix_tdc.stable_id}}, {tdc#{ouinon_tdc.stable_id}}), \"a\", \"b\")")
+      expect(tdc.errors[:formule_expression]).to be_present
+    end
+
+    it 'accepts NON on a yes_no reference' do
+      expect(validate_with("NON({tdc#{ouinon_tdc.stable_id}})")).to be_valid
+    end
+
+    it 'accepts NON on an explicit comparison' do
+      expect(validate_with("NON({tdc#{choix_tdc.stable_id}} == \"Oui\")")).to be_valid
+    end
+
+    it 'accepts ET with comparisons and boolean references' do
+      expect(validate_with("ET({tdc#{choix_tdc.stable_id}} == \"Oui\", {tdc#{ouinon_tdc.stable_id}})")).to be_valid
+    end
+
+    it 'accepts SI with a boolean reference as condition' do
+      expect(validate_with("SI({tdc#{ouinon_tdc.stable_id}}, \"a\", \"b\")")).to be_valid
+    end
+
+    # pf: un champ date vide est passé nil (falsy) à Dentaku — NON({Date})
+    # teste « date non renseignée », usage légitime qu'on ne bloque pas.
+    it 'accepts NON on a date reference (emptiness test)' do
+      expect(validate_with("NON({tdc#{date_tdc.stable_id}})")).to be_valid
+    end
+
+    it 'accepts a non-boolean reference outside a condition position' do
+      expect(validate_with("SI({tdc#{ouinon_tdc.stable_id}}, {tdc#{choix_tdc.stable_id}}, \"b\")")).to be_valid
+    end
+
+    it 'accepts NON on a boolean formula reference' do
+      choix_tdc.update!(type_champ: 'formule', formule_expression: '1 > 0')
+      expect(choix_tdc.formule_output_type).to eq('boolean')
+      expect(validate_with("NON({tdc#{choix_tdc.stable_id}})")).to be_valid
+    end
+
+    it 'rejects NON on a non-boolean formula reference' do
+      choix_tdc.update!(type_champ: 'formule', formule_expression: '1 + 1')
+      expect(choix_tdc.formule_output_type).to eq('number')
+      tdc = validate_with("NON({tdc#{choix_tdc.stable_id}})")
+      expect(tdc.errors[:formule_expression]).to be_present
+    end
+  end
+
   describe '#infer_output_type' do
     context 'with arithmetic expression' do
       let(:expression) { '1 + 2' }

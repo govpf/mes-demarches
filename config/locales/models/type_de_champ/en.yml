@@ -100,3 +100,4 @@ en:
               invalid_syntax: "Invalid syntax: %{detail}"
               circular_reference: "Circular reference detected — this formula references itself directly or through a chain of other formulas"
               forward_reference: "Reference to a field located after the formula — a formula can only reference fields that precede it"
+              non_boolean_condition: "Field “%{label}” used as a condition in %{function} is not a Yes/No field: the condition would always be true. Write an explicit comparison, e.g. {%{label}} == \"Yes\""

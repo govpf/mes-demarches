@@ -185,7 +185,15 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
 
     # pf: Validation syntaxique Dentaku — on remplace les {tdc123} par des
     # variables fictives pour vérifier la syntaxe sans résoudre les références.
-    testable = expression.gsub(/\{[^}]+\}/, 'x')
+    # Chaque référence reçoit un placeholder unique (ref_map placeholder →
+    # référence d'origine) pour que l'analyse de l'AST puisse remonter au TDC
+    # référencé (cf. détection de condition non booléenne ci-dessous).
+    ref_map = {}
+    testable = expression.gsub(/\{([^}]+)\}/) do
+      placeholder = "__ref_#{ref_map.size + 1}__"
+      ref_map[placeholder] = Regexp.last_match(1).strip
+      placeholder
+    end
     calculator = FormulaCalculationService.new_calculator
     ast_node = calculator.ast(testable)
 
@@ -197,6 +205,19 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
       deps = @type_de_champ.formule_deps.dup
       deps['has_clock'] = true
       @type_de_champ.formule_deps = deps
+    end
+
+    # pf: Garde-fou sémantique — un champ non booléen référencé tel quel comme
+    # condition (NON({Liste}), ET({Texte}, ...), SI({Nombre}, ...)) est
+    # toujours truthy en sémantique Ruby (seuls false/nil sont falsy) : la
+    # condition est constante, c'est une erreur d'admin quasi certaine.
+    # Piège typique : un select avec options « Oui »/« Non » à la place d'un
+    # champ Oui/Non — NON({Select}) renvoie false quel que soit le choix.
+    misuse = find_non_boolean_condition(ast_node, ref_map)
+    if misuse
+      @type_de_champ.errors.add(:formule_expression, :non_boolean_condition,
+                                function: misuse[:function], label: misuse[:label])
+      return
     end
 
     # pf: Inférence automatique du type de sortie.
@@ -413,12 +434,101 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     return false if node.nil?
     return true if node.class.name.is_a?(Symbol) && CLOCK_FUNCTION_NAMES.include?(node.class.name)
 
+    ast_children(node).any? { |child| ast_uses_clock_function?(child) }
+  end
+
+  # pf: Enfants d'un nœud AST Dentaku, toutes formes confondues : fonctions
+  # (args), opérateurs binaires (left/right), unaires (node — cf. Negation).
+  # Un nœud If expose à la fois args et left/right : le doublon est inoffensif
+  # pour une détection (double visite au pire).
+  def ast_children(node)
     children = []
     children.concat(node.args) if node.respond_to?(:args) && node.args
     children << node.left if node.respond_to?(:left) && node.left
     children << node.right if node.respond_to?(:right) && node.right
     children << node.node if node.respond_to?(:node) && node.node
+    children
+  end
 
-    children.any? { |child| ast_uses_clock_function?(child) }
+  # pf: Fonctions logiques (customs FR + natives Dentaku) dont TOUS les
+  # arguments sont des conditions. Clé = node.class.name upcasé, valeur =
+  # nom affiché dans le message d'erreur. SI/IF (condition = 1er argument
+  # seulement) et les opérateurs infixes &&/||/and/or sont traités à part
+  # dans logical_condition_args.
+  LOGICAL_FUNCTION_NAMES = {
+    NON: 'NON', NOT: 'NOT', ET: 'ET', AND: 'AND', OU: 'OU', OR: 'OR', XOR: 'XOR',
+  }.freeze
+
+  # pf: Parcours de l'AST à la recherche d'une référence de champ non booléen
+  # utilisée telle quelle en position de condition. Retourne le premier abus
+  # trouvé ({ function:, label: }) ou nil. ref_map mappe les placeholders
+  # (__ref_N__) vers la référence d'origine ({tdc123}, {dossier_number}, ...).
+  def find_non_boolean_condition(node, ref_map)
+    return nil if node.nil?
+
+    condition_args, function_label = logical_condition_args(node)
+    condition_args&.each do |arg|
+      label = non_boolean_reference_label(arg, ref_map)
+      return { function: function_label, label: label } if label
+    end
+
+    ast_children(node).each do |child|
+      found = find_non_boolean_condition(child, ref_map)
+      return found if found
+    end
+    nil
+  end
+
+  # pf: Si le nœud attend des conditions booléennes, retourne [args-conditions,
+  # nom affichable] ; nil sinon. Trois familles :
+  # - fonctions enregistrées (NON, not, ET, and, ...) → node.class.name est un
+  #   Symbol (cf. ast_uses_clock_function?), tous les args sont des conditions ;
+  # - SI/IF (alias natif Dentaku::AST::If) → seule la condition (1er arg) ;
+  # - opérateurs infixes && / || / and / or → left et right.
+  def logical_condition_args(node)
+    name = node.class.name
+    if name.is_a?(Symbol)
+      display = LOGICAL_FUNCTION_NAMES[name.to_s.upcase.to_sym]
+      return [node.args, display] if display
+    elsif node.is_a?(Dentaku::AST::If)
+      return [[node.predicate], 'SI']
+    elsif node.is_a?(Dentaku::AST::And)
+      return [[node.left, node.right], 'ET']
+    elsif node.is_a?(Dentaku::AST::Or)
+      return [[node.left, node.right], 'OU']
+    end
+    nil
+  end
+
+  # pf: Libellé du TDC référencé si `arg` est une référence nue vers un champ
+  # non booléen ; nil dans tous les cas légitimes. Prudence par défaut :
+  # - sous-propriété ({tdc123/path}) : type non trivial → laissé passer ;
+  # - colonne système ({dossier_number}, ...) : pas un TDC → laissé passer ;
+  # - date/datetime : passés nil quand vides (falsy) → NON({Date}) teste
+  #   « non renseignée », usage légitime.
+  def non_boolean_reference_label(arg, ref_map)
+    return nil unless arg.is_a?(Dentaku::AST::Identifier)
+
+    ref = ref_map[arg.identifier.to_s]
+    return nil if ref.nil? || ref.include?('/')
+
+    revision = @type_de_champ.revisions.last
+    return nil if revision.nil?
+
+    tdc = find_referenced_tdc(ref, revision)
+    return nil if tdc.nil? || boolean_condition_compatible_tdc?(tdc)
+
+    tdc.libelle
+  end
+
+  def boolean_condition_compatible_tdc?(tdc)
+    case tdc.type_champ
+    when 'checkbox', 'yes_no', 'date', 'datetime'
+      true
+    when 'formule'
+      tdc.formule_output_type == 'boolean'
+    else
+      false
+    end
   end
 end
