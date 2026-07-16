@@ -936,10 +936,6 @@ class Procedure < ApplicationRecord
     update!(closing_reason: nil, closing_details: nil, replaced_by_procedure_id: nil, closing_notification_brouillon: false, closing_notification_en_cours: false)
   end
 
-  def monavis_embed_html_source(source)
-    monavis_embed.gsub('nd_source=button', "nd_source=#{source}").gsub('<a ', '<a target="_blank" rel="noopener noreferrer" ')
-  end
-
   # pf: Migration v1 → v2 - Construire une attestation v2 à partir d'une v1
   def build_attestation_template_v2_from_v1(v1_template)
     AttestationTemplate.build_v2_from_v1(v1_template, self)
