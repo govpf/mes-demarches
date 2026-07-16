@@ -77,6 +77,10 @@ fr:
       zero: Aucun résultat
       one: 1 résultat
       other: <slot name="count"></slot> résultats
+  jdma:
+    title: Comment s’est passée cette démarche ?
+    body: Donnez votre avis en 2 minutes sur la réalisation de cette démarche et faites-nous part de votre expérience, pour contribuer à l’amélioration de la qualité des démarches.
+    alt: Je donne mon avis
   layouts:
     commencer:
       no_procedure:
@@ -511,8 +515,6 @@ fr:
           download_attestation: Télécharger mon attestation
           acces_dossier: Accéder au dossier
           submit_dossier: Déposer un autre dossier
-          jdma_l1: Aidez-nous à améliorer ce service !
-          jdma_l2: Donnez-nous votre avis, cela ne prend que 2 minutes.
         show:
           header:
             summary_html: 'Suivi<span class="fr-hidden fr-unhidden-sm"> de votre dossier</span>'

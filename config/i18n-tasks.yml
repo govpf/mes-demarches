@@ -131,6 +131,8 @@ ignore_unused:
 - 'insee_down'
 # pf: clés utilisées dans app/components (exclu du scan ci-dessus) — referentiel_de_polynesie DLNUF
 - 'shared.champs.referentiel_de_polynesie.*'
+# used in app/components/dossiers/jdma_button_component (excluded from search above)
+- 'jdma.alt'
 # - '{devise,kaminari,will_paginate}.*'
 # - 'simple_form.{yes,no}'
 # - 'simple_form.{placeholders,hints,labels}.*'
