@@ -86,6 +86,7 @@ en:
   jdma:
     title: How did this procedure go?
     body: Give your feedback in 2 minutes on how this procedure went and share your experience to help improve the quality of procedures.
+    email_link: I give my feedback on this procedure
     alt: Give my feedback
   layouts:
     commencer:

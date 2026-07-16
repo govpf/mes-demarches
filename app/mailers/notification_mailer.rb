@@ -8,8 +8,9 @@
 # The subject and body of a Notification can be customized by each demarche.
 #
 class NotificationMailer < ApplicationMailer
+  JDMA_STATES = [Dossier.states.fetch(:en_construction)] + Dossier::TERMINE
+
   before_action :set_dossier, except: [:send_notification_for_tiers, :send_accuse_lecture_notification]
-  before_action :set_services_publics_plus, only: :send_notification
   before_action :set_jdma, only: :send_notification
 
   helper ServiceHelper
@@ -84,16 +85,13 @@ class NotificationMailer < ApplicationMailer
 
   private
 
-  def set_services_publics_plus
-    return unless Dossier::TERMINE.include?(params[:state])
-
-    @services_publics_plus_url = ENV['SERVICES_PUBLICS_PLUS_URL'].presence
-  end
-
   def set_jdma
-    if params[:state] == Dossier.states.fetch(:en_construction) && @dossier.procedure.monavis_embed
-      @jdma_html = @dossier.procedure.monavis_embed_html_source("email")
-    end
+    return unless JDMA_STATES.include?(params[:state])
+
+    @jdma_link = MonAvisEmbed.new(@dossier.procedure.monavis_embed).link_href("email")
+    # Le lien Services Publics + porte sur le traitement du dossier : pas de repli
+    # sur l'accusé de réception, où le dossier n'est pas encore traité.
+    @jdma_link ||= ENV['SERVICES_PUBLICS_PLUS_URL'].presence if Dossier::TERMINE.include?(params[:state])
   end
 
   def set_dossier

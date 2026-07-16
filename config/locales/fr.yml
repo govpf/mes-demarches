@@ -80,6 +80,7 @@ fr:
   jdma:
     title: Comment s’est passée cette démarche ?
     body: Donnez votre avis en 2 minutes sur la réalisation de cette démarche et faites-nous part de votre expérience, pour contribuer à l’amélioration de la qualité des démarches.
+    email_link: Je donne mon avis sur cette démarche
     alt: Je donne mon avis
   layouts:
     commencer:
