@@ -45,8 +45,20 @@ l'expose pas aujourd'hui.
   au contenu », pas juste « a ouvert l'app ».
 - Réserves (à porter côté robot, pas de correction ici) :
   - Le marquage porte sur **tous** les messages du dossier à l'ouverture de l'onglet,
-    pas message par message ; un **invité** au dossier qui ouvre l'onglet marque aussi
-    lu. Ce n'est **pas un accusé de réception formel opposable**.
+    pas message par message. Ce n'est **pas un accusé de réception formel opposable**.
+  - **On ne sait jamais QUI a lu.** L'action `messagerie` est ouverte au titulaire
+    **et aux invités** (`ACTIONS_ALLOWED_TO_OWNER_OR_INVITE`,
+    `users/dossiers_controller.rb:16`), et le marquage (`update_all`) n'enregistre
+    aucune identité. `seenByRecipientAt` signifie « quelqu'un ayant accès a ouvert la
+    messagerie », jamais « qui ».
+  - **Seul le titulaire est notifié par email** d'un nouveau message
+    (`notify_new_answer` → `dossier.user_email_for(:notification)`,
+    `dossier_mailer.rb:52`) ; les invités ne reçoivent pas cet email. Asymétrie qui en
+    découle : en pratique c'est quasi toujours le titulaire qui ouvre (seul prévenu),
+    mais un invité ouvrant le dossier de sa propre initiative pourrait faire passer
+    `seenByRecipientAt` à non-null sans que le titulaire ait rien vu — cas de bord réel
+    et **indistinguable** côté API. Cohérent avec « pas d'accusé de réception
+    opposable ».
   - Le marquage utilise `update_all` ⇒ **ne bumpe pas `dossier.updated_at`** ⇒ la
     lecture n'est **pas découvrable** via `demarche.dossiers(updatedSince:)`.
     En revanche l'**envoi** d'un message bumpe `updated_at` (`Commentaire belongs_to
