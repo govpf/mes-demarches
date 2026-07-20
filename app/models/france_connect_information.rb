@@ -11,6 +11,11 @@ class FranceConnectInformation < ApplicationRecord
   # peut se faire sans mot de passe. Voir OmniAuthService.trusted_email_assertion?.
   attr_accessor :trusted_email_assertion
 
+  # pf: le fournisseur d'identité (particulier=FranceConnect, google, microsoft, tatou)
+  # est stocké par-FCI dans la colonne data (jsonb), sans migration. Purement décoratif :
+  # aucune décision de confiance ne s'appuie dessus (voir OmniAuthService).
+  store_accessor :data, :provider
+
   validates :france_connect_particulier_id, presence: true, allow_blank: false, allow_nil: false
 
   def safely_associate_user!(email)
