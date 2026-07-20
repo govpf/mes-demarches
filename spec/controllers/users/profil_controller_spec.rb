@@ -53,6 +53,19 @@ describe Users::ProfilController, type: :controller do
         expect(response.body).not_to include('fr-badge--info')
       end
     end
+
+    context 'identité avec un provider sans libellé i18n (fallback)' do
+      let!(:fci) do
+        create(:france_connect_information, user: user, data: { 'provider' => 'yahoo' })
+      end
+
+      before { post :show }
+
+      it 'affiche un libellé humanisé sans "translation missing"' do
+        expect(response.body).not_to include('translation missing')
+        expect(response.body).to include('Yahoo')
+      end
+    end
   end
 
   describe 'PATCH #update_email' do
