@@ -4420,6 +4420,13 @@ type Message {
   discardedAt: ISO8601DateTime
   email: String!
   id: ID!
+
+  """
+  Date et heure à laquelle le destinataire a ouvert la messagerie contenant ce
+  message (null si non lu). Pour un message envoyé par un instructeur, le
+  destinataire est l'usager.
+  """
+  seenByRecipientAt: ISO8601DateTime
 }
 
 type MultipleDropDownListChamp implements Champ {
