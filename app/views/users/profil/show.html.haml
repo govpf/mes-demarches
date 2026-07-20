@@ -79,6 +79,8 @@
       %ul
         - @france_connect_informations.each do |fci|
           %li
+            - if fci.provider.present?
+              %span.fr-badge.fr-badge--sm.fr-badge--info.fr-badge--no-icon.fr-mr-1w= t("omniauth.provider.#{fci.provider}")
             #{fci.given_name} #{fci.family_name} (#{fci.email_france_connect})
             = link_to t('.forbid_access'),
               france_connect_information_path(fci_id: fci.id),

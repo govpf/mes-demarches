@@ -31,6 +31,28 @@ describe Users::ProfilController, type: :controller do
 
       it { expect(response.body).not_to include(I18n.t('users.profil.show.transfer_title')) }
     end
+
+    context 'identités liées avec provider' do
+      let!(:fci) do
+        create(:france_connect_information, user: user, data: { 'provider' => 'tatou' })
+      end
+
+      before { post :show }
+
+      it 'affiche le badge du provider' do
+        expect(response.body).to include(I18n.t('omniauth.provider.tatou'))
+      end
+    end
+
+    context 'identité liée sans provider (ancienne ligne)' do
+      let!(:fci) { create(:france_connect_information, user: user) }
+
+      before { post :show }
+
+      it 'n’affiche aucun badge provider' do
+        expect(response.body).not_to include('fr-badge--info')
+      end
+    end
   end
 
   describe 'PATCH #update_email' do
