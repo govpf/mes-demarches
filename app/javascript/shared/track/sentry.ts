@@ -25,7 +25,13 @@ if (enabled && key) {
       "'get' on proxy: property 'javaEnabled' is a read-only and non-configurable data property on the proxy target but the proxy did not return its actual value",
 
       // La gaufre script often triggers an error while loading other dependencies
-      'NetworkError when attempting to fetch resource. (integration.lasuite.numerique.gouv.fr)'
+      'NetworkError when attempting to fetch resource. (integration.lasuite.numerique.gouv.fr)',
+
+      // Fetch request aborted by the user (navigation, tab close) or by an
+      // explicit AbortController (e.g. AutosaveController#disconnect). Expected
+      // behaviour, not a bug.
+      'AbortError',
+      'The user aborted a request.'
     ]
   });
 
