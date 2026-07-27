@@ -1,6 +1,7 @@
 %li.type-de-champ.flex.column.justify-start.fr-mb-5v{ html_options }
   .type-de-champ-container{ id: dom_id(type_de_champ.stable_self, :editor_error) }
     - if @errors.present?
+      -# pf: présentation enrichie des erreurs via le composant fr-alert DSFR
       .fr-alert.fr-alert--error.fr-alert--sm.fr-mb-2w
         %p= @errors
 
@@ -83,44 +84,6 @@
                         = link_to 'Voir la documentation', faq_path(category: 'administrateur', slug: 'les-formules-introduction'), target: '_blank', class: 'fr-link fr-link--sm fr-link--icon-left fr-icon-book-2-line'
                 %p.fr-message{ data: { formula_editor_target: 'validationMessage' }, style: 'display: none;' }
 
-            - if type_de_champ.any_drop_down_list? && !type_de_champ.drop_down_list?
-              .cell.fr-mt-1w
-                = form.label :drop_down_options_from_text, "Options de la liste", for: dom_id(type_de_champ, :drop_down_options_from_text)
-                = form.text_area :drop_down_options_from_text,
-                  value: type_de_champ.drop_down_options.join("\r\n"),
-                  class: 'fr-input small-margin small width-100 resize-y',
-                  rows: 7,
-                  id: dom_id(type_de_champ, :drop_down_options_from_text)
-            - elsif type_de_champ.drop_down_list?
-              .cell.fr-mt-1w
-                %fieldset.fr-segmented.fr-segmented
-                  %legend.fr-segmented__legend
-                    Liste de choix
-                  .fr-segmented__elements
-                    .fr-segmented__element
-                      = form.radio_button :drop_down_mode, 'simple', checked: type_de_champ.drop_down_simple?, id: dom_id(type_de_champ, :simple)
-                      = form.label :drop_down_mode_simple, t('.drop_down_list.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
-                    .fr-segmented__element
-                      = form.radio_button :drop_down_mode, 'advanced', id: dom_id(type_de_champ, :advanced)
-                      = form.label :drop_down_mode_advanced, t('.drop_down_list.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
-
-              .border-left-dark.fr-my-1w
-                = render TypesDeChampEditor::ChampDropDownSimpleComponent.new(type_de_champ:, form:, procedure:)
-                = render TypesDeChampEditor::ChampDropDownAdvancedComponent.new(type_de_champ:, form:, procedure:)
-
-                .cell.flex.align-center
-                  = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
-                  = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
-                    Proposer une option « autre » avec un texte libre
-
-              - if type_de_champ.linked_drop_down_list?
-                .cell.fr-mt-1w
-                  = form.label :drop_down_secondary_libelle, "Libellé du champ secondaire", class: 'flex-grow', for: dom_id(type_de_champ, :drop_down_secondary_libelle)
-                  = form.text_field :drop_down_secondary_libelle, class: 'fr-input small-margin small width-100', id: dom_id(type_de_champ, :drop_down_secondary_libelle)
-                .cell.fr-mt-1w
-                  = form.label :drop_down_secondary_description, "Description du champ secondaire (optionnel)", for: dom_id(type_de_champ, :drop_down_secondary_description)
-                  = form.text_area :drop_down_secondary_description, class: 'fr-input small-margin small width-100', rows: 3, id: dom_id(type_de_champ, :drop_down_secondary_description)
-
             - if type_de_champ.header_section?
               .cell.fr-mt-1w
                 = render TypesDeChampEditor::HeaderSectionComponent.new(form: form, tdc: type_de_champ, upper_tdcs: filtered_upper_tdcs)
@@ -138,6 +101,7 @@
               .cell.fr-mt-1w
                 = form.label :notice_explicative, "Notice explicative", for: dom_id(type_de_champ, :notice_explicative)
                 = render Attachment::EditComponent.new(**notice_explicative_options)
+
             - if type_de_champ.lexpol?
               .cell.fr-mt-1w
                 = form.label :lexpol_modele, "Sélectionner un modèle Lexpol", class: 'flex-grow', for: dom_id(type_de_champ, :lexpol_modele)
@@ -200,13 +164,101 @@
                 %ul
                   - LexpolService.lexpol_variables(type_de_champ, procedure).map do |variable|
                     %li= variable
+
+            - if type_de_champ.piece_justificative?
+              .cell.fr-mt-1w
+                .fr-hr.fr-mt-1w
+                = form.label :nature, "Nature de la pièce", for: dom_id(type_de_champ, :nature)
+                - natures = TypeDeChamp.natures.keys.map { |k| [t("activerecord.attributes.type_de_champ.natures.#{k}", default: k.to_s.humanize), k] }
+                = form.select :nature,
+                  natures,
+                  { },
+                  class: 'fr-select small-margin small inline width-100',
+                  id: dom_id(type_de_champ, :nature)
+              - nature_dom_id = dom_id(type_de_champ, :nature)
+              - if type_de_champ.titre_identite_nature?
+                .fr-hr.fr-mt-2w
+                .cell
+                  = form.label :formats_accepted, t('.identity_formats.title'), for: nature_dom_id, class: 'fake-label'
+                  %p.fr-mb-0= t('.identity_formats.desc_html')
+                  %p.fr-mt-0= t('.identity_formats.rule_html')
+                .fr-hr.fr-mt-1w
+                .cell
+                  = form.label :deletion_title, t('.identity_deletion.title'), for: nature_dom_id, class: 'fake-label'
+                  %p.fr-mb-0= t('.identity_deletion.desc_html')
+                  %p.fr-mt-0= t('.identity_deletion.note_html')
+              - elsif type_de_champ.rib_nature?
+                .cell.fr-mt-2w
+                  = render Dsfr::NoticeComponent.new(state: 'info') do |c|
+                    - c.with_title do
+                      = t('.identity_notice.title')
+                    - c.with_desc do
+                      = t('.rib_notice.desc_html')
+                .fr-hr.fr-mt-2w
+                .cell
+                  = form.label :formats_accepted, t('.rib_formats.title'), for: nature_dom_id, class: 'fake-label'
+                  %p.fr-mb-0= t('.rib_formats.desc_html')
+              - else
+                .fr-hr.fr-mt-2w
+                .cell{ data: { controller: 'hide-target' } }
+                  .fr-toggle{ class: class_names('fr-mb-2w': form.object.pj_limit_formats?) }
+                    = form.check_box :pj_limit_formats,
+                      id: dom_id(type_de_champ, :pj_limit_formats),
+                      class: 'fr-toggle__input',
+                      data: { 'hide-target-target': 'source' },
+                      checked: form.object.pj_limit_formats?
+                    = form.label :pj_limit_formats, t('.limit_formats_label'), for: dom_id(type_de_champ, :pj_limit_formats), class: 'fr-toggle__label fr-label'
+
+                  - families = format_families_for_select
+                  - grid_hidden_class = form.object.pj_limit_formats? ? nil : 'fr-hidden'
+                  .cell{ class: grid_hidden_class, data: { 'hide-target-target': 'toHide' } }
+                    %fieldset.fr-fieldset.fr-mx-0.fr-px-0
+                      %legend.fr-fieldset__legend.fr-fieldset__legend--regular.fr-mx-0.fr-pl-0.fr-mb-1w
+                        = t('.families_legend')
+
+                      - prechecked = Array.wrap(form.object.pj_format_families).map(&:to_s)
+                      - families.each do |(value, label, examples)|
+                        .fr-fieldset__element.fr-fieldset__element--inline.fr-pl-0
+                          .fr-checkbox-group
+                            - checked_opt = prechecked.include?(value.to_s)
+                            = form.check_box :pj_format_families, { multiple: true, id: dom_id(type_de_champ, "pj_format_#{value}"), checked: checked_opt }, value, nil
+                            - if examples.present?
+                              - tip_id = "#{dom_id(type_de_champ, "pj_format_#{value}")}-tip"
+                              = form.label "pj_format_families_#{value}", label, for: dom_id(type_de_champ, "pj_format_#{value}"), class: 'fr-label', tabindex: 0, 'aria-describedby': tip_id
+                              %span.fr-tooltip.fr-placement{ id: tip_id, role: 'tooltip', 'aria-hidden': 'true' }= t('.tooltip_examples', examples: examples)
+                            - else
+                              = form.label "pj_format_families_#{value}", label, for: dom_id(type_de_champ, "pj_format_#{value}"), class: 'fr-label'
+
+              - if !type_de_champ.titre_identite_nature?
+                .fr-hr.fr-mt-1w
+                .cell
+                  .fr-toggle
+                    = form.check_box :pj_auto_purge, id: dom_id(type_de_champ, :pj_auto_purge), class: 'fr-toggle__input'
+                    = form.label :pj_auto_purge, t('.auto_purge_label'), for: dom_id(type_de_champ, :pj_auto_purge), class: 'fr-toggle__label fr-label'
+
+            - if type_de_champ.piece_justificative_or_titre_identite?
+              .cell.fr-mt-1w
+                .fr-hr.fr-mt-1w
+                = form.label :piece_justificative_template, t('.template_label'), for: dom_id(type_de_champ, :piece_justificative_template)
+                = render Attachment::EditComponent.new(**piece_justificative_template_options)
+
+              - if type_de_champ.titre_identite?
+                .cell.fr-mt-1w
+                  = render Dsfr::AlertComponent.new(state: :info, heading_level: 'p') do |c|
+                    - c.with_body do
+                      Dans le cadre de la RGPD, le titre d'identité sera supprimé lors de l'acceptation, du refus ou du classement sans suite du dossier.<br />
+                      Aussi, pour des raisons de sécurité, un filigrane est automatiquement ajouté aux images.<br />
+                      Finalement, le titre d'identité ne sera ni disponible dans les zip de dossiers, ni téléchargeable par API.
+              - elsif procedure.piece_justificative_multiple?
+                .cell.fr-mt-1w
+                  %p Les usagers pourront envoyer plusieurs fichiers si nécessaire.
+
             -# ----- Polynesia options
+            -# pf: champ Visa — accreditation par email pour cocher le visa
             - if type_de_champ.visa?
-              .flex.width-33
-              .flex.flex-grow.align-center
-                .cell.width-100
-                  = form.label :accredited_user_string, "Mails des personnes accréditées", for: dom_id(type_de_champ, :accredited_user_string)
-                  = form.text_area :accredited_user_string, class: 'fr-input small-margin small', rows: 7, id: dom_id(type_de_champ, :accredited_user_string), placeholder: 'Ecrire un email par ligne'
+              .cell.fr-mt-1w
+                = form.label :accredited_user_string, "Mails des personnes accréditées", for: dom_id(type_de_champ, :accredited_user_string)
+                = form.text_area :accredited_user_string, class: 'fr-input small-margin small', rows: 7, id: dom_id(type_de_champ, :accredited_user_string), placeholder: 'Ecrire un email par ligne'
 
             - if type_de_champ.integer_number? || type_de_champ.decimal_number?
               .border-left-dark.fr-mt-2w
@@ -267,30 +319,63 @@
                           = form.date_field :end_date, class: "fr-input", value: type_de_champ.end_date, id: dom_id(type_de_champ, :end_date)
 
         .flex.justify-start.fr-mt-1w.flex-gap
-        - if type_de_champ.piece_justificative_or_titre_identite?
-          .cell.fr-mt-1w
-            = form.label :piece_justificative_template, "Modèle", for: dom_id(type_de_champ, :piece_justificative_template)
-            = render Attachment::EditComponent.new(**piece_justificative_template_options)
-            - if type_de_champ.titre_identite?
+          - if type_de_champ.linked_drop_down_list?
+            .flex.column.justify-start.width-33
+              .cell
+                = form.label :drop_down_options_from_text, "Options de la liste", for: dom_id(type_de_champ, :drop_down_options_from_text)
+                = form.text_area :drop_down_options_from_text,
+                  value: type_de_champ.drop_down_options.join("\r\n"),
+                  class: 'fr-input small-margin small width-100',
+                  rows: 7,
+                  id: dom_id(type_de_champ, :drop_down_options_from_text)
+          - elsif type_de_champ.drop_down_list? || type_de_champ.multiple_drop_down_list?
+            .flex.justify-start.column.width-33.fr-mt-1w
+              .cell
+                %fieldset.fr-segmented.fr-segmented
+                  %legend.fr-segmented__legend
+                    Liste de choix
+                  .fr-segmented__elements
+                    .fr-segmented__element
+                      = form.radio_button :drop_down_mode, 'simple', checked: type_de_champ.drop_down_simple?, id: dom_id(type_de_champ, :simple)
+                      = form.label :drop_down_mode_simple, t('.drop_down_list.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
+                    .fr-segmented__element
+                      = form.radio_button :drop_down_mode, 'advanced', id: dom_id(type_de_champ, :advanced)
+                      = form.label :drop_down_mode_advanced, t('.drop_down_list.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
+
+            .flex.column.justify-start.flex-grow.border-left-dark.fr-my-1w
+              = render TypesDeChampEditor::ChampDropDownSimpleComponent.new(type_de_champ:, form:, procedure:)
+              = render TypesDeChampEditor::ChampDropDownAdvancedComponent.new(type_de_champ:, form:, procedure:)
+
+              - if type_de_champ.drop_down_list?
+                .cell.flex.align-center
+                  = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
+                  = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
+                    Proposer une option « autre » avec un texte libre
+
+          - if type_de_champ.linked_drop_down_list?
+            .flex.column.justify-start.flex-grow
+              .cell
+                = form.label :drop_down_secondary_libelle, "Libellé du champ secondaire", class: 'flex-grow', for: dom_id(type_de_champ, :drop_down_secondary_libelle)
+                = form.text_field :drop_down_secondary_libelle, class: 'fr-input small-margin small width-100', id: dom_id(type_de_champ, :drop_down_secondary_libelle)
               .cell.fr-mt-1w
-                = render Dsfr::AlertComponent.new(state: :info, heading_level: 'p') do |c|
-                  - c.with_body do
-                    Dans le cadre de la RGPD, le titre d'identité sera supprimé lors de l'acceptation, du refus ou du classement sans suite du dossier.<br />
-                    Aussi, pour des raisons de sécurité, un filigrane est automatiquement ajouté aux images.<br />
-                    Finalement, le titre d'identité ne sera ni disponible dans les zip de dossiers, ni téléchargeable par API.
-            - elsif procedure.piece_justificative_multiple?
-              .cell.fr-mt-1w
-                %p Les usagers pourront envoyer plusieurs fichiers si nécessaire.
-        - if type_de_champ.te_fenua?
-          .cell.flex.flex-gap.fr-mt-1w
-            = form.fields_for :editable_options do |form|
-              - TypesDeChamp::TeFenuaTypeDeChamp::LAYERS.each do |layer|
-                .carte-options.cell
-                  = form.label :te_fenua_layer, for: dom_id(type_de_champ, "layer_#{layer}") do
-                    = form.radio_button :te_fenua_layer, layer, checked: type_de_champ.options["te_fenua_layer"] == layer.to_s, class: 'small-margin small', id: dom_id(type_de_champ, "layer_#{layer}")
-                    = t(".layers.#{layer}")
-        - if type_de_champ.carte?
-          .cell.flex.fr-m-3v
+                = form.label :drop_down_secondary_description, "Description du champ secondaire (optionnel)", for: dom_id(type_de_champ, :drop_down_secondary_description)
+                = form.text_area :drop_down_secondary_description, class: 'fr-input small-margin small width-100', rows: 3, id: dom_id(type_de_champ, :drop_down_secondary_description)
+          -# pf: configuration des layers TeFenua (carte spécifique Polynésie)
+          - if type_de_champ.te_fenua?
+            .cell.flex.flex-gap.fr-mt-1w
+              = form.fields_for :editable_options do |form|
+                - TypesDeChamp::TeFenuaTypeDeChamp::LAYERS.each do |layer|
+                  .carte-options.cell
+                    = form.label :te_fenua_layer, for: dom_id(type_de_champ, "layer_#{layer}") do
+                      = form.radio_button :te_fenua_layer, layer, checked: type_de_champ.options["te_fenua_layer"] == layer.to_s, class: 'small-margin small', id: dom_id(type_de_champ, "layer_#{layer}")
+                      = t(".layers.#{layer}")
+          -# pf: option « autre » avec texte libre pour le référentiel de Polynésie
+          - if type_de_champ.referentiel_de_polynesie?
+            .cell.flex.align-center.fr-mt-1w
+              = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
+              = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
+                Proposer une option « autre » avec un texte libre
+          - if type_de_champ.carte?
             - type_de_champ.editable_options.each do |slice|
               .cell
                 .carte-options
@@ -299,27 +384,28 @@
                       = form.label name, for: dom_id(type_de_champ, "layer_#{name}") do
                         = form.check_box name, checked:, disabled:, class: 'small-margin small', id: dom_id(type_de_champ, "layer_#{name}")
                         = t(".layers.#{name}")
-        - if type_de_champ.textarea?
-          .cell
-            = form.label :character_limit, for: dom_id(type_de_champ, :character_limit) do
-              Spécifier un nombre maximal conseillé de caractères :
-            = form.select :character_limit, options_for_character_limit, {}, { id: dom_id(type_de_champ, :character_limit), class: 'fr-select' }
-        - if type_de_champ.formatted?
-          .flex.justify-start.column.width-33
-            %fieldset.fr-segmented.fr-segmented
-              %legend.fr-segmented__legend.fr-mb-1w
-                Spécifier le format requis
-              .fr-segmented__elements
-                .fr-segmented__element
-                  = form.radio_button :formatted_mode, 'simple', checked: type_de_champ.formatted_simple?, id: dom_id(type_de_champ, :simple)
-                  = form.label :formatted_mode_simple, t('.kind.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
-                .fr-segmented__element
-                  = form.radio_button :formatted_mode, 'advanced', id: dom_id(type_de_champ, :advanced)
-                  = form.label :formatted_mode_advanced, t('.kind.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
+          - if type_de_champ.textarea?
+            .cell
+              = form.label :character_limit, for: dom_id(type_de_champ, :character_limit) do
+                Spécifier un nombre maximal conseillé de caractères :
+              = form.select :character_limit, options_for_character_limit, {}, { id: dom_id(type_de_champ, :character_limit), class: 'fr-select' }
+          - if type_de_champ.formatted?
+            .flex.justify-start.column.width-33
+              %fieldset.fr-segmented.fr-segmented
+                %legend.fr-segmented__legend.fr-mb-1w
+                  Spécifier le format requis
+                .fr-segmented__elements
+                  .fr-segmented__element
+                    = form.radio_button :formatted_mode, 'simple', checked: type_de_champ.formatted_simple?, id: dom_id(type_de_champ, :simple)
+                    = form.label :formatted_mode_simple, t('.kind.labels.simple'), for: dom_id(type_de_champ, :simple), class: 'fr-label'
+                  .fr-segmented__element
+                    = form.radio_button :formatted_mode, 'advanced', id: dom_id(type_de_champ, :advanced)
+                    = form.label :formatted_mode_advanced, t('.kind.labels.advanced'), for: dom_id(type_de_champ, :advanced), class: 'fr-label'
 
-          = render TypesDeChampEditor::ChampFormattedSimpleComponent.new(type_de_champ:, form:, procedure:)
-          = render TypesDeChampEditor::ChampFormattedAdvancedComponent.new(type_de_champ:, form:, procedure:)
+            = render TypesDeChampEditor::ChampFormattedSimpleComponent.new(type_de_champ:, form:, procedure:)
+            = render TypesDeChampEditor::ChampFormattedAdvancedComponent.new(type_de_champ:, form:, procedure:)
 
+    -# pf: support du référentiel Baserow spécifique Polynésie en plus du référentiel upstream
     - if type_de_champ.referentiel? || type_de_champ.referentiel_de_polynesie?
       = render(TypesDeChampEditor::InfoReferentielComponent.new(procedure:, type_de_champ:))
 
@@ -339,6 +425,7 @@
       = render TypesDeChampEditor::SelectChampPositionComponent.new(revision:, coordinate:)
 
       .flex.right
+        -# pf: bouton de duplication d'un champ — facilite la création de variantes
         = render TypesDeChampEditor::DuplicateChampButtonComponent.new(coordinate: coordinate, after_stable_id: type_de_champ.stable_id)
         - if coordinate.used_by_routing_rules?
           %span

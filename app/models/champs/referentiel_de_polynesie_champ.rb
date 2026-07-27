@@ -78,16 +78,59 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
   end
 
   def selected_items
-    if external_id.present? && value.present?
+    if other?
+      [{ label: I18n.t('shared.champs.drop_down_list.other'), value: external_id }]
+    elsif external_id.present? && value.present?
       [{ label: value, value: external_id }]
     else
       []
     end
   end
 
+  def other?
+    external_id == Champs::DropDownListChamp::OTHER
+  end
+
+  def value_other
+    return "" unless other?
+    return "" if value == I18n.t('shared.champs.drop_down_list.other')
+    value.to_s
+  end
+
+  def value_other=(text)
+    write_attribute(:value, text.presence) if other?
+  end
+
   # pf: helper pour savoir si le champ est en mode autocomplete
   def autocomplete?
     type_de_champ.referentiel&.autocomplete?
+  end
+
+  # pf: mode upstream = les données ont été columnisées dans value_json via cast_displayable_values.
+  # Les anciens dossiers table_row_selector n'ont pas de value_json → mode legacy (config Baserow).
+  def upstream_referentiel_mode?
+    value_json.present?
+  end
+
+  # pf: colonnes à afficher côté dossier (vue _show), filtrées par la config du champ
+  # (referentiel_mapping display_instructeur / display_usager) selon le profil.
+  # Corrige le bug où toutes les colonnes étaient affichées : auparavant la sélection
+  # se faisait via la config Baserow (#{profile}_fields), désormais absente du flux upstream.
+  # Retourne un tableau de [libelle, value] ; value_json fournit les valeurs déjà castées.
+  def displayable_columns_for(profile)
+    mapping = if profile.to_s == 'instructeur'
+      type_de_champ.referentiel_mapping_displayable_for_instructeur
+    else
+      type_de_champ.referentiel_mapping_displayable_for_usager
+    end
+
+    vj = Hash(value_json).with_indifferent_access
+    mapping.filter_map do |jsonpath, opts|
+      value = vj[jsonpath]
+      next if value.nil?
+
+      [opts[:libelle].presence || jsonpath, value]
+    end
   end
 
   # pf: dual-mode — normalise les données entre ancien format (avec row) et nouveau format (plat)

@@ -70,6 +70,19 @@ en:
           rna: RNA number
           rnf: RNF number
         not_filled: Not filled
+        format_families:
+          document_texte: "Text document"
+          tableur: "Spreadsheet"
+          presentation: "Presentation"
+          donnees: "Data"
+          image_scan: "Image / scan"
+          audio: "Audio"
+          video: "Video"
+          archive: "Compressed archive"
+        natures:
+          NON_SPECIFIE: "Not specified"
+          TITRE_IDENTITE: "Identity document"
+          RIB: "Bank details (RIB)"
     errors:
       # pf: header_section_level.gap_error is resolved by an EXPLICIT I18n.t
       # (cf. TypeDeChamp#check_coherent_header_level) → path WITHOUT `models`.

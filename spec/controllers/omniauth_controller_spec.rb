@@ -25,11 +25,31 @@ describe OmniauthController, type: :controller do
 
   describe '#callback' do
     let(:code) { 'plop' }
+    let(:state) { 'valid-state' }
 
-    subject { get :callback, params: { code: code, provider: provider } }
+    # pf: sécurité (F2) — le state est validé contre la session ; on simule un login
+    # antérieur ayant stocké le state.
+    before { request.session[:omniauth_state] = 'valid-state' }
+
+    subject { get :callback, params: { code: code, state: state, provider: provider } }
 
     context 'when params are missing' do
       subject { get :callback, params: { provider: provider } }
+
+      it { is_expected.to redirect_to(new_user_session_path) }
+    end
+
+    context 'when the OAuth state is invalid (CSRF)' do
+      let(:state) { 'forged-state' }
+
+      it 'rejects and redirects to login without retrieving user informations' do
+        expect(OmniAuthService).not_to receive(:find_or_retrieve_user_informations)
+        expect(subject).to redirect_to(new_user_session_path)
+      end
+    end
+
+    context 'when the OAuth state is missing from session' do
+      before { request.session.delete(:omniauth_state) }
 
       it { is_expected.to redirect_to(new_user_session_path) }
     end
@@ -98,10 +118,27 @@ describe OmniauthController, type: :controller do
           context 'and an user with the same email exists' do
             let!(:preexisting_user) { create(:user, email: email) }
 
-            it 'redirects to the merge process' do
-              expect { subject }.not_to change { User.count }
+            context 'and the email assertion is NOT trusted (F4)' do
+              it 'redirects to the merge process (requiert une preuve)' do
+                expect { subject }.not_to change { User.count }
 
-              expect(response).to redirect_to(omniauth_merge_path(provider, fci.reload.merge_token))
+                expect(response).to redirect_to(omniauth_merge_path(provider, fci.reload.merge_token))
+              end
+            end
+
+            context 'and the email assertion is trusted (F4)' do
+              before do
+                trusted_fci = FranceConnectInformation.new(user_info)
+                trusted_fci.trusted_email_assertion = true
+                allow(OmniAuthService).to receive(:retrieve_user_informations).and_return(trusted_fci)
+              end
+
+              it 'merges without password and signs in' do
+                subject
+
+                expect(controller.current_user).to eq(preexisting_user)
+                expect(fci.reload.user).to eq(preexisting_user)
+              end
             end
           end
           context 'and an instructeur with the same email exists' do
@@ -255,56 +292,6 @@ describe OmniauthController, type: :controller do
     end
   end
 
-  describe '#mail_merge_with_existing_account' do
-    let(:fci) { FranceConnectInformation.create!(user_info) }
-    let!(:merge_token) { fci.create_merge_token! }
-
-    context 'when the merge_token is ok and the user is found' do
-      subject { post :mail_merge_with_existing_account, params: { merge_token: fci.merge_token, provider: } }
-
-      let!(:user) { create(:user, email: email, password: SECURE_PASSWORD) }
-
-      it 'merges the account, signs in, and delete the merge token' do
-        subject
-        fci.reload
-
-        expect(fci.user).to eq(user)
-        expect(user.reload.email_verified_at).to be_present
-        expect(fci.merge_token).to be_nil
-        expect(controller.current_user).to eq(user)
-        expect(flash[:notice]).to eq("Les comptes Google et #{APPLICATION_NAME} sont à présent fusionnés")
-      end
-
-      context 'but the targeted user is an instructeur' do
-        let!(:user) { create(:instructeur, email: email, password: SECURE_PASSWORD).user }
-
-        it 'redirects to the new session' do
-          subject
-          expect(FranceConnectInformation.exists?(fci.id)).to be_falsey
-          expect(controller.current_user).to be_nil
-          expect(response).to redirect_to(new_user_session_path)
-          expect(flash[:alert]).to eq(I18n.t('errors.messages.omniauth.forbidden_html', reset_link: new_user_password_path, provider: I18n.t("omniauth.provider.#{provider}")))
-        end
-      end
-    end
-
-    context 'when the merge_token is not ok' do
-      subject { post :mail_merge_with_existing_account, params: { merge_token: 'ko', provider: } }
-
-      let!(:user) { create(:user, email: email) }
-
-      it 'increases the failed attempts counter' do
-        subject
-        fci.reload
-
-        expect(fci.user).to be_nil
-        expect(fci.merge_token).not_to be_nil
-        expect(controller.current_user).to be_nil
-        expect(response).to redirect_to(root_path)
-      end
-    end
-  end
-
   describe '#merge_with_new_account' do
     let(:fci) { FranceConnectInformation.create!(user_info) }
     let(:merge_token) { fci.create_merge_token! }
@@ -358,6 +345,19 @@ describe OmniauthController, type: :controller do
     it 'renew token' do
       expect { post :resend_and_renew_merge_confirmation, params: { merge_token:, provider: } }.to change { fci.reload.merge_token }
       expect(response).to redirect_to(omniauth_merge_path(provider, fci.reload.merge_token))
+    end
+
+    # pf: régression prod 2026-07 — le mail partait avec un email_merge_token nil
+    # (jamais créé sur ce chemin), son rendu échouait en job et l'usager ne
+    # recevait jamais le mail de fusion.
+    it 'creates the email_merge_token and sends the mail with it' do
+      mailer_double = double('mailer', deliver_later: nil)
+      expect(UserMailer).to receive(:omniauth_merge_confirmation)
+        .with(fci.email_france_connect, kind_of(String), kind_of(Time), provider)
+        .and_return(mailer_double)
+
+      expect { post :resend_and_renew_merge_confirmation, params: { merge_token:, provider: } }
+        .to change { fci.reload.email_merge_token }.from(nil)
     end
   end
 end

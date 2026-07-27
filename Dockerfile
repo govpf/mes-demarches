@@ -163,6 +163,7 @@ ENV \
     MATOMO_HOST="beta.mes-demarches.gov.pf"\
     MATOMO_ID="1"\
     MATOMO_IFRAME_URL=""\
+    MICROSOFT_ALLOWED_TENANTS=""\
     MICROSOFT_CLIENT_ID=""\
     MICROSOFT_CLIENT_SECRET=""\
     OTP_SECRET_KEY="" \

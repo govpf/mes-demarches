@@ -10,6 +10,21 @@ module ChampHelper
     simple_format(auto_linked_text, {}, sanitize: false)
   end
 
+  # pf: rendu d'une valeur de colonne d'un référentiel de Polynésie (value_json déjà castée).
+  # Booléens → Oui/Non, tableaux → liste jointe, sinon chaîne brute.
+  def referentiel_de_polynesie_display_value(value)
+    case value
+    when TrueClass
+      'Oui'
+    when FalseClass
+      'Non'
+    when Array
+      value.compact.join(', ')
+    else
+      value.to_s
+    end
+  end
+
   def auto_attach_url(object, procedure_id: nil)
     if object.is_a?(Champ)
       champs_piece_justificative_url(object.dossier, object.stable_id, row_id: object.row_id)

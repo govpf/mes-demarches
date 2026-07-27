@@ -202,7 +202,11 @@ describe 'Prefilling a dossier (with a GET request):', js: true do
         let(:user) { User.last }
 
         before do
-          allow_any_instance_of(OmniAuthClient).to receive(:authorization_uri).and_return(omniauth_callback_path(provider: 'google', code: "c0d3"))
+          # pf: sécurité (F2) — rejoue l'écho du state généré au login pour passer la
+          # validation anti-CSRF du callback OmniAuth.
+          allow_any_instance_of(OmniAuthClient).to receive(:authorization_uri) do |_client, state:, **|
+            omniauth_callback_path(provider: 'google', code: "c0d3", state:)
+          end
           allow(OmniAuthService).to receive(:retrieve_user_informations).and_return(build(:france_connect_information))
 
           page.find(".fr-btn", text: 'Google').click

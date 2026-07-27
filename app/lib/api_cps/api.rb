@@ -24,7 +24,9 @@ class APICps::API
     elsif response.code&.between?(401, 499)
       raise APIEntreprise::API::Error::ResourceNotFound.new(response)
     else
-      Rails.logger.error("Unable to contact CPS API: response code #{response.code} url=#{url} called with #{json_dn}")
+      # pf: sécurité (F5) — ne jamais logger json_dn : il contient des paires
+      # numéro DN (= identifiant sécurité sociale) + date de naissance en clair.
+      Rails.logger.error("Unable to contact CPS API: response code #{response.code} url=#{url}")
       raise APIEntreprise::API::Error::RequestFailed.new(response)
     end
   end

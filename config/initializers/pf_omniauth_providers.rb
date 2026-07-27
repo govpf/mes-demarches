@@ -26,7 +26,7 @@ PF_OMNIAUTH_PROVIDERS = {
     logout_endpoint: "#{ENV.fetch('TATOU_BASE_URL', '')}/protocol/openid-connect/logout",
   },
   'microsoft' => {
-    identifier: ENV['MICROSOFT_CLIENT_ID'],
+    identifier: Rails.env.test? ? 'plop' : ENV['MICROSOFT_CLIENT_ID'],
     secret: ENV['MICROSOFT_CLIENT_SECRET'],
     redirect_uri: "#{protocol}://#{ENV['APP_HOST']}/auth/microsoft/callback",
     authorization_endpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',

@@ -6,3 +6,10 @@
       = render ReactComponent.new "ComboBox/ComboBoxValueSlot", field: :label, name: @form.field_name(:value)
       = render ReactComponent.new "ComboBox/ComboBoxValueSlot", field: :value, name: @form.field_name(:external_id)
       = render ReactComponent.new "ComboBox/ComboBoxValueSlot", field: :data, name: @form.field_name(:data)
+
+  - if @champ.other?
+    .drop_down_other.fr-mt-2w
+      .fr-input-group
+        %label.fr-label{ for: dom_id(@champ, :value_other) }
+          = t('shared.champs.drop_down_list.other_label')
+        = @form.text_field :value_other, maxlength: 200, size: nil, id: dom_id(@champ, :value_other), class: 'fr-input'

@@ -127,9 +127,6 @@ Rails.application.routes.draw do
     root to: "administrateurs#index"
   end
 
-  # pf: Proxy images pour WeasyPrint (attestation v2)
-  get 'attestation_images/proxy' => 'attestation_images#proxy'
-
   #
   # Letter Opener
   #
@@ -215,7 +212,6 @@ Rails.application.routes.draw do
   get '/auth/:provider' => 'omniauth#login', as: :omniauth, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   get '/auth/:provider/callback', to: 'omniauth#callback', as: :omniauth_callback, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   get '/auth/:provider/merge/:merge_token' => 'omniauth#merge', as: :omniauth_merge, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
-  get '/auth/:provider/mail_merge_with_existing_account/:merge_token' => 'omniauth#mail_merge_with_existing_account', as: :omniauth_mail_merge_with_existing_account, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   post '/auth/:provider/resend_and_renew_merge_confirmation' => 'omniauth#resend_and_renew_merge_confirmation', as: :omniauth_resend_and_renew_merge_confirmation, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   post '/auth/merge_with_existing_account' => 'omniauth#merge_with_existing_account', as: 'omniauth_merge_with_existing_account'
   post '/auth/merge_with_new_account' => 'omniauth#merge_with_new_account', as: 'omniauth_merge_with_new_account'
@@ -516,6 +512,7 @@ Rails.application.routes.draw do
         post 'refresh_filters'
         post 'persist_filters'
         post 'toggle_filters_expanded'
+        post 'clear_all_filters'
       end
     end
 

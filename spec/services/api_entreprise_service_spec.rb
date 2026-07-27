@@ -71,7 +71,8 @@ describe APIEntrepriseService do
 
   describe '#create_etablissement_as_degraded_mode' do
     let(:siret) { '41816609600051' }
-    let(:procedure) { create(:procedure) }
+    let(:valid_token) { "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" }
+    let(:procedure) { create(:procedure, api_entreprise_token: valid_token) }
     let(:dossier) { create(:dossier, procedure: procedure) }
     let(:user_id) { 12 }
 
@@ -85,6 +86,29 @@ describe APIEntrepriseService do
     end
 
     it_behaves_like 'schedule fetch of all etablissement params'
+
+    # pf: sans jeton API Entreprise (cas Polynésie), les jobs de fetch lèveraient
+    # tous TokenError et mourraient dans Sidekiq — ils ne doivent pas être lancés.
+    context 'without any API Entreprise token (PF)' do
+      # la factory :procedure pose un jeton par défaut — on reproduit le cas PF réel (aucun jeton)
+      let(:procedure) { create(:procedure, api_entreprise_token: nil) }
+
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('API_ENTREPRISE_KEY').and_return(nil)
+      end
+
+      it 'still creates the etablissement in degraded mode' do
+        expect(subject).to be_as_degraded_mode
+      end
+
+      it 'does not enqueue any doomed fetch job' do
+        subject
+        api_entreprise_jobs = ActiveJob::Base.queue_adapter.enqueued_jobs
+          .filter { |job| job[:job].name.start_with?('APIEntreprise::') }
+        expect(api_entreprise_jobs).to be_empty
+      end
+    end
   end
 
   describe "#api_insee_up?" do

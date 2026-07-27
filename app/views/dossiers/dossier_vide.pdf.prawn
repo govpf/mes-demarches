@@ -214,8 +214,12 @@ prawn_document(page_size: "A4") do |pdf|
     bold: Rails.root.join('lib/prawn/fonts/marianne/marianne-bold.ttf'),
     italic: Rails.root.join('lib/prawn/fonts/marianne/marianne-thin.ttf'),
   })
+  noto_math = Rails.root.join('lib/prawn/fonts/noto/NotoSansMath-Regular.ttf')
+  pdf.font_families.update('noto-math' => {
+    normal: noto_math, bold: noto_math, italic: noto_math, bold_italic: noto_math,
+  })
   pdf.font 'marianne'
-  pdf.fallback_fonts = ['Helvetica']
+  pdf.fallback_fonts = ['noto-math', 'Helvetica']
   pdf.image DOSSIER_PDF_EXPORT_LOGO_SRC, width: 300, position: :center
   pdf.move_down(40)
 

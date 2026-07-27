@@ -104,4 +104,17 @@ describe FranceConnectInformation, type: :model do
       expect(fci.merge_token_created_at).not_to be_nil
     end
   end
+
+  describe '#provider (stocké dans data jsonb)' do
+    it "écrit et relit le provider via la colonne data" do
+      fci = FranceConnectInformation.new(france_connect_particulier_id: '42', provider: 'tatou')
+      expect(fci.provider).to eq('tatou')
+      expect(fci.data).to eq('provider' => 'tatou')
+    end
+
+    it "renvoie nil quand aucun provider n'a été renseigné" do
+      fci = FranceConnectInformation.new(france_connect_particulier_id: '42')
+      expect(fci.provider).to be_nil
+    end
+  end
 end

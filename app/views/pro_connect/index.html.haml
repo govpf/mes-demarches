@@ -25,16 +25,8 @@
               .fr-fieldset__element
                 %p= t('.explanation')
 
-                -# pf: ProConnect non configuré en PF, on affiche uniquement Microsoft
-                -# upstream affiche aussi :
-                -# .fr-connect-group.fr-my-2w
-                -#   = link_to(pro_connect_login_path, class: "fr-btn fr-connect") do
-                -#     %span.fr-connect__login
-                -#       = t('.signin_with')
-                -#     %span.fr-connect__brand ProConnect
-                -#   %p
-                -#     = link_to t('.whats_proconnect'), 'https://www.proconnect.gouv.fr/', target: '_blank', rel: "noopener"
-
+                -# pf: ProConnect non configuré en PF, on affiche uniquement Microsoft.
+                -# upstream rend ici un ProConnectLoginComponent qui ne marche pas sans config PC.
                 -# pf: Connexion Microsoft pour agents @administration.gov.pf
                 .social-logins
                   - provider = 'microsoft'

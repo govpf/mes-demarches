@@ -9,22 +9,32 @@ RSpec.describe Procedure::Card::ProConnectRestrictedComponent, type: :component 
 
   subject { render_inline(described_class.new(procedure:)) }
 
-  let(:procedure) { create(:procedure, pro_connect_restricted:) }
+  let(:procedure) { create(:procedure, pro_connect_restriction: restriction_level) }
 
-  context "when ProConnect restriction is enabled" do
-    let(:pro_connect_restricted) { true }
+  context "when no restriction" do
+    let(:restriction_level) { :none }
 
     it do
-      is_expected.to have_css('p.fr-badge.fr-badge--success', text: "Activée")
+      # pf: titre adapté Microsoft @administration.gov.pf au lieu de "ProConnect"
+      is_expected.to have_css('.fr-badge', text: "Aucune restriction")
       is_expected.to have_css('h3.fr-h6', text: "Authentification professionnelle")
     end
   end
 
-  context "when ProConnect restriction is disabled" do
-    let(:pro_connect_restricted) { false }
+  context "when restriction for instructeurs" do
+    let(:restriction_level) { :instructeurs }
 
     it do
-      is_expected.to have_css('p.fr-badge', text: "Désactivée")
+      is_expected.to have_css('.fr-badge.fr-badge--success', text: "Administrateurs et instructeurs")
+      is_expected.to have_css('h3.fr-h6', text: "Authentification professionnelle")
+    end
+  end
+
+  context "when restriction for all users" do
+    let(:restriction_level) { :all }
+
+    it do
+      is_expected.to have_css('.fr-badge.fr-badge--success', text: "Tous les utilisateurs")
       is_expected.to have_css('h3.fr-h6', text: "Authentification professionnelle")
     end
   end

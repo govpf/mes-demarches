@@ -282,10 +282,21 @@ module Administrateurs
     end
 
     def update_pro_connect_restricted
-      @procedure.update!(procedure_params)
-      # pf: Message adapté pour Microsoft @administration.gov.pf au lieu de ProConnect
-      # upstream: "La démarche est restreinte à ProConnect" / "La démarche n'est plus restreinte à ProConnect"
-      flash.notice = @procedure.pro_connect_restricted? ? "La démarche est restreinte aux comptes @administration.gov.pf" : "La démarche n'est plus restreinte aux comptes @administration.gov.pf"
+      level = params.dig(:procedure, :pro_connect_restriction).to_sym
+
+      @procedure.enable_pro_connect_restriction!(level)
+
+      # pf: Messages adaptés pour Microsoft @administration.gov.pf au lieu de ProConnect.
+      # ProConnect n'est pas configuré sur le fork PF, on remplace par "compte @administration.gov.pf".
+      flash.notice = case level
+      when :none
+        "La démarche n'est plus restreinte aux comptes @administration.gov.pf"
+      when :instructeurs
+        "La démarche est restreinte aux comptes @administration.gov.pf pour les administrateurs et instructeurs"
+      when :all
+        "La démarche est restreinte aux comptes @administration.gov.pf pour les administrateurs, instructeurs et dépositaires de dossiers"
+      end
+
       redirect_to pro_connect_restricted_admin_procedure_path(@procedure)
     end
 
@@ -638,7 +649,7 @@ module Administrateurs
         :opendata,
         :procedure_expires_when_termine_enabled,
         :rdv_enabled,
-        :pro_connect_restricted,
+        :pro_connect_restriction,
         :robots_indexable,
         { zone_ids: [], procedure_tag_names: [] },
       ]

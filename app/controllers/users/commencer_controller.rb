@@ -2,6 +2,8 @@
 
 module Users
   class CommencerController < ApplicationController
+    include ProConnectSessionConcern
+
     layout 'procedure_context'
 
     def commencer
@@ -14,7 +16,6 @@ module Users
       @revision = params[:test] ? @procedure.draft_revision : @procedure.active_revision
 
       if params[:prefill_token].present? || commencer_page_is_reloaded?
-        store_user_location!(@procedure)
         retrieve_prefilled_dossier(params[:prefill_token] || session[:prefill_token])
       elsif prefill_params_present?
         build_prefilled_dossier
@@ -28,6 +29,8 @@ module Users
         @dossiers = current_user.dossiers.select(:id, :created_at, :depose_at, :state).visible_by_user.where(revision:).order(created_at: :desc).to_a
         @drafts, @not_drafts = @dossiers.partition(&:brouillon?)
         @preview_dossiers = @dossiers.take(3)
+
+        store_user_location!(@procedure)
       else
         # pf specific: allows social logins (google, france connect,...) to get back when logged
         store_user_location!(@procedure, @prefilled_dossier)

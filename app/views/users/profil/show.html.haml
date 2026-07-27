@@ -79,6 +79,9 @@
       %ul
         - @france_connect_informations.each do |fci|
           %li
+            -# pf: badge du fournisseur d'identité (FranceConnect, Tātou, Microsoft, Google) — nil pour les anciennes identités non encore reconnectées
+            - if fci.provider.present?
+              %span.fr-badge.fr-badge--sm.fr-badge--info.fr-badge--no-icon.fr-mr-1w= t("omniauth.provider.#{fci.provider}", default: fci.provider.to_s.humanize)
             #{fci.given_name} #{fci.family_name} (#{fci.email_france_connect})
             = link_to t('.forbid_access'),
               france_connect_information_path(fci_id: fci.id),

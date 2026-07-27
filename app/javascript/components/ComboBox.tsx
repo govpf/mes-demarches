@@ -14,7 +14,7 @@ import {
   Virtualizer,
   ListLayout
 } from 'react-aria-components';
-import { useMemo, useRef, createContext, useContext } from 'react';
+import { useMemo, useRef, createContext, useContext, useId } from 'react';
 import type { RefObject } from 'react';
 import * as s from 'superstruct';
 
@@ -38,6 +38,8 @@ export function ComboBox({
   children,
   errorMessage,
   label,
+  labelId,
+  ariaLabelledbyPrefix,
   description,
   className,
   inputRef,
@@ -51,6 +53,14 @@ export function ComboBox({
   placeholder?: string;
   errorMessage?: string;
 }) {
+  const generatedId = useId();
+  // if label is passed, we need to generate an id for the input, otherwise we use the labelId passed in the props
+  const labelIdToUse = label ? generatedId : labelId;
+
+  const inputAriaLabelledby = ariaLabelledbyPrefix
+    ? `${ariaLabelledbyPrefix} ${labelIdToUse}`
+    : labelIdToUse;
+
   return (
     <AriaComboBox
       {...props}
@@ -58,7 +68,7 @@ export function ComboBox({
       shouldFocusWrap={true}
     >
       {label ? (
-        <Label className="fr-label">
+        <Label className="fr-label" id={labelIdToUse}>
           {label}
           {description ? (
             <Text slot="description" className="fr-hint-text fr-mb-1w">
@@ -72,6 +82,7 @@ export function ComboBox({
           className="fr-select fr-autocomplete"
           ref={inputRef}
           aria-busy={isLoading}
+          aria-labelledby={inputAriaLabelledby}
           placeholder={placeholder || undefined}
           translate="no"
         />
@@ -180,6 +191,7 @@ export function MultiComboBox(maybeProps: MultiComboBoxProps) {
     valueSeparator,
     className,
     focusOnSelect,
+    tagsBelow = false,
     ...props
   } = useMemo(() => s.create(maybeProps, MultiComboBoxProps), [maybeProps]);
 
@@ -210,29 +222,36 @@ export function MultiComboBox(maybeProps: MultiComboBoxProps) {
   });
   const formResetRef = useOnFormReset(onReset);
 
+  const tagGroup =
+    selectedItems.length > 0 ? (
+      <TagGroup
+        onRemove={onRemove}
+        aria-label={props['aria-label']}
+        className={tagsBelow ? 'fr-mt-1w' : undefined}
+      >
+        <TagList items={selectedItems} className="fr-tag-list">
+          {selectedItems.map((item) => (
+            <Tag
+              key={item.value}
+              id={item.value}
+              textValue={`Retirer ${item.label}`}
+              className="fr-tag fr-tag--sm fr-tag--dismiss"
+            >
+              {item.label}
+              <Button
+                aria-label=""
+                slot="remove"
+                className="fr-tag--dismiss"
+              ></Button>
+            </Tag>
+          ))}
+        </TagList>
+      </TagGroup>
+    ) : null;
+
   return (
     <div className={`fr-ds-combobox__multiple ${className ? className : ''}`}>
-      {selectedItems.length > 0 ? (
-        <TagGroup onRemove={onRemove} aria-label={props['aria-label']}>
-          <TagList items={selectedItems} className="fr-tag-list">
-            {selectedItems.map((item) => (
-              <Tag
-                key={item.value}
-                id={item.value}
-                textValue={`Retirer ${item.label}`}
-                className="fr-tag fr-tag--sm fr-tag--dismiss"
-              >
-                {item.label}
-                <Button
-                  aria-label=""
-                  slot="remove"
-                  className="fr-tag--dismiss"
-                ></Button>
-              </Tag>
-            ))}
-          </TagList>
-        </TagGroup>
-      ) : null}
+      {!tagsBelow ? tagGroup : null}
       <ComboBox
         allowsCustomValue={allowsCustomValue}
         inputRef={inputRef}
@@ -243,6 +262,7 @@ export function MultiComboBox(maybeProps: MultiComboBoxProps) {
       >
         {(item) => <ComboBoxItem id={item.value}>{item.label}</ComboBoxItem>}
       </ComboBox>
+      {tagsBelow ? tagGroup : null}
       {name ? (
         <span ref={ref}>
           {hiddenInputValues.length == 0 ? (
