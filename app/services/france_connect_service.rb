@@ -24,6 +24,9 @@ class FranceConnectService
   def self.find_or_retrieve_france_connect_information(code, nonce)
     fetched_fci, id_token = retrieve_user_informations(code, nonce)
     fci_to_return = FranceConnectInformation.find_by(france_connect_particulier_id: fetched_fci[:france_connect_particulier_id]) || fetched_fci
+    # pf: renseigne/backfill le provider FranceConnect à la (re)connexion
+    fci_to_return.provider = 'particulier'
+    fci_to_return.save! if fci_to_return.persisted? && fci_to_return.data_changed?
     [fci_to_return, id_token]
   end
 
@@ -53,7 +56,8 @@ class FranceConnectService
       email_france_connect: user_info[:email],
       birthdate: user_info[:birthdate],
       birthplace: user_info[:birthplace],
-      france_connect_particulier_id: user_info[:sub]
+      france_connect_particulier_id: user_info[:sub],
+      provider: 'particulier' # pf: FranceConnect, affiché sur la page profil
     )
 
     [fci, access_token.id_token]

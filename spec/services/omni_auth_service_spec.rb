@@ -173,4 +173,35 @@ describe OmniAuthService do
       end
     end
   end
+
+  describe '.find_or_retrieve_user_informations (provider persisté)' do
+    let(:provider) { 'tatou' }
+    let(:sub) { 'sub-123' }
+
+    before do
+      fetched = FranceConnectInformation.new(france_connect_particulier_id: sub)
+      fetched.trusted_email_assertion = true
+      allow(described_class).to receive(:retrieve_user_informations).with(provider, 'code').and_return(fetched)
+    end
+
+    context 'nouvelle identité (non persistée)' do
+      it 'positionne le provider sur la FCI' do
+        fci = described_class.find_or_retrieve_user_informations(provider, 'code')
+        expect(fci.provider).to eq('tatou')
+      end
+    end
+
+    context 'identité existante sans provider (backfill)' do
+      let!(:existing) do
+        create(:france_connect_information, france_connect_particulier_id: sub, user: create(:user))
+      end
+
+      it 'renseigne et persiste le provider manquant' do
+        fci = described_class.find_or_retrieve_user_informations(provider, 'code')
+        expect(fci.id).to eq(existing.id)
+        expect(fci.provider).to eq('tatou')
+        expect(existing.reload.provider).to eq('tatou')
+      end
+    end
+  end
 end

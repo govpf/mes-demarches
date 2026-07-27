@@ -58,6 +58,10 @@ class OmniAuthService
     # pf: sécurité (F3/F4) — la confiance est transitoire (claims de l'auth courante),
     # à reporter sur la FCI persistée éventuellement retrouvée.
     fci.trusted_email_assertion = fetched_fci.trusted_email_assertion
+    # pf: renseigne le provider sur la FCI ; backfill des anciennes lignes à la reconnexion.
+    # data_changed? est faux si le provider était déjà à jour → pas de save inutile.
+    fci.provider = provider
+    fci.save! if fci.persisted? && fci.data_changed?
     fci
   end
 
@@ -80,7 +84,8 @@ class OmniAuthService
       email_france_connect: user_info[:email],
       birthdate: user_info[:birthdate],
       birthplace: user_info[:birthplace],
-      france_connect_particulier_id: user_info[:sub]
+      france_connect_particulier_id: user_info[:sub],
+      provider: provider # pf: fournisseur d'identité, affiché sur la page profil
     )
 
     # pf: sécurité (F3/F4) — tid et email_verified viennent de l'id_token (le userinfo

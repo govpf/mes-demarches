@@ -68,4 +68,34 @@ describe FranceConnectService do
       expect(id_token).to eq('id_token')
     end
   end
+
+  describe 'provider particulier' do
+    let(:code) { 'code' }
+    let(:nonce) { 'nonce' }
+    let(:user_info) { double('user_info', raw_attributes: { sub: 'sub-fc-1', email: 'a@b.fr' }) }
+
+    before do
+      access_token = instance_double('OpenIDConnect::AccessToken')
+      allow_any_instance_of(OpenIDConnect::Client).to receive(:access_token!).and_return(access_token)
+      allow(access_token).to receive(:userinfo!).and_return(user_info)
+      allow(access_token).to receive(:id_token).and_return('id_token')
+      allow(OpenIDConnect::ResponseObject::IdToken).to receive(:decode).and_return(double(verify!: true))
+      stub_const('FRANCE_CONNECT', identifier: 'identifier', jwks: 'jwks')
+    end
+
+    it 'positionne provider=particulier sur une nouvelle FCI' do
+      fci, _id_token = described_class.find_or_retrieve_france_connect_information(code, nonce)
+      expect(fci.provider).to eq('particulier')
+    end
+
+    context 'FCI existante sans provider' do
+      let!(:existing) { create(:france_connect_information, france_connect_particulier_id: 'sub-fc-1', user: create(:user)) }
+
+      it 'backfill provider=particulier et persiste' do
+        fci, _id_token = described_class.find_or_retrieve_france_connect_information(code, nonce)
+        expect(fci.id).to eq(existing.id)
+        expect(existing.reload.provider).to eq('particulier')
+      end
+    end
+  end
 end
