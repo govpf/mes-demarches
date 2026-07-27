@@ -227,7 +227,7 @@ module Instructeurs
           end
 
           format.html do
-            redirect_to url_from(export.file.url)
+            redirect_to url_from(export.file.url) || exports_instructeur_procedure_path(procedure)
           end
         end
       else
