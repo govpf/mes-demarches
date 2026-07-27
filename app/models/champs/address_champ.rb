@@ -225,7 +225,7 @@ class Champs::AddressChamp < Champs::TextChamp
   end
 
   def set_full_address
-    address_data = self.value_json
+    address_data = self.value_json || {}
     if become_france? || become_international?
       address_data.merge!(
         'department_code' => nil,
