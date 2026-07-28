@@ -1,6 +1,7 @@
 ---
 en:
-  explanation: 'Based on %{percentile}% during the last %{nb_recent_dossiers} days, the instruction time is :'
-  fast_html: '<strong>In the best case scenario</strong> : <strong>%{estimation}</strong>.'
-  mean_html: 'If your file <strong>requires minor adjustments</strong>, the instruction time is  <strong>%{estimation}</strong>.'
-  slow_html: 'If you file <strong>is missing some information</strong> which requires a lot of exchanges with the administration, the instruction time is around <strong>%{estimation}</strong>.'
+  explanation: These processing times were observed on requests handled over the last %{nb_recent_dossiers} days. They depend on your application as much as on the department’s workload, and are not a commitment.
+  fast_html: "The <strong>fastest applications</strong> are processed in <strong>%{estimation}</strong>."
+  mean_html: "<strong>Mid-range applications</strong> are processed in <strong>%{estimation}</strong>."
+  single_html: "Applications are processed in <strong>%{estimation}</strong>."
+  slow_html: "The <strong>longest applications</strong> are processed in <strong>%{estimation}</strong>."

@@ -28,7 +28,7 @@ describe 'Dossier details:' do
       it "displays the estimated wait duration" do
         allow_any_instance_of(Procedure).to receive(:stats_usual_traitement_time).and_return([1.day, 1.day, 1.day])
         visit dossier_path(dossier)
-        expect(page).to have_text("Dans le meilleur des cas, le délai d’instruction est : 1 jour")
+        expect(page).to have_text("Les dossiers sont traités en 1 jour")
       end
     end
 
@@ -38,7 +38,7 @@ describe 'Dossier details:' do
       it "displays the estimated wait duration" do
         allow_any_instance_of(Procedure).to receive(:stats_usual_traitement_time).and_return([1.day, 1.day, 1.day])
         visit dossier_path(dossier)
-        expect(page).to have_text("Dans le meilleur des cas, le délai d’instruction est : 1 jour")
+        expect(page).to have_text("Les dossiers sont traités en 1 jour")
       end
     end
   end
