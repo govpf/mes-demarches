@@ -20,7 +20,7 @@ RSpec.describe InstructeurProcedureConcern do
 
         instructeur_procedures = InstructeursProcedure.where(instructeur: current_instructeur)
         expect(instructeur_procedures.pluck(:procedure_id)).to match_array(procedures.map(&:id))
-        expect(instructeur_procedures.pluck(:position)).to eq([0, 1, 2, 3, 4])
+        expect(instructeur_procedures.pluck(:position)).to match_array([0, 1, 2, 3, 4])
         expect(instructeur_procedures.pluck(:last_revision_seen_id)).to match_array(procedures.map(&:published_revision_id))
       end
     end

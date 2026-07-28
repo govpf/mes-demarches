@@ -28,12 +28,18 @@ describe AssignTo, type: :model do
     end
 
     context "with an invalid procedure_presentation" do
+      # pf: id calculé au lieu d'un 666 en dur. Column.find lève deux messages
+      # différents selon que la procédure existe ou non ; dès que la séquence
+      # procedures.id dépassait 666 dans le run du shard, la procédure existait
+      # et le spec devenait flaky. Upstream a encore le 666 en dur.
+      let(:missing_procedure_id) { Procedure.with_discarded.maximum(:id).to_i + 1 }
+
       let!(:procedure_presentation) do
         pp = ProcedurePresentation.create(assign_to: assign_to)
 
         sql = <<-SQL.squish
           UPDATE procedure_presentations
-          SET displayed_columns =  ARRAY['{\"procedure_id\":666}'::jsonb]
+          SET displayed_columns =  ARRAY['{\"procedure_id\":#{missing_procedure_id}}'::jsonb]
           WHERE id = #{pp.id} ;
         SQL
 
@@ -45,7 +51,7 @@ describe AssignTo, type: :model do
       it do
         expect(procedure_presentation_or_default).to be_persisted
         expect(procedure_presentation_or_default).to be_valid
-        expect(errors.full_messages).to include(/unable to find procedure 666/)
+        expect(errors.full_messages).to include(/unable to find procedure #{missing_procedure_id}/)
         expect(assign_to.procedure_presentation).not_to be(procedure_presentation)
       end
     end
