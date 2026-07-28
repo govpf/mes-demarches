@@ -351,13 +351,14 @@ Structure :
 
 ⚠️ **IMPORTANT** :
 - Laisser GitHub créer le tag automatiquement. Ne PAS créer de tag local avant, sinon il faudra le pousser et cela cause des erreurs avec `gh release create`.
+- **Toujours passer `--target masterpf`.** Sans ce drapeau, `gh` tague la branche par défaut du dépôt (`devpf`) : le tag est alors posé sur le HEAD de devpf, qui peut avoir pris de l'avance sur masterpf et contenir des commits non déployés. Quand les deux branches sont au même commit l'erreur est invisible, ce qui la rend d'autant plus traître.
 - Le titre doit être au format **"JJ MMMM AAAA"** avec le mois en **français complet** (ex: "12 janvier 2026", "5 décembre 2025")
 - Le corps de la release commence directement par `## Améliorations et correctifs` (pas de titre H1)
 
 ```bash
 # Créer la GitHub release (elle créera le tag automatiquement)
 # Exemple pour le 12 janvier 2026 :
-gh release create pf-2026-01-12 --title "12 janvier 2026" --notes "$(cat <<'EOF'
+gh release create pf-2026-01-12 --target masterpf --title "12 janvier 2026" --notes "$(cat <<'EOF'
 ## Améliorations et correctifs
 
 ### Intégration de la release upstream AAAA-MM-JJ-NN
@@ -370,6 +371,12 @@ EOF
 #### 7. Vérification
 * Vérifier sur GitHub : https://github.com/govpf/mes-demarches/releases
 * Le tag sera automatiquement créé et visible dans `.git/refs/tags/`
+* Vérifier que le tag pointe bien sur le HEAD de masterpf (filet de sécurité si `--target` a été oublié) :
+  ```bash
+  git fetch origin --tags
+  [ "$(git rev-parse pf-AAAA-MM-JJ)" = "$(git rev-parse origin/masterpf)" ] \
+    && echo "OK : tag sur masterpf" || echo "ALERTE : le tag ne pointe pas sur masterpf"
+  ```
 
 ### Erreurs critiques à éviter
 
@@ -386,6 +393,9 @@ EOF
 * **TOUJOURS** respecter le chapitrage exact : Administrateur, Instructeur, Usager, API, Technique
 * **TOUJOURS** utiliser le format "ETQ" (En Tant Que) des releases upstream
 * **COPIER EXACTEMENT** le texte des releases upstream (y compris la ponctuation et les fautes)
+
+#### Lors de la création du tag
+* **TOUJOURS** passer `--target masterpf` à `gh release create` — sinon le tag est posé sur `devpf` (branche par défaut du dépôt), qui peut contenir des commits non encore déployés
 
 ### Exemple complet pas-à-pas
 
@@ -435,7 +445,7 @@ done
 # 8. Rédiger la release en copiant exactement le contenu de chaque release upstream
 
 # 9. Créer la release GitHub
-gh release create pf-2025-12-05 --title "5 décembre 2025" --notes "$(cat release_notes.md)"
+gh release create pf-2025-12-05 --target masterpf --title "5 décembre 2025" --notes "$(cat release_notes.md)"
 ```
 
 **Résultat :** Release complète avec les 6 releases upstream correctement identifiées et documentées.

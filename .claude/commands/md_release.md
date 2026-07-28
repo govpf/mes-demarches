@@ -146,8 +146,12 @@ d'administration (`/admin/maintenance_tasks`) :
 
 **IMPORTANT** : Ne PAS créer de tag local avant. Laisser GitHub créer le tag automatiquement.
 
+**IMPORTANT** : Toujours passer `--target masterpf`. Sans ce drapeau, `gh` tague la branche
+par défaut du dépôt (`devpf`), qui peut avoir pris de l'avance sur masterpf et contenir des
+commits non déployés. L'erreur est invisible quand les deux branches sont au même commit.
+
 ```bash
-gh release create pf-AAAA-MM-JJ --title "JJ mois AAAA" --notes "$(cat <<'EOF'
+gh release create pf-AAAA-MM-JJ --target masterpf --title "JJ mois AAAA" --notes "$(cat <<'EOF'
 [CONTENU COMPLET DE LA RELEASE ICI]
 EOF
 )"
@@ -160,6 +164,12 @@ EOF
 ### 7. Vérification
 - Vérifier sur GitHub : https://github.com/govpf/mes-demarches/releases
 - Vérifier que le tag a été créé automatiquement dans `.git/refs/tags/`
+- Vérifier que le tag pointe bien sur le HEAD de masterpf (filet si `--target` a été oublié) :
+  ```bash
+  git fetch origin --tags
+  [ "$(git rev-parse pf-AAAA-MM-JJ)" = "$(git rev-parse origin/masterpf)" ] \
+    && echo "OK : tag sur masterpf" || echo "ALERTE : le tag ne pointe pas sur masterpf"
+  ```
 
 ## Erreurs critiques à éviter
 
@@ -170,6 +180,7 @@ EOF
 - **TOUJOURS** utiliser le format "ETQ" (En Tant Que) des releases upstream tel quel
 - **TOUJOURS** mettre la section Polynésie EN PREMIER
 - **TOUJOURS** utiliser la date en FRANÇAIS dans le titre (ex: "05 novembre 2025")
+- **TOUJOURS** passer `--target masterpf` à `gh release create` — sinon le tag est posé sur `devpf` (branche par défaut du dépôt), qui peut contenir des commits non déployés
 - **VÉRIFIER** que la release upstream identifiée correspond bien aux commits intégrés
 - **CROISER** Source A (descriptions PRs `feature/bump-*`) et Source B (scan code MT) lors de l'étape 3 bis
 
