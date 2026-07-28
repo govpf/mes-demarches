@@ -27,6 +27,9 @@ if (enabled && key) {
       // La gaufre script often triggers an error while loading other dependencies
       'NetworkError when attempting to fetch resource. (integration.lasuite.numerique.gouv.fr)',
 
+      // Generic Firefox network error on fetch() failures (offline, aborted, timeout) — not an app bug
+      'NetworkError when attempting to fetch resource. (www.mes-demarches.gov.pf)',
+
       // Fetch request aborted by the user (navigation, tab close) or by an
       // explicit AbortController (e.g. AutosaveController#disconnect). Expected
       // behaviour, not a bug.
