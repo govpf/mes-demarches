@@ -420,6 +420,26 @@ RSpec.describe Types::DossierType, type: :graphql do
     }
   end
 
+  describe 'dossier with message read state' do
+    let(:dossier) { create(:dossier, :en_construction) }
+    let(:query) { DOSSIER_WITH_MESSAGE_SEEN_QUERY }
+    let(:variables) { { number: dossier.id } }
+
+    context 'when the message has not been read' do
+      before { create(:commentaire, dossier: dossier, seen_by_recipient_at: nil) }
+
+      it { expect(data[:dossier][:messages][0][:seenByRecipientAt]).to be_nil }
+    end
+
+    context 'when the message has been read by the recipient' do
+      let(:seen_at) { Time.zone.parse('2026-07-20T10:00:00Z') }
+
+      before { create(:commentaire, dossier: dossier, seen_by_recipient_at: seen_at) }
+
+      it { expect(data[:dossier][:messages][0][:seenByRecipientAt]).to eq(seen_at.iso8601) }
+    end
+  end
+
   describe 'dossier with pending correction' do
     let(:dossier) { create(:dossier, :en_construction) }
     let!(:correction) { create(:dossier_correction, dossier:) }
@@ -706,6 +726,17 @@ RSpec.describe Types::DossierType, type: :graphql do
         attachments {
           filename
         }
+      }
+    }
+  }
+  GRAPHQL
+
+  DOSSIER_WITH_MESSAGE_SEEN_QUERY = <<-GRAPHQL
+  query($number: Int!) {
+    dossier(number: $number) {
+      messages {
+        body
+        seenByRecipientAt
       }
     }
   }

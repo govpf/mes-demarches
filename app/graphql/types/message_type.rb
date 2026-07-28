@@ -7,6 +7,11 @@ module Types
     field :body, String, null: false
     field :created_at, GraphQL::Types::ISO8601DateTime, null: false
     field :discarded_at, GraphQL::Types::ISO8601DateTime, null: true
+    # pf: expose l'instant de lecture par le destinataire — permet à un process
+    # externe de déclencher un délai à partir de la lecture (ex. délai de recours).
+    # Colonne upstream (seen_by_recipient_at), exposition GraphQL PF.
+    field :seen_by_recipient_at, GraphQL::Types::ISO8601DateTime, null: true,
+      description: "Date et heure à laquelle le destinataire a ouvert la messagerie contenant ce message (null si non lu). Pour un message envoyé par un instructeur, le destinataire est l'usager."
     field :attachment, Types::File, null: true, deprecation_reason: "Utilisez le champ `attachments` à la place.", extensions: [
       { Extensions::Attachment => { attachments: :piece_jointe, as: :single } },
     ]
