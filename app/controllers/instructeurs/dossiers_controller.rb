@@ -16,7 +16,7 @@ module Instructeurs
     before_action :dossier_with_champs, only: [:show, :show_submitted_revision]
     # pf: backport upstream 2026-01-20-01 — reprojette @dossier sur sa révision de dépôt
     before_action :dossier_with_submitted_revision, only: [:show_submitted_revision]
-    before_action :set_gallery_attachments, only: [:show, :show_submitted_revision, :pieces_jointes, :annotations_privees, :avis, :messagerie, :personnes_impliquees, :reaffectation, :rendez_vous, :rdv_connection]
+    before_action :set_gallery_attachments, only: [:show, :pieces_jointes, :annotations_privees, :avis, :messagerie, :personnes_impliquees, :reaffectation, :rendez_vous, :rdv_connection]
     before_action :retrieve_procedure_presentation, only: [:annotations_privees, :avis_new, :avis, :messagerie, :personnes_impliquees, :pieces_jointes, :reaffectation, :rendez_vous, :rdv_connection, :show, :dossier_labels, :passer_en_instruction, :repasser_en_construction, :repasser_en_instruction, :terminer, :pending_correction, :create_avis, :create_commentaire]
     before_action :set_notifications, only: [:show, :annotations_privees, :avis, :avis_new, :messagerie, :personnes_impliquees, :pieces_jointes, :reaffectation, :rendez_vous, :rdv_connection, :dossier_labels, :repasser_en_construction, :repasser_en_instruction, :create_avis, :create_commentaire]
 

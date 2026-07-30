@@ -55,6 +55,9 @@ describe Instructeurs::DossiersController, type: :controller do
       it 'affiche la version déposée' do
         expect(subject).to have_http_status(:ok)
         expect(assigns(:dossier).revision_id).to eq(assigns(:dossier).submitted_revision_id)
+        # pf: garde-fou — le pseudo-stream user:history est une vue en
+        # LECTURE seule ; aucune ligne ne doit jamais être persistée avec.
+        expect(Champ.where(stream: Champ::USER_HISTORY_STREAM)).to be_empty
       end
     end
   end

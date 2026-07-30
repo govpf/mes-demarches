@@ -960,4 +960,50 @@ RSpec.describe DossierChampsConcern do
       expect { brouillon.project_champs_public }.not_to raise_error
     end
   end
+
+  describe 'user history stream avec un bloc répétable supprimé' do
+    # Second incident de production : pièces jointes/valeurs dans un bloc
+    # répétable supprimé du formulaire. Chemin plus fragile que le champ
+    # simple ci-dessus : il traverse repetition_row_ids (filtré sur
+    # champs_on_stream), puis project_rows_for → revision.children_of.
+    let(:procedure) do
+      create(:procedure, :published, types_de_champ_public: [
+        { type: :repetition, libelle: 'Bloc répétable supprimé', stable_id: 993, mandatory: true, children: [{ type: :text, libelle: 'Nom', stable_id: 994 }] },
+      ])
+    end
+    # :with_populated_champs crée deux lignes pour le bloc répétable (voir
+    # dossier_factory_create_champ_or_repetition dans spec/factories/dossier.rb).
+    let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, procedure:) }
+    let(:type_de_champ_repetition) { procedure.active_revision.types_de_champ_public.find { _1.libelle == 'Bloc répétable supprimé' } }
+    let(:row_ids) { dossier.project_champ(type_de_champ_repetition).row_ids }
+
+    before do
+      # 0. force la mémoïsation du `let` AVANT la suppression du type de champ :
+      #    procedure.active_revision changera de révision après publish_revision!.
+      type_de_champ_repetition
+      # 1. l'usager remplit les deux lignes créées par :with_populated_champs
+      row_ids.each.with_index(1) do |row_id, index|
+        dossier.champs.find_by(stable_id: 994, row_id:).update(value: "ligne #{index}")
+      end
+      # 2. on simule le dépôt APRÈS la saisie : en_construction_at doit être
+      #    postérieur à updated_at des champs, sinon le filtre les exclut.
+      dossier.update_columns(en_construction_at: Time.current, submitted_revision_id: dossier.revision_id)
+      # 3. l'admin supprime le bloc répétable et republie
+      procedure.draft_revision.remove_type_de_champ(993)
+      procedure.publish_revision!(procedure.administrateurs.first)
+      dossier.reload.rebase!
+      dossier.reload
+    end
+
+    it 'expose les lignes de la répétition supprimée, avec leurs valeurs, sur le stream user:history' do
+      dossier.revision = dossier.submitted_revision
+      dossier.with_user_history_stream
+
+      rows = dossier.project_rows_for(type_de_champ_repetition)
+      expect(rows.size).to eq(2)
+
+      values = rows.flatten.map(&:value)
+      expect(values).to match_array(['ligne 1', 'ligne 2'])
+    end
+  end
 end

@@ -517,6 +517,11 @@ module DossierChampsConcern
   end
 
   def check_valid_stream_on_write?(type_de_champ)
+    # pf: user:history est un pseudo-stream de LECTURE seule (vue « version
+    # d'origine »). Aucune ligne ne doit jamais être persistée avec cette
+    # valeur : on transforme l'invariant documenté en garantie mécanique.
+    raise "Can not write to read-only \"#{stream}\" stream" if stream == Champ::USER_HISTORY_STREAM
+
     if type_de_champ.private?
       if stream != Champ::MAIN_STREAM
         raise "Can not write a private champ to \"#{stream}\" stream"

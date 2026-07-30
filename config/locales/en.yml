@@ -1019,6 +1019,10 @@ en:
         close_to_expiration: expiring
         to_archive: to archive
         trash: trash
+      show_submitted_revision:
+        title: "Original version"
+        notice: "You are viewing the file as it was submitted by the user. The form has changed since then: some fields shown here are no longer part of the procedure."
+        back: "Back to the file"
     procedure_presentation:
       customize_filters:
         exit_customization: "Exit customization"
