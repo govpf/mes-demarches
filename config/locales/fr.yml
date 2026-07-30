@@ -1044,6 +1044,9 @@ fr:
         close_to_expiration: expirants
         to_archive: à archiver
         trash: corbeille
+      show_submitted_revision:
+        title: "Version d’origine"
+        notice: "Vous consultez le dossier tel qu’il a été déposé par l’usager. Le formulaire a évolué depuis : certains champs affichés ici ne font plus partie de la démarche."
     procedure_presentation:
       customize_filters:
         exit_customization: "Quitter la personnalisation"

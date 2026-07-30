@@ -535,6 +535,8 @@ Rails.application.routes.draw do
               post 'repousser-expiration-and-restore' => 'dossiers#extend_conservation_and_restore'
               post 'dossier_labels' => 'dossiers#dossier_labels'
               get 'messagerie'
+              # pf: backport upstream 2026-01-20-01 — consultation du dossier tel que déposé
+              get 'original' => 'dossiers#show_submitted_revision', as: :original
               get 'annotations-privees' => 'dossiers#annotations_privees'
               get 'avis'
               get 'avis_new'
