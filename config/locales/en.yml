@@ -402,6 +402,8 @@ en:
           requester_identity_updated_at: "updated on %{date}"
           individual_identity: "Your identity"
           form: "Form"
+          not_submitted_revision: "This is not the original version submitted by the user:"
+          show_submitted_revision: "Show original version"
           edit_siret: 'Edit Tahiti number'
           edit_identity: "Edit identity data"
           edit_identity_html: 'Edit identity <span aria-hidden="true"> data<span>'

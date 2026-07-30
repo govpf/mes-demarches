@@ -407,6 +407,8 @@ fr:
           requester_identity_updated_at: "modifiée le %{date}"
           individual_identity: "Votre identité"
           form: "Sections du formulaire"
+          not_submitted_revision: "Il ne s’agit pas de la version d’origine déposée par l’usager :"
+          show_submitted_revision: "Afficher la version d’origine"
           edit_siret: "Modifier le numéro TAHITI"
           edit_identity: "Modifier l’identité"
           edit_identity_html: 'Modifier <span aria-hidden="true"> l’identité</span>'
