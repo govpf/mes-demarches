@@ -329,6 +329,10 @@ module DossierChampsConcern
     with_stream(Champ::MAIN_STREAM, &block)
   end
 
+  def with_user_history_stream(&block)
+    with_stream(Champ::USER_HISTORY_STREAM, &block)
+  end
+
   def with_champ_stream(champ, &block)
     with_stream(champ.stream, &block)
   end
@@ -377,6 +381,23 @@ module DossierChampsConcern
     @champs_on_stream ||= case stream
     when Champ::USER_BUFFER_STREAM
       (champs_on_user_buffer_stream + champs_on_main_stream).uniq(&:public_id)
+    when Champ::USER_HISTORY_STREAM
+      # pf: backport upstream 2026-01-20-01 (dossier_champs_concern.rb:342-350).
+      # On part de `champs` et NON de `champs_in_revision` : tout l'intérêt de
+      # cette vue est d'exposer les champs retirés du formulaire par une
+      # révision postérieure au dépôt, qui sont par définition hors révision.
+      # Sans en_construction_at il n'y a pas de dépôt de référence : on
+      # retombe sur main plutôt que de renvoyer une liste vide.
+      if en_construction_at.nil?
+        champs_on_main_stream
+      else
+        champs
+          .reject(&:user_buffer_stream?)
+          .filter { _1.updated_at <= en_construction_at }
+          .sort_by(&:updated_at)
+          .reverse
+          .uniq(&:public_id)
+      end
     else
       champs_on_main_stream
     end
