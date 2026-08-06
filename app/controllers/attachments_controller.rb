@@ -67,6 +67,8 @@ class AttachmentsController < ApplicationController
     return if admin_changing_its_attestation_template?
     return if admin_changing_its_type_de_champ?
     return if expert_changing_its_avis?
+    return if admin_changing_its_groupe_instructeur?
+    return if instructeur_changing_its_groupe_instructeur?
 
     head :not_found
   end
@@ -95,6 +97,15 @@ class AttachmentsController < ApplicationController
     type_de_champ? && current_user.administrateur? && current_administrateur.in?(record.revisions.first.procedure.administrateurs)
   end
 
+  def admin_changing_its_groupe_instructeur?
+    groupe_instructeur? && current_user.administrateur? && current_administrateur.in?(record.procedure.administrateurs)
+  end
+
+  def instructeur_changing_its_groupe_instructeur?
+    groupe_instructeur? && current_user.instructeur? && current_instructeur.in?(record.instructeurs) &&
+      record.procedure.instructeurs_self_management_enabled?
+  end
+
   def expert_changing_its_avis?
     avis? && current_expert == record.expert
   end
@@ -105,6 +116,7 @@ class AttachmentsController < ApplicationController
   def avis? = record.is_a?(Avis)
   def attestation_template? = record.is_a?(AttestationTemplate)
   def type_de_champ? = record.is_a?(TypeDeChamp)
+  def groupe_instructeur? = record.is_a?(GroupeInstructeur)
 
   def champ
     @champ ||= if champ?
