@@ -17,6 +17,51 @@ describe Instructeurs::DossiersController, type: :controller do
 
   before { sign_in(instructeur.user) }
 
+  describe '#show_submitted_revision' do
+    # pf: `create(:instructeur, procedures: [procedure])` du brief upstream lève
+    # ActiveRecord::HasManyThroughNestedAssociationsAreReadonly ici : sur ce fork,
+    # Instructeur#procedures passe par `unordered_groupe_instructeurs`, elle-même
+    # un has_many :through — un through imbriqué est en lecture seule côté Rails.
+    # On obtient la même association via le sens supporté par la factory :procedure
+    # (voir `instructeurs { [] }` + `assign_to_procedure` dans spec/factories/procedure.rb).
+    let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :text, libelle: 'Champ supprimé' }], instructeurs: [instructeur]) }
+    let(:dossier) { create(:dossier, :en_construction, procedure:) }
+    let(:instructeur) { create(:instructeur) }
+
+    before { sign_in(instructeur.user) }
+
+    subject do
+      get :show_submitted_revision, params: { procedure_id: procedure.id, dossier_id: dossier.id }
+    end
+
+    context 'quand la révision n’a pas changé depuis le dépôt' do
+      before { dossier.update_columns(submitted_revision_id: dossier.revision_id) }
+
+      it 'redirige vers le dossier' do
+        expect(subject).to redirect_to(instructeur_dossier_path(procedure, dossier))
+      end
+    end
+
+    context 'quand la révision a changé depuis le dépôt' do
+      let(:tdc) { procedure.active_revision.types_de_champ_public.first }
+
+      before do
+        dossier.update_columns(en_construction_at: Time.current, submitted_revision_id: dossier.revision_id)
+        procedure.draft_revision.remove_type_de_champ(tdc.stable_id)
+        procedure.publish_revision!(procedure.administrateurs.first)
+        dossier.reload.rebase!
+      end
+
+      it 'affiche la version déposée' do
+        expect(subject).to have_http_status(:ok)
+        expect(assigns(:dossier).revision_id).to eq(assigns(:dossier).submitted_revision_id)
+        # pf: garde-fou — le pseudo-stream user:history est une vue en
+        # LECTURE seule ; aucune ligne ne doit jamais être persistée avec.
+        expect(Champ.where(stream: Champ::USER_HISTORY_STREAM)).to be_empty
+      end
+    end
+  end
+
   describe '#send_to_instructeurs' do
     let(:mail) { double("mail") }
 

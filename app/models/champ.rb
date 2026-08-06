@@ -285,6 +285,12 @@ class Champ < ApplicationRecord
   MAIN_STREAM = 'main'
   USER_BUFFER_STREAM = 'user:buffer'
   HISTORY_STREAM = 'history:'
+  # pf: backport upstream 2026-01-20-01 — pseudo-stream de LECTURE seule pour la
+  # vue instructeur « version d'origine ». Aucune ligne n'est jamais stockée
+  # avec cette valeur : elle ne sert qu'à sélectionner un mode de lecture dans
+  # Dossier#champs_on_stream. Ne pas confondre avec HISTORY_STREAM, qui est un
+  # préfixe réellement persisté (history:<horodatage>).
+  USER_HISTORY_STREAM = 'user:history'
 
   def main_stream?
     stream == MAIN_STREAM

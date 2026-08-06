@@ -65,6 +65,17 @@
   %h2.fr-h6.fr-background-alt--grey.fr-mb-0.flex
     .flex-grow.fr-py-3v.fr-px-2w= t('views.shared.dossiers.demande.form')
 
+  -# pf: backport upstream 2026-01-20-01. Signale à l'instructeur qu'il ne
+  -# regarde pas la version déposée, et lui donne l'accès. Réservé à
+  -# l'instructeur : côté usager, le dossier doit s'aligner sur la version
+  -# officielle, pas exposer un historique.
+  - if profile == 'instructeur' && dossier.revision_changed_since_submitted?
+    = render Dsfr::AlertComponent.new(state: :info, size: :sm, extra_class_names: 'fr-icon-history-line fr-my-4v') do |c|
+      - c.with_body do
+        %p
+          = t('views.shared.dossiers.demande.not_submitted_revision')
+          = link_to t('views.shared.dossiers.demande.show_submitted_revision'), original_instructeur_dossier_path(dossier.procedure, dossier, statut: params[:statut]), class: 'fr-link'
+
   - types_de_champ = dossier.revision.types_de_champ_public
   - if types_de_champ.any? || dossier.procedure.routing_enabled?
     = render ViewableChamp::SectionComponent.new(dossier:, types_de_champ:, demande_seen_at:, profile:)

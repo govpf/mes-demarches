@@ -407,6 +407,8 @@ fr:
           requester_identity_updated_at: "modifiée le %{date}"
           individual_identity: "Votre identité"
           form: "Sections du formulaire"
+          not_submitted_revision: "Il ne s’agit pas de la version d’origine déposée par l’usager :"
+          show_submitted_revision: "Afficher la version d’origine"
           edit_siret: "Modifier le numéro TAHITI"
           edit_identity: "Modifier l’identité"
           edit_identity_html: 'Modifier <span aria-hidden="true"> l’identité</span>'
@@ -1044,6 +1046,10 @@ fr:
         close_to_expiration: expirants
         to_archive: à archiver
         trash: corbeille
+      show_submitted_revision:
+        title: "Version d’origine"
+        notice: "Vous consultez le dossier tel qu’il a été déposé par l’usager. Le formulaire a évolué depuis : certains champs affichés ici ne font plus partie de la démarche."
+        back: "Revenir au dossier"
     procedure_presentation:
       customize_filters:
         exit_customization: "Quitter la personnalisation"
