@@ -1193,4 +1193,30 @@ describe Administrateurs::GroupeInstructeursController, type: :controller do
       expect(BulkRouteJob).to have_been_enqueued.with(procedure)
     end
   end
+  describe '#preview_attestation_acceptation' do
+    subject { get :preview_attestation_acceptation, params: { procedure_id: procedure.id, id: gi_1_1.id } }
+
+    context 'with a v1 attestation template' do
+      let!(:attestation_template) { create(:attestation_template, procedure: procedure, activated: true) }
+
+      it 'renders the Prawn PDF' do
+        subject
+        expect(response).to have_http_status(:ok)
+        expect(response.media_type).to eq('application/pdf')
+      end
+    end
+
+    context 'with a v2 attestation template' do
+      let!(:attestation_template) { create(:attestation_template, :v2, procedure: procedure, state: :published, activated: true) }
+
+      before { allow(WeasyprintService).to receive(:generate_pdf).and_return('PDF_DATA') }
+
+      it 'renders the PDF through Weasyprint, with the qrcode' do
+        subject
+        expect(response).to have_http_status(:ok)
+        expect(WeasyprintService).to have_received(:generate_pdf)
+        expect(assigns(:qrcode_svg)).to be_present
+      end
+    end
+  end
 end

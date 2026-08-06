@@ -15,7 +15,7 @@ module Administrateurs
 
       # pf: générer QR code pour la prévisualisation
       @qrcode_url = admin_procedure_attestation_template_v2_path(@procedure, format: :pdf)
-      @qrcode_svg = @attestation_template.send(:generate_qrcode_svg, @qrcode_url)
+      @qrcode_svg = @attestation_template.generate_qrcode_svg(@qrcode_url)
 
       respond_to do |format|
         format.html do

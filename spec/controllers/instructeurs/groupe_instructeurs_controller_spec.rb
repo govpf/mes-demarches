@@ -232,4 +232,29 @@ describe Instructeurs::GroupeInstructeursController, type: :controller do
       expect(gi_1_2.reload.signature).to be_attached
     end
   end
+  describe '#preview_attestation_acceptation' do
+    subject { get :preview_attestation_acceptation, params: { procedure_id: procedure.id, id: gi_1_2.id } }
+
+    context 'with a v1 attestation template' do
+      let!(:attestation_template) { create(:attestation_template, procedure: procedure, activated: true) }
+
+      it 'renders the Prawn PDF' do
+        subject
+        expect(response).to have_http_status(:ok)
+        expect(response.media_type).to eq('application/pdf')
+      end
+    end
+
+    context 'with a v2 attestation template' do
+      let!(:attestation_template) { create(:attestation_template, :v2, procedure: procedure, state: :published, activated: true) }
+
+      before { allow(WeasyprintService).to receive(:generate_pdf).and_return('PDF_DATA') }
+
+      it 'renders the PDF through Weasyprint' do
+        subject
+        expect(response).to have_http_status(:ok)
+        expect(WeasyprintService).to have_received(:generate_pdf)
+      end
+    end
+  end
 end

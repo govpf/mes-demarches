@@ -7,7 +7,7 @@ describe AttestationTemplate, '#generate_qrcode_svg' do
   describe '#generate_qrcode_svg' do
     it 'génère un SVG QR code valide' do
       url = 'https://example.com/verify'
-      svg = attestation_template.send(:generate_qrcode_svg, url)
+      svg = attestation_template.generate_qrcode_svg(url)
 
       expect(svg).to be_present
       expect(svg).to include('<svg')
@@ -16,7 +16,7 @@ describe AttestationTemplate, '#generate_qrcode_svg' do
 
     it 'retourne nil en cas d\'erreur' do
       # Test avec une URL invalide
-      svg = attestation_template.send(:generate_qrcode_svg, nil)
+      svg = attestation_template.generate_qrcode_svg(nil)
       expect(svg).to be_nil
     end
   end
