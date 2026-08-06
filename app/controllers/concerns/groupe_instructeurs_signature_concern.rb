@@ -40,7 +40,7 @@ module GroupeInstructeursSignatureConcern
         # Faute de dossier, l’URL vérifiée est celle de la prévisualisation elle-même : le QR
         # code n’est ici qu’un aperçu de mise en page (cf. AttestationTemplateV2sController#show).
         @qrcode_url = request.original_url
-        @qrcode_svg = attestation_template.send(:generate_qrcode_svg, @qrcode_url)
+        @qrcode_svg = attestation_template.generate_qrcode_svg(@qrcode_url)
 
         html = render_to_string('/administrateurs/attestation_template_v2s/show', layout: 'attestation', formats: [:html])
         pdf = WeasyprintService.generate_pdf(html, procedure_id: procedure.id, path: request.path)

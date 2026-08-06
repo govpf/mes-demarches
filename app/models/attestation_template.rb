@@ -178,6 +178,22 @@ class AttestationTemplate < ApplicationRecord
     parse_html_to_tiptap(html_string, inline: true)
   end
 
+  # pf: génération SVG du QR code pour vérification attestation.
+  # Publique : appelée depuis les controllers qui prévisualisent une attestation v2.
+  def generate_qrcode_svg(url)
+    require 'rqrcode'
+    qrcode = RQRCode::QRCode.new(url)
+    qrcode.as_svg(
+      offset: 0,
+      color: '000',
+      shape_rendering: 'crispEdges',
+      module_size: 3,
+      standalone: true
+    )
+  rescue StandardError
+    nil
+  end
+
   private
 
   def parse_html_to_tiptap(html_string, inline: false)
@@ -374,21 +390,6 @@ class AttestationTemplate < ApplicationRecord
     )
 
     WeasyprintService.generate_pdf(html, { procedure_id: procedure.id, dossier_id: dossier.id })
-  end
-
-  # pf: génération SVG du QR code pour vérification attestation
-  def generate_qrcode_svg(url)
-    require 'rqrcode'
-    qrcode = RQRCode::QRCode.new(url)
-    qrcode.as_svg(
-      offset: 0,
-      color: '000',
-      shape_rendering: 'crispEdges',
-      module_size: 3,
-      standalone: true
-    )
-  rescue StandardError
-    nil
   end
 
   # pf: Migration v1 → v2 - Construire une attestation v2 à partir d'une v1
