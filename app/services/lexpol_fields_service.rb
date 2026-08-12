@@ -37,11 +37,24 @@ module LexpolFieldsService
     r.is_a?(Array) ? r : [r]
   end
 
+  # pf: deux contrats de formatage coexistent dans ce service.
+  #
+  # format_lexpol_value produit une DONNÉE destinée à une variable Lexpol.
+  # Lexpol sait manipuler les dates et les nombres : on lui transmet donc une
+  # date en jj/mm/aaaa — format que son formateur convertit en toutes lettres
+  # selon ses propres conventions — et un nombre brut, qu'il sait calculer et
+  # mettre en forme. Lexpol ne manipulant pas les datetime, ceux-ci sont
+  # scindés en deux variables « X » et « X (heure) » par
+  # LexpolService#build_variables, ce qui laisse au modèle le choix d'afficher
+  # l'heure ou non (auparavant elle était collée à la date, donc obligatoire).
+  #
+  # format_lexpol_display produit un RENDU inséré tel quel dans le document
+  # (cellules des tableaux de répétition). Lexpol n'a rien à manipuler ici :
+  # le formatage doit être fait de notre côté, dates en toutes lettres et
+  # nombres en typographie française.
   def self.format_lexpol_value(object)
     case object
-    when Champs::DatetimeChamp
-      format_datetime(object.value)
-    when Champs::DateChamp
+    when Champs::DatetimeChamp, Champs::DateChamp
       format_date(object.value)
     when Champs::RepetitionChamp
       format_repetition_champ(object)
@@ -51,12 +64,27 @@ module LexpolFieldsService
       format_markdown(object.value)
     when Champs::IntegerNumberChamp, Champs::DecimalNumberChamp
       object.value.present? ? object.value.to_s : "0"
-    when Date
+    when Date, DateTime, Time
       format_date(object)
-    when DateTime, Time
-      format_datetime(object)
     else
       object.respond_to?(:value) ? object.value.to_s : object.to_s
+    end
+  end
+
+  def self.format_lexpol_display(object)
+    case object
+    when Champs::DatetimeChamp
+      format_datetime_en_lettres(object.value)
+    when Champs::DateChamp
+      format_date_en_lettres(object.value)
+    when Champs::IntegerNumberChamp, Champs::DecimalNumberChamp
+      format_nombre_fr(object.value)
+    when DateTime, Time
+      format_datetime_en_lettres(object)
+    when Date
+      format_date_en_lettres(object)
+    else
+      format_lexpol_value(object)
     end
   end
 
@@ -73,26 +101,66 @@ module LexpolFieldsService
     "<ul>#{list_items.join}</ul>"
   end
 
+  # pf: date destinée à une variable Lexpol. jj/mm/aaaa est le format que le
+  # formateur Lexpol sait relire pour l'écrire en toutes lettres.
   def self.format_date(date)
     return '' if date.blank?
-    begin
-      parsed = date.is_a?(String) ? Date.parse(date) : date
-      day = (parsed.day == 1 ? "1er" : parsed.day.to_s)
-      day + I18n.l(parsed, format: ' %B %Y')
-    rescue
-      date.to_s
-    end
+    parsed = parse_in_zone(date)
+    parsed.nil? ? date.to_s : parsed.strftime('%d/%m/%Y')
   end
 
-  def self.format_datetime(date)
+  # pf: heure d'un datetime, exposée dans une variable « X (heure) » distincte
+  # puisque Lexpol ne manipule que des dates.
+  def self.format_heure(datetime)
+    return '' if datetime.blank?
+    parsed = parse_in_zone(datetime)
+    parsed.nil? ? '' : parsed.strftime('%H:%M')
+  end
+
+  def self.format_date_en_lettres(date)
     return '' if date.blank?
-    begin
-      parsed = date.is_a?(String) ? DateTime.parse(date) : date
-      day = (parsed.day == 1 ? "1er" : parsed.day.to_s)
-      day + I18n.l(parsed, format: ' %B %Y à %H:%M')
-    rescue
-      date.to_s
+    parsed = parse_in_zone(date)
+    return date.to_s if parsed.nil?
+
+    day = (parsed.day == 1 ? "1er" : parsed.day.to_s)
+    day + I18n.l(parsed.to_date, format: ' %B %Y')
+  end
+
+  def self.format_datetime_en_lettres(datetime)
+    return '' if datetime.blank?
+    parsed = parse_in_zone(datetime)
+    return datetime.to_s if parsed.nil?
+
+    "#{format_date_en_lettres(parsed)} à #{parsed.strftime('%H:%M')}"
+  end
+
+  # pf: le groupement des milliers ne démarre qu'à cinq chiffres : un champ
+  # nombre contenant une année (2026) s'afficherait sinon « 2 026 ».
+  GROUPING_THRESHOLD = 10_000
+
+  def self.format_nombre_fr(value)
+    return '0' if value.blank?
+
+    number = Float(value.to_s)
+    if number.abs < GROUPING_THRESHOLD
+      value.to_s.tr('.', ',')
+    else
+      ActiveSupport::NumberHelper.number_to_delimited(value.to_s, delimiter: " ", separator: ',')
     end
+  rescue ArgumentError, TypeError
+    value.to_s
+  end
+
+  # pf: ramène une valeur (chaîne ISO, Date, Time) dans le fuseau de
+  # l'application. Les valeurs saisies dans un champ sont des chaînes sans
+  # fuseau : elles désignent une heure locale, jamais UTC.
+  def self.parse_in_zone(value)
+    case value
+    when String then Time.zone.parse(value)
+    else value.respond_to?(:in_time_zone) ? value.in_time_zone : nil
+    end
+  rescue ArgumentError, TypeError
+    nil
   end
 
   def self.format_repetition_champ(repeat_champ)
@@ -130,8 +198,9 @@ module LexpolFieldsService
 
     "<tr style='background-color: #{background};'>" +
       row.map do |champ|
-        # format
-        value = format_lexpol_value(champ)
+        # pf: contexte d'affichage — la cellule est insérée telle quelle dans
+        # le document, Lexpol ne la manipule pas. Cf. format_lexpol_display.
+        value = format_lexpol_display(champ)
         "<td style='vertical-align: middle; text-align: left;padding: 5px'>#{value}</td>"
       end.join +
       "</tr>"

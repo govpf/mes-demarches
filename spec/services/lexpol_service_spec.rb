@@ -90,6 +90,34 @@ describe LexpolService do
         expect(date_columns).not_to be_empty
       end
 
+      # pf: l'heure de dépôt n'a rien à faire d'office dans un arrêté. La
+      # variable standard ne porte plus que la date, dans un format que le
+      # formateur Lexpol sait convertir en toutes lettres.
+      context 'pour un horodatage système' do
+        let(:dossier) { create(:dossier, :en_instruction, procedure: procedure) }
+
+        before { dossier.update!(depose_at: Time.zone.local(2026, 4, 1, 0, 3)) }
+
+        it 'transmet la date seule en jj/mm/aaaa' do
+          variables = service.build_variables
+
+          expect(variables['Date de dépôt']).to eq('01/04/2026')
+        end
+
+        it "expose l'heure dans une variable dédiée" do
+          variables = service.build_variables
+
+          expect(variables['Date de dépôt (heure)']).to eq('00:03')
+        end
+
+        it "propage la date et l'heure aux alias legacy" do
+          variables = service.build_variables
+
+          expect(variables['Dossier déposé le']).to eq('01/04/2026')
+          expect(variables['Dossier déposé le (heure)']).to eq('00:03')
+        end
+      end
+
       context 'pour une procédure entreprise' do
         let(:procedure) { create(:procedure, :published) }
         let!(:lexpol_type_de_champ) { create(:type_de_champ_lexpol, procedure: procedure) }
@@ -101,6 +129,32 @@ describe LexpolService do
 
           expect(variables).to have_key('Entreprise raison sociale')
         end
+      end
+    end
+
+    context 'avec un champ datetime' do
+      let!(:datetime_tdc) do
+        create(:type_de_champ_datetime, libelle: 'Créneau souhaité', procedure: procedure)
+      end
+
+      before do
+        procedure.draft_revision.add_type_de_champ(datetime_tdc)
+        dossier.reload
+        champ = dossier.champs.find { |c| c.type_de_champ == datetime_tdc }
+        champ.update!(value: '2026-04-01T14:30:00-10:00')
+        dossier.reload
+      end
+
+      it 'transmet la date seule dans la variable standard' do
+        variables = service.build_variables
+
+        expect(variables['Créneau souhaité']).to eq('01/04/2026')
+      end
+
+      it "expose l'heure dans une variable dédiée" do
+        variables = service.build_variables
+
+        expect(variables['Créneau souhaité (heure)']).to eq('14:30')
       end
     end
 
@@ -194,6 +248,26 @@ describe LexpolService do
         variables = described_class.lexpol_variables(draft_lexpol_tdc, draft_procedure)
         expect(variables).to include('Catégories (liste)')
       end
+    end
+
+    context 'avec un champ datetime' do
+      let!(:datetime_tdc) do
+        create(:type_de_champ_datetime, libelle: 'Créneau souhaité', procedure: draft_procedure)
+      end
+
+      it 'inclut la variable standard et sa variable (heure)' do
+        variables = described_class.lexpol_variables(draft_lexpol_tdc, draft_procedure)
+
+        expect(variables).to include('Créneau souhaité')
+        expect(variables).to include('Créneau souhaité (heure)')
+      end
+    end
+
+    it "inclut la variable (heure) des colonnes d'horodatage" do
+      variables = described_class.lexpol_variables(draft_lexpol_tdc, draft_procedure)
+
+      expect(variables).to include('Date de dépôt')
+      expect(variables).to include('Date de dépôt (heure)')
     end
 
     context 'avec un champ non-multiple' do

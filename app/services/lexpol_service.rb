@@ -11,6 +11,18 @@ class LexpolService
     :explication,
   ].freeze
 
+  # pf: alias conservés pour les modèles Lexpol antérieurs aux libellés issus
+  # des colonnes d'export.
+  LEGACY_DATE_ALIASES = {
+    'Dossier déposé le' => 'Date de dépôt',
+    'Dossier traité le' => 'Date de traitement',
+    'Dossier passé en instruction le' => 'Date de passage en instruction',
+  }.freeze
+
+  # pf: suffixe de la variable portant l'heure d'un datetime. Même grammaire
+  # que le « (liste) » des champs à choix multiples.
+  HEURE_SUFFIX = ' (heure)'
+
   def initialize(champ:, dossier:, apilexpol:, user: nil)
     @champ = champ
     @dossier = dossier
@@ -49,14 +61,8 @@ class LexpolService
     # Cela garantit que Lexpol reçoit les mêmes données enrichies que les exports
     procedure = dossier.procedure
 
-    procedure.dossier_columns_for_export.each do |column|
-      value = column_value_for_lexpol(column, dossier)
-      variables[self.class.normalize_variable_name(column.label)] = value
-    end
-
-    procedure.usager_columns_for_export.each do |column|
-      value = column_value_for_lexpol(column, dossier)
-      variables[self.class.normalize_variable_name(column.label)] = value
+    (procedure.dossier_columns_for_export + procedure.usager_columns_for_export).each do |column|
+      add_column_variables(variables, column, dossier)
     end
 
     # Variables spécifiques qui n'existent pas dans les colonnes d'export
@@ -77,9 +83,14 @@ class LexpolService
     end
     variables['Demandeur email'] = variables['Adresse électronique'] if variables['Adresse électronique'].present?
     variables['Numéro du dossier'] = variables['Nº dossier'] if variables['Nº dossier'].present?
-    variables['Dossier déposé le'] = variables['Date de dépôt'] if variables['Date de dépôt'].present?
-    variables['Dossier traité le'] = variables['Date de traitement'] if variables['Date de traitement'].present?
-    variables['Dossier passé en instruction le'] = variables['Date de passage en instruction'] if variables['Date de passage en instruction'].present?
+
+    # pf: chaque alias de date hérite aussi de sa variable (heure), sans quoi
+    # un ancien modèle bâti sur l'alias perdrait l'accès à l'heure.
+    LEGACY_DATE_ALIASES.each do |alias_name, source_name|
+      variables[alias_name] = variables[source_name] if variables[source_name].present?
+      heure = variables["#{source_name}#{HEURE_SUFFIX}"]
+      variables["#{alias_name}#{HEURE_SUFFIX}"] = heure if heure.present?
+    end
 
     excluded_champ_classes = EXCLUDED_CHAMP_TYPES.map { |t| "Champs::#{t.to_s.camelize}Champ".constantize }
 
@@ -91,12 +102,20 @@ class LexpolService
       .reject { |c| excluded_champ_classes.any? { |klass| c.is_a?(klass) } }
       .each do |champ|
         if champ.present?
+          name = self.class.normalize_variable_name(champ.libelle)
+
           # Variable standard
-          variables[self.class.normalize_variable_name(champ.libelle)] = LexpolFieldsService.format_lexpol_value(champ)
+          variables[name] = LexpolFieldsService.format_lexpol_value(champ)
+
+          # pf: Variable d'heure pour les datetime — la variable standard ne
+          # porte plus que la date, seule forme que Lexpol sait mettre en forme.
+          if champ.is_a?(Champs::DatetimeChamp)
+            variables["#{name}#{HEURE_SUFFIX}"] = LexpolFieldsService.format_heure(champ.value)
+          end
 
           # Variable avec format liste pour MultipleDropDownListChamp
           if champ.is_a?(Champs::MultipleDropDownListChamp)
-            variables["#{self.class.normalize_variable_name(champ.libelle)} (liste)"] = LexpolFieldsService.format_as_html_list(champ.selected_options)
+            variables["#{name} (liste)"] = LexpolFieldsService.format_as_html_list(champ.selected_options)
           end
         end
       end
@@ -142,10 +161,13 @@ class LexpolService
 
   def self.lexpol_variables(lexpol_type_de_champ, procedure)
     # Utilisation des colonnes d'export pour avoir la liste complète des variables disponibles
-    column_variables = (
-      procedure.dossier_columns_for_export.map(&:label) +
-      procedure.usager_columns_for_export.map(&:label)
-    )
+    column_variables = (procedure.dossier_columns_for_export + procedure.usager_columns_for_export)
+      .flat_map do |column|
+        base = [column.label]
+        # pf: une colonne datetime expose aussi son heure dans une variable dédiée
+        base << "#{column.label}#{HEURE_SUFFIX}" if column.type == :datetime
+        base
+      end
 
     excluded_types = EXCLUDED_CHAMP_TYPES.map { |t| TypeDeChamp.type_champs.fetch(t) }
 
@@ -155,6 +177,8 @@ class LexpolService
         base = [tdc.libelle]
         # Ajouter la version (liste) pour les champs à choix multiples
         base << "#{tdc.libelle} (liste)" if tdc.type_champ == 'multiple_drop_down_list'
+        # pf: un champ datetime expose aussi son heure dans une variable dédiée
+        base << "#{tdc.libelle}#{HEURE_SUFFIX}" if tdc.type_champ == 'datetime'
         base
       end
 
@@ -174,14 +198,25 @@ class LexpolService
 
   private
 
-  def column_value_for_lexpol(column, dossier)
-    value = column.value(dossier)
-    return '' if value.nil?
+  # pf: une colonne datetime produit deux variables — la date, que le formateur
+  # Lexpol sait mettre en forme, et l'heure isolée pour que le modèle décide de
+  # l'afficher ou non. L'heure de dépôt n'a rien à faire d'office dans un arrêté.
+  def add_column_variables(variables, column, dossier)
+    raw_value = column_raw_value(column, dossier)
+    name = self.class.normalize_variable_name(column.label)
 
-    LexpolFieldsService.format_lexpol_value(value)
+    variables[name] = raw_value.nil? ? '' : LexpolFieldsService.format_lexpol_value(raw_value)
+
+    if raw_value.is_a?(Time) || raw_value.is_a?(DateTime)
+      variables["#{name}#{HEURE_SUFFIX}"] = LexpolFieldsService.format_heure(raw_value)
+    end
+  end
+
+  def column_raw_value(column, dossier)
+    column.value(dossier)
   rescue StandardError => e
     Rails.logger.warn("Lexpol: impossible de récupérer la valeur de '#{column.label}': #{e.message}")
-    ''
+    nil
   end
 
   def self.user_mapping(lexpol_type_de_champ)

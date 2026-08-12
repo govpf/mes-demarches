@@ -10,7 +10,7 @@ class Champs::DateChamp < Champ
   end
 
   def formatted_value
-    LexpolFieldsService.format_date(value)
+    LexpolFieldsService.format_date_en_lettres(value)
   end
 
   private

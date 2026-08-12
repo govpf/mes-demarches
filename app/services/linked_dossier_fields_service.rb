@@ -101,14 +101,25 @@ class LinkedDossierFieldsService
       'Dossier passé en instruction le' => dossier.en_instruction_at,
       'Dossier traité le' => dossier.processed_at,
     }.each do |key, value|
-      variables[key] = LexpolFieldsService.format_lexpol_value(value) if value
+      next unless value
+
+      variables[key] = LexpolFieldsService.format_lexpol_value(value)
+      # pf: même règle que LexpolService — un datetime expose sa date et son
+      # heure séparément, Lexpol ne sachant mettre en forme que la date.
+      if value.is_a?(Time) || value.is_a?(DateTime)
+        variables["#{key}#{LexpolService::HEURE_SUFFIX}"] = LexpolFieldsService.format_heure(value)
+      end
     end
   end
 
   def add_champs(variables, champs)
     champs.each do |champ|
       next if champ.is_a?(Champs::DossierLinkChamp) # Éviter la récursion
+
       variables[champ.libelle] = LexpolFieldsService.format_lexpol_value(champ)
+      if champ.is_a?(Champs::DatetimeChamp)
+        variables["#{champ.libelle}#{LexpolService::HEURE_SUFFIX}"] = LexpolFieldsService.format_heure(champ.value)
+      end
     end
   end
 
