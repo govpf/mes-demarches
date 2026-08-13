@@ -374,10 +374,10 @@
     },
     {
       "warning_type": "Unmaintained Dependency",
-      "warning_code": 122,
-      "fingerprint": "98b26f60d776fd41ee6f088c833725145be9aac2d7c5b33780241c273622db42",
+      "warning_code": 120,
+      "fingerprint": "d84924377155b41e094acae7404ec2e521629d86f97b0ff628e3d1b263f8101c",
       "check_name": "EOLRails",
-      "message": "Support for Rails 7.2.2.2 ends on 2026-08-09",
+      "message": "Support for Rails 7.2.2.2 ended on 2026-08-09",
       "file": "Gemfile.lock",
       "line": 656,
       "link": "https://brakemanscanner.org/docs/warning_types/unmaintained_dependency/",
@@ -385,11 +385,11 @@
       "render_path": null,
       "location": null,
       "user_input": null,
-      "confidence": "Medium",
+      "confidence": "High",
       "cwe_id": [
         1104
       ],
-      "note": "pf: avertissement temporel CheckEOLRails (Rails 7.2.2.2 EOL 2026-08-09) qui fait echouer le lint sur toutes les branches. Exclusion volontairement calee sur la confiance Medium (fenetre EOL-30j) : l'empreinte Brakeman inclut la confiance, donc le passage en High le 2026-08-09 (warning_code 120 eol_rails) fera de nouveau echouer le lint. C'est voulu, comme rappel force du bump Rails 8. A retirer lors du bump."
+      "note": "pf: Rails 7.2.2.2 est en fin de support depuis le 2026-08-09. Cette entrée remplace le garde-fou précédent (exclusion calée sur la confiance Medium, qui faisait volontairement échouer le lint au passage en High à la date d’EOL). Le rappel est désormais porté par l’issue #515 : le lint rouge sur toutes les branches pendant l’attente de la release upstream apportant Rails 8 coûtait plus qu’il ne servait. L’empreinte Brakeman inclut la version de Rails : cette entrée deviendra obsolète d’elle-même au bump, et un futur EOL produira une nouvelle empreinte donc un nouvel échec. À retirer lors du bump."
     }
   ],
   "brakeman_version": "7.1.0"
