@@ -21,6 +21,13 @@ describe FormulaAiPromptService do
       expect(subject).to include('ANNEES_ENTRE')
     end
 
+    it 'documents CONTIENT et les listes de choix multiples' do
+      expect(subject).to include('CONTIENT(liste, valeur)')
+      expect(subject).to include('CONTIENT({Moyens de transport}, "Bus")')
+      # pf: le prompt doit dissuader explicitement des deux pièges (== et CHERCHE)
+      expect(subject).to match(/N’utilise JAMAIS `==` ni `CHERCHE`/)
+    end
+
     it 'documents the new rounding functions' do
       expect(subject).to include('ARRONDI_INF')
       expect(subject).to include('ARRONDI_SUP')

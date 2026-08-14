@@ -400,4 +400,51 @@ RSpec.describe 'Formule cascade refresh_formulas_after', type: :model do
       expect(find_champ(dossier, total_tdc).reload.read_attribute(:value)).to eq('700')
     end
   end
+
+  # pf: la cascade injecte `champ.value` brut dans seed_overrides, ce qui
+  # court-circuite le parsing de la colonne :enums — le binding reçoit la
+  # sérialisation JSON `'["Bus"]'` et non un Array. Sans reparsing, CONTIENT
+  # renvoyait false alors que l'option venait d'être cochée (bug détecté par
+  # spec/system/users/formula_multiple_choice_spec.rb).
+  describe 'CONTIENT sur un champ à choix multiple' do
+    let(:procedure) do
+      create(:procedure, :published, types_de_champ_public: [
+        { type: :multiple_drop_down_list, libelle: 'Moyens', options: ['Vélo', 'Bus', 'Bus scolaire'] },
+        { type: :formule, libelle: 'Mode' },
+      ])
+    end
+    # pf: dossier non peuplé — :with_populated_champs charge et met en cache
+    # revision.types_de_champ à la création, donc avec des formule_deps stale
+    # (l'expression est posée juste après par le before). Le champ formule est
+    # créé par la cascade elle-même (create_missing).
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:moyens_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Moyens' } }
+    let(:mode_tdc) { procedure.active_revision.types_de_champ.find { _1.libelle == 'Mode' } }
+
+    def select_moyens(*options)
+      champ = find_champ(dossier, moyens_tdc)
+      champ.update!(value: options.to_json)
+      dossier.refresh_formulas_after(champ)
+    end
+
+    before do
+      set_formule_expression(dossier, mode_tdc, "SI(CONTIENT({tdc#{moyens_tdc.stable_id}}, \"Bus\"), \"TC\", \"Autre\")")
+    end
+
+    it 'recalcule la formule quand une option est cochée' do
+      select_moyens('Vélo', 'Bus')
+      expect(find_champ(dossier, mode_tdc).reload.read_attribute(:value)).to eq('TC')
+    end
+
+    it 'recalcule la formule quand l\'option est décochée' do
+      select_moyens('Vélo', 'Bus')
+      select_moyens('Vélo')
+      expect(find_champ(dossier, mode_tdc).reload.read_attribute(:value)).to eq('Autre')
+    end
+
+    it 'ne fait pas de faux positif sur une option dont le libellé contient le libellé cherché' do
+      select_moyens('Bus scolaire')
+      expect(find_champ(dossier, mode_tdc).reload.read_attribute(:value)).to eq('Autre')
+    end
+  end
 end
