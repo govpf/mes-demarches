@@ -10,10 +10,23 @@ module DownloadManager
     def initialize(procedure, attachments, destination)
       @procedure = procedure
       @errors = {}
+      @reported_error_classes = Set.new
       @queue = ParallelDownloadQueue.new(attachments, destination)
       @queue.on_error = proc do |attachment, path, error|
         errors[path] = [attachment, path]
         Rails.logger.error("Fail to download filename #{path} in procedure##{@procedure.id}, reason: #{error}")
+
+        # `on_error` gets an HTTP status code for a failed download (expected, and
+        # retried) but an exception for anything else — a traversing path from a
+        # malformed template, a filename ActiveStorage did not sanitize... Those are
+        # bugs, so alert rather than only log.
+        #
+        # Once per class per export: a bad template makes *every* path fail the same
+        # way, and we would otherwise emit one Sentry event per attachment for a
+        # single root cause.
+        if error.is_a?(Exception) && @reported_error_classes.add?(error.class)
+          Sentry.capture_exception(error, extra: { procedure_id: @procedure.id })
+        end
       end
     end
 
