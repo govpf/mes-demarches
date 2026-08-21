@@ -111,6 +111,72 @@ describe APIEntrepriseService do
     end
   end
 
+  # pf: une fois API_ENTREPRISE_KEY posé en production, le garde « jeton présent ? »
+  # tombe pour toutes les démarches — y compris celles dont les établissements
+  # viennent de l'ISPF. Le garde doit porter sur la nature du numéro.
+  describe '#perform_later_fetch_jobs — garde par nature du numéro' do
+    let(:valid_token) { "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" }
+    let(:procedure) { create(:procedure, api_entreprise_token: valid_token) }
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:etablissement) { create(:etablissement, dossier: dossier, siret: siret) }
+
+    subject { APIEntrepriseService.perform_later_fetch_jobs(etablissement, procedure.id, nil) }
+
+    before do
+      allow_any_instance_of(APIEntrepriseToken).to receive(:roles).and_return([])
+      allow_any_instance_of(APIEntrepriseToken).to receive(:expired?).and_return(false)
+    end
+
+    def jobs_enfiles
+      ActiveJob::Base.queue_adapter.enqueued_jobs
+        .map { |job| job[:job] }
+        .filter { |klass| klass.name.start_with?('APIEntreprise::') }
+    end
+
+    context 'with a Tahiti etablissement' do
+      let(:siret) { 'G33972001' }
+
+      it 'n’enfile aucun job français' do
+        subject
+        expect(jobs_enfiles).to be_empty
+      end
+    end
+
+    context 'with a French SIRET etablissement' do
+      let(:siret) { '41816609600051' }
+
+      it 'enfile tous les jobs français' do
+        subject
+        expect(jobs_enfiles).to match_array(APIEntrepriseService::FRENCH_ONLY_JOBS)
+      end
+    end
+
+    context 'with a Tahiti etablissement in degraded mode' do
+      let(:siret) { 'G33972001' }
+      let(:etablissement) { create(:etablissement, dossier: dossier, siret: siret, adresse: nil) }
+
+      it 'n’enfile que EtablissementJob, qui sait router les deux sources' do
+        subject
+        expect(jobs_enfiles).to eq([APIEntreprise::EtablissementJob])
+      end
+    end
+
+    context 'without any token' do
+      let(:siret) { '41816609600051' }
+      let(:procedure) { create(:procedure, api_entreprise_token: nil) }
+
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('API_ENTREPRISE_KEY').and_return(nil)
+      end
+
+      it 'n’enfile rien, même pour un SIRET' do
+        subject
+        expect(jobs_enfiles).to be_empty
+      end
+    end
+  end
+
   describe "#api_insee_up?" do
     subject { described_class.fr_api_insee_up? }
     let(:body) { Rails.root.join('spec/fixtures/files/api_entreprise/ping.json').read }

@@ -1,6 +1,18 @@
 # frozen_string_literal: true
 
 class APIEntrepriseService
+  # pf: ces jobs interrogent exclusivement entreprise.api.gouv.fr — ils n'ont
+  # aucun sens sur un établissement issu du référentiel ISPF.
+  # APIEntreprise::EtablissementJob en est volontairement absent : il appelle
+  # update_etablissement_from_degraded_mode, qui dispatche entre les deux sources.
+  FRENCH_ONLY_JOBS = [
+    APIEntreprise::EntrepriseJob, APIEntreprise::ExtraitKbisJob, APIEntreprise::TvaJob,
+    APIEntreprise::AssociationJob, APIEntreprise::ExercicesJob,
+    APIEntreprise::EffectifsJob, APIEntreprise::EffectifsAnnuelsJob,
+    APIEntreprise::AttestationSocialeJob, APIEntreprise::BilansBdfJob,
+    APIEntreprise::AttestationFiscaleJob,
+  ].freeze
+
   class << self
     # PF: Specific method for handling ambiguous TAHITI numbers (< 9 chars)
     # In French Polynesia, a 6-char TAHITI number can match multiple establishments
@@ -118,25 +130,27 @@ class APIEntrepriseService
     end
 
     def perform_later_fetch_jobs(etablissement, procedure_id, user_id, wait: nil)
-      # pf: pas de jeton API Entreprise en Polynésie — sans jeton (procédure ou ENV),
-      # ces jobs lèvent tous TokenError et finissent morts dans Sidekiq. On ne les
-      # lance pas ; un jeton spécifique configuré sur la procédure reste honoré.
+      # pf: sans jeton (procédure ou ENV), ces jobs lèvent tous TokenError et
+      # finissent morts dans Sidekiq. Un jeton spécifique sur la procédure reste honoré.
       return if Procedure.find_by(id: procedure_id)&.api_entreprise_token&.jwt_token.blank?
 
-      jobs = [
-        APIEntreprise::EntrepriseJob, APIEntreprise::ExtraitKbisJob, APIEntreprise::TvaJob,
-        APIEntreprise::AssociationJob, APIEntreprise::ExercicesJob,
-        APIEntreprise::EffectifsJob, APIEntreprise::EffectifsAnnuelsJob, APIEntreprise::AttestationSocialeJob,
-        APIEntreprise::BilansBdfJob,
-      ]
-      if etablissement.as_degraded_mode?
-        jobs << APIEntreprise::EtablissementJob
-      end
-      jobs.each do |job|
-        job.set(wait:).perform_later(etablissement.id, procedure_id)
-      end
+      identifiant = IdentifiantEntreprise.parse(etablissement.siret)
 
-      APIEntreprise::AttestationFiscaleJob.set(wait:).perform_later(etablissement.id, procedure_id, user_id)
+      jobs = []
+      # EtablissementJob sait router les deux référentiels : il vaut pour un
+      # numéro Tahiti comme pour un SIRET.
+      jobs << APIEntreprise::EtablissementJob if etablissement.as_degraded_mode?
+      # pf: les autres jobs sont strictement français — poser API_ENTREPRISE_KEY
+      # ne doit pas les déclencher sur les établissements issus de l'ISPF.
+      jobs.concat(FRENCH_ONLY_JOBS) if identifiant.siret?
+
+      jobs.each do |job|
+        if job == APIEntreprise::AttestationFiscaleJob
+          job.set(wait:).perform_later(etablissement.id, procedure_id, user_id)
+        else
+          job.set(wait:).perform_later(etablissement.id, procedure_id)
+        end
+      end
     end
 
     # See: https://entreprise.api.gouv.fr/developpeurs#surveillance-etat-fournisseurs
