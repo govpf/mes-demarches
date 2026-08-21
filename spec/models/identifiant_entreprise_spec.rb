@@ -63,7 +63,7 @@ describe IdentifiantEntreprise do
   end
 
   describe '#source et #adapter_klass' do
-    it "route le Tahiti vers l'ISPF" do
+    it 'route le Tahiti vers l’ISPF' do
       identifiant = described_class.parse('G33972001')
       expect(identifiant.source).to eq(:ispf)
       expect(identifiant.adapter_klass).to eq(APIEntreprise::PfEtablissementAdapter)
@@ -111,7 +111,7 @@ describe IdentifiantEntreprise do
       expect(described_class.parse('G33972').annuaire_url).to eq('https://www.ispf.pf/rte')
     end
 
-    it "pointe vers l'annuaire des entreprises pour un SIRET" do
+    it 'pointe vers l’annuaire des entreprises pour un SIRET' do
       expect(described_class.parse('41816609600051').annuaire_url)
         .to eq('https://annuaire-entreprises.data.gouv.fr/etablissement/41816609600051')
     end
