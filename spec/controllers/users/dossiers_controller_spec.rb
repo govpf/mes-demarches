@@ -420,7 +420,9 @@ describe Users::DossiersController, type: :controller do
     end
 
     context 'with an invalid SIRET' do
-      let(:params_siret) { '000 000 00' }
+      # pf: 10 caractères — ni numéro Tahiti (6 à 9) ni SIRET (14). Ne doit déclencher
+      # aucun appel réseau, l'erreur est de format.
+      let(:params_siret) { '000 000 0000' }
 
       it_behaves_like 'the request fails with an error', ["Le champ « Siret » " + I18n.t('activemodel.errors.models.siret.attributes.siret.length')]
     end
