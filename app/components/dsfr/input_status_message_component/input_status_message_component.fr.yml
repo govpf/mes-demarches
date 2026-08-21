@@ -3,11 +3,11 @@ fr:
   rna:
     data_fetched: "Ce RNA correspond à : %{title}, %{address}"
   siret:
-    pending: "Recherche en cours pour le SIRET %{value}…"
+    pending: "Recherche en cours pour le numéro Tahiti ou SIRET %{value}…"
     fetched_with_capital: "%{raison_sociale_or_name} %{forme_juridique} au capital social de %{capital_sociale}"
     fetched: "%{raison_sociale_or_name} %{forme_juridique}"
-    error: "Une erreur est survenue lors de la récupération des informations SIRET."
-    multiple_found: "Plusieurs établissements correspondent à ce numéro TAHITI. Sélectionnez celui qui vous concerne dans la liste ci-dessous."
+    error: "Une erreur est survenue lors de la récupération des informations pour le numéro Tahiti ou SIRET."
+    multiple_found: "Plusieurs établissements correspondent à ce numéro Tahiti ou SIRET. Sélectionnez celui qui vous concerne dans la liste ci-dessous."
   referentiel:
     fetching: "Recherche en cours."
     error: "Aucun élément trouvé pour la référence : %{value}"

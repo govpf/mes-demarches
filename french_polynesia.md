@@ -113,19 +113,30 @@ Cette section documente les modifications techniques spécifiques à la Polynés
 ### SiretTypeDeChamp (`app/models/types_de_champ/siret_type_de_champ.rb:4`)
 - Les champs commune, code postal, département, région ne sont pas remplis pour les Numéros Tahiti
 
-### SiretChamp — flow Tahiti sur la state machine upstream (depuis bump 2025-11-03-03)
+### SiretChamp — numéro Tahiti ou SIRET, value object `IdentifiantEntreprise` (depuis bump 2025-11-03-03, chantier terminologie 2026-08)
 
-Le champ SIRET suit désormais la machine à états générique `ChampExternalDataConcern`
-(upstream) avec des adaptations PF pour gérer les numéros TAHITI en plus du SIRET français.
+Le champ SIRET suit la machine à états générique `ChampExternalDataConcern`
+(upstream) avec des adaptations PF pour gérer les numéros Tahiti en plus du
+SIRET français.
+
+**Source unique de la règle** (`app/models/identifiant_entreprise.rb`)
+`IdentifiantEntreprise` est le value object qui décide « Tahiti ou SIRET ? ».
+Avant lui, la règle était réimplémentée dans sept fichiers avec quatorze
+comparaisons de longueur divergentes. Tout site qui doit connaître la nature
+d'un identifiant (validation, dispatch d'adapter, choix d'annuaire, jobs
+d'enrichissement…) passe par `IdentifiantEntreprise.parse(valeur)` :
+`tahiti_partiel?`/`tahiti_complet?`/`tahiti?`, `siret?` (avec clé de Luhn),
+`valide?`, `erreur`, `source`, `adapter_klass`, `i18n_key`, `format_lisible`,
+`annuaire_url`.
 
 **Formats acceptés** :
 - 14 chars : SIRET français (API Entreprise, flux upstream standard)
-- 9 chars : numéro TAHITI complet (ex. `G33972001`) via API ISPF `i-taiete`
-- 6-8 chars : numéro TAHITI partiel → résolution ambiguë (voir état `multiple_found`)
+- 9 chars : numéro Tahiti complet (ex. `G33972001`) via API ISPF `i-taiete`
+- 6-8 chars : numéro Tahiti partiel → résolution ambiguë (voir état `multiple_found`)
 
 **État AASM `multiple_found`** (`app/models/concerns/champ_external_data_concern.rb`)
 Nouveau transition `fetching → multiple_found` spécifique PF, déclenchée quand un
-numéro TAHITI 6-8 chars correspond à **plusieurs établissements**. Les candidats sont
+numéro Tahiti 6-8 chars correspond à **plusieurs établissements**. Les candidats sont
 stockés dans la colonne `data` (`{ multiple_found: [...] }`) et affichés via
 `EditableChamp::EtablissementsListComponent`. Le clic sur un établissement remplit
 l'input avec le numéro 9 chars complet, ce qui déclenche un nouveau cycle
@@ -137,16 +148,48 @@ Quand un numéro 6-8 chars matche **un seul** établissement, on construit
 l'établissement directement à partir du candidat déjà récupéré par
 `list_etablissements` — évite un 2e appel ISPF inutile.
 
-**Validateur custom** (`app/validators/siret_validator.rb`)
-Remplace la gem `siret_validator` (qui ne connaît que 14 chars) pour accepter
-les longueurs 6/9/14 et skipper la validation Luhn pour les numéros TAHITI
-(qui n'utilisent pas ce checksum).
+**Validateur** (`app/validators/identifiant_entreprise_validator.rb`,
+`IdentifiantEntrepriseValidator`)
+Renommé depuis l'ancien `app/validators/siret_validator.rb` : ce dernier
+portait le même nom de classe que la gem `siret_validator` d'upstream (qui ne
+connaît que le format à 14 chars). Un merge qui réintroduit la gem au Gemfile
+redéfinirait la constante au boot ; le fichier applicatif serait alors ignoré
+et la validation des numéros Tahiti désactivée en silence. Le nom distinct
+supprime définitivement la collision. Délègue à `IdentifiantEntreprise#valide?`
+/ `#erreur` — plus de comparaison de longueur ad hoc dans le validateur.
 
 **Fichiers clés** :
-- `app/models/champs/siret_champ.rb` — dispatch par longueur dans `fetch_external_data`
+- `app/models/identifiant_entreprise.rb` — value object, source unique de la règle « Tahiti ou SIRET ? »
+- `app/models/champs/siret_champ.rb` — dispatch via `identifiant.tahiti_partiel?` dans `fetch_external_data`
 - `app/lib/api_entreprise/pf_api.rb` + `pf_etablissement_adapter.rb` — client API ISPF
 - `app/components/editable_champ/etablissements_list_component/` — UI liste + JS de sélection
 - `app/components/dsfr/input_status_message_component.rb` — message de statut `multiple_found`
+
+**Terminologie côté interface** (`config/custom_locales/entreprise.{fr,en}.yml`)
+Terme canonique : « numéro Tahiti ou SIRET » (Tahiti en capitale initiale,
+SIRET en capitales). Les surcharges de libellé vivent dans
+`config/custom_locales/`, chargé après `config/locales/**`
+(`config/application.rb`) — I18n fait un deep-merge où le dernier chargé
+gagne, donc un merge upstream qui réécrit les fichiers de locales passe sans
+conflit et notre terminologie gagne quand même. On ne patche plus les
+fichiers de locales upstream en place pour cette terminologie ; seules des
+clés strictement neuves (sans équivalent amont) restent dans `config/locales`.
+
+Deux gardes dans `spec/i18n/terminologie_entreprise_spec.rb` :
+- **clés sensibles** (`activerecord.attributes.siret` et consorts) : vérifie
+  que la valeur résolue mentionne bien Tahiti *et* SIRET — protège contre une
+  régression du texte de la surcharge et contre un renversement de l'ordre de
+  chargement dans `config/application.rb`.
+- **anti-orphelin** : vérifie que toute clé présente dans `custom_locales`
+  existe encore (non nil) dans `config/locales` — protège contre un
+  renommage ou une suppression de la clé d'origine par upstream qui rendrait
+  la surcharge silencieusement inopérante.
+
+Les locales *sidecar* de ViewComponent (`mon_component.fr.yml` /
+`mon_component.en.yml` à côté du composant) ne sont pas atteintes par
+`config/custom_locales/` (répertoire distinct, pas chargé pour elles) : leur
+terminologie s'édite directement en place, comme tout autre libellé de
+composant.
 
 ### DecimalNumberChamp (`app/models/champs/decimal_number_champ.rb:7`)
 - Optimisation des messages d'erreur pour éviter les erreurs "trois chiffres" avec des caractères non numériques

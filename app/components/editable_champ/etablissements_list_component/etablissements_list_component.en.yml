@@ -1,5 +1,5 @@
 ---
 en:
-  ambiguous_prefix_html: "Several establishments match this TAHITI number. Please pick the one you are looking for:"
+  ambiguous_prefix_html: "Several establishments match this Tahiti number or SIRET. Please pick the one you are looking for:"
   label: Select an establishment
   select: Select

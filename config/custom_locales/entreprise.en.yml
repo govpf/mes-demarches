@@ -22,8 +22,17 @@ en:
               # not repeat the term in these two messages.
               format: "Tahiti number or SIRET %{message}"
               length: "must be 6 to 9 characters (Tahiti) or 14 digits (SIRET)"
-  # pf: "Edit number" button on the dossier page (usager + instructeur)
   views:
+    # pf: identification form (siret.html.haml) — both registries are
+    # presented on equal footing, each with its own directory.
+    users:
+      dossiers:
+        identite:
+          complete_siret: "Enter your company, administration or association identification number to start."
+          siret_placeholder: "Tahiti number or SIRET"
+          siret_help_html: "French Polynesia: 6 or 9-character Tahiti number, available on %{annuaire_link} or from your accounting department."
+          annuaire_link_title: "Search for a Tahiti number on the French Polynesia business directory"
+    # pf: "Edit number" button on the dossier page (usager + instructeur)
     shared:
       dossiers:
         demande:

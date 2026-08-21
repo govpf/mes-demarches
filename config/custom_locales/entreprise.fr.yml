@@ -59,8 +59,17 @@ fr:
   errors:
     messages:
       invalid_siret_length: "Le numéro doit être un numéro Tahiti (6 à 9 caractères) ou un numéro SIRET (14 chiffres)."
-  # pf: bouton « Modifier le numéro » sur la page dossier (usager + instructeur)
   views:
+    # pf: formulaire d'identification (siret.html.haml) — les deux référentiels
+    # sont présentés à égalité, avec leurs deux annuaires respectifs.
+    users:
+      dossiers:
+        identite:
+          complete_siret: "Renseignez le numéro d’identification de votre entreprise, administration ou association pour commencer la démarche."
+          siret_placeholder: "numéro Tahiti ou SIRET"
+          siret_help_html: "Polynésie française : numéro Tahiti à 6 ou 9 caractères, à retrouver sur %{annuaire_link} ou auprès de votre service comptable."
+          annuaire_link_title: "Rechercher un numéro Tahiti sur l’annuaire des entreprises de Polynésie française"
+    # pf: bouton « Modifier le numéro » sur la page dossier (usager + instructeur)
     shared:
       dossiers:
         demande:

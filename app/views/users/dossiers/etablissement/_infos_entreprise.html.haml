@@ -24,13 +24,16 @@
   -# %p Les exercices comptables des trois dernières années pourront être joints à votre dossier.
 
   - api_token = etablissement.dossier.procedure.api_entreprise_token
-  - if api_token.can_fetch_attestation_sociale?
-    %p Une attestation sociale sera jointe à votre dossier
-  - if api_token.can_fetch_attestation_fiscale?
-    %p Une attestation fiscale sera jointe à votre dossier
-  - if api_token.can_fetch_bilans_bdf?
-    %p Les 3 derniers bilans connus de votre entreprise par la Banque de France ont été joints à votre dossier.
+  -# pf: can_fetch_*? ne lit que les rôles du jeton, jamais la nature du
+  -# numéro — ces jobs ne sont enfilés que pour un SIRET (FRENCH_ONLY_JOBS).
+  - if IdentifiantEntreprise.parse(etablissement.siret).siret?
+    - if api_token.can_fetch_attestation_sociale?
+      %p Une attestation sociale sera jointe à votre dossier
+    - if api_token.can_fetch_attestation_fiscale?
+      %p Une attestation fiscale sera jointe à votre dossier
+    - if api_token.can_fetch_bilans_bdf?
+      %p Les 3 derniers bilans connus de votre entreprise par la Banque de France ont été joints à votre dossier.
 %p
-  = link_to "➡ Autres informations sur le site de l\'ISPF",
+  = link_to "➡ Autres informations sur l’annuaire des entreprises",
   annuaire_link(etablissement.siret),
   target: "_blank"

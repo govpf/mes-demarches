@@ -208,7 +208,15 @@ describe APIEntrepriseService do
 
       it 'enfile tous les jobs français' do
         subject
-        expect(jobs_enfiles).to match_array(APIEntrepriseService::FRENCH_ONLY_JOBS)
+        # pf: liste en dur plutôt que la constante testée — sinon retirer un job
+        # de FRENCH_ONLY_JOBS laisse ce test vert (garde auto-référentielle).
+        expect(jobs_enfiles).to match_array([
+          APIEntreprise::EntrepriseJob, APIEntreprise::ExtraitKbisJob, APIEntreprise::TvaJob,
+          APIEntreprise::AssociationJob, APIEntreprise::ExercicesJob,
+          APIEntreprise::EffectifsJob, APIEntreprise::EffectifsAnnuelsJob,
+          APIEntreprise::AttestationSocialeJob, APIEntreprise::BilansBdfJob,
+          APIEntreprise::AttestationFiscaleJob,
+        ])
       end
     end
 

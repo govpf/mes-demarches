@@ -473,12 +473,12 @@ en:
           first_name: First Name
           last_name: Last Name
           birthdate: Birth date
-          # pf: two registries coexist — Tahiti number (ISPF) and SIRET (API Entreprise)
-          complete_siret: Enter your company, administration or association identification number to start.
-          siret_placeholder: Tahiti number or SIRET
-          siret_help_html: "French Polynesia: 6 or 9-character Tahiti number, available on %{annuaire_link} or from your accounting department."
+          # pf: Tahiti number is used instead of SIRET in French Polynesia
+          complete_siret: Fill the TAHITI number of your company, administration or association to start the procedure.
+          siret_placeholder: TAHITI number with 6 or 9 characters
+          siret_help_html: To find your TAHITI number, use %{annuaire_link} or ask your accounting department.
           siret_help_fr_html: "Mainland France and overseas: 14-digit SIRET number, available on %{annuaire_fr_link}."
-          annuaire_link_title: Search for a Tahiti number on the French Polynesia business directory
+          annuaire_link_title: Search for a TAHITI number in the Companies Directory
           annuaire_fr_link_title: Search for a SIRET number on the Annuaire des Entreprises
           etablissement_pending: This number exists, we are retrieving its information.
           siret_loading: Information retrieval…

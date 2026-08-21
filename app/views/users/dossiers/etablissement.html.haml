@@ -8,12 +8,16 @@
     %h1 Informations sur l’établissement
 
     - etablissement = @dossier.etablissement
+    - identifiant = IdentifiantEntreprise.parse(etablissement.siret)
 
     - if etablissement.as_degraded_mode?
       = render Dsfr::CalloutComponent.new(title: "Nous n’avons pas pu vérifier votre numéro Tahiti ou SIRET", theme: :warning, icon: "fr-icon-feedback-fill") do |c|
         - c.with_body do
           %p
-            L’annuaire i-taiete des entreprises est indisponible, nous ne pouvons pas vérifier votre numéro Tahiti ou SIRET.
+            - if identifiant.tahiti?
+              L’annuaire i-taiete des entreprises est indisponible, nous ne pouvons pas vérifier votre numéro Tahiti ou SIRET.
+            - else
+              Le service de vérification des entreprises est indisponible, nous ne pouvons pas vérifier votre numéro Tahiti ou SIRET.
             %br
             %br
             Veuillez vérifier par vous-même que le numéro
@@ -22,14 +26,17 @@
 
           %p
             = link_to annuaire_link(etablissement.siret), class: "fr-btn fr-btn--secondary", **external_link_attributes do
-              Vérifier dans l'annuaire des entreprises de l'ISPf
+              Vérifier dans l’annuaire des entreprises
 
     - elsif etablissement.diffusable_commercialement == false
       %p= t('warning_for_private_info', scope: 'views.shared.dossiers.identite_entreprise', siret: pretty_siret(etablissement.siret))
 
     - else
       %p
-        Nous avons récupéré auprès de l'ISPF les informations suivantes concernant votre établissement.
+        - if identifiant.tahiti?
+          Nous avons récupéré auprès de l’ISPF les informations suivantes concernant votre établissement.
+        - else
+          Nous avons récupéré auprès d’API Entreprise les informations suivantes concernant votre établissement.
 
       %p
         Ces informations seront jointes à votre dossier.

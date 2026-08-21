@@ -479,12 +479,12 @@ fr:
           first_name: Prénom
           last_name: Nom
           birthdate: Date de naissance
-          # pf: deux référentiels cohabitent — numéro Tahiti (ISPF) et SIRET (API Entreprise)
-          complete_siret: Renseignez le numéro d’identification de votre entreprise, administration ou association pour commencer la démarche.
-          siret_placeholder: numéro Tahiti ou SIRET
-          siret_help_html: "Polynésie française : numéro Tahiti à 6 ou 9 caractères, à retrouver sur %{annuaire_link} ou auprès de votre service comptable."
+          # pf: Tahiti number is used instead of SIRET in French Polynesia
+          complete_siret: Renseignez le numéro TAHITI de votre entreprise, administration ou association pour commencer la démarche.
+          siret_placeholder: numéro TAHITI à 6 ou 9 caractères
+          siret_help_html: Pour trouver votre numéro TAHITI, utilisez %{annuaire_link} ou renseignez-vous auprès de votre service comptable.
           siret_help_fr_html: "Métropole et outre-mer : numéro SIRET à 14 chiffres, à retrouver sur %{annuaire_fr_link}."
-          annuaire_link_title: Rechercher un numéro Tahiti sur l’annuaire des entreprises de Polynésie française
+          annuaire_link_title: Rechercher un numéro TAHITI sur l’Annuaire des Entreprises
           annuaire_fr_link_title: Rechercher un numéro SIRET sur l’Annuaire des Entreprises
           etablissement_pending: Ce numéro existe, nous en récupérons les informations.
           siret_loading: Récupération des informations…
