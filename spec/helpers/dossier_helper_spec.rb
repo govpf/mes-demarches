@@ -73,9 +73,11 @@ RSpec.describe DossierHelper, type: :helper do
       end
 
       context "when the company is not diffusable" do
-        let(:etablissement) { build(:etablissement, :non_diffusable, siret: "12345678901234") }
+        # pf: SIRET valide au sens de Luhn — la mise en forme passe par
+        # IdentifiantEntreprise, qui vérifie la clé de controle.
+        let(:etablissement) { build(:etablissement, :non_diffusable, siret: "41816609600051") }
 
-        it { is_expected.to include("123 456 789 01234") }
+        it { is_expected.to include("418 166 096 00051") }
       end
     end
   end

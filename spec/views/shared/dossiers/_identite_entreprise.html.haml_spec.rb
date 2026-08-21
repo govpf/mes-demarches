@@ -18,11 +18,13 @@ describe 'shared/dossiers/identite_entreprise', type: :view do
   end
 
   context "for an entreprise with private infos" do
-    let(:etablissement) { create(:etablissement, :non_diffusable, siret: "12345678900001") }
+    # pf: SIRET valide au sens de Luhn — la mise en forme passe par
+    # IdentifiantEntreprise, qui vérifie la clé de controle.
+    let(:etablissement) { create(:etablissement, :non_diffusable, siret: "41816609600051") }
 
     it "hide any info except siret" do
       subject
-      expect(rendered).to have_text("123 456 789 00001")
+      expect(rendered).to have_text("418 166 096 00051")
       expect(rendered).not_to have_text(etablissement.entreprise_raison_sociale)
       expect(rendered).not_to have_text(etablissement.entreprise.forme_juridique)
     end
@@ -60,23 +62,26 @@ describe 'shared/dossiers/identite_entreprise', type: :view do
     end
 
     context 'siret siege social' do
-      let(:etablissement) { create(:etablissement, siret: "12345678900001", entreprise_siret_siege_social: siret_siege_social) }
+      # pf: SIRET valide au sens de Luhn — la mise en forme passe par
+      # IdentifiantEntreprise, qui vérifie la clé de controle.
+      let(:etablissement) { create(:etablissement, siret: "41816609600051", entreprise_siret_siege_social: siret_siege_social) }
 
       context 'when siege social has same siret' do
-        let(:siret_siege_social) { "12345678900001" }
+        let(:siret_siege_social) { "41816609600051" }
 
         it 'does not duplicate siret' do
-          expect(subject).to include("123 456 789 00001").once
+          expect(subject).to include("418 166 096 00051").once
         end
       end
 
       context 'when siege social is different' do
-        let(:siret_siege_social) { "98765432100001" }
+        # pf: également un SIRET valide au sens de Luhn, distinct du précédent
+        let(:siret_siege_social) { "44011762001530" }
 
         it 'shows both sirets' do
-          expect(subject).to include("123 456 789 00001")
+          expect(subject).to include("418 166 096 00051")
           expect(subject).to include("Numéro TAHITI du siège social")
-          expect(subject).to include("987 654 321 00001")
+          expect(subject).to include("440 117 620 01530")
         end
       end
 
