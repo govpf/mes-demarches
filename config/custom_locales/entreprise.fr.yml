@@ -46,4 +46,3 @@ fr:
   errors:
     messages:
       invalid_siret_length: "Le numéro doit être un numéro Tahiti (6 à 9 caractères) ou un numéro SIRET (14 chiffres)."
-      siret_not_found: "Nous n’avons pas trouvé d’établissement correspondant à ce numéro Tahiti ou SIRET."
