@@ -69,6 +69,54 @@ describe APIEntrepriseService do
     end
   end
 
+  # pf: le routage passait par des comparaisons de longueur divergentes selon la
+  # méthode. Un numéro de 10 à 13 caractères partait en appel API via `> 9`.
+  describe '#create_etablissement — routage par nature du numéro' do
+    let(:procedure) { create(:procedure, api_entreprise_token: nil) }
+    let(:dossier) { create(:dossier, procedure: procedure) }
+
+    subject { APIEntrepriseService.create_etablissement(dossier, siret, nil) }
+
+    context 'with an 11-char number, neither Tahiti nor SIRET' do
+      let(:siret) { '12345678901' }
+
+      it 'renvoie nil sans aucun appel réseau' do
+        expect(APIEntreprise::EtablissementAdapter).not_to receive(:new)
+        expect(APIEntreprise::PfEtablissementAdapter).not_to receive(:new)
+        expect(subject).to be_nil
+      end
+    end
+
+    context 'with a partial Tahiti number' do
+      let(:siret) { 'G33972' }
+
+      it 'renvoie nil — la résolution passe par list_etablissements' do
+        expect(subject).to be_nil
+      end
+    end
+  end
+
+  describe '#list_etablissements — routage par nature du numéro' do
+    subject { APIEntrepriseService.list_etablissements(saisie, nil) }
+
+    context 'with a complete Tahiti number' do
+      let(:saisie) { 'G33972001' }
+
+      it 'renvoie nil — un numéro complet se résout directement' do
+        expect(subject).to be_nil
+      end
+    end
+
+    context 'with an 11-char number' do
+      let(:saisie) { '12345678901' }
+
+      it 'renvoie nil sans appel réseau' do
+        expect(APIEntreprise::PfEtablissementAdapter).not_to receive(:new)
+        expect(subject).to be_nil
+      end
+    end
+  end
+
   describe '#create_etablissement_as_degraded_mode' do
     let(:siret) { '41816609600051' }
     let(:valid_token) { "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" }

@@ -14,15 +14,14 @@ class APIEntrepriseService
   ].freeze
 
   class << self
-    # PF: Specific method for handling ambiguous TAHITI numbers (< 9 chars)
-    # In French Polynesia, a 6-char TAHITI number can match multiple establishments
-    # This method lists all possible establishments for user selection
+    # pf: un numéro Tahiti partiel (6 à 8 car.) peut correspondre à plusieurs
+    # établissements. On les liste pour que l'usager choisisse.
     def list_etablissements(siret_prefix, procedure_id = nil)
-      return nil unless siret_prefix.present? && siret_prefix.length < 9
+      identifiant = IdentifiantEntreprise.parse(siret_prefix)
+      return nil unless identifiant.tahiti_partiel?
 
       begin
-        adapter = APIEntreprise::PfEtablissementAdapter.new(siret_prefix, procedure_id)
-        adapter.to_all_etablissements
+        APIEntreprise::PfEtablissementAdapter.new(identifiant.valeur, procedure_id).to_all_etablissements
       rescue APIEntreprise::API::Error::ResourceNotFound
         nil
       end
@@ -38,21 +37,22 @@ class APIEntrepriseService
     # (timeout, 5XX HTTP error code, etc.)
     def create_etablissement(dossier_or_champ, siret, user_id = nil)
       procedure_id = dossier_or_champ.procedure.id
+      identifiant = IdentifiantEntreprise.parse(siret)
 
-      # PF: Handle 9-char TAHITI numbers (6 chars company + 3 chars establishment)
-      etablissement_params = if siret.length == 9
-        APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id).to_params
-      elsif siret.length > 9
-        APIEntreprise::EtablissementAdapter.new(siret, procedure_id).to_params
+      etablissement_params = if identifiant.tahiti_complet?
+        APIEntreprise::PfEtablissementAdapter.new(identifiant.valeur, procedure_id).to_params
+      elsif identifiant.siret?
+        APIEntreprise::EtablissementAdapter.new(identifiant.valeur, procedure_id).to_params
       else
-        # PF: SIRET < 9 chars is ambiguous, use list_etablissements instead
+        # pf: numéro Tahiti partiel → passer par list_etablissements ;
+        # numéro invalide → rien à résoudre.
         return nil
       end
 
       return nil if etablissement_params.blank?
 
-      if siret.length > 9
-        entreprise_params = APIEntreprise::EntrepriseAdapter.new(siret, procedure_id).to_params
+      if identifiant.siret?
+        entreprise_params = APIEntreprise::EntrepriseAdapter.new(identifiant.valeur, procedure_id).to_params
         etablissement_params.merge!(entreprise_params) if entreprise_params.any?
       end
 
@@ -62,12 +62,11 @@ class APIEntrepriseService
       if dossier_or_champ.is_a?(Champ)
         dossier_or_champ.update!(value_json: APIGeoService.parse_etablissement_address(etablissement))
       end
-      if siret.length > 9
-        perform_later_fetch_jobs(etablissement, procedure_id, user_id)
-      end
+      # perform_later_fetch_jobs s'auto-garde depuis la phase 2 (nature du numéro
+      # + présence du jeton) — pas de condition à dupliquer ici.
+      perform_later_fetch_jobs(etablissement, procedure_id, user_id)
       # pf: la cascade explicite des formules est déclenchée par
-      # Etablissement#update_champ_value_json! (couvre les deux cas Champ et
-      # Dossier-level — formules qui lisent entreprise.raison_commerciale).
+      # Etablissement#update_champ_value_json! (couvre les cas Champ et Dossier).
       etablissement.update_champ_value_json!
       etablissement
     end
@@ -100,25 +99,19 @@ class APIEntrepriseService
     end
 
     def update_etablissement_from_degraded_mode(etablissement, procedure_id)
-      siret = etablissement.siret
-      # pf: Support TAHITI numbers (6-9 chars) in degraded mode
-      # For 6-char numbers, validate only if there's a single establishment (95% of cases)
-      etablissement_params = if siret.length >= 6 && siret.length <= 9
-        adapter = APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id)
-        params = adapter.to_params
+      identifiant = IdentifiantEntreprise.parse(etablissement.siret)
 
-        # If SIRET was not completed (still 6 chars), it means multiple establishments exist
-        # In this case, we can't auto-validate in degraded mode
-        if params.present? && params[:siret].present? && params[:siret].length == 9
-          params
-        else
-          # Multiple establishments or error: can't auto-complete
-          return nil
-        end
-      elsif siret.length > 9
-        APIEntreprise::EtablissementAdapter.new(siret, procedure_id).to_params
+      etablissement_params = if identifiant.tahiti?
+        # pf: en mode dégradé, un numéro partiel ne peut pas être auto-complété
+        # (plusieurs candidats possibles). On ne valide que si l'adapter a rendu
+        # un numéro complet à 9 caractères.
+        params = APIEntreprise::PfEtablissementAdapter.new(identifiant.valeur, procedure_id).to_params
+        return nil unless params.present? && IdentifiantEntreprise.parse(params[:siret]).tahiti_complet?
+
+        params
+      elsif identifiant.siret?
+        APIEntreprise::EtablissementAdapter.new(identifiant.valeur, procedure_id).to_params
       else
-        # Invalid SIRET length
         return nil
       end
       return nil if etablissement_params.empty?
