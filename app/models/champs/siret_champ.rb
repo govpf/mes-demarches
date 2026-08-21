@@ -126,8 +126,8 @@ class Champs::SiretChamp < Champ
       return
     end
 
-    # pf: custom SiretValidator accepts SIRET (14) and Tahiti (6/9)
-    validator = SiretValidator.new(attributes: { external_id: true })
+    # pf: validateur maison, accepte numéro Tahiti (6-9) et SIRET (14)
+    validator = IdentifiantEntrepriseValidator.new(attributes: { external_id: true })
     validator.validate_each(self, :external_id, external_id)
 
     errors.add(:external_id, :not_found) if errors.empty?

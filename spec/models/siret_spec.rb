@@ -44,4 +44,48 @@ describe Siret, type: :model do
 
     it { is_expected.to be_valid }
   end
+
+  # pf: le numéro Tahiti est le format dominant en Polynésie — il n'était
+  # couvert par aucun exemple, d'où la divergence historique sur les 7-8 car.
+  context 'with a 6-char Tahiti number' do
+    let(:siret) { 'G33972' }
+
+    it { is_expected.to be_valid }
+  end
+
+  context 'with a 7-char partial Tahiti number' do
+    let(:siret) { 'G339720' }
+
+    it { is_expected.to be_valid }
+  end
+
+  context 'with an 8-char partial Tahiti number' do
+    let(:siret) { 'G3397200' }
+
+    it { is_expected.to be_valid }
+  end
+
+  context 'with a 9-char Tahiti number' do
+    let(:siret) { 'G33972001' }
+
+    it { is_expected.to be_valid }
+  end
+
+  context 'with a 9-char numeric-only Tahiti number' do
+    let(:siret) { '002253001' }
+
+    it { is_expected.to be_valid }
+  end
+
+  context 'with a hyphen-formatted Tahiti number' do
+    let(:siret) { 'G33972-001' }
+
+    it { is_expected.to be_valid }
+  end
+
+  context 'with an 11-char number, neither Tahiti nor SIRET' do
+    let(:siret) { '12345678901' }
+
+    it { is_expected.to be_invalid }
+  end
 end
