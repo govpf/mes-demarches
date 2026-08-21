@@ -20,8 +20,11 @@
           = render Dsfr::InputComponent.new form: f, attribute: :siret, opts: { placeholder: t('views.users.dossiers.identite.siret_placeholder') }
 
         .fr-fieldset__element
-          -# pf: annuaire link to ispf.pf/rte (PF specificity)
+          -# pf: deux référentiels présentés à égalité — l'usager ignore lequel
+          -# le concerne avant de lire cette aide
           %p.fr-text--sm= t('views.users.dossiers.identite.siret_help_html',
                             annuaire_link: link_to('ispf.pf/rte', annuaire_link, title: new_tab_suffix(t('views.users.dossiers.identite.annuaire_link_title')), **external_link_attributes))
+          %p.fr-text--sm= t('views.users.dossiers.identite.siret_help_fr_html',
+                            annuaire_fr_link: link_to('annuaire-entreprises.data.gouv.fr', 'https://annuaire-entreprises.data.gouv.fr', title: new_tab_suffix(t('views.users.dossiers.identite.annuaire_fr_link_title')), **external_link_attributes))
 
       = f.submit t('views.users.dossiers.identite.continue'), class: "fr-btn", data: { disable_with: t('views.users.dossiers.identite.siret_loading') }

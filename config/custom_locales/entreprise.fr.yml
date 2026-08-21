@@ -24,10 +24,11 @@ fr:
         siret: "Numéro Tahiti ou SIRET"
       champs/siret_champ:
         hints:
-          # pf: pas d'exemple purement numérique ici — la mise en forme à la frappe
-          # ne pose pas de tiret sur un numéro de 9 chiffres, indiscernable des 9
-          # premiers chiffres d'un SIRET en cours de saisie (cf. Task 9).
-          value: "Numéro Tahiti à 6 ou 9 caractères (ex. G33972-001) ou numéro SIRET à 14 chiffres (ex. 418 166 096 00051)."
+          # pf: le garde anti-ambiguïté ne s'applique qu'à la frappe en cours —
+          # une valeur complète reçoit bien son tiret, y compris purement
+          # numérique (formatIdentifiantEntreprise('002253001') => '002253-001',
+          # cf. app/javascript/shared/identifiant-entreprise.test.ts).
+          value: "Numéro Tahiti à 6 ou 9 caractères (ex. G33972-001 ou 002253-001) ou numéro SIRET à 14 chiffres (ex. 418 166 096 00051)."
     errors:
       models:
         champs/siret_champ:

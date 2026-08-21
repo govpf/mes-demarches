@@ -29,7 +29,7 @@ class AdministrateurMailer < ApplicationMailer
   end
 
   def notify_service_without_siret(user_email)
-    @subject = "Numéro TAHITI manquant sur un de vos services"
+    @subject = "Numéro Tahiti ou SIRET manquant sur un de vos services"
 
     configure_defaults_for_email(user_email)
     mail(to: user_email,
