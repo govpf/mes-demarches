@@ -284,6 +284,22 @@ RSpec.describe DossierHelper, type: :helper do
     end
   end
 
+  describe '#annuaire_link' do
+    it 'renvoie la racine ISPF sans numéro' do
+      expect(helper.annuaire_link).to eq('https://www.ispf.pf/rte')
+    end
+
+    it 'renvoie la fiche ISPF pour un numéro Tahiti' do
+      expect(helper.annuaire_link('G33972001')).to eq('https://www.ispf.pf/rte/attestation/G33972/001')
+    end
+
+    # pf: sans discrimination, un SIRET produisait une URL ISPF absurde
+    it 'renvoie l’annuaire des entreprises pour un SIRET' do
+      expect(helper.annuaire_link('41816609600051'))
+        .to eq('https://annuaire-entreprises.data.gouv.fr/etablissement/41816609600051')
+    end
+  end
+
   describe ".clean_string_for_pdf" do
     subject { clean_string_for_pdf(input) }
 

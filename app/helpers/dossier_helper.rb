@@ -227,9 +227,9 @@ module DossierHelper
   end
 
   def annuaire_link(siren_or_siret = nil)
-    base_url = "https://www.ispf.pf/rte"
-    return base_url if siren_or_siret.blank?
-    "#{base_url}/attestation/#{siren_or_siret.first(6)}/#{siren_or_siret.last(3)}"
+    # pf: l'annuaire dépend du référentiel — ISPF pour un numéro Tahiti,
+    # annuaire-entreprises.data.gouv.fr pour un SIRET
+    IdentifiantEntreprise.parse(siren_or_siret).annuaire_url
   end
 
   def france_connect_informations(user)

@@ -26,6 +26,15 @@ RSpec.describe EtablissementHelper, type: :helper do
     it { is_expected.to eq("123 456 789 00001") }
   end
 
+  describe '#pretty_siret' do
+    it { expect(helper.pretty_siret(nil)).to be_nil }
+    it { expect(helper.pretty_siret('G33972001')).to eq('G33972-001') }
+    it { expect(helper.pretty_siret('g33972-001')).to eq('G33972-001') }
+    it { expect(helper.pretty_siret('41816609600051')).to eq('418 166 096 00051') }
+    # pf: un numéro Tahiti partiel reste lisible
+    it { expect(helper.pretty_siret('G339720')).to eq('G33972-0') }
+  end
+
   describe "#extract_resultat_exercice" do
     let(:bilan) { bilans.first }
     context 'having results' do
