@@ -1,8 +1,12 @@
 # frozen_string_literal: true
 
 # pf: ces specs ne testent pas du code, ils testent une discipline.
-# Leur rôle est de faire échouer la CI au prochain merge upstream plutôt que de
-# laisser une régression de libellé partir en production.
+# Deux gardes complémentaires, chacun couvrant un risque distinct :
+# - celui-ci (clés sensibles) protège notre propre surcharge contre une
+#   régression de son texte, et protège l'ordre de chargement (custom_locales
+#   doit rester chargé après config/locales dans config/application.rb) ;
+# - l'anti-orphelin, plus bas, protège contre une clé qu'upstream aurait
+#   renommée ou supprimée sous nos pieds.
 # Clés qui désignent l'identifiant d'entreprise sans savoir de quel référentiel
 # il relève : elles doivent mentionner les deux. Défini hors du bloc describe
 # pour ne pas déclencher Lint/ConstantDefinitionInBlock.
@@ -15,6 +19,15 @@ CLES_TERMINOLOGIE_ENTREPRISE = [
 ].freeze
 
 describe 'Terminologie de l’identifiant d’entreprise' do
+  # Ce garde ne peut pas détecter un changement de texte upstream sous une même
+  # clé : I18n.t lit le backend fusionné, où notre surcharge gagne toujours tant
+  # que la clé existe encore. Ce qu'il détecte réellement :
+  # - une régression du texte de notre propre surcharge (faute de frappe,
+  #   édition partielle, casse altérée) ;
+  # - un renversement de l'ordre de chargement dans config/application.rb —
+  #   si custom_locales cessait d'être chargé après config/locales, upstream
+  #   regagnerait et ce test échouerait. C'est le seul filet sur cette
+  #   hypothèse, plausible lors d'un merge upstream qui touche application.rb.
   describe 'chaque clé sensible mentionne les deux référentiels' do
     CLES_TERMINOLOGIE_ENTREPRISE.each do |cle|
       it "#{cle} mentionne Tahiti et SIRET" do
@@ -22,9 +35,11 @@ describe 'Terminologie de l’identifiant d’entreprise' do
 
         expect(valeur).to be_a(String), "#{cle} n’existe pas ou n’est pas une chaîne"
         expect(valeur).to match(/Tahiti/i),
-          "#{cle} = #{valeur.inspect} — upstream a probablement réintroduit « SIRET » seul"
+          "#{cle} = #{valeur.inspect} — soit notre surcharge a régressé, soit " \
+          'custom_locales n’est plus chargé après config/locales (cf. config/application.rb)'
         expect(valeur).to match(/SIRET/i),
-          "#{cle} = #{valeur.inspect} — le SIRET métropolitain doit être mentionné"
+          "#{cle} = #{valeur.inspect} — soit notre surcharge a régressé, soit " \
+          'custom_locales n’est plus chargé après config/locales (cf. config/application.rb)'
       end
     end
   end
