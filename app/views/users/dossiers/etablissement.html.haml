@@ -10,10 +10,10 @@
     - etablissement = @dossier.etablissement
 
     - if etablissement.as_degraded_mode?
-      = render Dsfr::CalloutComponent.new(title: "Nous n'avons pas pu vérifier votre numéro Tahiti ou SIRET", theme: :warning, icon: "fr-icon-feedback-fill") do |c|
+      = render Dsfr::CalloutComponent.new(title: "Nous n’avons pas pu vérifier votre numéro Tahiti ou SIRET", theme: :warning, icon: "fr-icon-feedback-fill") do |c|
         - c.with_body do
           %p
-            L'annuaire i-taiete des entreprises est indisponible, nous ne pouvons pas vérifier votre numéro Tahiti ou SIRET.
+            L’annuaire i-taiete des entreprises est indisponible, nous ne pouvons pas vérifier votre numéro Tahiti ou SIRET.
             %br
             %br
             Veuillez vérifier par vous-même que le numéro

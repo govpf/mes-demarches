@@ -51,7 +51,7 @@ end
     it do
       expect(subject.to).to eq([admin_email])
       expect(subject.subject).to eq("Numéro Tahiti ou SIRET manquant sur un de vos services")
-      expect(subject.body).to include("un de vos services n'a pas son numéro Tahiti ou SIRET renseigné")
+      expect(subject.body).to include("un de vos services n’a pas son numéro Tahiti ou SIRET renseigné")
     end
 
     context 'when perform_later is called' do

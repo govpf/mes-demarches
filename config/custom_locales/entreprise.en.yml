@@ -9,3 +9,22 @@ en:
         siret: "Tahiti number or SIRET"
       service:
         siret: "Tahiti number or SIRET"
+    errors:
+      models:
+        # pf: formatting/pre-fill errors for the service's Tahiti number or
+        # SIRET (admin form), cf. config/locales/models/service/en.yml
+        service:
+          attributes:
+            siret:
+              format: "Tahiti number or SIRET %{message}"
+              not_prefillable: "Unable to pre-fill information for this Tahiti number or SIRET, please fill it manually"
+  # pf: "Edit number" button on the dossier page (usager + instructeur)
+  views:
+    shared:
+      dossiers:
+        demande:
+          edit_siret: "Edit Tahiti number or SIRET"
+    prefill_descriptions:
+      edit:
+        possible_values:
+          siret_html: "A Tahiti number or SIRET"

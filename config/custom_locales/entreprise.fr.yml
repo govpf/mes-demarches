@@ -35,6 +35,13 @@ fr:
           attributes:
             external_id:
               length: "doit être un numéro Tahiti (6 à 9 caractères) ou un numéro SIRET (14 chiffres)"
+        # pf: erreurs de formatage/préremplissage du numéro Tahiti ou SIRET du
+        # service (formulaire admin), cf. config/locales/models/service/fr.yml
+        service:
+          attributes:
+            siret:
+              format: "Le numéro Tahiti ou SIRET %{message}"
+              not_prefillable: "Impossible de préremplir les informations pour ce numéro Tahiti ou SIRET, veuillez les saisir manuellement"
   activemodel:
     models:
       siret: "Numéro Tahiti ou SIRET"
@@ -47,3 +54,18 @@ fr:
   errors:
     messages:
       invalid_siret_length: "Le numéro doit être un numéro Tahiti (6 à 9 caractères) ou un numéro SIRET (14 chiffres)."
+  # pf: bouton « Modifier le numéro » sur la page dossier (usager + instructeur)
+  views:
+    shared:
+      dossiers:
+        demande:
+          edit_siret: "Modifier le numéro Tahiti ou SIRET"
+    prefill_descriptions:
+      edit:
+        possible_values:
+          siret_html: "Un numéro Tahiti ou SIRET"
+  # pf: alerte administrateur "service sans numéro" (fond de page procédures)
+  shared:
+    procedures:
+      no_siret: "Vous n’avez pas renseigné le numéro Tahiti ou SIRET du service pour certaines de vos démarches. Merci de les modifier."
+      add_siret_to_service_without_siret_html: "Ajouter le numéro Tahiti ou SIRET du service <a href=\"%{link}\">%{nom}</a>"
