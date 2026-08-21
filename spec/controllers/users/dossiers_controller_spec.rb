@@ -473,6 +473,24 @@ describe Users::DossiersController, type: :controller do
     end
   end
 
+  # pf: un numéro ni Tahiti ni SIRET doit être refusé sur le format, sans appel réseau
+  describe '#update_siret — refus de format' do
+    let(:dossier) { create(:dossier, user: user) }
+
+    before { sign_in(user) }
+
+    subject do
+      post :update_siret, params: { id: dossier.id, user: { siret: '12345678901' } }
+    end
+
+    it 'rend le formulaire sans appeler les services de résolution' do
+      expect(APIEntrepriseService).not_to receive(:create_etablissement)
+      expect(APIEntrepriseService).not_to receive(:list_etablissements)
+      subject
+      expect(response).to render_template(:siret)
+    end
+  end
+
   describe '#etablissement' do
     let(:dossier) { create(:dossier, :with_entreprise, user: user) }
 

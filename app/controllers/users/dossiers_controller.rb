@@ -231,8 +231,8 @@ module Users
         return render_siret_error(siret_model.errors.full_messages)
       end
 
-      # pf: Handle ambiguous TAHITI numbers (< 9 chars)
-      if sanitized_siret.length < 9
+      # pf: numéro Tahiti partiel — plusieurs établissements possibles
+      if identifiant.tahiti_partiel?
         @etablissements = begin
           APIEntrepriseService.list_etablissements(sanitized_siret, @dossier.procedure.id)
                           rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
@@ -261,7 +261,7 @@ module Users
                             APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, sanitized_siret, current_user.id)
                           else
                             Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: sanitized_siret })
-                            if sanitized_siret.length == 14
+                            if identifiant.siret?
                               return render_siret_error(t('errors.messages.siret.network_error'))
                             else
                               return render_siret_error(t('errors.messages.siret_network_error'))
@@ -270,7 +270,7 @@ module Users
         end
 
         if etablissement.nil?
-          if sanitized_siret.length == 14
+          if identifiant.siret?
             return render_siret_error(t('errors.messages.siret.not_found'))
           else
             return render_siret_error(t('errors.messages.siret_unknown'))
