@@ -225,6 +225,8 @@ module Users
       siret_model = Siret.new(siret: siret_params[:siret])
       valid = siret_model.valid?
       current_user.siret = sanitized_siret = siret_model.siret
+      # pf: nature du numéro saisi — pilote l'aiguillage API et le diagnostic de panne
+      identifiant = IdentifiantEntreprise.parse(sanitized_siret)
       if !valid
         return render_siret_error(siret_model.errors.full_messages)
       end
@@ -255,7 +257,7 @@ module Users
         etablissement = begin
           APIEntrepriseService.create_etablissement(@dossier, sanitized_siret, current_user.id)
                         rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
-                          if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
+                          if APIEntrepriseService.service_unavailable_error?(error, target: :insee, identifiant:)
                             APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, sanitized_siret, current_user.id)
                           else
                             Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: sanitized_siret })
@@ -614,10 +616,12 @@ module Users
     end
 
     def create_etablissement_and_redirect(siret)
+      # pf: nature du numéro — pilote le diagnostic de panne (ISPF ou API Entreprise)
+      identifiant = IdentifiantEntreprise.parse(siret)
       etablissement = begin
         APIEntrepriseService.create_etablissement(@dossier, siret, current_user.id)
                       rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
-                        if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
+                        if APIEntrepriseService.service_unavailable_error?(error, target: :insee, identifiant:)
                           # TODO: notify ops
                           APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, siret, current_user.id)
                         else

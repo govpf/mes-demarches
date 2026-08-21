@@ -57,7 +57,7 @@ class Champs::SiretChamp < Champ
   rescue APIEntrepriseToken::TokenError => error
     Failure(retryable: false, reason: error, code: 401)
   rescue APIEntreprise::API::Error => error
-    if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
+    if APIEntrepriseService.service_unavailable_error?(error, target: :insee, identifiant:)
       update!(
         etablissement: APIEntrepriseService.create_etablissement_as_degraded_mode(self, siret, dossier.user&.id)
       )

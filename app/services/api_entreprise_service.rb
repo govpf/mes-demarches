@@ -166,10 +166,16 @@ class APIEntrepriseService
       api_up?("https://entreprise.api.gouv.fr/ping/djepva/api-association")
     end
 
-    def service_unavailable_error?(error, target:)
+    def service_unavailable_error?(error, target:, identifiant: nil)
       return false if !error.try(:network_error?)
-      return true if target == :insee && !APIEntrepriseService.api_insee_up?
+
+      if target == :insee
+        # pf: deux fournisseurs — sonder celui qui a réellement été interrogé.
+        # Sans identifiant, on retombe sur l'ISPF (référentiel dominant en PF).
+        return true if identifiant&.siret? ? !fr_api_insee_up? : !api_insee_up?
+      end
       return true if target == :djepva && !APIEntrepriseService.api_djepva_up?
+
       error.is_a?(APIEntreprise::API::Error::ServiceUnavailable)
     end
 

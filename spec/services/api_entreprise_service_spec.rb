@@ -235,4 +235,44 @@ describe APIEntrepriseService do
       end
     end
   end
+
+  # pf: deux fournisseurs, donc deux sondes de santé. Diagnostiquer un échec
+  # SIRET avec la santé d'i-taiete (ou l'inverse) fait basculer des dossiers en
+  # mode dégradé à tort.
+  describe '#service_unavailable_error? — routage des sondes' do
+    let(:error) { double('error', network_error?: true, is_a?: false) }
+
+    before do
+      stub_request(:get, "https://entreprise.api.gouv.fr/ping/insee/sirene")
+        .to_return(body: Rails.root.join('spec/fixtures/files/api_entreprise/ping.json').read, status: 200)
+      stub_request(:get, API_ISPF_URL).to_return(status: 200)
+    end
+
+    context 'with a French SIRET' do
+      let(:identifiant) { IdentifiantEntreprise.parse('41816609600051') }
+
+      it 'interroge la sonde API Entreprise et non celle de l’ISPF' do
+        expect(described_class).to receive(:fr_api_insee_up?).and_return(false)
+        expect(described_class).not_to receive(:api_insee_up?)
+        expect(described_class.service_unavailable_error?(error, target: :insee, identifiant:)).to be true
+      end
+    end
+
+    context 'with a Tahiti number' do
+      let(:identifiant) { IdentifiantEntreprise.parse('G33972001') }
+
+      it 'interroge la sonde ISPF et non celle d’API Entreprise' do
+        expect(described_class).to receive(:api_insee_up?).and_return(false)
+        expect(described_class).not_to receive(:fr_api_insee_up?)
+        expect(described_class.service_unavailable_error?(error, target: :insee, identifiant:)).to be true
+      end
+    end
+
+    context 'without identifiant' do
+      it 'retombe sur la sonde ISPF, comportement historique' do
+        expect(described_class).to receive(:api_insee_up?).and_return(false)
+        expect(described_class.service_unavailable_error?(error, target: :insee)).to be true
+      end
+    end
+  end
 end
