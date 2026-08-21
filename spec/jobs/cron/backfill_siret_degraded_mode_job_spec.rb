@@ -56,9 +56,16 @@ RSpec.describe Cron::BackfillSiretDegradedModeJob, type: :job do
       end
 
       context 'when the adapter cannot narrow down to a single establishment' do
+        # pf: la clé :adresse est déterminante — sans elle, ce test passerait même
+        # si le double contrôle (tahiti_complet? sur le retour de l'adapter) était
+        # retiré, puisque update!(siret: 'G33972') serait alors un no-op (la valeur
+        # est déjà celle de l'établissement) et l'adresse resterait nil de toute façon.
+        # En la fournissant, on force : garde-fou actif → return nil avant tout
+        # update! → adresse toujours nil (test passe) ; garde-fou retiré → update!
+        # écrit l'adresse → le test échoue. Ne pas simplifier ce stub.
         it 'renonce et laisse l’adresse à nil' do
           allow_any_instance_of(APIEntreprise::PfEtablissementAdapter).to receive(:to_params)
-            .and_return({ siret: 'G33972' })
+            .and_return({ siret: 'G33972', adresse: new_adresse })
           expect { Cron::BackfillSiretDegradedModeJob.perform_now }.not_to change { etablissement.reload.adresse }
         end
       end

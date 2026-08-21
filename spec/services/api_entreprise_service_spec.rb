@@ -91,8 +91,21 @@ describe APIEntrepriseService do
       let(:siret) { 'G33972' }
 
       it 'renvoie nil — la résolution passe par list_etablissements' do
+        expect(APIEntreprise::EtablissementAdapter).not_to receive(:new)
+        expect(APIEntreprise::PfEtablissementAdapter).not_to receive(:new)
         expect(subject).to be_nil
       end
+    end
+
+    # pf: on passe désormais identifiant.valeur (normalisé) aux adapters, plutôt
+    # que la chaîne brute reçue en argument. Sans ce verrou, une régression qui
+    # repasserait à `siret` brut passerait inaperçue : `Siret#remove_whitespace`
+    # ne met pas en majuscules, donc une saisie `g33972-001` enverrait `g33972`
+    # (minuscules) à l'ISPF.
+    it 'transmet à l’adapter ISPF le numéro normalisé en majuscules' do
+      expect(APIEntreprise::PfEtablissementAdapter).to receive(:new)
+        .with('G33972001', anything).and_return(double(to_params: {}))
+      APIEntrepriseService.create_etablissement(dossier, 'g33972-001', nil)
     end
   end
 
