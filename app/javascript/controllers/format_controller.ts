@@ -20,16 +20,20 @@ export class FormatController extends ApplicationController {
         });
         break;
       case 'siret': {
-        // Format immediately on connect if field has a value
+        // Format immediately on connect if field has a value. La valeur vient
+        // du serveur (déjà complète, cf. pretty_siret) : aucune ambiguïté,
+        // mise en forme pleine.
         const input = this.element as HTMLInputElement;
         if (input.value) {
           const value = this.formatSIRET(input.value);
           replaceValue(input, value);
         }
 
+        // Pendant la frappe, la valeur peut être incomplète et ambiguë
+        // (cf. commentaire de formatIdentifiantEntreprise) : garde-fou actif.
         this.on('input', (event) => {
           const target = event.target as HTMLInputElement;
-          const value = this.formatSIRET(target.value);
+          const value = this.formatSIRET(target.value, true);
           replaceValue(target, value);
         });
         break;
@@ -65,10 +69,10 @@ export class FormatController extends ApplicationController {
     return value.replace(/;/g, ',');
   }
 
-  private formatSIRET(value: string) {
+  private formatSIRET(value: string, enCoursDeSaisie = false) {
     // pf: règles centralisées dans shared/identifiant-entreprise.ts, miroir du
     // value object IdentifiantEntreprise côté serveur
-    return formatIdentifiantEntreprise(value);
+    return formatIdentifiantEntreprise(value, { enCoursDeSaisie });
   }
 
   private formatIBAN(value: string) {
