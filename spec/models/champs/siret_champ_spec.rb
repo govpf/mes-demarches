@@ -202,4 +202,63 @@ describe Champs::SiretChamp do
       end
     end
   end
+
+  # pf: l'aiguillage Tahiti/SIRET passe désormais par IdentifiantEntreprise
+  describe '#ready_for_external_call?' do
+    subject { champ.ready_for_external_call? }
+
+    context 'with a 6-char Tahiti number' do
+      let(:external_id) { 'G33972' }
+
+      it { is_expected.to be true }
+    end
+
+    context 'with a 7-char partial Tahiti number' do
+      let(:external_id) { 'G339720' }
+
+      it { is_expected.to be true }
+    end
+
+    context 'with a 9-char Tahiti number' do
+      let(:external_id) { 'G33972001' }
+
+      it { is_expected.to be true }
+    end
+
+    context 'with a valid SIRET' do
+      let(:external_id) { '41816609600051' }
+
+      it { is_expected.to be true }
+    end
+
+    context 'with a Luhn-invalid SIRET' do
+      let(:external_id) { '41816609600052' }
+
+      it { is_expected.to be false }
+    end
+
+    # pf: 10 à 13 caractères partaient auparavant en appel API via `> 9`
+    context 'with an 11-char number, neither Tahiti nor SIRET' do
+      let(:external_id) { '12345678901' }
+
+      it { is_expected.to be false }
+    end
+
+    context 'when blank' do
+      let(:external_id) { nil }
+
+      it { is_expected.to be false }
+    end
+  end
+
+  describe '#identifiant' do
+    let(:external_id) { 'g33972-001' }
+
+    it 'expose le value object dérivé de external_id' do
+      # `normalizes :external_id` retire déjà espaces et tirets à l'écriture ;
+      # IdentifiantEntreprise renormalise pour être robuste aux lectures directes.
+      expect(champ.identifiant.valeur).to eq('G33972001')
+      expect(champ.identifiant).to be_tahiti_complet
+    end
+  end
 end

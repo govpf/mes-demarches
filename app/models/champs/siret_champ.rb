@@ -10,6 +10,11 @@ class Champs::SiretChamp < Champ
     true
   end
 
+  # pf: nature de l'identifiant saisi — Tahiti (ISPF) ou SIRET (API Entreprise)
+  def identifiant
+    IdentifiantEntreprise.parse(external_id)
+  end
+
   # TODO: remove after T20251029backfillChampSiretExternalStateTask
   def external_id
     idle? && etablissement_id.present? ? value : super
@@ -33,24 +38,15 @@ class Champs::SiretChamp < Champ
   end
 
   def ready_for_external_call?
-    # pf: accept SIRET (14 chars) and Tahiti numbers (6/9 chars) + partial Tahiti (7-8 chars) to trigger the candidates list
-    return false if external_id.blank?
-
-    case external_id.length
-    when 14
-      Siret.new(siret: external_id).valid?
-    when 6..9
-      true
-    else
-      false
-    end
+    # pf: accepte numéro Tahiti (6-9 car., partiel ou complet) et SIRET (14 chiffres)
+    identifiant.valide?
   end
 
   def fetch_external_data
     siret = external_id.to_s
 
-    # pf: partial Tahiti number (6-8 chars): list candidates rather than a single lookup
-    return fetch_tahiti_candidates(siret) if siret.length.between?(6, 8)
+    # pf: numéro Tahiti partiel (6-8 car.) : lister les candidats plutôt qu'une résolution unique
+    return fetch_tahiti_candidates(siret) if identifiant.tahiti_partiel?
 
     etablissement = APIEntrepriseService.create_etablissement(self, siret, dossier.user&.id)
     if etablissement.blank?
