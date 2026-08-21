@@ -91,12 +91,26 @@ describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true 
       # (POST siret_dossier_path) et redirige vers la page d'établissement —
       # aucun second clic sur "Continuer" n'existe dans ce flux.
       # (`click_on(..., match: :first)` n'arrive pas à lever l'ambiguïté entre
-      # les 29 boutons homonymes sous le driver playwright ; `all(...).first`
-      # fonctionne de manière fiable.)
-      all(:button, text: 'Sélectionner').first.click
+      # les 29 boutons homonymes sous le driver playwright ; cibler le
+      # bouton via son `<li>` conteneur fonctionne de manière fiable.)
+      #
+      # pf: on choisit délibérément un candidat NON ambigu — les 33 entrées
+      # partagent la même raison sociale (même entreprise, "BANQUE SOCREDO"),
+      # donc une assertion sur cette seule donnée passerait même si le code
+      # sélectionnait toujours le premier candidat plutôt que celui choisi
+      # par l'usager. "AGENCE DE UTUROA" (numEtablissement 2) a un
+      # `nomCommercial` unique dans la fixture — cliquer CE candidat précis
+      # et vérifier CE libellé précis prouve que la sélection de l'usager
+      # est bien celle qui traverse jusqu'à la page d'établissement.
+      find('li', text: 'AGENCE DE UTUROA').click_button('Sélectionner')
 
       expect(page).to have_current_path(etablissement_dossier_path(dossier))
       expect(page).to have_content('BANQUE SOCREDO')
+      # pf: donnée propre au candidat sélectionné (nomCommercial, rendu par
+      # app/views/users/dossiers/etablissement/_infos_entreprise.haml sous
+      # le libellé "Adresse :") — distingue une sélection correcte d'une
+      # sélection erronée (ex. toujours le premier candidat).
+      expect(page).to have_content('AGENCE DE UTUROA')
     end
   end
 
@@ -175,7 +189,7 @@ describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true 
       allow_any_instance_of(APIEntrepriseToken).to receive(:expired?).and_return(false)
     end
 
-    scenario 'nettoie l’ancien établissement et recalcule la formule dépendante' do
+    scenario 'réassigne l’établissement (l’ancien enregistrement survit) et recalcule la formule dépendante' do
       visit brouillon_dossier_path(dossier)
 
       # pf: le champ formule (EditableChamp::FormuleComponent) n'est pas un
@@ -199,8 +213,20 @@ describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true 
       remplir_etablissement_et_attendre(siret_fr)
 
       # pf: la cascade des formules doit se redéclencher après la bascule de
-      # référentiel — c'est le point que refresh_formulas_after garantit dans
-      # Champs::SiretChamp#update_external_data!. Sans cet appel, le champ
+      # référentiel. DEUX sites de cascade la garantissent, redondants pour ce
+      # chemin précis — chacun suffit seul à faire passer cette assertion,
+      # vérifié empiriquement en les désactivant tour à tour puis ensemble :
+      #   1. Champs::SiretChamp#update_external_data! appelle
+      #      dossier.refresh_formulas_after(self) directement.
+      #   2. Etablissement#update_champ_value_json! (app/models/etablissement.rb)
+      #      appelle aussi champ.dossier.refresh_formulas_after(champ), PLUS TÔT
+      #      dans la même chaîne synchrone (depuis
+      #      APIEntrepriseService.create_etablissement, avant que le site 1 ne
+      #      s'exécute) — c'est lui qui rafraîchit value_json avec
+      #      entreprise_raison_sociale, la donnée que lit cette formule.
+      # Désactiver le site 1 seul, ou le site 2 seul : ce scénario reste vert.
+      # Il faut désactiver les DEUX simultanément pour le faire échouer (testé,
+      # cf. rapport de la tâche 10). Sans AU MOINS UN des deux, le champ
       # formule resterait figé à la valeur calculée au moment du reset
       # (external_id remis à zéro dans le formulaire au moment de la saisie,
       # jamais rafraîchi ensuite par le job async).
@@ -213,26 +239,32 @@ describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true 
       expect(denomination_reprise).to eq('DIRECTION INTERMINISTERIELLE DU NUMERIQUE')
 
       # pf: le champ ne référence plus l'ancien établissement Tahiti — un
-      # nouvel établissement français est attaché à sa place.
+      # nouvel établissement français est attaché à sa place. C'est une
+      # RÉASSIGNATION (le champ pointe ailleurs), pas un « nettoyage » : la
+      # ligne Etablissement Tahiti n'est pas détruite, cf. assertion suivante.
       # (`etablissement.siret` n'est pas comparé à siret_fr : la fixture FR
       # etablissements.json porte son propre SIRET figé — "30613890001294" —
       # qui écrase toujours la valeur saisie via EtablissementAdapter#process_params
       # ; c'est `champ.external_id`, lu depuis la colonne du champ et non
       # recalculé depuis la fixture, qui porte la valeur réellement saisie.)
-      #
-      # pf: DÉCOUVERTE — Champ#belongs_to :etablissement, dependent: :destroy
-      # (app/models/champ.rb) ne détruit PAS l'ancien enregistrement lors
-      # d'une simple réaffectation (update(etablissement: nouveau)) : ce
-      # mode de `dependent: :destroy` sur un belongs_to ne joue qu'à la
-      # destruction du CHAMP lui-même, pas au changement de cible. Vérifié
-      # ici : Etablissement.exists?(ancien_etablissement_id) reste vrai après
-      # la bascule. Pas un bug de ce chantier (aucun code touché ne gère la
-      # suppression), mais une fuite d'établissements orphelins à chaque
-      # changement de référentiel dans un champ SIRET existant — signalé,
-      # non corrigé (hors périmètre de cette tâche).
       champ = champ_etablissement
       expect(champ.external_id).to eq(siret_fr)
       expect(champ.etablissement_id).not_to eq(ancien_etablissement_id)
+
+      # pf: COMPORTEMENT CONSTATÉ, NON SOUHAITÉ — l'ancien enregistrement
+      # Etablissement (Tahiti) SURVIT à la réassignation ci-dessus.
+      # Champ#belongs_to :etablissement, dependent: :destroy
+      # (app/models/champ.rb) ne détruit l'associé que lorsque le CHAMP
+      # lui-même est détruit — pas lors d'une simple réaffectation
+      # (update(etablissement: nouveau)). Résultat : une fuite d'établissements
+      # orphelins à chaque changement de référentiel dans un champ SIRET
+      # existant. Cette assertion FIGE le comportement actuel (elle doit
+      # échouer si un futur correctif détruit enfin l'ancien enregistrement —
+      # dans ce cas, corriger l'assertion, pas la coder en dur par réflexe) ;
+      # elle ne l'approuve pas. Signalé, non corrigé (hors périmètre de cette
+      # tâche — la correction éventuelle appartient à l'application, pas aux
+      # tests).
+      expect(Etablissement.exists?(ancien_etablissement_id)).to be true
     end
   end
 
