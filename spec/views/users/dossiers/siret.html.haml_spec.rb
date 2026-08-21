@@ -11,6 +11,6 @@ describe 'users/dossiers/siret', type: :view do
   subject! { render }
 
   it 'affiche le formulaire de SIRET' do
-    expect(rendered).to have_field('Numéro TAHITI')
+    expect(rendered).to have_field('Numéro Tahiti ou SIRET')
   end
 end

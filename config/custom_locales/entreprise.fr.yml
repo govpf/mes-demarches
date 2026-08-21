@@ -1,0 +1,49 @@
+# pf: surcharge de terminologie de l'identifiant d'entreprise.
+#
+# Ce répertoire est chargé APRÈS config/locales/** (cf. config/application.rb),
+# et I18n fait un deep-merge où le dernier chargé gagne. Conséquence : les
+# fichiers de locales upstream ne sont plus patchés, un merge qui les réécrit
+# passe sans conflit, et notre terminologie gagne quand même.
+#
+# Terme canonique : « numéro Tahiti ou SIRET » — Tahiti en capitale initiale,
+# SIRET en capitales. Ne pas dévier de cette casse.
+#
+# Toute clé ajoutée ici doit exister dans config/locales, sinon la surcharge ne
+# s'applique pas : spec/i18n/terminologie_entreprise_spec.rb le vérifie.
+---
+fr:
+  activerecord:
+    attributes:
+      # Bloc d'identité d'entreprise (Dossiers::IdentiteEntrepriseComponent,
+      # via Etablissement.human_attribute_name)
+      siret: "Numéro Tahiti ou SIRET"
+      siret_siege_social: "Numéro Tahiti ou SIRET du siège social"
+      user:
+        siret: "Numéro Tahiti ou SIRET"
+      service:
+        siret: "Numéro Tahiti ou SIRET"
+      champs/siret_champ:
+        hints:
+          # pf: pas d'exemple purement numérique ici — la mise en forme à la frappe
+          # ne pose pas de tiret sur un numéro de 9 chiffres, indiscernable des 9
+          # premiers chiffres d'un SIRET en cours de saisie (cf. Task 9).
+          value: "Numéro Tahiti à 6 ou 9 caractères (ex. G33972-001) ou numéro SIRET à 14 chiffres (ex. 418 166 096 00051)."
+    errors:
+      models:
+        champs/siret_champ:
+          attributes:
+            external_id:
+              length: "doit être un numéro Tahiti (6 à 9 caractères) ou un numéro SIRET (14 chiffres)"
+  activemodel:
+    models:
+      siret: "Numéro Tahiti ou SIRET"
+    errors:
+      models:
+        siret:
+          attributes:
+            siret:
+              length: "est invalide. Attendu : un numéro Tahiti (6 à 9 caractères, commençant par une lettre ou un chiffre) ou un numéro SIRET à 14 chiffres"
+  errors:
+    messages:
+      invalid_siret_length: "Le numéro doit être un numéro Tahiti (6 à 9 caractères) ou un numéro SIRET (14 chiffres)."
+      siret_not_found: "Nous n’avons pas trouvé d’établissement correspondant à ce numéro Tahiti ou SIRET."

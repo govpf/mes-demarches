@@ -141,7 +141,7 @@ describe 'Creating a new dossier:', js: true do
         expect(page).to have_current_path siret_dossier_path(dossier)
         expect(page).to have_content(procedure.libelle)
 
-        fill_in 'Numéro TAHITI', with: siret
+        fill_in 'Numéro Tahiti ou SIRET', with: siret
         click_on 'Continuer'
 
         expect(page).to have_current_path(etablissement_dossier_path(dossier))
@@ -158,12 +158,12 @@ describe 'Creating a new dossier:', js: true do
         expect(page).to have_current_path(siret_dossier_path(dossier))
         expect(page).to have_content(procedure.libelle)
 
-        fill_in 'Numéro TAHITI', with: '0000'
+        fill_in 'Numéro Tahiti ou SIRET', with: '0000'
         click_on 'Continuer'
 
         expect(page).to have_current_path(siret_dossier_path(dossier))
-        expect(page).to have_content('Le champ « Siret » est invalide. Le numéro TAHITI doit commencer par une lettre ou un chiffre, suivi de 5 chiffres')
-        expect(page).to have_field('Numéro TAHITI', with: '0000')
+        expect(page).to have_content('Le champ « Siret » est invalide. Attendu : un numéro Tahiti (6 à 9 caractères, commençant par une lettre ou un chiffre) ou un numéro SIRET à 14 chiffres')
+        expect(page).to have_field('Numéro Tahiti ou SIRET', with: '0000')
       end
     end
   end

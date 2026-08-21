@@ -12,7 +12,7 @@ en:
               format: '%{message}'
               wrong_siret_format: 'must contain exactly 14 numbers. Example: 500 0012 345 6789'
               invalid: 'is invalid. Check for input errors.'
-              # pf: custom SiretValidator error keys
+              # pf: custom IdentifiantEntrepriseValidator error keys
               length: 'must contain 9 digits (Tahiti) or 14 digits (SIRET)'
               checksum: 'is invalid. Check for input errors.'
               not_found: 'no establishment is linked to this number.'

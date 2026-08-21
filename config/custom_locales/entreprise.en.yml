@@ -1,0 +1,11 @@
+# pf: English counterpart of entreprise.fr.yml — see that file for the rationale.
+---
+en:
+  activerecord:
+    attributes:
+      siret: "Tahiti number or SIRET"
+      siret_siege_social: "Head office Tahiti number or SIRET"
+      user:
+        siret: "Tahiti number or SIRET"
+      service:
+        siret: "Tahiti number or SIRET"

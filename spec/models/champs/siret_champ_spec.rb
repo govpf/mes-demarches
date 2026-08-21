@@ -20,7 +20,7 @@ describe Champs::SiretChamp do
     context 'with invalid format - too short for both systems' do
       let(:external_id) { "12345" }
 
-      it { expect(subject.errors[:external_id]).to include('doit comporter 9 chiffres (Tahiti) ou 14 chiffres (SIRET)') }
+      it { expect(subject.errors[:external_id]).to include('doit être un numéro Tahiti (6 à 9 caractères) ou un numéro SIRET (14 chiffres)') }
     end
 
     context 'with invalid checksum for 14-char SIRET' do
