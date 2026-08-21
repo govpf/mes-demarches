@@ -11,13 +11,17 @@ en:
         siret: "Tahiti number or SIRET"
     errors:
       models:
-        # pf: formatting/pre-fill errors for the service's Tahiti number or
-        # SIRET (admin form), cf. config/locales/models/service/en.yml
+        # pf: errors for the service's Tahiti number or SIRET (admin form),
+        # cf. config/locales/models/service/en.yml. not_prefillable removed —
+        # no code ever adds this error, cf. entreprise.fr.yml.
         service:
           attributes:
             siret:
+              # pf: i18n_customize_full_message (config/application.rb) already
+              # prefixes "Tahiti number or SIRET " before length/checksum — do
+              # not repeat the term in these two messages.
               format: "Tahiti number or SIRET %{message}"
-              not_prefillable: "Unable to pre-fill information for this Tahiti number or SIRET, please fill it manually"
+              length: "must be 6 to 9 characters (Tahiti) or 14 digits (SIRET)"
   # pf: "Edit number" button on the dossier page (usager + instructeur)
   views:
     shared:

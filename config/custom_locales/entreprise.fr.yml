@@ -35,13 +35,18 @@ fr:
           attributes:
             external_id:
               length: "doit être un numéro Tahiti (6 à 9 caractères) ou un numéro SIRET (14 chiffres)"
-        # pf: erreurs de formatage/préremplissage du numéro Tahiti ou SIRET du
-        # service (formulaire admin), cf. config/locales/models/service/fr.yml
+        # pf: erreurs du formulaire service (cf. config/locales/models/service/fr.yml).
+        # not_prefillable existait dans la surcharge initiale mais aucun code
+        # n'ajoute jamais cette erreur (IdentifiantEntrepriseValidator ne
+        # produit que :checksum/:length) — retirée, cf. siret_not_found.
         service:
           attributes:
             siret:
+              # pf: le gabarit i18n_customize_full_message (config/application.rb)
+              # préfixe déjà "Le numéro Tahiti ou SIRET " devant length/checksum —
+              # ne pas répéter le terme dans ces deux messages.
               format: "Le numéro Tahiti ou SIRET %{message}"
-              not_prefillable: "Impossible de préremplir les informations pour ce numéro Tahiti ou SIRET, veuillez les saisir manuellement"
+              length: "doit comporter 6 à 9 caractères (Tahiti) ou 14 chiffres (SIRET)"
   activemodel:
     models:
       siret: "Numéro Tahiti ou SIRET"
