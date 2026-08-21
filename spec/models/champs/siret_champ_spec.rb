@@ -93,7 +93,8 @@ describe Champs::SiretChamp do
       let(:siret) { '82161143100015' }
       let(:api_etablissement_status) { 503 }
 
-      before { expect(APIEntrepriseService).to receive(:api_insee_up?).and_return(true) }
+      # pf: SIRET français → la santé à sonder est celle d'API Entreprise, pas de l'ISPF
+      before { expect(APIEntrepriseService).to receive(:fr_api_insee_up?).and_return(true) }
 
       it_behaves_like 'an error occured'
 
@@ -107,7 +108,8 @@ describe Champs::SiretChamp do
       let(:siret) { '82161143100015' }
       let(:api_etablissement_status) { 502 }
 
-      before { expect(APIEntrepriseService).to receive(:api_insee_up?).and_return(false) }
+      # pf: SIRET français → la santé à sonder est celle d'API Entreprise, pas de l'ISPF
+      before { expect(APIEntrepriseService).to receive(:fr_api_insee_up?).and_return(false) }
 
       it { expect { fetch_external_data }.to change { champ.reload.etablissement } }
 
