@@ -493,12 +493,16 @@ Champs::SiretChamp mais rejetés par le validateur."
 
 Ajouter dans `spec/models/champs/siret_champ_spec.rb`, au niveau des autres `describe` :
 
+Le fichier construit ses champs par `create(:procedure, types_de_champ_public: [{ type: :siret }])`
+puis `dossier.champs.first` — il n'existe pas de factory `champ_siret`. Les `let`
+`procedure`, `dossier`, `champ`, `external_id` et `etablissement` sont déjà définis en
+tête de fichier (lignes 4-8) : les nouveaux `describe` réutilisent `external_id` en le
+surchargeant, sans redéfinir `champ`.
+
 ```ruby
   # pf: l'aiguillage Tahiti/SIRET passe désormais par IdentifiantEntreprise
   describe '#ready_for_external_call?' do
     subject { champ.ready_for_external_call? }
-
-    let(:champ) { build(:champ_siret, external_id: external_id) }
 
     context 'with a 6-char Tahiti number' do
       let(:external_id) { 'G33972' }
@@ -545,8 +549,11 @@ Ajouter dans `spec/models/champs/siret_champ_spec.rb`, au niveau des autres `des
   end
 
   describe '#identifiant' do
+    let(:external_id) { 'g33972-001' }
+
     it 'expose le value object dérivé de external_id' do
-      champ = build(:champ_siret, external_id: 'g33972-001')
+      # `normalizes :external_id` retire déjà espaces et tirets à l'écriture ;
+      # IdentifiantEntreprise renormalise pour être robuste aux lectures directes.
       expect(champ.identifiant.valeur).to eq('G33972001')
       expect(champ.identifiant).to be_tahiti_complet
     end
@@ -1486,8 +1493,12 @@ Créer `spec/system/users/identifiant_entreprise_spec.rb` :
 
 describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true do
   let(:user) { create(:user) }
-  let(:procedure) { create(:procedure, :published, :for_individual_and_personne_morale) }
+  # pf: l'identification par numéro d'entreprise s'obtient par ABSENCE du trait
+  # :for_individual — il n'existe pas de trait :for_individual_and_personne_morale.
+  # Convention reprise de spec/system/users/dossier_creation_spec.rb:115.
+  let(:procedure) { create(:procedure, :published, :with_service, :with_type_de_champ) }
   let(:siret_fr) { '41816609600051' }
+  let(:siren_fr) { siret_fr[0...9] }
   let(:tahiti_prefix) { 'G33972' }
 
   before { login_as user, scope: :user }
@@ -1495,10 +1506,9 @@ describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true 
   # --- Scénario 1 : SIRET français ---
   context 'avec un SIRET métropolitain' do
     before do
-      stub_request(:get, %r{https://entreprise\.api\.gouv\.fr/v3/insee/sirene/etablissements/#{siret_fr}})
-        .to_return(body: File.read('spec/fixtures/files/api_entreprise/etablissements.json'), status: 200)
-      stub_request(:get, %r{https://entreprise\.api\.gouv\.fr/v3/insee/sirene/unites_legales/#{siret_fr[0..8]}})
-        .to_return(body: File.read('spec/fixtures/files/api_entreprise/entreprises.json'), status: 200)
+      stub_etablissement_fr
+      allow_any_instance_of(APIEntrepriseToken).to receive(:roles).and_return([])
+      allow_any_instance_of(APIEntrepriseToken).to receive(:expired?).and_return(false)
     end
 
     scenario 'résout l’établissement et poursuit le dossier' do
@@ -1508,9 +1518,13 @@ describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true 
       fill_in_identifiant_entreprise(siret_fr)
       click_on 'Continuer'
 
-      expect(page).to have_content('DIRECTION INTERMINISTERIELLE DU NUMERIQUE')
-      # pf: le libellé et l'annuaire doivent désigner le bon référentiel
+      # pf: raison sociale portée par la fixture etablissements.json
+      expect(page).to have_content('Coiff Land, CoiffureLand')
+      # pf: l'annuaire doit désigner le référentiel du numéro saisi
       expect(page).to have_link(href: %r{annuaire-entreprises\.data\.gouv\.fr})
+
+      click_on 'Continuer avec ces informations'
+      expect(page).to have_current_path(brouillon_dossier_path(procedure.dossiers.last))
     end
   end
 
@@ -1550,10 +1564,9 @@ describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true 
     before do
       stub_request(:get, %r{#{API_ISPF_URL}/etablissements/Entreprise})
         .to_return(body: File.read('spec/fixtures/files/api_entreprise/pf_etablissement_unique.json'), status: 200)
-      stub_request(:get, %r{https://entreprise\.api\.gouv\.fr/v3/insee/sirene/etablissements/#{siret_fr}})
-        .to_return(body: File.read('spec/fixtures/files/api_entreprise/etablissements.json'), status: 200)
-      stub_request(:get, %r{https://entreprise\.api\.gouv\.fr/v3/insee/sirene/unites_legales/#{siret_fr[0..8]}})
-        .to_return(body: File.read('spec/fixtures/files/api_entreprise/entreprises.json'), status: 200)
+      stub_etablissement_fr
+      allow_any_instance_of(APIEntrepriseToken).to receive(:roles).and_return([])
+      allow_any_instance_of(APIEntrepriseToken).to receive(:expired?).and_return(false)
     end
 
     scenario 'nettoie l’ancien établissement et recalcule la formule dépendante' do
@@ -1566,11 +1579,11 @@ describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true 
       # bascule vers un SIRET métropolitain
       fill_in 'Établissement', with: siret_fr
 
-      expect(page).to have_content('DIRECTION INTERMINISTERIELLE DU NUMERIQUE')
+      expect(page).to have_content('Coiff Land, CoiffureLand')
       # pf: la cascade des formules doit se redéclencher — c'est le point que
       # refresh_formulas_after garantit dans SiretChamp#update_external_data!
       expect(find_field('Dénomination reprise').value).not_to eq(denomination_tahiti)
-      expect(find_field('Dénomination reprise').value).to include('NUMERIQUE')
+      expect(find_field('Dénomination reprise').value).to include('Coiff')
 
       champ = dossier.reload.project_champs_public.find { |c| c.libelle == 'Établissement' }
       expect(champ.etablissement.siret).to eq(siret_fr)
@@ -1581,6 +1594,13 @@ describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true 
     # pf: le libellé du champ est piloté par les locales (cf. phase 4) —
     # on cible le champ par son nom pour rester stable au changement de libellé.
     find('input[name="user[siret]"]').set(valeur)
+  end
+
+  def stub_etablissement_fr
+    stub_request(:get, %r{https://entreprise\.api\.gouv\.fr/v3/insee/sirene/etablissements/#{siret_fr}})
+      .to_return(body: File.read('spec/fixtures/files/api_entreprise/etablissements.json'), status: 200)
+    stub_request(:get, %r{https://entreprise\.api\.gouv\.fr/v3/insee/sirene/unites_legales/#{siren_fr}})
+      .to_return(body: File.read('spec/fixtures/files/api_entreprise/entreprises.json'), status: 200)
   end
 end
 ```
@@ -1730,6 +1750,16 @@ describe 'Terminologie de l’identifiant d’entreprise' do
   # upstream renomme ou supprime la clé d'origine. Ce test la transforme en
   # échec explicite.
   describe 'aucune surcharge orpheline dans custom_locales' do
+    # Le backend I18n de l'application fusionne config/locales ET custom_locales :
+    # y chercher une clé la trouverait toujours, puisque la surcharge l'y a mise.
+    # Il faut donc un backend neuf chargé du seul amont pour que le garde détecte
+    # réellement une clé qu'upstream a renommée ou supprimée.
+    let(:traductions_amont) do
+      backend = I18n::Backend::Simple.new
+      Rails.root.glob('config/locales/**/*.yml').each { |f| backend.load_translations(f) }
+      backend.send(:translations)
+    end
+
     def chemins_de_cles(hash, prefixe = [])
       hash.flat_map do |cle, valeur|
         chemin = prefixe + [cle.to_s]
@@ -1745,10 +1775,9 @@ describe 'Terminologie de l’identifiant d’entreprise' do
           contenu.each do |locale, arbre|
             chemins_de_cles(arbre).each do |chemin|
               cle = chemin.join('.')
-              # On recharge uniquement config/locales pour vérifier l'existence
-              # de la clé en amont, sans la surcharge.
-              amont = I18n.backend.send(:translations)[locale.to_sym]
-              valeur_amont = chemin.reduce(amont) { |noeud, segment| noeud.is_a?(Hash) ? noeud[segment.to_sym] : nil }
+              valeur_amont = chemin.reduce(traductions_amont[locale.to_sym]) do |noeud, segment|
+                noeud.is_a?(Hash) ? noeud[segment.to_sym] : nil
+              end
 
               expect(valeur_amont).not_to be_nil,
                 "#{cle} (#{locale}) est surchargée mais n’existe plus en amont — " \
@@ -1798,7 +1827,10 @@ fr:
         siret: "Numéro Tahiti ou SIRET"
       champs/siret_champ:
         hints:
-          value: "Numéro Tahiti à 6 ou 9 caractères (ex. G33972-001, 002253-001) ou numéro SIRET à 14 chiffres (ex. 418 166 096 00051)."
+          # pf: pas d'exemple purement numérique ici — la mise en forme à la frappe
+          # ne pose pas de tiret sur un numéro de 9 chiffres, indiscernable des 9
+          # premiers chiffres d'un SIRET en cours de saisie (cf. Task 9).
+          value: "Numéro Tahiti à 6 ou 9 caractères (ex. G33972-001) ou numéro SIRET à 14 chiffres (ex. 418 166 096 00051)."
     errors:
       models:
         champs/siret_champ:
