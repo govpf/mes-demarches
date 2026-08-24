@@ -1056,6 +1056,172 @@ describe FormulaCalculationService do
     end
   end
 
+  # pf: un champ à choix multiple a le type de colonne :enums et est passé à
+  # Dentaku comme un Array natif (et non comme sa sérialisation `["a", "b"]`).
+  # CONTIENT() teste l'appartenance à cet Array.
+  describe '#compute_value avec un champ à choix multiple (enums)' do
+    let(:procedure) do
+      create(:procedure, :published, types_de_champ_public: [
+        { type: :multiple_drop_down_list, libelle: 'Moyens', options: ['Vélo', 'Bus', 'Bus scolaire'] },
+        { type: :drop_down_list, libelle: 'Statut', options: ['Actif', 'Inactif'] },
+        { type: :formule, libelle: 'Résultat' },
+      ])
+    end
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:revision) { procedure.active_revision }
+    let(:moyens_tdc) { revision.types_de_champ.find { _1.libelle == 'Moyens' } }
+    let(:statut_tdc) { revision.types_de_champ.find { _1.libelle == 'Statut' } }
+    let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Résultat' } }
+    let(:formule_champ) { dossier.project_champs_public.find { _1.stable_id == formule_tdc.stable_id } }
+    let(:service) { described_class.new(dossier) }
+
+    def select_moyens(*options)
+      dossier.project_champs_public
+        .find { _1.stable_id == moyens_tdc.stable_id }
+        .update!(value: options.to_json)
+    end
+
+    def compute(expression)
+      formule_tdc.update!(formule_expression: expression)
+      service.compute_value(formule_champ)
+    end
+
+    def moyens_ref = "{tdc#{moyens_tdc.stable_id}}"
+
+    describe 'CONTIENT' do
+      it 'retourne true quand l\'option est cochée' do
+        select_moyens('Vélo', 'Bus')
+        expect(compute("CONTIENT(#{moyens_ref}, \"Bus\")")).to eq('true')
+      end
+
+      it 'retourne false quand l\'option n\'est pas cochée' do
+        select_moyens('Vélo')
+        expect(compute("CONTIENT(#{moyens_ref}, \"Bus\")")).to eq('false')
+      end
+
+      it 'est insensible à la casse' do
+        select_moyens('Vélo', 'Bus')
+        expect(compute("CONTIENT(#{moyens_ref}, \"bUs\")")).to eq('true')
+      end
+
+      it 'ignore les espaces de bord du libellé recherché' do
+        select_moyens('Bus')
+        expect(compute("CONTIENT(#{moyens_ref}, \"  Bus \")")).to eq('true')
+      end
+
+      # pf: le piège que CONTIENT corrige vs CHERCHE — « Bus scolaire » cochée
+      # ne doit PAS satisfaire une recherche de l'option « Bus ».
+      it 'ne fait pas de faux positif sur une option dont le libellé contient le libellé cherché' do
+        select_moyens('Bus scolaire')
+        expect(compute("CONTIENT(#{moyens_ref}, \"Bus\")")).to eq('false')
+      end
+
+      it 'retourne false sur un champ vide sans lever d\'erreur' do
+        expect(compute("CONTIENT(#{moyens_ref}, \"Bus\")")).to eq('false')
+      end
+
+      it 'se combine avec SI' do
+        select_moyens('Bus')
+        expect(compute("SI(CONTIENT(#{moyens_ref}, \"Bus\"), \"Transport en commun\", \"Autre\")")).to eq('Transport en commun')
+      end
+
+      it 'se combine avec OU' do
+        select_moyens('Vélo')
+        expect(compute("OU(CONTIENT(#{moyens_ref}, \"Bus\"), CONTIENT(#{moyens_ref}, \"Vélo\"))")).to eq('true')
+      end
+
+      it 'fonctionne aussi sur un champ à choix simple' do
+        dossier.project_champs_public.find { _1.stable_id == statut_tdc.stable_id }.update!(value: 'Actif')
+        expect(compute("CONTIENT({tdc#{statut_tdc.stable_id}}, \"Actif\")")).to eq('true')
+      end
+
+      it 'infère un type de sortie booléen' do
+        select_moyens('Bus')
+        formule_tdc.update!(formule_expression: "CONTIENT(#{moyens_ref}, \"Bus\")")
+        formule_tdc.valid?
+        expect(formule_tdc.formule_output_type).to eq('boolean')
+      end
+    end
+
+    # pf: transitivité — une formule qui référence un choix multiple stocke la
+    # sérialisation `["Vélo", "Bus"]` (type de sortie string). CONTIENT doit
+    # reparser cette chaîne, sinon la cascade formule → formule casse.
+    describe 'CONTIENT sur une formule qui référence un choix multiple' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :multiple_drop_down_list, libelle: 'Moyens', options: ['Vélo', 'Bus'] },
+          { type: :formule, libelle: 'Copie' },
+          { type: :formule, libelle: 'Résultat' },
+        ])
+      end
+      let(:copie_tdc) { revision.types_de_champ.find { _1.libelle == 'Copie' } }
+      let(:copie_champ) { dossier.project_champs_public.find { _1.stable_id == copie_tdc.stable_id } }
+
+      it 'reparse la sérialisation JSON de la formule référencée' do
+        select_moyens('Vélo', 'Bus')
+        copie_tdc.update!(formule_expression: moyens_ref)
+        copie_champ.update!(value: service.compute_value(copie_champ))
+        copie_tdc.valid?
+        copie_tdc.save!
+
+        expect(compute("CONTIENT({tdc#{copie_tdc.stable_id}}, \"Bus\")")).to eq('true')
+      end
+    end
+
+    # pf: non-régression du binding Array — les formules existantes écrites
+    # avant CONTIENT (CHERCHE, CONCATENER, référence nue) doivent rendre
+    # exactement la même chose qu'avec la sérialisation `to_s`.
+    describe 'binding Array natif' do
+      before { select_moyens('Vélo', 'Bus') }
+
+      it 'une référence nue rend la liste sérialisée' do
+        expect(compute(moyens_ref)).to eq('["Vélo", "Bus"]')
+      end
+
+      it 'CHERCHE continue de fonctionner sur la sérialisation' do
+        expect(compute("CHERCHE(\"Bus\", #{moyens_ref}) > 0")).to eq('true')
+      end
+
+      it 'CONCATENER continue de fonctionner' do
+        expect(compute("CONCATENER(\"Choix : \", #{moyens_ref})")).to eq('Choix : ["Vélo", "Bus"]')
+      end
+
+      it 'NB compte le nombre d\'options cochées' do
+        expect(compute("NB(#{moyens_ref})")).to eq('2')
+      end
+
+      it 'JOINDRE concatène les options cochées' do
+        expect(compute("JOINDRE(#{moyens_ref}, \" / \")")).to eq('Vélo / Bus')
+      end
+    end
+
+    describe 'champ non renseigné' do
+      it 'une référence nue rend une chaîne vide, pas "[]"' do
+        expect(compute(moyens_ref)).to eq('')
+      end
+
+      it 'NB retourne 0' do
+        expect(compute("NB(#{moyens_ref})")).to eq('0')
+      end
+    end
+
+    # pf: non-régression — la cascade injecte la valeur brute du champ source
+    # via seed_overrides, ce qui court-circuite le parsing de la colonne : le
+    # binding reçoit la sérialisation JSON `'["Bus"]'` et non un Array.
+    # Sans reparsing, CONTIENT renvoyait false alors que l'option était cochée.
+    describe 'valeur injectée par la cascade (seed_overrides)' do
+      let(:service) { described_class.new(dossier, value_overrides: { moyens_tdc.stable_id => '["Vélo","Bus"]' }) }
+
+      it 'CONTIENT reparse la sérialisation JSON injectée' do
+        expect(compute("CONTIENT(#{moyens_ref}, \"Bus\")")).to eq('true')
+      end
+
+      it 'NB compte les options de la valeur injectée' do
+        expect(compute("NB(#{moyens_ref})")).to eq('2')
+      end
+    end
+  end
+
   # pf: chantier formule-agrégat — une formule placée hors bloc peut agréger
   # un sous-champ de toutes les lignes via {bloc/sub}, ou compter le bloc
   # via {bloc}. Cf. docs/superpowers/specs/2026-05-21-formule-repetitions-design.md
@@ -1146,6 +1312,32 @@ describe FormulaCalculationService do
       it 'concatène les désignations de toutes les lignes' do
         set_formula("JOINDRE({tdc#{bloc_tdc.stable_id}/sub_#{designation_tdc.stable_id}}, \", \")")
         expect(service.compute_value(formule_champ)).to eq('Pommes, Poires, Bananes')
+      end
+    end
+
+    # pf: CONTIENT s'applique à tout binding Array — pas seulement aux enums.
+    context 'CONTIENT sur un sous-champ texte (Désignation)' do
+      let(:designation_tdc) { revision.types_de_champ.find { _1.libelle == 'Désignation' } }
+
+      def add_row_with_designation(label)
+        row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+        dossier.champ_for_update(designation_tdc, row_id:, updated_by: 'test').update!(value: label)
+        row_id
+      end
+
+      before do
+        add_row_with_designation('Pommes')
+        add_row_with_designation('Poires')
+      end
+
+      it 'détecte une valeur présente dans une ligne du bloc' do
+        set_formula("CONTIENT({tdc#{bloc_tdc.stable_id}/sub_#{designation_tdc.stable_id}}, \"poires\")")
+        expect(service.compute_value(formule_champ)).to eq('true')
+      end
+
+      it 'retourne false si aucune ligne ne porte la valeur' do
+        set_formula("CONTIENT({tdc#{bloc_tdc.stable_id}/sub_#{designation_tdc.stable_id}}, \"Bananes\")")
+        expect(service.compute_value(formule_champ)).to eq('false')
       end
     end
 
