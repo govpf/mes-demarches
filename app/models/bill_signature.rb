@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
 class BillSignature < ApplicationRecord
+  # L'horloge de l'autorité d'horodatage (Certigna) peut être légèrement en avance
+  # sur celle du serveur : sans tolérance, un jeton daté quelques secondes
+  # « dans le futur » est rejeté (et le jeton facturé est perdu).
+  SIGNATURE_TIME_TOLERANCE = 5.seconds
+
   has_many :dossier_operation_logs
 
   has_one_attached :serialized
@@ -77,7 +82,7 @@ class BillSignature < ApplicationRecord
     end
 
     timestamp_signature_date = ASN1::Timestamp.signature_time(read_signature)
-    if timestamp_signature_date > Time.zone.now
+    if timestamp_signature_date > Time.zone.now + SIGNATURE_TIME_TOLERANCE
       errors.add(:signature, :invalid_date)
     end
 
