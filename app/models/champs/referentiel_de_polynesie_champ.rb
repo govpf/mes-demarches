@@ -74,7 +74,8 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
 
   # pf: fallback legacy si pas encore de referentiel lié
   def fetch_external_data
-    referentiel.present? ? super : fetch_external_data_legacy
+    result = referentiel.present? ? super : fetch_external_data_legacy
+    enforce_dlnuf_ownership(result)
   end
 
   def selected
@@ -184,6 +185,22 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     row_email = normalized_data&.dig(config[:field_name])
     unless row_email.to_s.casecmp?(owner_email)
       errors.add(:value, :not_dlnuf_owner)
+    end
+  end
+
+  # pf: DLNUF — en mode exact_match, external_id est contrôlé par l'usager : refuser de
+  # rapatrier (et donc d'afficher) une ligne qui n'appartient pas au titulaire (exfiltration).
+  # Fail-closed si la config est :invalid (table marquée DLNUF mais champ propriétaire mort).
+  def enforce_dlnuf_ownership(result)
+    config = ReferentielDePolynesie::API.dlnuf_config(table_id)
+    return result if config.blank?
+    return result unless result.respond_to?(:success?) && result.success?
+
+    owner_email = dossier.user&.email
+    if config != :invalid && owner_email.present? && result.value![config[:field_name]].to_s.casecmp?(owner_email)
+      result
+    else
+      Dry::Monads::Failure(retryable: false, reason: StandardError.new('DLNUF: ligne non détenue par le titulaire'), code: 403)
     end
   end
 end
