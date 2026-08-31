@@ -149,6 +149,38 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
         expect(response).to have_http_status(:forbidden)
       end
 
+      it 'refuse (403) le dossier de preview d’un autre utilisateur' do
+        autre_user = create(:user)
+        dossier_preview_autrui = create(:dossier, user: autre_user, for_procedure_preview: true)
+        expect(ReferentielDePolynesie::API).not_to receive(:search_with_data)
+
+        get :search, params: { table: domain_id, dossier_id: dossier_preview_autrui.id, q: 'x' }
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'autorise le dossier de preview de l’utilisateur lui-même' do
+        dossier_preview = create(:dossier, user:, for_procedure_preview: true)
+        expect(ReferentielDePolynesie::API).to receive(:search_with_data)
+          .with(domain_id, nil, drop_down_other: nil, scope: { field_id: 9, value: user.email.downcase })
+          .and_return([])
+
+        get :search, params: { table: domain_id, dossier_id: dossier_preview.id }
+        expect(response).to have_http_status(:ok)
+      end
+
+      it 'scope sur le mail du TITULAIRE quand un instructeur assigné cherche' do
+        instructeur = create(:instructeur)
+        instructeur.assign_to_procedure(dossier.procedure)
+        sign_in(instructeur.user)
+
+        expect(ReferentielDePolynesie::API).to receive(:search_with_data)
+          .with(domain_id, nil, drop_down_other: nil, scope: { field_id: 9, value: user.email.downcase })
+          .and_return([])
+
+        get :search, params: { table: domain_id, dossier_id: dossier.id }
+        expect(response).to have_http_status(:ok)
+      end
+
       it 'refuse (403) sans dossier_id — jamais de repli en catalogue ouvert' do
         expect(ReferentielDePolynesie::API).not_to receive(:search_with_data)
 

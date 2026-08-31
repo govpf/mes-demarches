@@ -39,11 +39,17 @@ class DataSources::ReferentielDePolynesieController < ApplicationController
 
   private
 
-  # pf: autorisation DLNUF — le dossier doit être accessible à current_user (propriétaire ou
-  # invité, via DossierPolicy::Scope). 403 sinon, y compris quand dossier_id est absent.
+  # pf: autorisation DLNUF — le dossier doit être accessible à current_user via
+  # DossierPolicy::Scope (propriétaire, invité, instructeur assigné — l'ancre de scope
+  # reste le mail du titulaire). La clause preview du Scope étant globale, on exige en
+  # plus qu'un dossier de preview appartienne à current_user : sinon n'importe quel
+  # usager pourrait ancrer le scope sur le mail de l'admin d'une autre démarche.
   def authorized_dossier
     dossier = policy_scope(Dossier).find_by(id: @params[:dossier_id])
-    render json: { message: 'Accès refusé' }, status: :forbidden if dossier.nil?
+    if dossier.nil? || (dossier.for_procedure_preview? && dossier.user != current_user)
+      render json: { message: 'Accès refusé' }, status: :forbidden
+      return nil
+    end
     dossier
   end
 
