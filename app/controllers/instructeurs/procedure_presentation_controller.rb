@@ -9,6 +9,12 @@ module Instructeurs
       @procedure_presentation.update_filter_for_statut!(params[:statut], params[:filter_key], filtered_column_from_params)
 
       render turbo_stream: turbo_stream.refresh
+    rescue ActiveRecord::RecordInvalid => e
+      # the filter value is rejected by FilteredColumn (too long, dossier id out of range, …):
+      # surface the inner error messages instead of letting the request fail with a 500
+      flash.alert = inner_error_messages(e.record)
+
+      render turbo_stream: turbo_stream.refresh
     end
 
     # updates the filters in customization without saving them
@@ -66,6 +72,15 @@ module Instructeurs
     end
 
     private
+
+    # `validates_associated` only reports a generic "n'est pas valide": dig into the
+    # associated objects to get the messages meant for the instructeur
+    def inner_error_messages(record)
+      record.errors.flat_map do |error|
+        associated = Array(error.detail[:value]).filter { _1.respond_to?(:errors) }
+        associated.flat_map { _1.errors.full_messages }.presence || [error.full_message]
+      end.uniq
+    end
 
     def apply_to_all_tabs_from_params
       params[:apply_to_all_tabs] == '1'
