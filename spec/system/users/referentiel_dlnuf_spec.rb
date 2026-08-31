@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'system/users/dossier_shared_examples' if File.exist?(Rails.root.join('spec/system/users/dossier_shared_examples.rb'))
+require 'system/users/dossier_shared_examples' if Rails.root.join('spec/system/users/dossier_shared_examples.rb').exist?
 
 describe 'Référentiel de Polynésie — Dites-le-nous une fois', js: true do
   let(:password) { SECURE_PASSWORD }
