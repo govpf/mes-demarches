@@ -1,4 +1,7 @@
 .fr-input-group
   = f.label :message_on_submit_by_usager do
     Message affiché après l'envoi du dossier
+    -# pf: le message accepte le markdown et les liens (cf. users/dossiers/_merci)
+    %span.fr-hint-text
+      Les adresses web deviennent des liens cliquables. Mise en forme possible : **gras**, _italique_, [texte du lien](https://adresse).
   = f.text_area :message_on_submit_by_usager, placeholder: "Merci, votre dossier sera traité dans les plus brefs délais", class: 'fr-input'
