@@ -14,7 +14,15 @@ import {
   Virtualizer,
   ListLayout
 } from 'react-aria-components';
-import { useMemo, useRef, createContext, useContext, useId } from 'react';
+import {
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+  useId
+} from 'react';
 import type { RefObject } from 'react';
 import * as s from 'superstruct';
 
@@ -57,6 +65,10 @@ export function ComboBox({
   // if label is passed, we need to generate an id for the input, otherwise we use the labelId passed in the props
   const labelIdToUse = label ? generatedId : labelId;
 
+  // pf: DLNUF — ne forcer l'ouverture du menu que quand l'input a le focus
+  // (le chargement au montage avec minimumInputLength: 0 ouvrait le menu sans interaction)
+  const [isFocused, setIsFocused] = useState(false);
+
   const inputAriaLabelledby = ariaLabelledbyPrefix
     ? `${ariaLabelledbyPrefix} ${labelIdToUse}`
     : labelIdToUse;
@@ -85,6 +97,8 @@ export function ComboBox({
           aria-labelledby={inputAriaLabelledby}
           placeholder={placeholder || undefined}
           translate="no"
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
         />
         <Button
           aria-haspopup="false"
@@ -100,7 +114,10 @@ export function ComboBox({
           {' '}
         </Button>
       </div>
-      <Popover className="fr-ds-combobox__menu fr-menu" isOpen={isOpen}>
+      <Popover
+        className="fr-ds-combobox__menu fr-menu"
+        isOpen={isOpen === undefined ? undefined : isOpen && isFocused}
+      >
         <Virtualizer layout={ListLayout}>
           <ListBox
             className="fr-menu__list"
@@ -311,6 +328,8 @@ export function RemoteComboBox({
     data,
     usePost,
     translations,
+    autoSelectSingle,
+    emptyLabel,
     ...props
   } = useMemo(() => s.create(maybeProps, RemoteComboBoxProps), [maybeProps]);
 
@@ -342,6 +361,22 @@ export function RemoteComboBox({
       }
     });
 
+  // pf: DLNUF — auto-remplir quand le périmètre de l'usager ne contient qu'une seule ligne.
+  // Une seule fois par montage, uniquement si le champ est vide (pas de valeur existante).
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (
+      autoSelectSingle &&
+      !autoSelectedRef.current &&
+      !selectedItem &&
+      comboBoxProps.inputValue == '' &&
+      comboBoxProps.items.length == 1
+    ) {
+      autoSelectedRef.current = true;
+      comboBoxProps.onSelectionChange(comboBoxProps.items[0].value);
+    }
+  }, [autoSelectSingle, selectedItem, comboBoxProps]);
+
   return (
     <>
       <ComboBox
@@ -357,6 +392,14 @@ export function RemoteComboBox({
       >
         {(item) => <ComboBoxItem id={item.value}>{item.label}</ComboBoxItem>}
       </ComboBox>
+      {emptyLabel &&
+      !error &&
+      !selectedItem &&
+      !comboBoxProps.isLoading &&
+      comboBoxProps.items.length == 0 &&
+      comboBoxProps.inputValue == '' ? (
+        <p className="fr-hint-text fr-mt-1v">{emptyLabel}</p>
+      ) : null}
       {children || name ? (
         <span ref={ref}>
           <SelectedItemProvider value={selectedItem}>

@@ -75,7 +75,11 @@ export const RemoteComboBoxProps = s.assign(
       coerce: s.enums(['Default', 'AnnuaireEducation']),
       placeholder: s.string(),
       usePost: s.defaulted(s.boolean(), false),
-      translations: s.record(s.string(), s.string())
+      translations: s.record(s.string(), s.string()),
+      // pf: DLNUF — auto-sélection quand le périmètre de l'usager ne contient qu'une ligne
+      autoSelectSingle: s.boolean(),
+      // pf: DLNUF — message affiché sous le champ quand le périmètre est vide
+      emptyLabel: s.string()
     })
   )
 );
