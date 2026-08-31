@@ -8,6 +8,10 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     true
   end
 
+  # pf: DLNUF, second rempart (dépôt) — la ligne sélectionnée doit appartenir au titulaire.
+  # Couvre le transfert de dossier après sélection et toute soumission forgée.
+  validate :dlnuf_owner_integrity, if: -> { validate_champ_value? && external_id.present? && !other? }
+
   # pf: préserver le label humain dans value (upstream y met external_id)
   # pf: guard new_record? pour éviter que le fork (deep_clone) ne wipe data/value_json
   # sur les champs clonés — external_id_changed? est toujours true sur un new_record
@@ -164,5 +168,22 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
   rescue StandardError => e
     Rails.logger.error("ReferentielDePolynesieChamp fetch error: #{e.class} - #{e.message}")
     Dry::Monads::Failure(retryable: false, reason: e, code: 500)
+  end
+
+  # pf: comparaison LOCALE sur row_data (aucune lecture de ligne Baserow au dépôt).
+  # La config méta passe par le cache court de API.dlnuf_config ; si elle est indisponible
+  # (:invalid ou Baserow down → nil), on ne bloque pas le dépôt : le rempart n°1 (filtre
+  # serveur à la sélection) reste la protection principale.
+  def dlnuf_owner_integrity
+    config = ReferentielDePolynesie::API.dlnuf_config(table_id)
+    return if config.blank? || config == :invalid
+
+    owner_email = dossier.user&.email
+    return if owner_email.blank?
+
+    row_email = normalized_data&.dig(config[:field_name])
+    unless row_email.to_s.casecmp?(owner_email)
+      errors.add(:value, :not_dlnuf_owner)
+    end
   end
 end
