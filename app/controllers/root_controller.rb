@@ -19,7 +19,9 @@ class RootController < ApplicationController
 
     @stat = Stat.first
 
-    render 'landing'
+    respond_to do |format|
+      format.html { render 'landing' }
+    end
   end
 
   def administration
