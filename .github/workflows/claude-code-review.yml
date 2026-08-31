@@ -12,7 +12,8 @@ on:
 
 jobs:
   claude-review:
-    if: false # pf: désactivé temporairement — review automatique interdite par le gestionnaire du repo
+    # pf: réactivé uniquement sur cette branche de test — sonde d'exécution Claude (PR bidon)
+    if: github.head_ref == 'test/claude-workflow-probe'
     runs-on: ubuntu-latest
     permissions:
       contents: read
