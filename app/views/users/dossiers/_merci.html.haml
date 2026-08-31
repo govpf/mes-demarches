@@ -18,7 +18,8 @@
             = t('views.users.dossiers.merci.dossier_edit_l3')
           %strong= t('views.users.dossiers.merci.dossier_edit_l4')
         - if procedure.active_dossier_submitted_message
-          %p.fr-m-2= procedure.active_dossier_submitted_message.message_on_submit_by_usager
+          -# pf: markdown + liens cliquables dans le message de fin de dépôt (ex. renvoi vers un autre téléservice)
+          .fr-m-2= render SimpleFormatComponent.new(procedure.active_dossier_submitted_message.message_on_submit_by_usager, allow_a: true)
     %p.justify-center.flex.fr-mb-5w.fr-mt-2w
       = render(partial: 'users/dossiers/show/download_dossier', locals: { dossier: dossier })
       = link_to t('views.users.dossiers.merci.acces_dossier'), dossier ? dossier_path(dossier) : "#dossier" , class: 'fr-btn fr-mx-2w'
