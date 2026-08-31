@@ -330,6 +330,7 @@ export function RemoteComboBox({
     translations,
     autoSelectSingle,
     emptyLabel,
+    hideWhenEmpty,
     ...props
   } = useMemo(() => s.create(maybeProps, RemoteComboBoxProps), [maybeProps]);
 
@@ -377,6 +378,28 @@ export function RemoteComboBox({
     }
   }, [autoSelectSingle, selectedItem, comboBoxProps]);
 
+  // pf: DLNUF — périmètre vide : chargement initial terminé sans résultat, champ sans valeur
+  const isEmptyScope =
+    !error &&
+    !selectedItem &&
+    !comboBoxProps.isLoading &&
+    comboBoxProps.items.length == 0 &&
+    comboBoxProps.inputValue == '';
+
+  // pf: DLNUF — masquer le champ entier (fieldset, label compris) quand le périmètre de
+  // l'usager est vide et que le champ est optionnel. Fail-open : visible au rendu, masqué
+  // seulement quand le chargement initial confirme 0 ligne ; ré-affiché si l'état change
+  // (erreur, valeur). Le fieldset est le même élément que masque `visible?` côté serveur.
+  useEffect(() => {
+    if (!hideWhenEmpty) {
+      return;
+    }
+    const fieldset = ref.current?.closest<HTMLElement>('.fr-fieldset__element');
+    if (fieldset) {
+      fieldset.hidden = isEmptyScope;
+    }
+  }, [hideWhenEmpty, isEmptyScope, ref]);
+
   return (
     <>
       <ComboBox
@@ -394,12 +417,7 @@ export function RemoteComboBox({
       >
         {(item) => <ComboBoxItem id={item.value}>{item.label}</ComboBoxItem>}
       </ComboBox>
-      {emptyLabel &&
-      !error &&
-      !selectedItem &&
-      !comboBoxProps.isLoading &&
-      comboBoxProps.items.length == 0 &&
-      comboBoxProps.inputValue == '' ? (
+      {emptyLabel && isEmptyScope ? (
         <p className="fr-hint-text fr-mt-1v">{emptyLabel}</p>
       ) : null}
       {children || name ? (

@@ -31,6 +31,9 @@ class EditableChamp::ReferentielDePolynesieComponent < EditableChamp::EditableCh
       # si une seule ligne, et ne JAMAIS échoer le mail dans les messages
       props[:autoSelectSingle] = true
       props[:emptyLabel] = I18n.t('shared.champs.referentiel_de_polynesie.dlnuf_empty')
+      # pf: DLNUF — champ optionnel sans donnée : masquer le champ entier (zéro friction) ;
+      # obligatoire : rester affiché avec le message, le requis bloque le dépôt de toute façon
+      props[:hideWhenEmpty] = !@champ.mandatory?
     end
     props
   end

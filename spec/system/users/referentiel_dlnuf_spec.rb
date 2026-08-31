@@ -6,9 +6,10 @@ describe 'Référentiel de Polynésie — Dites-le-nous une fois', js: true do
   let(:password) { SECURE_PASSWORD }
   let(:user) { create(:user, password:) }
   let(:user_dossier) { user.dossiers.first }
+  let(:mandatory) { false }
   let(:procedure) do
     create(:procedure, :published, :for_individual, types_de_champ_public: [
-      { type: :referentiel_de_polynesie, libelle: 'Mes informations', mandatory: false, table_id: '24' },
+      { type: :referentiel_de_polynesie, libelle: 'Mes informations', mandatory:, table_id: '24' },
     ])
   end
   let(:dlnuf) { { field_id: 9, field_name: 'Email', field_type: 'email' } }
@@ -30,7 +31,7 @@ describe 'Référentiel de Polynésie — Dites-le-nous une fois', js: true do
     wait_until { champ_value_for('Mes informations') == 'Association Manuia' }
   end
 
-  scenario 'aucune ligne : message sans écho du mail' do
+  scenario 'aucune ligne, champ optionnel : le champ est masqué (zéro friction)' do
     allow(ReferentielDePolynesie::API).to receive(:search_with_data)
       .with('24', anything, drop_down_other: anything, scope:)
       .and_return([])
@@ -38,11 +39,30 @@ describe 'Référentiel de Polynésie — Dites-le-nous une fois', js: true do
     log_in(user, procedure)
     fill_individual
 
-    # pf: on scope au champ lui-même — le mail du titulaire apparaît légitimement
-    # ailleurs sur la page (menu de compte), on vérifie qu'il n'est pas échoé ici
-    within('.editable-champ-referentiel_de_polynesie') do
-      expect(page).to have_text('Aucune donnée enregistrée à votre nom')
-      expect(page).to have_no_text(user.email)
+    find('.dom-ready')
+    # pf: le champ est visible au rendu (fail-open) puis masqué quand le chargement
+    # initial confirme que le périmètre de l'usager est vide
+    expect(page).to have_no_selector('.editable-champ-referentiel_de_polynesie', visible: :visible)
+    expect(page).to have_selector('.editable-champ-referentiel_de_polynesie', visible: :hidden)
+  end
+
+  context 'quand le champ est obligatoire' do
+    let(:mandatory) { true }
+
+    scenario 'aucune ligne : le champ reste affiché avec le message, sans écho du mail' do
+      allow(ReferentielDePolynesie::API).to receive(:search_with_data)
+        .with('24', anything, drop_down_other: anything, scope:)
+        .and_return([])
+
+      log_in(user, procedure)
+      fill_individual
+
+      # pf: on scope au champ lui-même — le mail du titulaire apparaît légitimement
+      # ailleurs sur la page (menu de compte), on vérifie qu'il n'est pas échoé ici
+      within('.editable-champ-referentiel_de_polynesie') do
+        expect(page).to have_text('Aucune donnée enregistrée à votre nom')
+        expect(page).to have_no_text(user.email)
+      end
     end
   end
 
