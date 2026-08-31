@@ -171,6 +171,41 @@ describe ReferentielDePolynesie::BaserowAPI do
         expect(last[:label]).to eq(I18n.t('shared.champs.drop_down_list.other'))
       end
     end
+
+    context 'avec un scope DLNUF' do
+      let(:scope) { { field_id: 9, value: 'titulaire@exemple.pf' } }
+
+      def sent_filters
+        sent = nil
+        expect(Typhoeus).to have_received(:get)
+          .with("#{base_url}/api/database/rows/table/#{table_id}/", anything) do |_url, options|
+            sent = JSON.parse(options[:params]['filters'])
+          end
+        sent
+      end
+
+      it 'applique toujours le filtre propriétaire en AND avec le terme' do
+        described_class.search_with_data(domain_id, term, scope:)
+        filters = sent_filters
+        expect(filters['filter_type']).to eq('AND')
+        expect(filters['filters']).to include({ 'field' => 9, 'type' => 'equal', 'value' => 'titulaire@exemple.pf' })
+        expect(filters['filters']).to include({ 'field' => search_field_id, 'type' => 'contains', 'value' => term })
+      end
+
+      it 'accepte un terme vide : seul le filtre propriétaire est envoyé' do
+        described_class.search_with_data(domain_id, '', scope:)
+        filters = sent_filters
+        expect(filters['filters']).to eq([{ 'field' => 9, 'type' => 'equal', 'value' => 'titulaire@exemple.pf' }])
+      end
+    end
+
+    context 'sans scope et sans terme' do
+      it 'retourne [] sans appeler la table (ne jamais renvoyer la table entière)' do
+        expect(described_class.search_with_data(domain_id, '')).to eq([])
+        expect(Typhoeus).not_to have_received(:get)
+          .with("#{base_url}/api/database/rows/table/#{table_id}/", anything)
+      end
+    end
   end
 
   describe '.dlnuf_config' do
