@@ -544,7 +544,12 @@ export const createLoader = (
     const usePost = options?.usePost ?? false;
     const coerceKey = options?.coerce ?? 'Default';
 
-    if (!filterText || filterText.length < minimumInputLength) {
+    // pf: DLNUF — minimumInputLength: 0 autorise un chargement avec un texte vide
+    // (liste « mes données » au montage / au focus, le scope étant résolu côté serveur)
+    if (
+      minimumInputLength > 0 &&
+      (!filterText || filterText.length < minimumInputLength)
+    ) {
       return { items: [] };
     }
 
@@ -561,7 +566,8 @@ export const createLoader = (
         requestOptions.csrf = true;
         requestOptions.json = { [param]: filterText };
       } else {
-        url.searchParams.set(param, filterText);
+        // pf: DLNUF — filterText peut être undefined quand minimumInputLength vaut 0
+        url.searchParams.set(param, filterText ?? '');
       }
 
       const requestUrl = url.toString();
@@ -576,7 +582,8 @@ export const createLoader = (
         if (err) {
           fire(document, 'sentry:capture-exception', err);
         } else {
-          const filteredItems = matchSorter(items, filterText, {
+          // pf: DLNUF — filterText peut être undefined quand minimumInputLength vaut 0
+          const filteredItems = matchSorter(items, filterText ?? '', {
             keys: [
               (item) => item.label.replace(/[_ -]/g, ' '), // accept filter to match saint martin => "Saint-Martin"
               'label' // keep original label for exact match and filter (saint-martin => Saint-Martin)
