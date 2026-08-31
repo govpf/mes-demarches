@@ -391,6 +391,7 @@ describe 'The user', js: true do
   end
 
   scenario 'fill referentiel_de_polynesie field' do
+    allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).and_return(nil)
     allow(ReferentielDePolynesie::API).to receive(:search_with_data)
       .with('24', 'Papeete', drop_down_other: anything)
       .and_return([

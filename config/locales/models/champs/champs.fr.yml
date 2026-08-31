@@ -8,3 +8,7 @@ fr:
               format: '%{message}'
               missing: doit être rempli
               invalid_regexp: '%{expression_reguliere_error_message}'
+        "champs/referentiel_de_polynesie_champ":
+          attributes:
+            value:
+              not_dlnuf_owner: "ne correspond plus aux données enregistrées à votre nom. Sélectionnez à nouveau une valeur."

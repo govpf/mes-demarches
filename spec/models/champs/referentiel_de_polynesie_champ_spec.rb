@@ -240,6 +240,11 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
   describe '#fetch_external_data' do
     let(:external_id) { '24:123' }
 
+    before do
+      # pf: mocke dlnuf_config pour que la garde DLNUF soit transparente sur les tables catalogue
+      allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).with('24').and_return(nil)
+    end
+
     context 'when API returns valid data' do
       let(:api_response) do
         { 'Nom' => 'Papeete', 'Archipel' => 'Îles du Vent', 'Code' => '98714' }
@@ -295,6 +300,54 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
         expect(Rails.logger).to receive(:error).with(/ReferentielDePolynesieChamp fetch error.*Connection error/)
         champ.fetch_external_data
       end
+    end
+  end
+
+  describe '#fetch_external_data — rempart DLNUF en mode exact_match' do
+    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :referentiel_de_polynesie, libelle: 'Mes informations', table_id: '24' }]) }
+    let(:dossier) { create(:dossier, procedure:) }
+    let(:champ) { dossier.champs.first }
+    let(:dlnuf) { { field_id: 9, field_name: 'Email', field_type: 'email' } }
+    let(:row) { { 'Nom' => 'Ma ligne', 'Email' => row_email }.with_indifferent_access }
+
+    subject { champ.fetch_external_data }
+
+    before do
+      allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).with('24').and_return(dlnuf)
+      allow(ReferentielDePolynesie::API).to receive(:fetch_row).and_return(row)
+      champ.update_columns(external_id: '24:1')
+      champ.reload
+    end
+
+    context 'quand la ligne appartient au titulaire' do
+      let(:row_email) { dossier.user.email }
+
+      it { is_expected.to be_success }
+    end
+
+    context 'quand la ligne appartient à quelqu\'un d\'autre (tentative d\'exfiltration)' do
+      let(:row_email) { 'autre@exemple.pf' }
+
+      it 'refuse le rapatriement' do
+        expect(subject).to be_failure
+        expect(subject.failure[:code]).to eq(403)
+      end
+    end
+
+    context 'quand la config DLNUF est invalide (champ propriétaire mort)' do
+      let(:dlnuf) { :invalid }
+      let(:row_email) { 'autre@exemple.pf' }
+
+      it 'refuse le rapatriement (fail-closed : exposition de données)' do
+        expect(subject).to be_failure
+      end
+    end
+
+    context 'sur une table catalogue' do
+      let(:dlnuf) { nil }
+      let(:row_email) { 'autre@exemple.pf' }
+
+      it { is_expected.to be_success }
     end
   end
 
@@ -426,6 +479,77 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
     end
   end
 
+  describe 'validation DLNUF au dépôt (second rempart)' do
+    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :referentiel_de_polynesie, libelle: 'Mes informations', table_id: '24' }]) }
+    let(:dossier) { create(:dossier, procedure:) }
+    let(:champ) { dossier.champs.first }
+    let(:dlnuf) { { field_id: 9, field_name: 'Email', field_type: 'email' } }
+    let(:row_email) { dossier.user.email }
+
+    subject { champ.validate(:champs_public_value) }
+
+    before do
+      allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).with('24').and_return(dlnuf)
+      champ.update_columns(external_id: '24:1', value: 'Ma ligne', data: { 'Email' => row_email })
+      champ.reload
+    end
+
+    context 'quand la ligne appartient au titulaire' do
+      it { is_expected.to be_truthy }
+    end
+
+    context 'quand le mail diffère par la casse' do
+      let(:row_email) { dossier.user.email.upcase }
+
+      it { is_expected.to be_truthy }
+    end
+
+    context 'quand la ligne appartient à quelqu\'un d\'autre' do
+      let(:row_email) { 'autre@exemple.pf' }
+
+      it 'ajoute une erreur bloquante sur ce champ précis' do
+        expect(subject).to be_falsey
+        expect(champ.errors[:value].join).to match(/ne correspond plus aux données enregistrées/)
+      end
+    end
+
+    context 'quand row_data ne contient pas la colonne propriétaire' do
+      before do
+        champ.update_columns(data: { 'Nom' => 'Ma ligne' })
+        champ.reload
+      end
+
+      it 'invalide (fail-closed : DLNUF est une feature neuve, pas de données legacy)' do
+        expect(subject).to be_falsey
+      end
+    end
+
+    context 'quand la table est un catalogue (pas de config DLNUF)' do
+      let(:dlnuf) { nil }
+      let(:row_email) { 'autre@exemple.pf' }
+
+      it { is_expected.to be_truthy }
+    end
+
+    context 'quand la config DLNUF est indisponible ou invalide' do
+      let(:dlnuf) { :invalid }
+      let(:row_email) { 'autre@exemple.pf' }
+
+      it 'ne bloque pas le dépôt (le rempart n°1 reste la protection principale)' do
+        expect(subject).to be_truthy
+      end
+    end
+
+    context 'quand le champ est vide' do
+      before do
+        champ.update_columns(external_id: nil, value: nil, data: nil)
+        champ.reload
+      end
+
+      it { is_expected.to be_truthy }
+    end
+  end
+
   describe 'inheritance from ReferentielChamp' do
     it 'inherits from Champs::ReferentielChamp' do
       expect(described_class.ancestors).to include(Champs::ReferentielChamp)
@@ -457,6 +581,7 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
     end
 
     before do
+      allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).and_return(nil)
       allow(ReferentielDePolynesie::API).to receive(:fetch_row)
         .with('24:123')
         .and_return(baserow_row_data)
