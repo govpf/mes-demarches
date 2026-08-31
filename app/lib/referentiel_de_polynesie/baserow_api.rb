@@ -2,6 +2,8 @@
 
 class ReferentielDePolynesie::BaserowAPI
   TIMEOUT = 10 # pf: timeout en secondes pour les appels Baserow
+  # pf: types Baserow plausibles pour un champ e-mail propriétaire (diagnostic, pas un blocage)
+  EMAIL_LIKE_TYPES = ['email', 'text', 'formula'].freeze
 
   class << self
     def search(domain_id, term, drop_down_other: false)
@@ -101,6 +103,27 @@ class ReferentielDePolynesie::BaserowAPI
     def config(row_id)
       response = Typhoeus.get(row_url(ENV['API_BASEROW_CONFIG_TABLE'], row_id), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
       response.success? ? JSON.parse(response.body) : nil
+    end
+
+    # pf: DLNUF (« Dites-le-nous une fois ») — lit la colonne « Champ propriétaire » de la table
+    # méta. Invariant : id renseigné ⟺ mode DLNUF ; vide ⟺ catalogue.
+    # Fail-closed : id renseigné mais champ introuvable → :invalid. Ne JAMAIS retomber sur nil
+    # dans ce cas : des données personnelles seraient déclassées en liste publique.
+    def dlnuf_config(domain_id)
+      config = config(domain_id)
+      return nil unless config
+
+      owner_field_id = config['Champ propriétaire']
+      return nil if owner_field_id.blank?
+
+      field = fields(config)&.dig(owner_field_id.to_i)
+      return :invalid if field.nil?
+
+      unless field[:type].in?(EMAIL_LIKE_TYPES)
+        Rails.logger.warn("ReferentielDePolynesie: le champ propriétaire #{owner_field_id} (référentiel #{domain_id}) est de type #{field[:type]}, pas un e-mail")
+      end
+
+      { field_id: owner_field_id.to_i, field_name: field[:name], field_type: field[:type] }
     end
 
     # pf: retourne { id => { name:, type: } } au lieu de { id => name }
