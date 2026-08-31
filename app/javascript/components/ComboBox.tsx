@@ -387,6 +387,8 @@ export function RemoteComboBox({
         }
         errorMessage={error?.message}
         isOpen={shouldShowPopover}
+        // pf: DLNUF — construit la Collection react-aria à l'ouverture au focus, requis en mode sans saisie (minimumInputLength: 0) ; aligné sur Single/MultiComboBox
+        menuTrigger="focus"
         {...comboBoxProps}
         {...props}
       >
