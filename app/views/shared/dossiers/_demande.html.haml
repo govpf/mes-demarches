@@ -55,9 +55,14 @@
   - if dossier.etablissement.present?
     - etablissement = dossier.etablissement
     .fr-mt-1w.fr-mb-4w.fr-px-2w
+      -# pf: `profile` est la variable LOCALE recue en locals:, pas une variable
+      -# d'instance. Les deux lignes suivantes lisaient `@profile`, qu'aucun
+      -# controleur n'assigne : la branche usager etait toujours fausse et
+      -# IdentiteEntrepriseForUsagerComponent — qui porte le masquage des
+      -# entreprises non diffusables — n'etait jamais rendu.
       - if etablissement.as_degraded_mode?
-        = render Dossiers::DegradedIdentiteEntrepriseComponent.new(etablissement:, profile: @profile)
-      - elsif @profile == 'usager'
+        = render Dossiers::DegradedIdentiteEntrepriseComponent.new(etablissement:, profile:)
+      - elsif profile == 'usager'
         = render Dossiers::IdentiteEntrepriseForUsagerComponent.new(etablissement:)
       - else
         = render Dossiers::IdentiteEntrepriseComponent.new(etablissement:)

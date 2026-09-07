@@ -83,3 +83,11 @@ fr:
     procedures:
       no_siret: "Vous n’avez pas renseigné le numéro Tahiti ou SIRET du service pour certaines de vos démarches. Merci de les modifier."
       add_siret_to_service_without_siret_html: "Ajouter le numéro Tahiti ou SIRET du service <a href=\"%{link}\">%{nom}</a>"
+  views:
+    shared:
+      dossiers:
+        identite_entreprise:
+          # pf: ce message n'etait jamais rendu tant que la branche usager du
+          # partial etait inoperante. Il nommait « SIRET » un numero qui peut
+          # etre un numero Tahiti ; le numero seul suffit a identifier.
+          warning_for_private_info: "L’établissement %{siret} a exercé son droit à la non publication des informations relatives à son identité. Les informations ne seront donc visibles que de la part des services instructeurs."

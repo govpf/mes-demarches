@@ -68,4 +68,47 @@ describe 'shared/dossiers/demande', type: :view do
       end
     end
   end
+
+  # pf: les lignes de routage du partial lisaient `@profile`, une variable
+  # d'instance qu'aucun controleur n'assigne, au lieu du local `profile` recu en
+  # `locals:`. La branche usager etait donc toujours fausse et
+  # IdentiteEntrepriseForUsagerComponent — qui porte le masquage — jamais rendu.
+  context 'quand l’entreprise a exerce son droit a la non publication' do
+    let(:etablissement) { create(:etablissement, :non_diffusable) }
+
+    it 'masque les informations pour l’usager' do
+      expect(subject).to include('a exercé son droit à la non publication')
+      expect(subject).not_to include(etablissement.entreprise_forme_juridique)
+    end
+  end
+
+  context 'quand le profil est instructeur' do
+    let(:etablissement) { create(:etablissement, :non_diffusable) }
+
+    subject { render 'shared/dossiers/demande', dossier: dossier, demande_seen_at: nil, profile: 'instructeur' }
+
+    it 'affiche les informations, le masquage ne concerne pas l’instruction' do
+      expect(subject).to include(etablissement.entreprise_forme_juridique)
+    end
+  end
+
+  # pf: l'ISPF ne renseigne pas diffusable_commercialement — les etablissements
+  # Tahiti sont tous a nil. Une simple verification de veracite les masquerait
+  # tous ; seule une opposition explicite doit masquer.
+  context 'quand diffusable_commercialement n’est pas renseigne (cas Tahiti)' do
+    let(:etablissement) { create(:etablissement, diffusable_commercialement: nil) }
+
+    it 'affiche les informations a l’usager' do
+      expect(subject).to include(etablissement.entreprise_raison_sociale)
+      expect(subject).not_to include('a exercé son droit à la non publication')
+    end
+  end
+
+  context 'quand l’entreprise est explicitement diffusable' do
+    let(:etablissement) { create(:etablissement, diffusable_commercialement: true) }
+
+    it 'affiche les informations a l’usager' do
+      expect(subject).to include(etablissement.entreprise_raison_sociale)
+    end
+  end
 end
