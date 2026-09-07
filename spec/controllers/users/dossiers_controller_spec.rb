@@ -491,6 +491,25 @@ describe Users::DossiersController, type: :controller do
     end
   end
 
+  # pf: la branche « Tahiti complet ou SIRET » de update_siret resolvait
+  # l'etablissement, puis deleguait a create_etablissement_and_redirect qui le
+  # resolvait une seconde fois — deux appels API et deux vagues de jobs par depot.
+  describe '#update_siret — une seule resolution par depot' do
+    let(:dossier) { create(:dossier, user: user) }
+    let(:etablissement) { create(:etablissement) }
+
+    before { sign_in(user) }
+
+    subject do
+      post :update_siret, params: { id: dossier.id, user: { siret: '41816609600051' } }
+    end
+
+    it 'ne resout l’etablissement qu’une seule fois' do
+      expect(APIEntrepriseService).to receive(:create_etablissement).once.and_return(etablissement)
+      subject
+    end
+  end
+
   describe '#etablissement' do
     let(:dossier) { create(:dossier, :with_entreprise, user: user) }
 
