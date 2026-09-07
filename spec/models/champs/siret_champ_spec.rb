@@ -263,4 +263,22 @@ describe Champs::SiretChamp do
       expect(champ.identifiant).to be_tahiti_complet
     end
   end
+
+  # pf: un prefixe partiel de 7 ou 8 caracteres etait concatene tel quel au numero
+  # d'etablissement, produisant un numero a 10 ou 11 caracteres au lieu de 9.
+  describe 'completion depuis un prefixe partiel de 8 caracteres' do
+    let(:external_id) { '07539001' }
+    let(:candidat) { { num_entreprise: 2, siret: '075390', entreprise_raison_sociale: 'BANQUE SOCREDO' } }
+
+    it 'produit un numero Tahiti a 9 caracteres, pas 11' do
+      allow(APIEntrepriseService).to receive(:list_etablissements).and_return([candidat])
+      allow(APIEntrepriseService).to receive(:create_etablissement_from_pf_candidate) do |_champ, full_siret, _c|
+        expect(full_siret.length).to eq(9)
+        expect(full_siret).to eq('075390002')
+        build(:etablissement, siret: full_siret)
+      end
+
+      champ.fetch_external_data
+    end
+  end
 end

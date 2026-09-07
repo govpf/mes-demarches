@@ -75,6 +75,17 @@ class IdentifiantEntreprise
     end
   end
 
+  # pf: reconstitue le numero Tahiti complet a 9 caracteres a partir du numero
+  # d'etablissement renvoye par l'ISPF. La troncature du prefixe a 6 caracteres
+  # est le coeur de la methode : une saisie partielle peut en compter 7 ou 8, et
+  # concatener sans tronquer produisait des numeros a 10 ou 11 caracteres (64
+  # constates en base au 2026-09). L'ISPF identifie l'entreprise par ces 6
+  # caracteres et l'etablissement par 3 chiffres de plus.
+  def avec_etablissement(num_etablissement)
+    return nil unless tahiti?
+    "#{valeur[0..5]}#{format('%03d', num_etablissement.to_i)}"
+  end
+
   def format_lisible
     if siret?
       "#{valeur[0..2]} #{valeur[3..5]} #{valeur[6..8]} #{valeur[9..]}"

@@ -244,7 +244,7 @@ module Users
           return render_siret_error(t('errors.messages.siret_unknown'))
         elsif @etablissements.size == 1
           # PF: Auto-select when only one establishment matches
-          full_siret = "#{sanitized_siret}#{format('%03d', @etablissements[0][:num_entreprise])}"
+          full_siret = identifiant.avec_etablissement(@etablissements[0][:num_entreprise])
           create_etablissement_and_redirect(full_siret)
         else
           # PF: Multiple establishments found, redirect to selection page

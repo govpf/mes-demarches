@@ -99,7 +99,7 @@ class Champs::SiretChamp < Champ
     if candidates.size == 1
       # pf: single match: auto-complete to the full 9-char Tahiti number and create the etablissement
       candidate = candidates.first
-      full_siret = "#{siret_prefix}#{format('%03d', candidate[:num_entreprise])}"
+      full_siret = identifiant.avec_etablissement(candidate[:num_entreprise])
       etablissement = APIEntrepriseService.create_etablissement_from_pf_candidate(self, full_siret, candidate)
       Success(etablissement:, external_id: full_siret)
     else

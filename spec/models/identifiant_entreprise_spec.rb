@@ -120,4 +120,36 @@ describe IdentifiantEntreprise do
       expect(described_class.parse('1234567890').annuaire_url).to eq('https://www.ispf.pf/rte')
     end
   end
+
+  # pf: quatre sites concatenaient le prefixe SAISI au numero d'etablissement.
+  # Un prefixe partiel pouvant compter 7 ou 8 caracteres, ils produisaient des
+  # numeros a 10 ou 11 caracteres — 64 constates en base au 2026-09. L'ISPF
+  # identifie l'entreprise par 6 caracteres, il faut donc tronquer.
+  describe '#avec_etablissement' do
+    it 'reconstitue un numero complet depuis un prefixe de 6 caracteres' do
+      expect(described_class.parse('G33972').avec_etablissement(1)).to eq('G33972001')
+    end
+
+    it 'tronque un prefixe de 7 caracteres' do
+      expect(described_class.parse('G339720').avec_etablissement(1)).to eq('G33972001')
+    end
+
+    it 'tronque un prefixe de 8 caracteres' do
+      expect(described_class.parse('G3397201').avec_etablissement(2)).to eq('G33972002')
+    end
+
+    it 'accepte un numero deja complet et le reconstitue a l’identique' do
+      expect(described_class.parse('G33972001').avec_etablissement(1)).to eq('G33972001')
+    end
+
+    it 'formate le numero d’etablissement sur trois chiffres' do
+      expect(described_class.parse('240028').avec_etablissement(3)).to eq('240028003')
+      expect(described_class.parse('240028').avec_etablissement(33)).to eq('240028033')
+    end
+
+    it 'renvoie nil pour un identifiant qui ne releve pas du referentiel Tahiti' do
+      expect(described_class.parse('41816609600051').avec_etablissement(1)).to be_nil
+      expect(described_class.parse('1234567890').avec_etablissement(1)).to be_nil
+    end
+  end
 end
