@@ -89,7 +89,16 @@ class APIEntreprise::API
 
   def recipient_for(siret_or_siren)
     service_siret = @procedure&.service && @procedure.service.siret.presence
-    return service_siret if service_siret && !service_siret.starts_with?(siret_or_siren)
+    # pf: le recipient identifie l'administration demandeuse et doit etre un SIRET
+    # francais a 14 chiffres — API Entreprise refuse tout autre format en 422/00210
+    # (« Le parametre recipient n'est pas un siret valide »). Un service polynesien
+    # porte un numero Tahiti, accepte par Service#siret via IdentifiantEntreprise :
+    # on retombe alors sur le SIRET par defaut, faute de quoi TOUS les appels
+    # echouent, quel que soit le numero recherche.
+    return service_siret if service_siret &&
+      IdentifiantEntreprise.parse(service_siret).siret? &&
+      !service_siret.starts_with?(siret_or_siren)
+
     ENV.fetch('API_ENTREPRISE_DEFAULT_SIRET')
   end
 
