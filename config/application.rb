@@ -60,6 +60,11 @@ module TPS
     # disable the check performed by Rails.
     config.action_dispatch.ip_spoofing_check = false
 
+    # A malformed multipart POST (missing or oversized boundary) raises from the
+    # Rack parser before reaching any controller. It is an invalid client request,
+    # not a server error: map it to 400 instead of letting it surface as a 500.
+    config.action_dispatch.rescue_responses['Rack::Multipart::BoundaryTooLongError'] = :bad_request
+
     # Set the queue name for the mail delivery jobs to 'mailers'
     config.action_mailer.deliver_later_queue_name = 'critical' # otherwise, :low
 
