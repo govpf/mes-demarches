@@ -105,6 +105,23 @@ RSpec.describe BillSignature, type: :model do
         it { is_expected.to eq [error: :invalid_date] }
       end
 
+      context 'clock skew against the exact token time' do
+        # heure exacte contenue dans le jeton fixture (openssl ts -reply -text)
+        let(:token_time) { Time.zone.parse('2022-12-06 09:11:17 UTC') }
+
+        context 'when the signature time is barely in the future (TSA clock skew within tolerance)' do
+          let(:current_date) { token_time - (BillSignature::SIGNATURE_TIME_TOLERANCE - 2.seconds) }
+
+          it { is_expected.to be_empty }
+        end
+
+        context 'when the signature time is in the future beyond the tolerance' do
+          let(:current_date) { token_time - (BillSignature::SIGNATURE_TIME_TOLERANCE + 5.seconds) }
+
+          it { is_expected.to eq [error: :invalid_date] }
+        end
+      end
+
       context 'when the signature doesn’t match the digest' do
         let(:signature_digest) { 'dcba' }
 

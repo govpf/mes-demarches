@@ -2,6 +2,8 @@
 
 class ReferentielDePolynesie::BaserowAPI
   TIMEOUT = 10 # pf: timeout en secondes pour les appels Baserow
+  # pf: types Baserow plausibles pour un champ e-mail propriétaire (diagnostic, pas un blocage)
+  EMAIL_LIKE_TYPES = ['email', 'text', 'formula'].freeze
 
   class << self
     def search(domain_id, term, drop_down_other: false)
@@ -51,14 +53,17 @@ class ReferentielDePolynesie::BaserowAPI
     # Note: on n'utilise PAS user_field_names=true dans la requête de recherche car Baserow exige alors
     # des noms de champs (strings) dans les filtres alors que build_search_filters utilise des IDs numériques.
     # On mappe les IDs vers les noms via le model fields() après réception.
-    def search_with_data(domain_id, term, drop_down_other: false)
+    def search_with_data(domain_id, term, drop_down_other: false, scope: nil)
       config = config(domain_id)
       return [] unless config
 
       search_field_id = config['Champ de recherche']
       model = fields(config)
 
-      params = build_search_filters(search_field_id, term)
+      params = build_search_filters(search_field_id, term, scope:)
+      # pf: ni terme ni scope → ne jamais renvoyer la table entière (défense en profondeur)
+      return [] if params.blank?
+
       url = rows_url(config['Table'])
       response = Typhoeus.get(url, headers: database_headers(config['Token']), params:, timeout: TIMEOUT)
 
@@ -101,6 +106,27 @@ class ReferentielDePolynesie::BaserowAPI
     def config(row_id)
       response = Typhoeus.get(row_url(ENV['API_BASEROW_CONFIG_TABLE'], row_id), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
       response.success? ? JSON.parse(response.body) : nil
+    end
+
+    # pf: DLNUF (« Dites-le-nous une fois ») — lit la colonne « Champ propriétaire » de la table
+    # méta. Invariant : id renseigné ⟺ mode DLNUF ; vide ⟺ catalogue.
+    # Fail-closed : id renseigné mais champ introuvable → :invalid. Ne JAMAIS retomber sur nil
+    # dans ce cas : des données personnelles seraient déclassées en liste publique.
+    def dlnuf_config(domain_id)
+      config = config(domain_id)
+      return nil unless config
+
+      owner_field_id = config['Champ propriétaire']
+      return nil if owner_field_id.blank?
+
+      field = fields(config)&.dig(owner_field_id.to_i)
+      return :invalid if field.nil?
+
+      unless field[:type].in?(EMAIL_LIKE_TYPES)
+        Rails.logger.warn("ReferentielDePolynesie: le champ propriétaire #{owner_field_id} (référentiel #{domain_id}) est de type #{field[:type]}, pas un e-mail")
+      end
+
+      { field_id: owner_field_id.to_i, field_name: field[:name], field_type: field[:type] }
     end
 
     # pf: retourne { id => { name:, type: } } au lieu de { id => name }
@@ -174,51 +200,22 @@ class ReferentielDePolynesie::BaserowAPI
       }
     end
 
-    def build_search_filters(search_field, term)
-      words = extract_search_words(term)
-      return {} if words.empty?
-
-      if words.size == 1
-        build_single_word_filter(search_field, words.first)
-      else
-        build_multi_word_filters(search_field, words)
+    def build_search_filters(search_field, term, scope: nil)
+      filters = extract_search_words(term).map do |word|
+        { "field" => search_field.to_i, "type" => "contains", "value" => word }
       end
+      # pf: DLNUF — le filtre propriétaire est TOUJOURS appliqué quand un scope est présent ;
+      # q ne fait que réduire à l'intérieur du périmètre (la sécurité tient quel que soit q)
+      if scope.present?
+        filters << { "field" => scope[:field_id], "type" => "equal", "value" => scope[:value] }
+      end
+      return {} if filters.empty?
+
+      { "filters" => JSON.generate({ "filter_type" => "AND", "filters" => filters }) }
     end
 
     def extract_search_words(term)
       term.to_s.strip.split(/\s+/).compact_blank
-    end
-
-    def build_single_word_filter(search_field, word)
-      {
-        "filters" => JSON.generate({
-          "filter_type" => "AND",
-          "filters" => [
-            {
-              "field" => search_field.to_i,
-              "type" => "contains",
-              "value" => word,
-            },
-          ],
-        }),
-      }
-    end
-
-    def build_multi_word_filters(search_field, words)
-      filters = words.map do |word|
-        {
-          "field" => search_field.to_i,
-          "type" => "contains",
-          "value" => word,
-        }
-      end
-
-      {
-        "filters" => JSON.generate({
-          "filter_type" => "AND",
-          "filters" => filters,
-        }),
-      }
     end
 
     def parse_search_results(response_body, search_field, domain_id)

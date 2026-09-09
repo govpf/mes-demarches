@@ -28,7 +28,7 @@ class FormulaAiPromptService
     email: 'texte',
     phone: 'texte',
     enum: 'texte (choix unique)',
-    enums: 'texte (choix multiple)',
+    enums: 'liste de choix multiples (utiliser CONTIENT)',
     integer_number: 'nombre entier',
     decimal_number: 'nombre décimal',
     boolean: 'booléen (true/false)',
@@ -201,6 +201,23 @@ class FormulaAiPromptService
       - `SUPPRESPACE(texte)` → texte — supprime les espaces en début/fin et réduit les espaces multiples
       - `VALEUR(texte)` → nombre — convertit un texte en nombre (gère la virgule française, retourne 0 si non convertible)
       - `JOINDRE(liste, séparateur)` → texte — concatène les valeurs d’un sous-champ de bloc répétable avec un séparateur (équivalent texte de SOMME, cf. plus bas). Ex : `JOINDRE({Partenaires/Raison sociale}, ", ")`.
+
+      ### Listes
+      - `CONTIENT(liste, valeur)` → booléen — la valeur est-elle présente dans la liste ? Comparaison EXACTE d’une option entière, insensible à la casse et aux espaces de bord. Ex : `CONTIENT({Moyens de transport}, "Bus")`.
+
+      Un champ de type « liste de choix multiples » EST une liste : l’usager coche
+      zéro, une ou plusieurs options.
+      - Pour tester la présence d’une option : `CONTIENT({Moyens de transport}, "Bus")`.
+        **N’utilise JAMAIS `==` ni `CHERCHE` pour ça.** `{Moyens de transport} == "Bus"`
+        est toujours faux (la valeur est une liste, jamais une option isolée), et
+        `CHERCHE("Bus", {Moyens de transport})` fait une recherche de sous-chaîne :
+        il renvoie vrai à tort si l’usager a coché l’option « Bus scolaire ».
+      - `NB({Moyens de transport})` → nombre d’options cochées.
+      - `JOINDRE({Moyens de transport}, ", ")` → les options cochées en une phrase.
+      - Combinaisons : `ET(CONTIENT({Moyens}, "Bus"), NON(CONTIENT({Moyens}, "Vélo")))`.
+
+      `CONTIENT` fonctionne aussi sur un champ à choix unique et sur un
+      `{Bloc/Sous-champ}` de bloc répétable (vrai si au moins une ligne porte la valeur).
 
       ### Date
       Les champs de type date sont manipulés comme des objets Date natifs. L’arithmétique `+` `-` et les comparaisons `<` `>` `==` fonctionnent directement entre deux dates, ou entre une date et une durée.
@@ -383,7 +400,9 @@ class FormulaAiPromptService
       'date'
     when 'datetime'
       'date et heure'
-    when 'drop_down_list', 'multiple_drop_down_list', 'linked_drop_down_list'
+    when 'multiple_drop_down_list'
+      'liste de choix multiples'
+    when 'drop_down_list', 'linked_drop_down_list'
       'liste de choix'
     when 'repetition'
       'bloc répétable (tableau)'

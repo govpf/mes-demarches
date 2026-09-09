@@ -171,5 +171,107 @@ describe ReferentielDePolynesie::BaserowAPI do
         expect(last[:label]).to eq(I18n.t('shared.champs.drop_down_list.other'))
       end
     end
+
+    context 'avec un scope DLNUF' do
+      let(:scope) { { field_id: 9, value: 'titulaire@exemple.pf' } }
+
+      def sent_filters
+        sent = nil
+        expect(Typhoeus).to have_received(:get)
+          .with("#{base_url}/api/database/rows/table/#{table_id}/", anything) do |_url, options|
+            sent = JSON.parse(options[:params]['filters'])
+          end
+        sent
+      end
+
+      it 'applique toujours le filtre propriétaire en AND avec le terme' do
+        described_class.search_with_data(domain_id, term, scope:)
+        filters = sent_filters
+        expect(filters['filter_type']).to eq('AND')
+        expect(filters['filters']).to include({ 'field' => 9, 'type' => 'equal', 'value' => 'titulaire@exemple.pf' })
+        expect(filters['filters']).to include({ 'field' => search_field_id, 'type' => 'contains', 'value' => term })
+      end
+
+      it 'accepte un terme vide : seul le filtre propriétaire est envoyé' do
+        described_class.search_with_data(domain_id, '', scope:)
+        filters = sent_filters
+        expect(filters['filters']).to eq([{ 'field' => 9, 'type' => 'equal', 'value' => 'titulaire@exemple.pf' }])
+      end
+    end
+
+    context 'sans scope et sans terme' do
+      it 'retourne [] sans appeler la table (ne jamais renvoyer la table entière)' do
+        expect(described_class.search_with_data(domain_id, '')).to eq([])
+        expect(Typhoeus).not_to have_received(:get)
+          .with("#{base_url}/api/database/rows/table/#{table_id}/", anything)
+      end
+    end
+  end
+
+  describe '.dlnuf_config' do
+    subject { described_class.dlnuf_config(domain_id) }
+
+    let(:owner_field_id) { nil }
+    let(:dlnuf_config_response) { config_response.merge('Champ propriétaire' => owner_field_id) }
+    let(:dlnuf_fields_response) { fields_response + [{ 'id' => 9, 'name' => 'Email', 'type' => 'email' }] }
+
+    before do
+      stub_config = instance_double(Typhoeus::Response, success?: true, body: dlnuf_config_response.to_json)
+      allow(Typhoeus).to receive(:get)
+        .with("#{base_url}/api/database/rows/table/1/#{domain_id}/", anything)
+        .and_return(stub_config)
+
+      stub_fields = instance_double(Typhoeus::Response, success?: true, body: dlnuf_fields_response.to_json)
+      allow(Typhoeus).to receive(:get)
+        .with("#{base_url}/api/database/fields/table/#{table_id}/", anything)
+        .and_return(stub_fields)
+    end
+
+    context 'sans colonne « Champ propriétaire » renseignée (catalogue)' do
+      let(:owner_field_id) { nil }
+
+      it { is_expected.to be_nil }
+
+      it 'ne lit pas le modèle de la table' do
+        subject
+        expect(Typhoeus).not_to have_received(:get)
+          .with("#{base_url}/api/database/fields/table/#{table_id}/", anything)
+      end
+    end
+
+    context 'avec un champ propriétaire valide' do
+      let(:owner_field_id) { 9 }
+
+      it { is_expected.to eq({ field_id: 9, field_name: 'Email', field_type: 'email' }) }
+    end
+
+    context 'avec un id de champ propriétaire mort (champ supprimé)' do
+      let(:owner_field_id) { 999 }
+
+      it 'retourne :invalid (fail-closed, jamais nil qui déclasserait en catalogue)' do
+        expect(subject).to eq(:invalid)
+      end
+    end
+
+    context 'avec un champ propriétaire dont le type ne ressemble pas à un mail' do
+      let(:owner_field_id) { 9 }
+      let(:dlnuf_fields_response) { fields_response + [{ 'id' => 9, 'name' => 'Quantité', 'type' => 'number' }] }
+
+      it 'retourne quand même la config mais loggue un avertissement de diagnostic' do
+        expect(Rails.logger).to receive(:warn).with(/champ propriétaire/i)
+        expect(subject).to eq({ field_id: 9, field_name: 'Quantité', field_type: 'number' })
+      end
+    end
+
+    context 'quand la config est introuvable' do
+      before do
+        stub_error = instance_double(Typhoeus::Response, success?: false, body: 'not found')
+        allow(Typhoeus).to receive(:get)
+          .with("#{base_url}/api/database/rows/table/1/#{domain_id}/", anything)
+          .and_return(stub_error)
+      end
+
+      it { is_expected.to be_nil }
+    end
   end
 end

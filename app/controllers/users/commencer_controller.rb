@@ -102,7 +102,9 @@ module Users
 
       redirect_to commencer_path(params[:path]) and return if !@procedure.close?
 
-      render 'closing_details', layout: 'closing_details'
+      respond_to do |format|
+        format.html { render 'closing_details', layout: 'closing_details' }
+      end
     end
 
     private

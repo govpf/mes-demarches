@@ -284,7 +284,53 @@ class FormulaCalculationService
       Array(arr).flatten.compact.map(&:to_s).reject(&:empty?).join(separator.to_s)
     })
 
+    # pf: CONTIENT(liste, valeur) — test d'appartenance. Pensé pour les champs
+    # à choix multiple (type de colonne :enums, passés à Dentaku comme Array
+    # natif, cf. format_value_for_dentaku), fonctionne aussi sur un binding
+    # agrégat {bloc/sous-champ} et sur un champ à valeur simple.
+    # Comparaison EXACTE élément par élément, insensible à la casse et aux
+    # espaces de bord : à préférer à CHERCHE, qui fait une recherche de
+    # sous-chaîne et matche donc "Bus" sur l'option "Bus scolaire".
+    # L'insensibilité à la casse est délibérée — l'admin recopie à la main le
+    # libellé de l'option dans sa formule, une typo de casse donnerait sinon
+    # un false silencieux impossible à diagnostiquer.
+    calculator.add_function(:CONTIENT, :logical, -> (list, value) {
+      wanted = value.to_s.strip.downcase
+      next false if wanted.empty?
+
+      coerce_to_list(list).any? { |item| item.to_s.strip.downcase == wanted }
+    })
+
     add_french_date_functions(calculator)
+  end
+
+  # pf: normalise l'argument liste de CONTIENT.
+  # - Array : binding :enums (choix multiple) ou agrégat {bloc/sous-champ}
+  # - String '["Vélo", "Bus"]' : sérialisation stockée par une formule qui
+  #   référence un choix multiple — sans ce reparsing, CONTIENT renverrait
+  #   false en cascade sur les formules transitives
+  # - String simple : choix simple, texte… traité comme une liste d'un élément
+  def coerce_to_list(value)
+    case value
+    when nil
+      []
+    when Array
+      value.flatten.compact
+    when String
+      parsed = parse_json_array(value)
+      parsed || [value]
+    else
+      [value]
+    end
+  end
+
+  def parse_json_array(string)
+    return nil unless string.strip.start_with?('[')
+
+    parsed = JSON.parse(string)
+    parsed.is_a?(Array) ? parsed.flatten.compact : nil
+  rescue JSON::ParserError
+    nil
   end
 
   # pf: Fonctions de date en français. Les champs date sont passés à Dentaku
@@ -666,6 +712,20 @@ class FormulaCalculationService
       value.present? ? Date.parse(value.to_s) : nil
     when :datetime
       value.present? ? DateTime.parse(value.to_s) : nil
+    when :enums
+      # pf: choix multiple — on passe l'Array natif (comme les bindings agrégat
+      # de bloc répétable) et non sa sérialisation, pour que CONTIENT, NB et
+      # JOINDRE opèrent sur les options cochées. Rétro-compatible : Dentaku
+      # stringifie à la demande, donc CHERCHE, CONCATENER et la référence nue
+      # `{champ}` continuent de voir `["Vélo", "Bus"]`.
+      #
+      # coerce_to_list (et pas Array()) parce que la valeur n'est pas toujours
+      # déjà parsée : la cascade injecte `champ.value` brut via seed_overrides
+      # (cf. refresh_formulas_after), donc la sérialisation JSON telle que
+      # stockée en base, qui court-circuite le parsing de la colonne.
+      return [] if value.blank?
+
+      coerce_to_list(value).map(&:to_s)
     else
       # pf: text, enum ou inconnu — conservé tel quel (String). Pour faire
       # des maths sur un champ textuel, utiliser explicitement VALEUR({champ}).
@@ -809,6 +869,11 @@ class FormulaCalculationService
       # pf: Retour de AUJOURDHUI(), MAINTENANT(), ou arithmétique Date ± Duration.
       # Sérialisation ISO 8601 (cohérent avec le stockage natif des champs Date).
       result.iso8601
+    when Array
+      # pf: liste vide (choix multiple non coché, bloc répétable sans ligne) →
+      # chaîne vide plutôt que "[]", qui s'afficherait tel quel à l'usager.
+      # Liste non vide → sérialisation Ruby, inchangée (`["Vélo", "Bus"]`).
+      result.empty? ? '' : result.to_s
     else
       result.to_s
     end

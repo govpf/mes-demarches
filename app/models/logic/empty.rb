@@ -28,4 +28,8 @@ class Logic::Empty < Logic::Term
   def value
     nil
   end
+
+  def compute(_champs = [])
+    nil
+  end
 end

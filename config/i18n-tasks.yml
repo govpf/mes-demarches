@@ -129,6 +129,8 @@ ignore_unused:
 - 'views.shared.avis.avis_non_rendu'
 - 'views.shared.avis.en_attente'
 - 'insee_down'
+# pf: clés utilisées dans app/components (exclu du scan ci-dessus) — referentiel_de_polynesie DLNUF
+- 'shared.champs.referentiel_de_polynesie.*'
 # - '{devise,kaminari,will_paginate}.*'
 # - 'simple_form.{yes,no}'
 # - 'simple_form.{placeholders,hints,labels}.*'
