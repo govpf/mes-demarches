@@ -420,7 +420,9 @@ describe Users::DossiersController, type: :controller do
     end
 
     context 'with an invalid SIRET' do
-      let(:params_siret) { '000 000 00' }
+      # pf: 10 caractères — ni numéro Tahiti (6 à 9) ni SIRET (14). Ne doit déclencher
+      # aucun appel réseau, l'erreur est de format.
+      let(:params_siret) { '000 000 0000' }
 
       it_behaves_like 'the request fails with an error', ["Le champ « Siret » " + I18n.t('activemodel.errors.models.siret.attributes.siret.length')]
     end
@@ -468,6 +470,43 @@ describe Users::DossiersController, type: :controller do
           expect(dossier.etablissement.entreprise).to be_present
         end
       end
+    end
+  end
+
+  # pf: un numéro ni Tahiti ni SIRET doit être refusé sur le format, sans appel réseau
+  describe '#update_siret — refus de format' do
+    let(:dossier) { create(:dossier, user: user) }
+
+    before { sign_in(user) }
+
+    subject do
+      post :update_siret, params: { id: dossier.id, user: { siret: '12345678901' } }
+    end
+
+    it 'rend le formulaire sans appeler les services de résolution' do
+      expect(APIEntrepriseService).not_to receive(:create_etablissement)
+      expect(APIEntrepriseService).not_to receive(:list_etablissements)
+      subject
+      expect(response).to render_template(:siret)
+    end
+  end
+
+  # pf: la branche « Tahiti complet ou SIRET » de update_siret resolvait
+  # l'etablissement, puis deleguait a create_etablissement_and_redirect qui le
+  # resolvait une seconde fois — deux appels API et deux vagues de jobs par depot.
+  describe '#update_siret — une seule resolution par depot' do
+    let(:dossier) { create(:dossier, user: user) }
+    let(:etablissement) { create(:etablissement) }
+
+    before { sign_in(user) }
+
+    subject do
+      post :update_siret, params: { id: dossier.id, user: { siret: '41816609600051' } }
+    end
+
+    it 'ne resout l’etablissement qu’une seule fois' do
+      expect(APIEntrepriseService).to receive(:create_etablissement).once.and_return(etablissement)
+      subject
     end
   end
 

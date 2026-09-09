@@ -1,4 +1,5 @@
 import { ApplicationController } from './application_controller';
+import { formatIdentifiantEntreprise } from '../shared/identifiant-entreprise';
 
 export class FormatController extends ApplicationController {
   connect() {
@@ -19,16 +20,20 @@ export class FormatController extends ApplicationController {
         });
         break;
       case 'siret': {
-        // Format immediately on connect if field has a value
+        // Format immediately on connect if field has a value. La valeur vient
+        // du serveur (déjà complète, cf. pretty_siret) : aucune ambiguïté,
+        // mise en forme pleine.
         const input = this.element as HTMLInputElement;
         if (input.value) {
           const value = this.formatSIRET(input.value);
           replaceValue(input, value);
         }
 
+        // Pendant la frappe, la valeur peut être incomplète et ambiguë
+        // (cf. commentaire de formatIdentifiantEntreprise) : garde-fou actif.
         this.on('input', (event) => {
           const target = event.target as HTMLInputElement;
-          const value = this.formatSIRET(target.value);
+          const value = this.formatSIRET(target.value, true);
           replaceValue(target, value);
         });
         break;
@@ -64,14 +69,10 @@ export class FormatController extends ApplicationController {
     return value.replace(/;/g, ',');
   }
 
-  private formatSIRET(value: string) {
-    return value
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/, '') // remove non letter or digit
-      .replace(/(?<=.)[^\d]+/gi, '') // remove letters not in front
-      .replace(/^\s*(\d{3})\s*(\d{3})\s*(\d{3})\s*(\d{5})\s*$/gi, '$1 $2 $3 $4') // format 14 digit siret
-      .replace(/^\s*(\w\d{5})(\d{1,3})\s*$/, '$1-$2'); // format 9-digit number (tahiti number)
+  private formatSIRET(value: string, enCoursDeSaisie = false) {
+    // pf: règles centralisées dans shared/identifiant-entreprise.ts, miroir du
+    // value object IdentifiantEntreprise côté serveur
+    return formatIdentifiantEntreprise(value, { enCoursDeSaisie });
   }
 
   private formatIBAN(value: string) {

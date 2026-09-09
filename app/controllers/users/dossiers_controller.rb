@@ -225,12 +225,14 @@ module Users
       siret_model = Siret.new(siret: siret_params[:siret])
       valid = siret_model.valid?
       current_user.siret = sanitized_siret = siret_model.siret
+      # pf: nature du numéro saisi — pilote l'aiguillage API et le diagnostic de panne
+      identifiant = IdentifiantEntreprise.parse(sanitized_siret)
       if !valid
         return render_siret_error(siret_model.errors.full_messages)
       end
 
-      # pf: Handle ambiguous TAHITI numbers (< 9 chars)
-      if sanitized_siret.length < 9
+      # pf: numéro Tahiti partiel — plusieurs établissements possibles
+      if identifiant.tahiti_partiel?
         @etablissements = begin
           APIEntrepriseService.list_etablissements(sanitized_siret, @dossier.procedure.id)
                           rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
@@ -242,7 +244,7 @@ module Users
           return render_siret_error(t('errors.messages.siret_unknown'))
         elsif @etablissements.size == 1
           # PF: Auto-select when only one establishment matches
-          full_siret = "#{sanitized_siret}#{format('%03d', @etablissements[0][:num_entreprise])}"
+          full_siret = identifiant.avec_etablissement(@etablissements[0][:num_entreprise])
           create_etablissement_and_redirect(full_siret)
         else
           # PF: Multiple establishments found, redirect to selection page
@@ -251,30 +253,10 @@ module Users
           redirect_to etablissements_dossier_path
         end
       else
-        # SIRET >= 9 chars, create directly with enhanced error handling
-        etablissement = begin
-          APIEntrepriseService.create_etablissement(@dossier, sanitized_siret, current_user.id)
-                        rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
-                          if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
-                            APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, sanitized_siret, current_user.id)
-                          else
-                            Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: sanitized_siret })
-                            if sanitized_siret.length == 14
-                              return render_siret_error(t('errors.messages.siret.network_error'))
-                            else
-                              return render_siret_error(t('errors.messages.siret_network_error'))
-                            end
-                          end
-        end
-
-        if etablissement.nil?
-          if sanitized_siret.length == 14
-            return render_siret_error(t('errors.messages.siret.not_found'))
-          else
-            return render_siret_error(t('errors.messages.siret_unknown'))
-          end
-        end
-
+        # pf: Tahiti complet ou SIRET. La resolution ET la gestion d'erreur sont
+        # centralisees dans create_etablissement_and_redirect, qui differencie les
+        # messages selon le referentiel. Ne rien resoudre ici : c'etait un second
+        # appel API et une seconde vague de jobs a chaque depot.
         create_etablissement_and_redirect(sanitized_siret)
       end
     end
@@ -614,20 +596,30 @@ module Users
     end
 
     def create_etablissement_and_redirect(siret)
+      # pf: nature du numéro — pilote le diagnostic de panne (ISPF ou API Entreprise)
+      identifiant = IdentifiantEntreprise.parse(siret)
       etablissement = begin
         APIEntrepriseService.create_etablissement(@dossier, siret, current_user.id)
                       rescue APIEntreprise::API::Error, APIEntrepriseToken::TokenError => error
-                        if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
+                        if APIEntrepriseService.service_unavailable_error?(error, target: :insee, identifiant:)
                           # TODO: notify ops
                           APIEntrepriseService.create_etablissement_as_degraded_mode(@dossier, siret, current_user.id)
                         else
                           Sentry.capture_exception(error, extra: { dossier_id: @dossier.id, siret: siret })
-                          return render_siret_error(t('errors.messages.siret_network_error'))
+                          if identifiant.siret?
+                            return render_siret_error(t('errors.messages.siret.network_error'))
+                          else
+                            return render_siret_error(t('errors.messages.siret_network_error'))
+                          end
                         end
       end
 
       if etablissement.nil?
-        return render_siret_error(t('errors.messages.siret_unknown'))
+        if identifiant.siret?
+          return render_siret_error(t('errors.messages.siret.not_found'))
+        else
+          return render_siret_error(t('errors.messages.siret_unknown'))
+        end
       end
 
       current_user.update!(siret: siret)

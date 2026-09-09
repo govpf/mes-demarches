@@ -22,4 +22,4 @@
     // PF: Single establishment was automatically created and saved, show the title
     = render EditableChamp::EtablissementTitreComponent.new(etablissement: etablissement)
   - elsif siret.present?
-    %p.fr-info-text Ce numéro TAHITI existe, nous en récupérons les informations.
+    %p.fr-info-text= t('views.users.dossiers.identite.etablissement_pending')

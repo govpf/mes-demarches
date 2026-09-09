@@ -10,7 +10,11 @@
     = render partial: "shared/dossiers/identite_individual", locals: { individual: @dossier.individual, dossier: @dossier }
 
 - if @dossier.etablissement.present?
-  = render partial: "shared/dossiers/identite_entreprise", locals: { etablissement: @dossier.etablissement, profile: 'instructeur' }
+  -# pf: convergence sur le composant upstream (cf. shared/champs/siret/_show)
+  - if @dossier.etablissement.as_degraded_mode?
+    = render Dossiers::DegradedIdentiteEntrepriseComponent.new(etablissement: @dossier.etablissement, profile: 'instructeur')
+  - else
+    = render Dossiers::IdentiteEntrepriseComponent.new(etablissement: @dossier.etablissement)
 
 %h2 Formulaire
 

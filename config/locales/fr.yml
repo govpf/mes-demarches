@@ -481,11 +481,19 @@ fr:
           birthdate: Date de naissance
           # pf: Tahiti number is used instead of SIRET in French Polynesia
           complete_siret: Renseignez le numéro TAHITI de votre entreprise, administration ou association pour commencer la démarche.
-          siret_help_html: Pour trouver votre numéro TAHITI, utilisez %{annuaire_link} ou renseignez-vous auprès de votre service comptable.
           siret_placeholder: numéro TAHITI à 6 ou 9 caractères
+          siret_help_html: Pour trouver votre numéro TAHITI, utilisez %{annuaire_link} ou renseignez-vous auprès de votre service comptable.
+          siret_help_fr_html: "Métropole et outre-mer : numéro SIRET à 14 chiffres, à retrouver sur %{annuaire_fr_link}."
           annuaire_link_title: Rechercher un numéro TAHITI sur l’Annuaire des Entreprises
+          annuaire_fr_link_title: Rechercher un numéro SIRET sur l’Annuaire des Entreprises
+          etablissement_pending: Ce numéro existe, nous en récupérons les informations.
           siret_loading: Récupération des informations…
           continue: Continuer
+        etablissements:
+          # pf: page de sélection parmi plusieurs établissements candidats —
+          # spécificité polynésienne, absente d'upstream
+          found_multiple: Nous avons trouvé plusieurs établissements pour le numéro Tahiti ou SIRET
+          use_another_number: Utiliser un autre numéro Tahiti ou SIRET
         merci:
           thanks: Merci !
           dossier_send_l1: Votre dossier sur la démarche

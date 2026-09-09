@@ -7,7 +7,8 @@ class Siret
   attr_accessor :siret
 
   validates :siret, presence: true
-  validates :siret, siret: true
+  # pf: validateur maison, accepte numéro Tahiti et SIRET (cf. IdentifiantEntreprise)
+  validates :siret, identifiant_entreprise: true
 
   before_validation :remove_whitespace
 

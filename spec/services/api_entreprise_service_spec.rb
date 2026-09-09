@@ -69,6 +69,67 @@ describe APIEntrepriseService do
     end
   end
 
+  # pf: le routage passait par des comparaisons de longueur divergentes selon la
+  # méthode. Un numéro de 10 à 13 caractères partait en appel API via `> 9`.
+  describe '#create_etablissement — routage par nature du numéro' do
+    let(:procedure) { create(:procedure, api_entreprise_token: nil) }
+    let(:dossier) { create(:dossier, procedure: procedure) }
+
+    subject { APIEntrepriseService.create_etablissement(dossier, siret, nil) }
+
+    context 'with an 11-char number, neither Tahiti nor SIRET' do
+      let(:siret) { '12345678901' }
+
+      it 'renvoie nil sans aucun appel réseau' do
+        expect(APIEntreprise::EtablissementAdapter).not_to receive(:new)
+        expect(APIEntreprise::PfEtablissementAdapter).not_to receive(:new)
+        expect(subject).to be_nil
+      end
+    end
+
+    context 'with a partial Tahiti number' do
+      let(:siret) { 'G33972' }
+
+      it 'renvoie nil — la résolution passe par list_etablissements' do
+        expect(APIEntreprise::EtablissementAdapter).not_to receive(:new)
+        expect(APIEntreprise::PfEtablissementAdapter).not_to receive(:new)
+        expect(subject).to be_nil
+      end
+    end
+
+    # pf: on passe désormais identifiant.valeur (normalisé) aux adapters, plutôt
+    # que la chaîne brute reçue en argument. Sans ce verrou, une régression qui
+    # repasserait à `siret` brut passerait inaperçue : `Siret#remove_whitespace`
+    # ne met pas en majuscules, donc une saisie `g33972-001` enverrait `g33972`
+    # (minuscules) à l'ISPF.
+    it 'transmet à l’adapter ISPF le numéro normalisé en majuscules' do
+      expect(APIEntreprise::PfEtablissementAdapter).to receive(:new)
+        .with('G33972001', anything).and_return(double(to_params: {}))
+      APIEntrepriseService.create_etablissement(dossier, 'g33972-001', nil)
+    end
+  end
+
+  describe '#list_etablissements — routage par nature du numéro' do
+    subject { APIEntrepriseService.list_etablissements(saisie, nil) }
+
+    context 'with a complete Tahiti number' do
+      let(:saisie) { 'G33972001' }
+
+      it 'renvoie nil — un numéro complet se résout directement' do
+        expect(subject).to be_nil
+      end
+    end
+
+    context 'with an 11-char number' do
+      let(:saisie) { '12345678901' }
+
+      it 'renvoie nil sans appel réseau' do
+        expect(APIEntreprise::PfEtablissementAdapter).not_to receive(:new)
+        expect(subject).to be_nil
+      end
+    end
+  end
+
   describe '#create_etablissement_as_degraded_mode' do
     let(:siret) { '41816609600051' }
     let(:valid_token) { "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" }
@@ -107,6 +168,80 @@ describe APIEntrepriseService do
         api_entreprise_jobs = ActiveJob::Base.queue_adapter.enqueued_jobs
           .filter { |job| job[:job].name.start_with?('APIEntreprise::') }
         expect(api_entreprise_jobs).to be_empty
+      end
+    end
+  end
+
+  # pf: une fois API_ENTREPRISE_KEY posé en production, le garde « jeton présent ? »
+  # tombe pour toutes les démarches — y compris celles dont les établissements
+  # viennent de l'ISPF. Le garde doit porter sur la nature du numéro.
+  describe '#perform_later_fetch_jobs — garde par nature du numéro' do
+    let(:valid_token) { "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" }
+    let(:procedure) { create(:procedure, api_entreprise_token: valid_token) }
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:etablissement) { create(:etablissement, dossier: dossier, siret: siret) }
+
+    subject { APIEntrepriseService.perform_later_fetch_jobs(etablissement, procedure.id, nil) }
+
+    before do
+      allow_any_instance_of(APIEntrepriseToken).to receive(:roles).and_return([])
+      allow_any_instance_of(APIEntrepriseToken).to receive(:expired?).and_return(false)
+    end
+
+    def jobs_enfiles
+      ActiveJob::Base.queue_adapter.enqueued_jobs
+        .map { |job| job[:job] }
+        .filter { |klass| klass.name.start_with?('APIEntreprise::') }
+    end
+
+    context 'with a Tahiti etablissement' do
+      let(:siret) { 'G33972001' }
+
+      it 'n’enfile aucun job français' do
+        subject
+        expect(jobs_enfiles).to be_empty
+      end
+    end
+
+    context 'with a French SIRET etablissement' do
+      let(:siret) { '41816609600051' }
+
+      it 'enfile tous les jobs français' do
+        subject
+        # pf: liste en dur plutôt que la constante testée — sinon retirer un job
+        # de FRENCH_ONLY_JOBS laisse ce test vert (garde auto-référentielle).
+        expect(jobs_enfiles).to match_array([
+          APIEntreprise::EntrepriseJob, APIEntreprise::ExtraitKbisJob, APIEntreprise::TvaJob,
+          APIEntreprise::AssociationJob, APIEntreprise::ExercicesJob,
+          APIEntreprise::EffectifsJob, APIEntreprise::EffectifsAnnuelsJob,
+          APIEntreprise::AttestationSocialeJob, APIEntreprise::BilansBdfJob,
+          APIEntreprise::AttestationFiscaleJob,
+        ])
+      end
+    end
+
+    context 'with a Tahiti etablissement in degraded mode' do
+      let(:siret) { 'G33972001' }
+      let(:etablissement) { create(:etablissement, dossier: dossier, siret: siret, adresse: nil) }
+
+      it 'n’enfile que EtablissementJob, qui sait router les deux sources' do
+        subject
+        expect(jobs_enfiles).to eq([APIEntreprise::EtablissementJob])
+      end
+    end
+
+    context 'without any token' do
+      let(:siret) { '41816609600051' }
+      let(:procedure) { create(:procedure, api_entreprise_token: nil) }
+
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('API_ENTREPRISE_KEY').and_return(nil)
+      end
+
+      it 'n’enfile rien, même pour un SIRET' do
+        subject
+        expect(jobs_enfiles).to be_empty
       end
     end
   end
@@ -166,6 +301,46 @@ describe APIEntrepriseService do
 
       it "returns false" do
         expect(subject).to be_falsy
+      end
+    end
+  end
+
+  # pf: deux fournisseurs, donc deux sondes de santé. Diagnostiquer un échec
+  # SIRET avec la santé d'i-taiete (ou l'inverse) fait basculer des dossiers en
+  # mode dégradé à tort.
+  describe '#service_unavailable_error? — routage des sondes' do
+    let(:error) { double('error', network_error?: true, is_a?: false) }
+
+    before do
+      stub_request(:get, "https://entreprise.api.gouv.fr/ping/insee/sirene")
+        .to_return(body: Rails.root.join('spec/fixtures/files/api_entreprise/ping.json').read, status: 200)
+      stub_request(:get, API_ISPF_URL).to_return(status: 200)
+    end
+
+    context 'with a French SIRET' do
+      let(:identifiant) { IdentifiantEntreprise.parse('41816609600051') }
+
+      it 'interroge la sonde API Entreprise et non celle de l’ISPF' do
+        expect(described_class).to receive(:fr_api_insee_up?).and_return(false)
+        expect(described_class).not_to receive(:api_insee_up?)
+        expect(described_class.service_unavailable_error?(error, target: :insee, identifiant:)).to be true
+      end
+    end
+
+    context 'with a Tahiti number' do
+      let(:identifiant) { IdentifiantEntreprise.parse('G33972001') }
+
+      it 'interroge la sonde ISPF et non celle d’API Entreprise' do
+        expect(described_class).to receive(:api_insee_up?).and_return(false)
+        expect(described_class).not_to receive(:fr_api_insee_up?)
+        expect(described_class.service_unavailable_error?(error, target: :insee, identifiant:)).to be true
+      end
+    end
+
+    context 'without identifiant' do
+      it 'retombe sur la sonde ISPF, comportement historique' do
+        expect(described_class).to receive(:api_insee_up?).and_return(false)
+        expect(described_class.service_unavailable_error?(error, target: :insee)).to be true
       end
     end
   end

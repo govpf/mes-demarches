@@ -20,7 +20,7 @@ describe Champs::SiretChamp do
     context 'with invalid format - too short for both systems' do
       let(:external_id) { "12345" }
 
-      it { expect(subject.errors[:external_id]).to include('doit comporter 9 chiffres (Tahiti) ou 14 chiffres (SIRET)') }
+      it { expect(subject.errors[:external_id]).to include('doit être un numéro Tahiti (6 à 9 caractères) ou un numéro SIRET (14 chiffres)') }
     end
 
     context 'with invalid checksum for 14-char SIRET' do
@@ -93,7 +93,8 @@ describe Champs::SiretChamp do
       let(:siret) { '82161143100015' }
       let(:api_etablissement_status) { 503 }
 
-      before { expect(APIEntrepriseService).to receive(:api_insee_up?).and_return(true) }
+      # pf: SIRET français → la santé à sonder est celle d'API Entreprise, pas de l'ISPF
+      before { expect(APIEntrepriseService).to receive(:fr_api_insee_up?).and_return(true) }
 
       it_behaves_like 'an error occured'
 
@@ -107,7 +108,8 @@ describe Champs::SiretChamp do
       let(:siret) { '82161143100015' }
       let(:api_etablissement_status) { 502 }
 
-      before { expect(APIEntrepriseService).to receive(:api_insee_up?).and_return(false) }
+      # pf: SIRET français → la santé à sonder est celle d'API Entreprise, pas de l'ISPF
+      before { expect(APIEntrepriseService).to receive(:fr_api_insee_up?).and_return(false) }
 
       it { expect { fetch_external_data }.to change { champ.reload.etablissement } }
 
@@ -200,6 +202,83 @@ describe Champs::SiretChamp do
         expect(champ.etablissement).to be_present
         expect(champ.etablissement.entreprise_raison_sociale).to eq('ACME TAHITI')
       end
+    end
+  end
+
+  # pf: l'aiguillage Tahiti/SIRET passe désormais par IdentifiantEntreprise
+  describe '#ready_for_external_call?' do
+    subject { champ.ready_for_external_call? }
+
+    context 'with a 6-char Tahiti number' do
+      let(:external_id) { 'G33972' }
+
+      it { is_expected.to be true }
+    end
+
+    context 'with a 7-char partial Tahiti number' do
+      let(:external_id) { 'G339720' }
+
+      it { is_expected.to be true }
+    end
+
+    context 'with a 9-char Tahiti number' do
+      let(:external_id) { 'G33972001' }
+
+      it { is_expected.to be true }
+    end
+
+    context 'with a valid SIRET' do
+      let(:external_id) { '41816609600051' }
+
+      it { is_expected.to be true }
+    end
+
+    context 'with a Luhn-invalid SIRET' do
+      let(:external_id) { '41816609600052' }
+
+      it { is_expected.to be false }
+    end
+
+    # pf: 10 à 13 caractères partaient auparavant en appel API via `> 9`
+    context 'with an 11-char number, neither Tahiti nor SIRET' do
+      let(:external_id) { '12345678901' }
+
+      it { is_expected.to be false }
+    end
+
+    context 'when blank' do
+      let(:external_id) { nil }
+
+      it { is_expected.to be false }
+    end
+  end
+
+  describe '#identifiant' do
+    let(:external_id) { 'g33972-001' }
+
+    it 'expose le value object dérivé de external_id' do
+      # `normalizes :external_id` retire déjà espaces et tirets à l'écriture ;
+      # IdentifiantEntreprise renormalise pour être robuste aux lectures directes.
+      expect(champ.identifiant.valeur).to eq('G33972001')
+      expect(champ.identifiant).to be_tahiti_complet
+    end
+  end
+
+  # pf: un prefixe partiel de 7 ou 8 caracteres etait concatene tel quel au numero
+  # d'etablissement, produisant un numero a 10 ou 11 caracteres au lieu de 9.
+  describe 'completion depuis un prefixe partiel de 8 caracteres' do
+    let(:external_id) { '07539001' }
+    let(:candidat) { { num_entreprise: 2, siret: '075390', entreprise_raison_sociale: 'BANQUE SOCREDO' } }
+
+    it 'produit un numero Tahiti a 9 caracteres, pas 11' do
+      allow(APIEntrepriseService).to receive(:list_etablissements).and_return([candidat])
+      allow(APIEntrepriseService).to receive(:create_etablissement_from_pf_candidate) do |_champ, full_siret, _c|
+        expect(full_siret.length).to eq(9)
+        expect(full_siret).to eq('075390002')
+        build(:etablissement, siret: full_siret)
+      end
+
+      champ.fetch_external_data
     end
   end
 end

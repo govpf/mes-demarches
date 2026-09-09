@@ -1,16 +1,27 @@
 # frozen_string_literal: true
 
 class APIEntrepriseService
+  # pf: ces jobs interrogent exclusivement entreprise.api.gouv.fr — ils n'ont
+  # aucun sens sur un établissement issu du référentiel ISPF.
+  # APIEntreprise::EtablissementJob en est volontairement absent : il appelle
+  # update_etablissement_from_degraded_mode, qui dispatche entre les deux sources.
+  FRENCH_ONLY_JOBS = [
+    APIEntreprise::EntrepriseJob, APIEntreprise::ExtraitKbisJob, APIEntreprise::TvaJob,
+    APIEntreprise::AssociationJob, APIEntreprise::ExercicesJob,
+    APIEntreprise::EffectifsJob, APIEntreprise::EffectifsAnnuelsJob,
+    APIEntreprise::AttestationSocialeJob, APIEntreprise::BilansBdfJob,
+    APIEntreprise::AttestationFiscaleJob,
+  ].freeze
+
   class << self
-    # PF: Specific method for handling ambiguous TAHITI numbers (< 9 chars)
-    # In French Polynesia, a 6-char TAHITI number can match multiple establishments
-    # This method lists all possible establishments for user selection
+    # pf: un numéro Tahiti partiel (6 à 8 car.) peut correspondre à plusieurs
+    # établissements. On les liste pour que l'usager choisisse.
     def list_etablissements(siret_prefix, procedure_id = nil)
-      return nil unless siret_prefix.present? && siret_prefix.length < 9
+      identifiant = IdentifiantEntreprise.parse(siret_prefix)
+      return nil unless identifiant.tahiti_partiel?
 
       begin
-        adapter = APIEntreprise::PfEtablissementAdapter.new(siret_prefix, procedure_id)
-        adapter.to_all_etablissements
+        APIEntreprise::PfEtablissementAdapter.new(identifiant.valeur, procedure_id).to_all_etablissements
       rescue APIEntreprise::API::Error::ResourceNotFound
         nil
       end
@@ -26,21 +37,22 @@ class APIEntrepriseService
     # (timeout, 5XX HTTP error code, etc.)
     def create_etablissement(dossier_or_champ, siret, user_id = nil)
       procedure_id = dossier_or_champ.procedure.id
+      identifiant = IdentifiantEntreprise.parse(siret)
 
-      # PF: Handle 9-char TAHITI numbers (6 chars company + 3 chars establishment)
-      etablissement_params = if siret.length == 9
-        APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id).to_params
-      elsif siret.length > 9
-        APIEntreprise::EtablissementAdapter.new(siret, procedure_id).to_params
+      etablissement_params = if identifiant.tahiti_complet?
+        APIEntreprise::PfEtablissementAdapter.new(identifiant.valeur, procedure_id).to_params
+      elsif identifiant.siret?
+        APIEntreprise::EtablissementAdapter.new(identifiant.valeur, procedure_id).to_params
       else
-        # PF: SIRET < 9 chars is ambiguous, use list_etablissements instead
+        # pf: numéro Tahiti partiel → passer par list_etablissements ;
+        # numéro invalide → rien à résoudre.
         return nil
       end
 
       return nil if etablissement_params.blank?
 
-      if siret.length > 9
-        entreprise_params = APIEntreprise::EntrepriseAdapter.new(siret, procedure_id).to_params
+      if identifiant.siret?
+        entreprise_params = APIEntreprise::EntrepriseAdapter.new(identifiant.valeur, procedure_id).to_params
         etablissement_params.merge!(entreprise_params) if entreprise_params.any?
       end
 
@@ -50,12 +62,11 @@ class APIEntrepriseService
       if dossier_or_champ.is_a?(Champ)
         dossier_or_champ.update!(value_json: APIGeoService.parse_etablissement_address(etablissement))
       end
-      if siret.length > 9
-        perform_later_fetch_jobs(etablissement, procedure_id, user_id)
-      end
+      # perform_later_fetch_jobs s'auto-garde depuis la phase 2 (nature du numéro
+      # + présence du jeton) — pas de condition à dupliquer ici.
+      perform_later_fetch_jobs(etablissement, procedure_id, user_id)
       # pf: la cascade explicite des formules est déclenchée par
-      # Etablissement#update_champ_value_json! (couvre les deux cas Champ et
-      # Dossier-level — formules qui lisent entreprise.raison_commerciale).
+      # Etablissement#update_champ_value_json! (couvre les cas Champ et Dossier).
       etablissement.update_champ_value_json!
       etablissement
     end
@@ -88,25 +99,19 @@ class APIEntrepriseService
     end
 
     def update_etablissement_from_degraded_mode(etablissement, procedure_id)
-      siret = etablissement.siret
-      # pf: Support TAHITI numbers (6-9 chars) in degraded mode
-      # For 6-char numbers, validate only if there's a single establishment (95% of cases)
-      etablissement_params = if siret.length >= 6 && siret.length <= 9
-        adapter = APIEntreprise::PfEtablissementAdapter.new(siret, procedure_id)
-        params = adapter.to_params
+      identifiant = IdentifiantEntreprise.parse(etablissement.siret)
 
-        # If SIRET was not completed (still 6 chars), it means multiple establishments exist
-        # In this case, we can't auto-validate in degraded mode
-        if params.present? && params[:siret].present? && params[:siret].length == 9
-          params
-        else
-          # Multiple establishments or error: can't auto-complete
-          return nil
-        end
-      elsif siret.length > 9
-        APIEntreprise::EtablissementAdapter.new(siret, procedure_id).to_params
+      etablissement_params = if identifiant.tahiti?
+        # pf: en mode dégradé, un numéro partiel ne peut pas être auto-complété
+        # (plusieurs candidats possibles). On ne valide que si l'adapter a rendu
+        # un numéro complet à 9 caractères.
+        params = APIEntreprise::PfEtablissementAdapter.new(identifiant.valeur, procedure_id).to_params
+        return nil unless params.present? && IdentifiantEntreprise.parse(params[:siret]).tahiti_complet?
+
+        params
+      elsif identifiant.siret?
+        APIEntreprise::EtablissementAdapter.new(identifiant.valeur, procedure_id).to_params
       else
-        # Invalid SIRET length
         return nil
       end
       return nil if etablissement_params.empty?
@@ -118,25 +123,27 @@ class APIEntrepriseService
     end
 
     def perform_later_fetch_jobs(etablissement, procedure_id, user_id, wait: nil)
-      # pf: pas de jeton API Entreprise en Polynésie — sans jeton (procédure ou ENV),
-      # ces jobs lèvent tous TokenError et finissent morts dans Sidekiq. On ne les
-      # lance pas ; un jeton spécifique configuré sur la procédure reste honoré.
+      # pf: sans jeton (procédure ou ENV), ces jobs lèvent tous TokenError et
+      # finissent morts dans Sidekiq. Un jeton spécifique sur la procédure reste honoré.
       return if Procedure.find_by(id: procedure_id)&.api_entreprise_token&.jwt_token.blank?
 
-      jobs = [
-        APIEntreprise::EntrepriseJob, APIEntreprise::ExtraitKbisJob, APIEntreprise::TvaJob,
-        APIEntreprise::AssociationJob, APIEntreprise::ExercicesJob,
-        APIEntreprise::EffectifsJob, APIEntreprise::EffectifsAnnuelsJob, APIEntreprise::AttestationSocialeJob,
-        APIEntreprise::BilansBdfJob,
-      ]
-      if etablissement.as_degraded_mode?
-        jobs << APIEntreprise::EtablissementJob
-      end
-      jobs.each do |job|
-        job.set(wait:).perform_later(etablissement.id, procedure_id)
-      end
+      identifiant = IdentifiantEntreprise.parse(etablissement.siret)
 
-      APIEntreprise::AttestationFiscaleJob.set(wait:).perform_later(etablissement.id, procedure_id, user_id)
+      jobs = []
+      # EtablissementJob sait router les deux référentiels : il vaut pour un
+      # numéro Tahiti comme pour un SIRET.
+      jobs << APIEntreprise::EtablissementJob if etablissement.as_degraded_mode?
+      # pf: les autres jobs sont strictement français — poser API_ENTREPRISE_KEY
+      # ne doit pas les déclencher sur les établissements issus de l'ISPF.
+      jobs.concat(FRENCH_ONLY_JOBS) if identifiant.siret?
+
+      jobs.each do |job|
+        if job == APIEntreprise::AttestationFiscaleJob
+          job.set(wait:).perform_later(etablissement.id, procedure_id, user_id)
+        else
+          job.set(wait:).perform_later(etablissement.id, procedure_id)
+        end
+      end
     end
 
     # See: https://entreprise.api.gouv.fr/developpeurs#surveillance-etat-fournisseurs
@@ -152,10 +159,16 @@ class APIEntrepriseService
       api_up?("https://entreprise.api.gouv.fr/ping/djepva/api-association")
     end
 
-    def service_unavailable_error?(error, target:)
+    def service_unavailable_error?(error, target:, identifiant: nil)
       return false if !error.try(:network_error?)
-      return true if target == :insee && !APIEntrepriseService.api_insee_up?
+
+      if target == :insee
+        # pf: deux fournisseurs — sonder celui qui a réellement été interrogé.
+        # Sans identifiant, on retombe sur l'ISPF (référentiel dominant en PF).
+        return true if identifiant&.siret? ? !fr_api_insee_up? : !api_insee_up?
+      end
       return true if target == :djepva && !APIEntrepriseService.api_djepva_up?
+
       error.is_a?(APIEntreprise::API::Error::ServiceUnavailable)
     end
 

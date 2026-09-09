@@ -9,7 +9,7 @@
       - nom_commercial = etablissement[:entreprise_nom_commercial] || etablissement['entreprise_nom_commercial']
       - raison = etablissement[:entreprise_raison_sociale] || etablissement['entreprise_raison_sociale']
       - localite = etablissement[:localite] || etablissement['localite']
-      - full_siret = "#{@siret_prefix}#{sprintf('%03d', num.to_i)}"
+      - full_siret = IdentifiantEntreprise.parse(@siret_prefix).avec_etablissement(num)
       %li.fr-btns-group--sm.fr-btns-group--inline.fr-btns-group--icon-right
         %span
           = "#{sprintf('%03d', num.to_i)} - #{nom_commercial.presence || raison} - #{localite}"

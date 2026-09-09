@@ -10,6 +10,11 @@ class Champs::SiretChamp < Champ
     true
   end
 
+  # pf: nature de l'identifiant saisi — Tahiti (ISPF) ou SIRET (API Entreprise)
+  def identifiant
+    IdentifiantEntreprise.parse(external_id)
+  end
+
   # TODO: remove after T20251029backfillChampSiretExternalStateTask
   def external_id
     idle? && etablissement_id.present? ? value : super
@@ -33,24 +38,15 @@ class Champs::SiretChamp < Champ
   end
 
   def ready_for_external_call?
-    # pf: accept SIRET (14 chars) and Tahiti numbers (6/9 chars) + partial Tahiti (7-8 chars) to trigger the candidates list
-    return false if external_id.blank?
-
-    case external_id.length
-    when 14
-      Siret.new(siret: external_id).valid?
-    when 6..9
-      true
-    else
-      false
-    end
+    # pf: accepte numéro Tahiti (6-9 car., partiel ou complet) et SIRET (14 chiffres)
+    identifiant.valide?
   end
 
   def fetch_external_data
     siret = external_id.to_s
 
-    # pf: partial Tahiti number (6-8 chars): list candidates rather than a single lookup
-    return fetch_tahiti_candidates(siret) if siret.length.between?(6, 8)
+    # pf: numéro Tahiti partiel (6-8 car.) : lister les candidats plutôt qu'une résolution unique
+    return fetch_tahiti_candidates(siret) if identifiant.tahiti_partiel?
 
     etablissement = APIEntrepriseService.create_etablissement(self, siret, dossier.user&.id)
     if etablissement.blank?
@@ -61,7 +57,7 @@ class Champs::SiretChamp < Champ
   rescue APIEntrepriseToken::TokenError => error
     Failure(retryable: false, reason: error, code: 401)
   rescue APIEntreprise::API::Error => error
-    if APIEntrepriseService.service_unavailable_error?(error, target: :insee)
+    if APIEntrepriseService.service_unavailable_error?(error, target: :insee, identifiant:)
       update!(
         etablissement: APIEntrepriseService.create_etablissement_as_degraded_mode(self, siret, dossier.user&.id)
       )
@@ -103,7 +99,7 @@ class Champs::SiretChamp < Champ
     if candidates.size == 1
       # pf: single match: auto-complete to the full 9-char Tahiti number and create the etablissement
       candidate = candidates.first
-      full_siret = "#{siret_prefix}#{format('%03d', candidate[:num_entreprise])}"
+      full_siret = identifiant.avec_etablissement(candidate[:num_entreprise])
       etablissement = APIEntrepriseService.create_etablissement_from_pf_candidate(self, full_siret, candidate)
       Success(etablissement:, external_id: full_siret)
     else
@@ -126,8 +122,8 @@ class Champs::SiretChamp < Champ
       return
     end
 
-    # pf: custom SiretValidator accepts SIRET (14) and Tahiti (6/9)
-    validator = SiretValidator.new(attributes: { external_id: true })
+    # pf: validateur maison, accepte numéro Tahiti (6-9) et SIRET (14)
+    validator = IdentifiantEntrepriseValidator.new(attributes: { external_id: true })
     validator.validate_each(self, :external_id, external_id)
 
     errors.add(:external_id, :not_found) if errors.empty?

@@ -3,7 +3,7 @@
   = render Dsfr::InputComponent.new(form: f, attribute: :siret, input_type: :text_field,
   opts: { placeholder: "6 caractères, sans espace" }) do |c|
     - c.with_hint do
-      = "Indiquez le numéro TAHITI de l’organisme dont ce service dépend. Rechercher le Numéro TAHITI sur"
+      = "Indiquez le numéro Tahiti ou SIRET de l’organisme dont ce service dépend. Retrouvez-le sur"
       = link_to("l’annuaire de l’ISPF", annuaire_link, **external_link_attributes)
 
   .fr-mb-2w

@@ -1,0 +1,43 @@
+# pf: English counterpart of entreprise.fr.yml — see that file for the rationale.
+---
+en:
+  activerecord:
+    attributes:
+      siret: "Tahiti number or SIRET"
+      siret_siege_social: "Head office Tahiti number or SIRET"
+      user:
+        siret: "Tahiti number or SIRET"
+      service:
+        siret: "Tahiti number or SIRET"
+    errors:
+      models:
+        # pf: errors for the service's Tahiti number or SIRET (admin form),
+        # cf. config/locales/models/service/en.yml. not_prefillable removed —
+        # no code ever adds this error, cf. entreprise.fr.yml.
+        service:
+          attributes:
+            siret:
+              # pf: i18n_customize_full_message (config/application.rb) already
+              # prefixes "Tahiti number or SIRET " before length/checksum — do
+              # not repeat the term in these two messages.
+              format: "Tahiti number or SIRET %{message}"
+              length: "must be 6 to 9 characters (Tahiti) or 14 digits (SIRET)"
+  views:
+    # pf: identification form (siret.html.haml) — both registries are
+    # presented on equal footing, each with its own directory.
+    users:
+      dossiers:
+        identite:
+          complete_siret: "Enter your company, administration or association identification number to start."
+          siret_placeholder: "Tahiti number or SIRET"
+          siret_help_html: "French Polynesia: 6 or 9-character Tahiti number, available on %{annuaire_link} or from your accounting department."
+          annuaire_link_title: "Search for a Tahiti number on the French Polynesia business directory"
+    # pf: "Edit number" button on the dossier page (usager + instructeur)
+    shared:
+      dossiers:
+        demande:
+          edit_siret: "Edit Tahiti number or SIRET"
+    prefill_descriptions:
+      edit:
+        possible_values:
+          siret_html: "A Tahiti number or SIRET"

@@ -8,7 +8,7 @@
     %h1 Sélection de l'établissement
 
     %p
-      Nous avons trouvé plusieurs établissements pour le numéro TAHITI
+      = t('views.users.dossiers.etablissements.found_multiple')
       %strong= @siret_prefix
 
     %p
@@ -18,4 +18,4 @@
              locals: { siret_prefix: @siret_prefix, etablissements: @etablissements, dossier: @dossier }
 
     %ul.fr-mt-2w.fr-mb-5w.fr-btns-group.fr-btns-group--inline
-      %li= link_to 'Utiliser un autre numéro TAHITI', siret_dossier_path(@dossier), class: 'fr-btn fr-btn--secondary'
+      %li= link_to t('views.users.dossiers.etablissements.use_another_number'), siret_dossier_path(@dossier), class: 'fr-btn fr-btn--secondary'

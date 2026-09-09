@@ -1,2 +1,8 @@
 - if champ.etablissement.present?
-  = render partial: "shared/dossiers/identite_entreprise", locals: { etablissement: champ.etablissement, profile: profile, champ: }
+  -# pf: convergence sur le composant upstream — l'ancienne vue portait ses
+  -# libellés en dur, d'où un conflit à chaque merge et « SIRET » ici,
+  -# « Numéro TAHITI » là pour la même donnée.
+  - if champ.etablissement.as_degraded_mode?
+    = render Dossiers::DegradedIdentiteEntrepriseComponent.new(etablissement: champ.etablissement, profile: profile)
+  - else
+    = render Dossiers::IdentiteEntrepriseComponent.new(champ: champ)

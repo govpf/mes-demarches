@@ -4,7 +4,7 @@
       %li.fr-btns-group--sm.fr-btns-group--inline.fr-btns-group--icon-right
         %span
           = "#{format('%03d', etablissement[:num_entreprise])} - #{etablissement[:entreprise_nom_commercial].presence || etablissement[:entreprise_raison_sociale]} - #{etablissement[:localite]}"
-        = f.button "Sélectionner", name: "user[siret]", value: "#{siret_prefix}#{format('%03d', etablissement[:num_entreprise])}", class: "fr-btn fr-btn--tertiary"
+        = f.button "Sélectionner", name: "user[siret]", value: IdentifiantEntreprise.parse(siret_prefix).avec_etablissement(etablissement[:num_entreprise]), class: "fr-btn fr-btn--tertiary"
 
 %p
   = link_to "➡ Autres informations sur le site de l'ISPF",

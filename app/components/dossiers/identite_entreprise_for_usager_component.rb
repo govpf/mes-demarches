@@ -8,7 +8,15 @@ class Dossiers::IdentiteEntrepriseForUsagerComponent < ApplicationComponent
   end
 
   def call
-    if etablissement.diffusable_commercialement
+    # pf: comparaison explicite a false, et non simple verification de veracite.
+    # L'ISPF ne renseigne pas ce champ — absent de PfEtablissementAdapter#translation_map —
+    # si bien que les etablissements Tahiti sont tous a nil en base. Une verification
+    # de veracite les masquerait tous et afficherait a chaque usager polynesien
+    # « a exerce son droit a la non publication » au lieu de son propre etablissement.
+    # Seule une opposition explicite, renvoyee par API Entreprise, doit masquer.
+    # C'est la semantique que portait l'ancienne vue PF avant la convergence sur
+    # ce composant (elle testait `diffusable_commercialement == false`).
+    if etablissement.diffusable_commercialement != false
       render Dossiers::ExternalChampComponent.new(data:, details:, source:, details_footer:)
     else
       c = Dossiers::ExternalChampComponent.new(source: 'Annuaire des Entreprises')

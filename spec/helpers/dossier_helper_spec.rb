@@ -73,9 +73,11 @@ RSpec.describe DossierHelper, type: :helper do
       end
 
       context "when the company is not diffusable" do
-        let(:etablissement) { build(:etablissement, :non_diffusable, siret: "12345678901234") }
+        # pf: SIRET valide au sens de Luhn — la mise en forme passe par
+        # IdentifiantEntreprise, qui vérifie la clé de controle.
+        let(:etablissement) { build(:etablissement, :non_diffusable, siret: "41816609600051") }
 
-        it { is_expected.to include("123 456 789 01234") }
+        it { is_expected.to include("418 166 096 00051") }
       end
     end
   end
@@ -281,6 +283,22 @@ RSpec.describe DossierHelper, type: :helper do
       it {
         expect(subject).to have_text("Déposé depuis 10 J.")
       }
+    end
+  end
+
+  describe '#annuaire_link' do
+    it 'renvoie la racine ISPF sans numéro' do
+      expect(helper.annuaire_link).to eq('https://www.ispf.pf/rte')
+    end
+
+    it 'renvoie la fiche ISPF pour un numéro Tahiti' do
+      expect(helper.annuaire_link('G33972001')).to eq('https://www.ispf.pf/rte/attestation/G33972/001')
+    end
+
+    # pf: sans discrimination, un SIRET produisait une URL ISPF absurde
+    it 'renvoie l’annuaire des entreprises pour un SIRET' do
+      expect(helper.annuaire_link('41816609600051'))
+        .to eq('https://annuaire-entreprises.data.gouv.fr/etablissement/41816609600051')
     end
   end
 

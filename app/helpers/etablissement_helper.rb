@@ -36,17 +36,8 @@ module EtablissementHelper
 
   def pretty_siret(siret)
     return if siret.blank?
-    # pf: also strip hyphens since Tahiti numbers may be formatted as "G33972-001"
-    siret = siret.gsub(/[[:space:]-]/, "")
-    case siret.length
-    when 14
-      "#{siret[0..2]} #{siret[3..5]} #{siret[6..8]} #{siret[9..]}"
-    when 9
-      # pf: Tahiti full number (6 chars entreprise + 3 chars etablissement)
-      "#{siret[0..5]}-#{siret[6..]}"
-    else
-      siret
-    end
+    # pf: la mise en forme dépend du référentiel (Tahiti ou SIRET)
+    IdentifiantEntreprise.parse(siret).format_lisible
   end
 
   def pretty_currency(value, unit: '€')
