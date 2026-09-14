@@ -138,6 +138,13 @@ describe ReferentielDePolynesie::ContextualFilter do
       rdp_tdc.update!(referentiel_filter: filter_config.merge('pilot_column_id' => "type_de_champ/#{pilot_tdc.stable_id}"))
     end
 
+    # pf: garde-fou factory — le `deep_dup` de build_types_de_champ dupliquait l'objet
+    # Referentiel resté dans les `children`, laissant le champ enfant sans referentiel_id.
+    it 'conserve le référentiel du champ enfant de la répétition' do
+      expect(rdp_tdc.referentiel_id).to eq(referentiel.id)
+      expect(rdp_tdc.table_id).to be_present
+    end
+
     it 'résout le pilote ligne par ligne' do
       row1 = dossier.repetition_row_ids(repetition_tdc).first || dossier.repetition_add_row(repetition_tdc, updated_by: 'test')
       row2 = dossier.repetition_add_row(repetition_tdc, updated_by: 'test')

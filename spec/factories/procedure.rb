@@ -306,13 +306,21 @@ FactoryBot.define do
   end
 end
 
+# pf: la normalisation doit descendre dans les `children` AVANT le `deep_dup` ci-dessous :
+# sinon l'objet Referentiel resté dans un enfant est dupliqué en un enregistrement non
+# persisté (id nil) et le champ enfant est construit avec `referentiel_id: nil`.
+def normalize_referentiel_attributes!(type_de_champ_attributes)
+  referentiel = type_de_champ_attributes.delete(:referentiel)
+  if referentiel.present?
+    type_de_champ_attributes[:referentiel_id] = referentiel.id
+  end
+  Array(type_de_champ_attributes[:children]).each { normalize_referentiel_attributes!(_1) }
+  type_de_champ_attributes
+end
+
 def build_types_de_champ(types_de_champ, revision:, scope: :public, parent: nil)
   types_de_champ.map do |type_de_champ_attributes|
-    referentiel = type_de_champ_attributes.delete(:referentiel)
-    if referentiel.present?
-      type_de_champ_attributes[:referentiel_id] = referentiel.id
-    end
-    type_de_champ_attributes
+    normalize_referentiel_attributes!(type_de_champ_attributes)
   end.deep_dup.flat_map.with_index do |type_de_champ_attributes, i|
     type = TypeDeChamp.type_champs.fetch(type_de_champ_attributes.delete(:type) || :text).to_sym
     position = type_de_champ_attributes.delete(:position) || i
