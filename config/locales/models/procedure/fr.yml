@@ -99,6 +99,7 @@ fr:
               missing_libelle:  "Le libellé du champ en position %{position} doit être rempli"
               expression_reguliere_invalid: "est invalide, veuillez la corriger"
               referentiel_not_ready: "n'est pas configuré"
+              invalid_referentiel_filter: "a un filtre qui référence un champ supprimé, déplacé ou d’un type incompatible"
             draft_types_de_champ_private:
               format: 'L’annotation privée %{message}'
               invalid_condition: "a une logique conditionnelle invalide"
@@ -110,6 +111,7 @@ fr:
               missing_libelle:  "Le libellé du champ en position %{position} doit être rempli"
               expression_reguliere_invalid: "est invalide, veuillez la corriger"
               referentiel_not_ready: "n'est pas configuré"
+              invalid_referentiel_filter: "a un filtre qui référence un champ supprimé, déplacé ou d’un type incompatible"
             attestation_template:
               format: "%{attribute} %{message}"
             initiated_mail:
