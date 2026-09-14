@@ -291,6 +291,15 @@ RSpec.describe DossierNotification, type: :model do
       it "returns instructeur_ids to notify" do
         expect(subject).to eq([instructeur_to_notify.id])
       end
+
+      context "when the only commentaire comes from an automated sender" do
+        let(:automated_instructeur) { create(:instructeur, email: AUTOMATED_SENDER_EMAILS.first) }
+        let!(:commentaire_not_to_notify) { CommentaireService.create!(automated_instructeur, dossier, body: 'automate') }
+
+        it "notifies nobody" do
+          expect(subject).to eq([])
+        end
+      end
     end
   end
 

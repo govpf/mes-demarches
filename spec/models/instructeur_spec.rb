@@ -98,6 +98,22 @@ describe Instructeur, type: :model do
           expect(DossierNotification.pluck(:notification_type)).not_to include('message')
         end
       end
+
+      context "when the other commentaires come from an automated sender (robot)" do
+        let(:automated_instructeur) { create(:instructeur, email: AUTOMATED_SENDER_EMAILS.first) }
+
+        before do
+          commentaire.update!(instructeur: automated_instructeur, email: automated_instructeur.email)
+        end
+
+        it "does not create message notification" do
+          subject
+
+          expect(DossierNotification.count).to eq(5)
+
+          expect(DossierNotification.pluck(:notification_type)).not_to include('message')
+        end
+      end
     end
   end
 
