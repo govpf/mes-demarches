@@ -46,3 +46,5 @@ en:
         other_label: Enter your option
       referentiel_de_polynesie:
         dlnuf_empty: "No data registered under your name"
+        filter_pilot_blank: "Fill in “%{pilot}” first"
+        filter_no_match: "No result for “%{value}”"
