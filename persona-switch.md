@@ -106,7 +106,7 @@ end
 
 #### 3. Modification MINIMALE du dropdown (SEULE modification d'un fichier existant)
 ```haml
-# app/views/layouts/_account_dropdown.haml
+# app/components/account_dropdown_component/account_dropdown_component.html.haml
 # Changement minimal : remplacer uniquement les paths
 
 - if user_signed_in? && nav_bar_profile != :user
@@ -305,7 +305,7 @@ Les utilisateurs ayant plusieurs rôles (usager, instructeur, administrateur) pe
 - Fallback automatique vers le comportement standard si les permissions ne permettent pas l'accès contextuel
 
 ### Fichiers modifiés
-- `app/views/layouts/_account_dropdown.haml` : Ajout de la logique conditionnelle (modifications minimales commentées avec `# pf:`)
+- `app/components/account_dropdown_component/account_dropdown_component.html.haml` : Ajout de la logique conditionnelle (modifications minimales commentées avec `# pf:`)
 - `app/controllers/application_controller.rb` : Include du concern
 
 ### Nouveaux fichiers
