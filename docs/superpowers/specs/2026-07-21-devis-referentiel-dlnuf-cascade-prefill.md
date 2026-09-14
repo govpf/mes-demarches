@@ -115,12 +115,12 @@ car non intrinsèques).
 
 ## 3. Lots et charges
 
-| Lot | Contenu | Charge |
-|---|---|---|
-| **Socle** | `champ_id` transmis à l'endpoint `#search` ; autorisation 403 (le dossier doit appartenir au user) ; résolution serveur de la valeur source (`Column#value`) ; injection du filtre en `AND` dans `build_search_filters` ; opérateur par type de colonne Baserow ; fail-closed générique ; lecture de la config méta (« champ propriétaire ») comme l'id de recherche existant | **~2 j** |
-| **A — Catalogue + cascade** *(prod imminente — Semences)* | Config côté formulaire du champ pilote (colonne du dossier, filtrée sur `type ∈ {text, enum, enums}`) ; cascade ; **validation non-destructive anti-stale** ; état vide simplifié (2 messages, jamais masquer) ; tests système (cascade) + sécurité (request : 403, fail-closed, `q` libre) + unitaires | **~2,5-3 j** |
-| **B — Dites-le-nous une fois** *(~3 mois — subventions)* | Détection du mode via « champ propriétaire » (table méta) + **fail-closed si id mort** + diagnostic (le champ existe et ressemble à un mail) ; scope titulaire `dossier.user.email` intrinsèque ; endpoint acceptant `q` vide quand scopé ; ergonomie liste / **auto-fill si 1 ligne** au focus ; messages n'échoant jamais le mail ; tests | **~2,5-3 j** |
-| **C — Préremplissage PJ** *(avec B — fiche association)* | Branche PJ dans `update_prefillable_champ` ; job async download/attach/**re-scan**/purge idempotente + échec gracieux ; UI d'attente (download + scan) via refresh Turbo existant ; éditeur de mapping (cible PJ + validation colonne fichier) ; tests unitaires + système | **~4-5 j** |
+| Lot | Contenu | Charge | Statut (2026-09-14) |
+|---|---|---|---|
+| **Socle** | `champ_id` transmis à l'endpoint `#search` ; autorisation 403 (le dossier doit appartenir au user) ; résolution serveur de la valeur source (`Column#value`) ; injection du filtre en `AND` dans `build_search_filters` ; opérateur par type de colonne Baserow ; fail-closed générique ; lecture de la config méta (« champ propriétaire ») comme l'id de recherche existant | **~2 j** | ✅ Livré PR #530 (écart : `dossier_id` transmis au lieu de `champ_id` ; opérateur par type reporté au lot A) |
+| **A — Catalogue + cascade** *(prod imminente — Semences)* | Config côté formulaire du champ pilote (colonne du dossier, filtrée sur `type ∈ {text, enum, enums}`) ; cascade ; **validation non-destructive anti-stale** ; état vide simplifié (2 messages, jamais masquer) ; tests système (cascade) + sécurité (request : 403, fail-closed, `q` libre) + unitaires | **~2,5-3 j** | 🔧 En cours — spec révisée `2026-06-17-referentiel-polynesie-filtres-contextuels-design.md`, branche `feature/referentiel-cascade` |
+| **B — Dites-le-nous une fois** *(~3 mois — subventions)* | Détection du mode via « champ propriétaire » (table méta) + **fail-closed si id mort** + diagnostic (le champ existe et ressemble à un mail) ; scope titulaire `dossier.user.email` intrinsèque ; endpoint acceptant `q` vide quand scopé ; ergonomie liste / **auto-fill si 1 ligne** au focus ; messages n'échoant jamais le mail ; tests | **~2,5-3 j** | ✅ Livré PR #530 |
+| **C — Préremplissage PJ** *(avec B — fiche association)* | Branche PJ dans `update_prefillable_champ` ; job async download/attach/**re-scan**/purge idempotente + échec gracieux ; UI d'attente (download + scan) via refresh Turbo existant ; éditeur de mapping (cible PJ + validation colonne fichier) ; tests unitaires + système | **~4-5 j** | ⬜ Non commencé (spec `2026-06-05-prefill-piece-justificative-referentiel-design.md`) |
 
 ---
 
