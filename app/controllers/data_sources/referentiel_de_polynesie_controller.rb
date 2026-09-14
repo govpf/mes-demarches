@@ -25,7 +25,7 @@ class DataSources::ReferentielDePolynesieController < ApplicationController
         render json: [] # pf: fail-closed silencieux (dossier orphelin prefillé, etc.)
       else
         results = ReferentielDePolynesie::API.search_with_data(
-          table, @params[:q], drop_down_other:, scope: { field_id: dlnuf[:field_id], value: email }
+          table, @params[:q], drop_down_other:, scopes: [{ field_id: dlnuf[:field_id], type: 'equal', value: email }]
         )
         render json: encrypted_results(results)
       end

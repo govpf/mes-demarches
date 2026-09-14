@@ -173,7 +173,7 @@ describe ReferentielDePolynesie::BaserowAPI do
     end
 
     context 'avec un scope DLNUF' do
-      let(:scope) { { field_id: 9, value: 'titulaire@exemple.pf' } }
+      let(:scopes) { [{ field_id: 9, type: 'equal', value: 'titulaire@exemple.pf' }] }
 
       def sent_filters
         sent = nil
@@ -185,7 +185,7 @@ describe ReferentielDePolynesie::BaserowAPI do
       end
 
       it 'applique toujours le filtre propriétaire en AND avec le terme' do
-        described_class.search_with_data(domain_id, term, scope:)
+        described_class.search_with_data(domain_id, term, scopes:)
         filters = sent_filters
         expect(filters['filter_type']).to eq('AND')
         expect(filters['filters']).to include({ 'field' => 9, 'type' => 'equal', 'value' => 'titulaire@exemple.pf' })
@@ -193,7 +193,7 @@ describe ReferentielDePolynesie::BaserowAPI do
       end
 
       it 'accepte un terme vide : seul le filtre propriétaire est envoyé' do
-        described_class.search_with_data(domain_id, '', scope:)
+        described_class.search_with_data(domain_id, '', scopes:)
         filters = sent_filters
         expect(filters['filters']).to eq([{ 'field' => 9, 'type' => 'equal', 'value' => 'titulaire@exemple.pf' }])
       end
@@ -272,6 +272,46 @@ describe ReferentielDePolynesie::BaserowAPI do
       end
 
       it { is_expected.to be_nil }
+    end
+  end
+
+  describe '.fields' do
+    let(:fields_response) do
+      [
+        { 'id' => 1, 'name' => 'Nom', 'type' => 'text' },
+        { 'id' => 12, 'name' => 'Catégorie', 'type' => 'single_select', 'select_options' => [{ 'id' => 100, 'value' => 'Semences', 'color' => 'blue' }, { 'id' => 101, 'value' => 'Plants', 'color' => 'green' }] },
+      ]
+    end
+
+    before do
+      stub_fields = instance_double(Typhoeus::Response, success?: true, body: fields_response.to_json)
+      allow(Typhoeus).to receive(:get).with("#{base_url}/api/database/fields/table/#{table_id}/", anything).and_return(stub_fields)
+    end
+
+    it 'expose les options des colonnes de sélection (id + libellé), [] sinon' do
+      fields = described_class.fields({ 'Table' => table_id, 'Token' => 'tok' })
+      expect(fields[1]).to eq(name: 'Nom', type: 'text', select_options: [])
+      expect(fields[12]).to eq(name: 'Catégorie', type: 'single_select', select_options: [{ id: 100, value: 'Semences' }, { id: 101, value: 'Plants' }])
+    end
+  end
+
+  describe '.build_search_filters avec plusieurs scopes' do
+    it 'cumule les filtres en AND avec les mots recherchés' do
+      params = described_class.send(:build_search_filters, 3, 'Papeete', scopes: [
+        { field_id: 9, type: 'equal', value: 'a@b.pf' },
+        { field_id: 12, type: 'single_select_equal', value: 100 },
+      ])
+      filters = JSON.parse(params['filters'])
+      expect(filters['filter_type']).to eq('AND')
+      expect(filters['filters']).to eq([
+        { 'field' => 3, 'type' => 'contains', 'value' => 'Papeete' },
+        { 'field' => 9, 'type' => 'equal', 'value' => 'a@b.pf' },
+        { 'field' => 12, 'type' => 'single_select_equal', 'value' => 100 },
+      ])
+    end
+
+    it 'sans terme ni scope, ne construit aucun filtre (table entière interdite en amont)' do
+      expect(described_class.send(:build_search_filters, 3, '', scopes: [])).to eq({})
     end
   end
 end

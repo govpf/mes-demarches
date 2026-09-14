@@ -25,9 +25,20 @@ class ReferentielDePolynesie::API
       engine&.search(domain_id, term, drop_down_other: drop_down_other) || []
     end
 
-    def search_with_data(domain_id, term, drop_down_other: false, scope: nil)
+    def search_with_data(domain_id, term, drop_down_other: false, scopes: [])
       return [] if domain_id.to_i <= 0
-      engine&.search_with_data(domain_id, term, drop_down_other:, scope:) || []
+      engine&.search_with_data(domain_id, term, drop_down_other:, scopes:) || []
+    end
+
+    # pf: cascade — colonnes de la table (nom, type, options de sélection) avec le même cache
+    # court que dlnuf_config : sert à l'éditeur admin, au endpoint #search et au composant.
+    def table_fields(domain_id)
+      return nil if domain_id.to_i <= 0 || engine.nil?
+
+      cached = Rails.cache.fetch("referentiel_de_polynesie/table_fields/#{domain_id}", expires_in: DLNUF_CONFIG_TTL) do
+        engine.table_fields(domain_id) || :none
+      end
+      cached == :none ? nil : cached
     end
 
     def fetch_row(external_id)

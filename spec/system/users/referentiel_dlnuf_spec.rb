@@ -13,7 +13,7 @@ describe 'Référentiel de Polynésie — Dites-le-nous une fois', js: true do
     ])
   end
   let(:dlnuf) { { field_id: 9, field_name: 'Email', field_type: 'email' } }
-  let(:scope) { { field_id: 9, value: user.email.downcase } }
+  let(:scopes) { [{ field_id: 9, type: 'equal', value: user.email.downcase }] }
 
   before do
     allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).with('24').and_return(dlnuf)
@@ -21,7 +21,7 @@ describe 'Référentiel de Polynésie — Dites-le-nous une fois', js: true do
 
   scenario 'auto-remplissage quand le titulaire a exactement une ligne' do
     allow(ReferentielDePolynesie::API).to receive(:search_with_data)
-      .with('24', anything, drop_down_other: anything, scope:)
+      .with('24', anything, drop_down_other: anything, scopes:)
       .and_return([{ label: 'Association Manuia', value: '24:7', row_data: { 'Nom' => 'Association Manuia', 'Email' => user.email } }])
 
     log_in(user, procedure)
@@ -33,7 +33,7 @@ describe 'Référentiel de Polynésie — Dites-le-nous une fois', js: true do
 
   scenario 'aucune ligne, champ optionnel : le champ est masqué (zéro friction)' do
     allow(ReferentielDePolynesie::API).to receive(:search_with_data)
-      .with('24', anything, drop_down_other: anything, scope:)
+      .with('24', anything, drop_down_other: anything, scopes:)
       .and_return([])
 
     log_in(user, procedure)
@@ -51,7 +51,7 @@ describe 'Référentiel de Polynésie — Dites-le-nous une fois', js: true do
 
     scenario 'aucune ligne : le champ reste affiché avec le message, sans écho du mail' do
       allow(ReferentielDePolynesie::API).to receive(:search_with_data)
-        .with('24', anything, drop_down_other: anything, scope:)
+        .with('24', anything, drop_down_other: anything, scopes:)
         .and_return([])
 
       log_in(user, procedure)
@@ -68,7 +68,7 @@ describe 'Référentiel de Polynésie — Dites-le-nous une fois', js: true do
 
   scenario 'plusieurs lignes : la liste apparaît au focus, sans saisie' do
     allow(ReferentielDePolynesie::API).to receive(:search_with_data)
-      .with('24', anything, drop_down_other: anything, scope:)
+      .with('24', anything, drop_down_other: anything, scopes:)
       .and_return([
         { label: 'Association Manuia', value: '24:7', row_data: { 'Nom' => 'Association Manuia', 'Email' => user.email } },
         { label: 'Association Here', value: '24:8', row_data: { 'Nom' => 'Association Here', 'Email' => user.email } },

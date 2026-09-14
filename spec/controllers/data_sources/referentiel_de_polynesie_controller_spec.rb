@@ -120,7 +120,7 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
 
       it 'accepte q vide et scope la recherche sur le mail du titulaire' do
         expect(ReferentielDePolynesie::API).to receive(:search_with_data)
-          .with(domain_id, nil, drop_down_other: nil, scope: { field_id: 9, value: user.email.downcase })
+          .with(domain_id, nil, drop_down_other: nil, scopes: [{ field_id: 9, type: 'equal', value: user.email.downcase }])
           .and_return([{ label: 'Ma ligne', value: '24:1', row_data: }])
 
         get :search, params: { table: domain_id, dossier_id: dossier.id }
@@ -134,7 +134,7 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
         sign_in(invite_user)
 
         expect(ReferentielDePolynesie::API).to receive(:search_with_data)
-          .with(domain_id, nil, drop_down_other: nil, scope: { field_id: 9, value: user.email.downcase })
+          .with(domain_id, nil, drop_down_other: nil, scopes: [{ field_id: 9, type: 'equal', value: user.email.downcase }])
           .and_return([])
 
         get :search, params: { table: domain_id, dossier_id: dossier.id }
@@ -161,7 +161,7 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
       it 'autorise le dossier de preview de l’utilisateur lui-même' do
         dossier_preview = create(:dossier, user:, for_procedure_preview: true)
         expect(ReferentielDePolynesie::API).to receive(:search_with_data)
-          .with(domain_id, nil, drop_down_other: nil, scope: { field_id: 9, value: user.email.downcase })
+          .with(domain_id, nil, drop_down_other: nil, scopes: [{ field_id: 9, type: 'equal', value: user.email.downcase }])
           .and_return([])
 
         get :search, params: { table: domain_id, dossier_id: dossier_preview.id }
@@ -174,7 +174,7 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
         sign_in(instructeur.user)
 
         expect(ReferentielDePolynesie::API).to receive(:search_with_data)
-          .with(domain_id, nil, drop_down_other: nil, scope: { field_id: 9, value: user.email.downcase })
+          .with(domain_id, nil, drop_down_other: nil, scopes: [{ field_id: 9, type: 'equal', value: user.email.downcase }])
           .and_return([])
 
         get :search, params: { table: domain_id, dossier_id: dossier.id }
@@ -190,7 +190,7 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
 
       it 'q libre ne désactive jamais le scope' do
         expect(ReferentielDePolynesie::API).to receive(:search_with_data)
-          .with(domain_id, 'injection', drop_down_other: nil, scope: { field_id: 9, value: user.email.downcase })
+          .with(domain_id, 'injection', drop_down_other: nil, scopes: [{ field_id: 9, type: 'equal', value: user.email.downcase }])
           .and_return([])
 
         get :search, params: { table: domain_id, dossier_id: dossier.id, q: 'injection' }
