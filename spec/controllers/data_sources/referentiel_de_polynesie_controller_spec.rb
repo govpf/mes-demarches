@@ -22,7 +22,7 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
     context 'avec des paramètres valides' do
       before do
         allow(ReferentielDePolynesie::API).to receive(:search_with_data)
-          .with(domain_id, term, drop_down_other: nil)
+          .with(domain_id, term, drop_down_other: nil, scopes: [])
           .and_return([
             { label: 'Papeete', value: '24:1', row_data: },
           ])
@@ -63,7 +63,7 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
 
       it 'transmet drop_down_other à l\'API' do
         expect(ReferentielDePolynesie::API).to receive(:search_with_data)
-          .with(domain_id, term, drop_down_other: true)
+          .with(domain_id, term, drop_down_other: true, scopes: [])
           .and_return([{ label: 'Papeete', value: '24:1', row_data: }])
         subject
       end
@@ -221,6 +221,102 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
         get :search, params: { table: domain_id, q: term }
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.parsed_body['message']).to eq('Configuration du référentiel invalide')
+      end
+    end
+
+    context 'sur un champ à filtre contextuel (cascade)' do
+      let(:referentiel) { create(:baserow_referentiel) } # baserow://24
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :drop_down_list, libelle: 'Type de produit', options: ['Semences', 'Plants'] },
+          { type: :referentiel_de_polynesie, libelle: 'Produit', referentiel: },
+        ])
+      end
+      let(:pilot_tdc) { procedure.active_revision.types_de_champ_public.first }
+      let(:rdp_tdc) { procedure.active_revision.types_de_champ_public.second }
+      let(:dossier) { create(:dossier, procedure:, user:) }
+      let(:fields) { { 12 => { name: 'Catégorie', type: 'single_select', select_options: [{ id: 100, value: 'Semences' }, { id: 101, value: 'Plants' }] } } }
+      let(:cascade_params) { { table: domain_id, dossier_id: dossier.id, stable_id: rdp_tdc.stable_id } }
+
+      before do
+        rdp_tdc.update!(referentiel_filter: { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => "type_de_champ/#{pilot_tdc.stable_id}" })
+        allow(ReferentielDePolynesie::API).to receive(:table_fields).with(domain_id).and_return(fields)
+      end
+
+      it 'injecte le filtre single_select_equal résolu depuis le pilote, même avec q vide' do
+        dossier.project_champ(pilot_tdc).update!(value: 'Semences')
+        expect(ReferentielDePolynesie::API).to receive(:search_with_data)
+          .with(domain_id, nil, drop_down_other: nil, scopes: [{ field_id: 12, type: 'single_select_equal', value: 100 }])
+          .and_return([{ label: 'Blé', value: '24:1', row_data: }])
+
+        get :search, params: cascade_params
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body.first['label']).to eq('Blé')
+      end
+
+      it 'q libre ne désactive jamais le filtre' do
+        dossier.project_champ(pilot_tdc).update!(value: 'Plants')
+        expect(ReferentielDePolynesie::API).to receive(:search_with_data)
+          .with(domain_id, 'Rosier', drop_down_other: nil, scopes: [{ field_id: 12, type: 'single_select_equal', value: 101 }])
+          .and_return([])
+
+        get :search, params: cascade_params.merge(q: 'Rosier')
+        expect(response).to have_http_status(:ok)
+      end
+
+      it 'pilote vide → [] sans appeler Baserow (fail-closed)' do
+        expect(ReferentielDePolynesie::API).not_to receive(:search_with_data)
+        get :search, params: cascade_params
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq([])
+      end
+
+      it 'option Baserow introuvable → []' do
+        dossier.project_champ(pilot_tdc).update!(value: 'Semences')
+        allow(ReferentielDePolynesie::API).to receive(:table_fields).with(domain_id).and_return({ 12 => { name: 'Catégorie', type: 'single_select', select_options: [] } })
+        expect(ReferentielDePolynesie::API).not_to receive(:search_with_data)
+        get :search, params: cascade_params
+        expect(response.parsed_body).to eq([])
+      end
+
+      it 'config invalide (pilote disparu) → [] + Sentry, jamais la table entière' do
+        rdp_tdc.update!(referentiel_filter: rdp_tdc.referentiel_filter.merge('pilot_column_id' => 'type_de_champ/424242'))
+        expect(Sentry).to receive(:capture_message).with('ReferentielDePolynesie: filtre contextuel invalide', extra: hash_including(table: domain_id))
+        expect(ReferentielDePolynesie::API).not_to receive(:search_with_data)
+        get :search, params: cascade_params.merge(q: 'Blé')
+        expect(response.parsed_body).to eq([])
+      end
+
+      it 'refuse (403) le dossier d\'un autre usager' do
+        other = create(:dossier, procedure:)
+        get :search, params: cascade_params.merge(dossier_id: other.id)
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'refuse (400) un stable_id qui n\'est pas un référentiel de cette table' do
+        get :search, params: cascade_params.merge(stable_id: pilot_tdc.stable_id, q: 'x')
+        expect(response).to have_http_status(:bad_request)
+      end
+
+      it 'sans referentiel_filter, stable_id est ignoré et le comportement catalogue est inchangé' do
+        rdp_tdc.update!(referentiel_filter: nil)
+        expect(ReferentielDePolynesie::API).to receive(:search_with_data)
+          .with(domain_id, 'Blé', drop_down_other: nil, scopes: [])
+          .and_return([])
+        get :search, params: cascade_params.merge(q: 'Blé')
+        expect(response).to have_http_status(:ok)
+      end
+
+      it 'cumule le filtre cascade avec le scope DLNUF' do
+        allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).with(domain_id).and_return({ field_id: 9, field_name: 'Email', field_type: 'email' })
+        dossier.project_champ(pilot_tdc).update!(value: 'Semences')
+        expect(ReferentielDePolynesie::API).to receive(:search_with_data)
+          .with(domain_id, nil, drop_down_other: nil, scopes: [
+            { field_id: 9, type: 'equal', value: user.email.downcase },
+            { field_id: 12, type: 'single_select_equal', value: 100 },
+          ]).and_return([])
+        get :search, params: cascade_params
+        expect(response).to have_http_status(:ok)
       end
     end
   end
