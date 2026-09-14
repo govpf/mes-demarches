@@ -46,8 +46,9 @@ C'est une **contrainte de sécurité**, pas seulement un confort : l'usager ne d
 ## Périmètre v1 (YAGNI)
 
 - **Une seule règle de filtre par champ.**
-- **Pilotes de type texte ou choix** : `Column#type ∈ {:text, :enum, :enums}`. Pas de
-  date ni de nombre.
+- **Pilotes de type texte ou choix unique** : `Column#type ∈ {:text, :enum}`. Pas de
+  date ni de nombre, et pas de choix multiple (`:enums`) : un pilote multi-valué
+  demanderait une sémantique OU côté Baserow, non définie en v1.
 - **Emplacement du pilote** : champ de niveau racine placé avant le référentiel, ou
   champ frère placé avant lui dans la **même ligne** du bloc répétable. Un pilote situé
   dans un autre bloc est exclu (sémantique ambiguë : quelle ligne ?).
@@ -87,8 +88,8 @@ Polynésie, sous la case « option autre ») :
   types `text`, `long_text`, `email`, `formula`, `single_select`, `multiple_select`
   (pas de `link_row` en v1). Stockée par id, nom en cache. Si Baserow est injoignable, la liste affiche
   la valeur en cache et un message « Colonnes indisponibles pour le moment ».
-- **Liste B — champ pilote** : les `Column` de la procédure de type `text`, `enum` ou
-  `enums`, restreintes aux coordonnées **supérieures** admissibles : coordonnées racine
+- **Liste B — champ pilote** : les `Column` de la procédure de type `text` ou `enum`,
+  restreintes aux coordonnées **supérieures** admissibles : coordonnées racine
   précédant le référentiel (ou précédant son bloc), et frères précédents dans la même
   répétition. Même logique que `coordinate.upper_coordinates` utilisée par les
   conditions, filtrée sur le type et l'emplacement.
@@ -107,7 +108,7 @@ il vérifie que le pilote :
 
 - existe encore dans la révision brouillon ;
 - est **avant** le référentiel, à la racine ou dans la même ligne du même bloc ;
-- est toujours d'un type filtrable (`text`, `enum`, `enums`).
+- est toujours d'un type filtrable (`text`, `enum`).
 
 Sinon : `procedure.errors.add(collection, …, type_de_champ: tdc)` avec le message
 « Le filtre de « Produit » référence un champ supprimé, déplacé ou d'un type
@@ -229,7 +230,7 @@ colonne « Catégorie » de type `single_select`.
   - décocher la case efface la config ; cocher sans choisir les deux listes ne sauve rien.
 - **Unitaires** :
   - catalogue des pilotes admissibles (racine avant, même ligne avant ; exclus : après,
-    autre bloc, type date) ;
+    autre bloc, type date, choix multiple) ;
   - opérateur et valeur par type Baserow (`equal`, `single_select_equal` avec résolution
     d'option, option introuvable → vide) ;
   - `scopes:` cumulant DLNUF et cascade ;
@@ -265,7 +266,8 @@ colonne « Catégorie » de type `single_select`.
 ## Points hors périmètre (notés pour plus tard)
 
 - Multi-règles de filtre (résolu par formule en v1).
-- Pilotes non-texte (date, nombre) ; pilote dans un autre bloc répétable.
+- Pilotes non-texte (date, nombre), pilotes à choix multiple (`:enums`) ; pilote dans un
+  autre bloc répétable.
 - Colonnes Baserow `link_row` comme colonne filtrée (résolution par table liée).
 - Mode `exact_match`.
 - Diagnostic admin des périmètres vides.
