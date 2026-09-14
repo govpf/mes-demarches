@@ -14,16 +14,16 @@ class EditableChamp::ReferentielDePolynesieComponent < EditableChamp::EditableCh
 
   def react_props
     table = @champ.table_id
-    # pf: dossier_id — permet au serveur de résoudre le scope DLNUF (mail du titulaire)
-    # sans jamais le lire depuis le client ; ignoré pour les tables catalogue
+    # pf: dossier_id — permet au serveur de résoudre le scope DLNUF (mail du titulaire) et le
+    # filtre contextuel sans jamais les lire depuis le client ; ignoré pour les tables catalogue
     props = react_input_opts(id: @champ.focusable_input_id,
       class: 'fr-mt-1w',
       name: @form.field_name(:external_id),
       selectedKey: @champ.selected,
       items: @champ.selected_items,
-      loader: data_sources_rdp_search_path(table:, drop_down_other: @champ.drop_down_other?, dossier_id: @champ.dossier_id),
+      loader: data_sources_rdp_search_path(table:, drop_down_other: @champ.drop_down_other?, dossier_id: @champ.dossier_id, **contextual_loader_params),
       limit: 20,
-      minimumInputLength: dlnuf? ? 0 : 2,
+      minimumInputLength: (dlnuf? || contextual_filter?) ? 0 : 2,
       data: { table_id: @champ.table_id })
 
     if dlnuf?
@@ -34,6 +34,12 @@ class EditableChamp::ReferentielDePolynesieComponent < EditableChamp::EditableCh
       # pf: DLNUF — champ optionnel sans donnée : masquer le champ entier (zéro friction) ;
       # obligatoire : rester affiché avec le message, le requis bloque le dépôt de toute façon
       props[:hideWhenEmpty] = !@champ.mandatory?
+    end
+
+    if contextual_filter?
+      # pf: cascade — le périmètre est petit : lister au focus. JAMAIS de masquage (une erreur
+      # de mapping Baserow doit rester visible) ; deux messages selon l'état du pilote.
+      props[:emptyLabel] = contextual_filter.empty_label
     end
     props
   end
@@ -49,5 +55,22 @@ class EditableChamp::ReferentielDePolynesieComponent < EditableChamp::EditableCh
     @dlnuf = config.present? && config != :invalid
   rescue StandardError
     @dlnuf = false
+  end
+
+  # pf: cascade — filtre contextuel résolu côté serveur pour le message d'état vide
+  def contextual_filter
+    return @contextual_filter if defined?(@contextual_filter)
+
+    @contextual_filter = type_de_champ.referentiel_filter? ? ReferentielDePolynesie::ContextualFilter.for(type_de_champ:, dossier: @champ.dossier, row_id: @champ.row_id) : nil
+  end
+
+  def contextual_filter?
+    contextual_filter.present? && contextual_filter.configured?
+  end
+
+  def contextual_loader_params
+    return {} unless contextual_filter?
+
+    { stable_id: @champ.stable_id, row_id: @champ.row_id }.compact
   end
 end
