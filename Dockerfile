@@ -91,6 +91,7 @@ ENV \
     API_GEO_URL="https://geo.api.gouv.fr"\
     API_ISPF_PASSWORD=""\
     API_ISPF_USER=""\
+    AUTOMATED_SENDER_EMAILS=""\
     APPLICATION_BASE_URL="https://www.mes-demarches.gov.pf"\
     APPLICATION_NAME="Mes-Démarches"\
     APP_HOST="localhost:3000"\
