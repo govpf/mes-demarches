@@ -162,6 +162,18 @@ describe DossierCorrectableConcern do
           expect(notifications.first.instructeur_id).to eq(other_instructeur_not_follower.id)
         end
       end
+
+      context "when the correction is requested by an automated sender (robot)" do
+        let(:instructeur) { create(:instructeur, email: AUTOMATED_SENDER_EMAILS.first) }
+        let!(:other_instructeur_not_follower_procedure) { create(:instructeurs_procedure, instructeur: other_instructeur_not_follower, procedure:, display_message_notifications: 'all', display_attente_correction_notifications: 'all') }
+
+        it "creates attente_correction notifications but no message notification" do
+          subject
+
+          expect(DossierNotification.where(dossier:, notification_type: :attente_correction).count).to eq(3)
+          expect(DossierNotification.where(dossier:, notification_type: :message)).to be_empty
+        end
+      end
     end
   end
 

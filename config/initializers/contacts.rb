@@ -8,5 +8,8 @@ if !defined?(CONTACT_EMAIL)
   CONTACT_PHONE = ENV.fetch("CONTACT_PHONE", '40 47 24 75')
 
   OLD_CONTACT_EMAIL = ENV.fetch("OLD_CONTACT_EMAIL", 'mes.demarches.en.polynesie' + 64.chr + 'gmail.com')
+  # pf: comptes instructeurs automatisés (robots pilotés par l'API) dont les messages
+  # sont assimilés aux e-mails automatiques : pas de notification instructeur, affichage « Email automatique ».
+  AUTOMATED_SENDER_EMAILS = ENV.fetch("AUTOMATED_SENDER_EMAILS", "").split(",").map(&:strip).compact_blank.freeze
   CONTACT_ADDRESS = ENV.fetch("CONTACT_ADDRESS", "Direction de la modernisation et des réformes de l'administration / DMRA\n27 avenue Pouvanaa a Oopa, bâtiment du gouvernement, 1er étage, Papeete\nCe site est créé par l'Incubateur de Services Numériques / beta.gouv.fr et adapté/géré par le Service Informatique de la Polynésie française / SIPf")
 end

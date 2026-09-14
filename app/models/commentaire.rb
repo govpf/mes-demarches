@@ -16,7 +16,9 @@ class Commentaire < ApplicationRecord
   normalizes :body, with: NORMALIZES_NON_PRINTABLE_PROC
 
   FILE_MAX_SIZE = 20.megabytes
-  SYSTEM_EMAILS = [CONTACT_EMAIL, OLD_CONTACT_EMAIL.split(",")].flatten
+  # pf: les expéditeurs automatisés (robots via l'API) sont assimilés aux e-mails automatiques ;
+  # AUTOMATED_SENDER_EMAILS est déjà découpée en tableau dans config/initializers/contacts.rb
+  SYSTEM_EMAILS = [CONTACT_EMAIL, OLD_CONTACT_EMAIL.split(","), AUTOMATED_SENDER_EMAILS].flatten
 
   validates :piece_jointe,
     content_type: AUTHORIZED_CONTENT_TYPES,
@@ -157,7 +159,8 @@ class Commentaire < ApplicationRecord
   end
 
   def messagerie_available?
-    return if sent_by_system?
+    # pf: un expéditeur automatisé reste un instructeur : il ne bénéficie pas du passe-droit des e-mails système
+    return if sent_by_system? && !sent_by_instructeur?
     if dossier.present? && !dossier.messagerie_available?
       errors.add(:dossier, "Il n’est pas possible d’envoyer un message sur un dossier supprimé, à archiver ou en brouillon")
     end

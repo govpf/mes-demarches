@@ -24,6 +24,16 @@ describe Commentaire do
       it { is_expected.to be_truthy }
     end
 
+    context 'with a commentaire created by an automated sender on a dossier where messagerie is unavailable' do
+      let(:dossier) { create :dossier, :en_construction, :archived }
+      let(:automated_instructeur) { create :instructeur, email: AUTOMATED_SENDER_EMAILS.first }
+      let(:commentaire) { CommentaireService.build(automated_instructeur, dossier, body: 'Message automatisé') }
+
+      it 'keeps the validation, unlike genuine system emails' do
+        is_expected.to be_falsey
+      end
+    end
+
     context 'on a dossier en_construction' do
       let(:dossier) { create :dossier, :en_construction }
       let(:commentaire) { build :commentaire, dossier: dossier }
@@ -45,6 +55,12 @@ describe Commentaire do
 
     context 'with modernisation.gov.pf' do
       let(:email) { "mes-demarches@modernisation.gov.pf" }
+
+      it { is_expected.to be_truthy }
+    end
+
+    context 'with an automated sender (AUTOMATED_SENDER_EMAILS)' do
+      let(:email) { AUTOMATED_SENDER_EMAILS.first }
 
       it { is_expected.to be_truthy }
     end
@@ -123,6 +139,34 @@ describe Commentaire do
         expect(commentaire).not_to receive(:notify_user).with(no_args)
         commentaire.save
       end
+    end
+
+    context "with a commentaire created by an automated sender instructeur" do
+      let(:automated_instructeur) { create(:instructeur, email: AUTOMATED_SENDER_EMAILS.first) }
+      let(:commentaire) { CommentaireService.build(automated_instructeur, dossier, body: "Message automatisé") }
+
+      it "still notifies the user by email" do
+        expect(commentaire).to receive(:notify_user).with(wait: 5.minutes)
+        commentaire.save
+      end
+    end
+  end
+
+  describe ".to_notify" do
+    let(:dossier) { create(:dossier, :en_construction) }
+    let(:instructeur) { create(:instructeur) }
+    let(:other_instructeur) { create(:instructeur) }
+    let(:automated_instructeur) { create(:instructeur, email: AUTOMATED_SENDER_EMAILS.first) }
+    let!(:from_usager) { create(:commentaire, dossier:) }
+    let!(:from_other_instructeur) { CommentaireService.build(other_instructeur, dossier, body: 'collègue').tap(&:save!) }
+    let!(:from_self) { CommentaireService.build(instructeur, dossier, body: 'moi').tap(&:save!) }
+    let!(:from_system) { CommentaireService.build(CONTACT_EMAIL, dossier, body: 'système').tap(&:save!) }
+    let!(:from_automated_sender) { CommentaireService.build(automated_instructeur, dossier, body: 'automate').tap(&:save!) }
+
+    subject { Commentaire.to_notify(instructeur.id) }
+
+    it "excludes own, system and automated sender messages" do
+      expect(subject).to contain_exactly(from_usager, from_other_instructeur)
     end
   end
 
