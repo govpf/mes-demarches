@@ -52,6 +52,21 @@ describe EditableChamp::ReferentielDePolynesieComponent, type: :component do
       expect(props[:hideWhenEmpty]).to be_nil
     end
 
+    # pf: cascade — l'URL du loader doit changer avec la valeur du pilote (cache-buster) pour
+    # que la liste React se recharge après un re-rendu Turbo, sans jamais exposer la valeur.
+    it 'fait varier pilot_version avec la valeur du pilote, sans l’exposer' do
+      blank_loader = component.react_props[:loader]
+      expect(blank_loader).to include('pilot_version=0')
+
+      dossier.project_champ(pilot_tdc).update!(value: 'Plants')
+      dossier.reload
+      filled_loader = build_component(dossier.project_champ(rdp_tdc)).react_props[:loader]
+
+      expect(filled_loader).to include('pilot_version=')
+      expect(filled_loader).not_to include('Plants')
+      expect(filled_loader).not_to eq(blank_loader)
+    end
+
     it 'affiche « Renseignez d’abord » quand le pilote est vide' do
       expect(component.react_props[:emptyLabel]).to eq('Renseignez d’abord « Type de produit »')
     end

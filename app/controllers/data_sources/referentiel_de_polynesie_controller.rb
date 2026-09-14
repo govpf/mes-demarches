@@ -102,5 +102,7 @@ class DataSources::ReferentielDePolynesieController < ApplicationController
     end
   end
 
-  def search_params = params.permit(:table, :q, :drop_down_other, :dossier_id, :stable_id, :row_id)
+  # pf: cascade — :pilot_version est un simple cache-buster côté client (digest de la valeur du
+  # pilote) ; il n'est jamais lu ici, le scope étant recalculé côté serveur à chaque requête.
+  def search_params = params.permit(:table, :q, :drop_down_other, :dossier_id, :stable_id, :row_id, :pilot_version)
 end

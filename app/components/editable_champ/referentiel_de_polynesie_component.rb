@@ -71,6 +71,16 @@ class EditableChamp::ReferentielDePolynesieComponent < EditableChamp::EditableCh
   def contextual_loader_params
     return {} unless contextual_filter?
 
-    { stable_id: @champ.stable_id, row_id: @champ.row_id }.compact
+    { stable_id: @champ.stable_id, row_id: @champ.row_id, pilot_version: }.compact
+  end
+
+  # pf: cascade — cache-buster de l'URL du loader. Le composant React n'est pas remonté par le
+  # re-rendu Turbo (coldwired met seulement les props à jour) et `useAsyncList` garde ses items
+  # tant que l'URL de chargement est identique. Un digest court de la valeur du pilote fait
+  # changer l'URL à chaque changement de pilote, ce qui déclenche le rechargement de la liste.
+  # JAMAIS la valeur du pilote elle-même : elle reste résolue côté serveur.
+  def pilot_version
+    value = contextual_filter.pilot_value
+    value.blank? ? '0' : Digest::SHA1.hexdigest(value.to_s)[0, 8]
   end
 end
