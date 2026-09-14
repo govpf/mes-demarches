@@ -375,6 +375,33 @@
               = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
               = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
                 Proposer une option « autre » avec un texte libre
+          -# pf: cascade — restreindre les lignes proposées selon un autre champ du formulaire (lot A)
+          - if type_de_champ.referentiel_de_polynesie? && type_de_champ.table_id.present?
+            .cell.fr-mt-2w{ data: { controller: 'hide-target' } }
+              .fr-toggle
+                = check_box_tag 'type_de_champ[referentiel_filter_form][enabled]', '1', referentiel_filter_enabled?,
+                  id: dom_id(type_de_champ, :referentiel_filter_enabled),
+                  class: 'fr-toggle__input',
+                  data: { 'hide-target-target': 'source' }
+                = label_tag dom_id(type_de_champ, :referentiel_filter_enabled), 'Restreindre les lignes proposées selon un autre champ du formulaire', class: 'fr-toggle__label fr-label'
+              .cell.flex.flex-gap.fr-mt-1w{ class: class_names('fr-hidden': !referentiel_filter_enabled?), data: { 'hide-target-target': 'toHide' } }
+                .flex-grow
+                  = label_tag dom_id(type_de_champ, :referentiel_filter_baserow_field_id), 'Colonne du référentiel à filtrer', class: 'fr-label'
+                  = select_tag 'type_de_champ[referentiel_filter_form][baserow_field_id]',
+                    options_for_select(referentiel_filter_baserow_options, referentiel_filter_value(:baserow_field_id)),
+                    include_blank: 'Choisir une colonne',
+                    id: dom_id(type_de_champ, :referentiel_filter_baserow_field_id),
+                    class: 'fr-select small-margin small width-100'
+                  - if referentiel_filter_baserow_fields_unavailable?
+                    %p.fr-hint-text.fr-mb-0 Colonnes indisponibles pour le moment
+                .flex-grow
+                  = label_tag dom_id(type_de_champ, :referentiel_filter_pilot_column_id), 'Champ du formulaire qui pilote le filtre', class: 'fr-label'
+                  = select_tag 'type_de_champ[referentiel_filter_form][pilot_column_id]',
+                    options_for_select(referentiel_filter_pilot_options, referentiel_filter_value(:pilot_column_id)),
+                    include_blank: 'Choisir un champ',
+                    id: dom_id(type_de_champ, :referentiel_filter_pilot_column_id),
+                    class: 'fr-select small-margin small width-100'
+                  %p.fr-hint-text.fr-mb-0 Seuls les champs texte ou à choix unique placés avant ce champ sont proposés.
           - if type_de_champ.carte?
             - type_de_champ.editable_options.each do |slice|
               .cell
