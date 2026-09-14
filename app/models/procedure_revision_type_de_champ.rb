@@ -207,10 +207,10 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
   def pilot_columns_for_referentiel_filter
     upper_coordinates
       .map(&:type_de_champ)
-      .filter { _1.fillable? && !_1.repetition? && !_1.referentiel_de_polynesie? && _1.stable_id != type_de_champ.stable_id }
+      .filter { _1.fillable? && !_1.repetition? && _1.stable_id != type_de_champ.stable_id }
       .flat_map { _1.columns(procedure:) }
       .filter { _1.type.in?(ReferentielDePolynesie::ContextualFilter::PILOT_COLUMN_TYPES) }
-      .uniq { _1.send(:column_id) }
+      .uniq { _1.h_id[:column_id] }
   end
 
   def available_in_repetition_context?(column_ref)

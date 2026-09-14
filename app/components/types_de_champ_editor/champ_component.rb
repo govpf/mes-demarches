@@ -186,7 +186,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
 
   # pf: liste B — champs pilotes admissibles (cf. ProcedureRevisionTypeDeChamp)
   def referentiel_filter_pilot_options
-    coordinate.pilot_columns_for_referentiel_filter.map { [_1.label, _1.send(:column_id)] }
+    coordinate.pilot_columns_for_referentiel_filter.map { [_1.label, _1.h_id[:column_id]] }
   end
 
   def extract_sub_paths(column)

@@ -383,8 +383,8 @@ describe ProcedureRevisionTypeDeChamp do
       line_rdp = revision.children_of(repetition).second
       coordinate = revision.coordinate_for(line_rdp)
       labels = coordinate.pilot_columns_for_referentiel_filter.map(&:label)
-      expect(labels).to include('Type ligne', 'Type de produit', 'Commentaire', 'Après')
-      expect(labels).not_to include('Après ligne', 'Type autre', 'Date', 'Produit')
+      expect(labels).to include('Type ligne', 'Type de produit', 'Commentaire', 'Après', 'Produit')
+      expect(labels).not_to include('Après ligne', 'Type autre', 'Date')
     end
   end
 end
