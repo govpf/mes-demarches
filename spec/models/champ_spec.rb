@@ -815,4 +815,51 @@ describe Champ do
       end
     end
   end
+
+  describe '#dependent_referentiel_filter_champs (cascade référentiel)' do
+    let(:referentiel) { create(:baserow_referentiel) }
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :drop_down_list, libelle: 'Type de produit', options: ['Semences', 'Plants'] },
+        { type: :referentiel_de_polynesie, libelle: 'Produit', referentiel: },
+        { type: :referentiel_de_polynesie, libelle: 'Autre référentiel', referentiel: },
+        {
+          type: :repetition, libelle: 'Lignes', children: [
+            { type: :drop_down_list, libelle: 'Type ligne', options: ['A', 'B'] },
+            { type: :referentiel_de_polynesie, libelle: 'Produit ligne', referentiel: },
+          ],
+        },
+      ])
+    end
+    let(:revision) { procedure.draft_revision }
+    let(:pilot_tdc) { revision.types_de_champ_public[0] }
+    let(:rdp_tdc) { revision.types_de_champ_public[1] }
+    let(:repetition_tdc) { revision.types_de_champ_public[3] }
+    let(:line_pilot_tdc) { revision.children_of(repetition_tdc).first }
+    let(:line_rdp_tdc) { revision.children_of(repetition_tdc).second }
+    let(:dossier) { create(:dossier, procedure:) }
+
+    before do
+      rdp_tdc.update!(referentiel_filter: { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => "type_de_champ/#{pilot_tdc.stable_id}" })
+      line_rdp_tdc.update!(referentiel_filter: { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => "type_de_champ/#{line_pilot_tdc.stable_id}" })
+    end
+
+    it 'retourne les référentiels pilotés par ce champ, pas les autres' do
+      dependents = dossier.project_champ(pilot_tdc).dependent_referentiel_filter_champs
+      expect(dependents.map(&:libelle)).to eq(['Produit'])
+    end
+
+    it 'dans un bloc, ne retourne que le référentiel de la même ligne' do
+      row1 = dossier.repetition_row_ids(repetition_tdc).first || dossier.repetition_add_row(repetition_tdc, updated_by: 'test')
+      row2 = dossier.repetition_add_row(repetition_tdc, updated_by: 'test')
+      dossier.reload
+      dependents = dossier.project_champ(line_pilot_tdc, row_id: row1).dependent_referentiel_filter_champs
+      expect(dependents.map { [_1.libelle, _1.row_id] }).to eq([['Produit ligne', row1]])
+      expect(row2).to be_present
+    end
+
+    it 'retourne [] pour un champ qui ne pilote rien' do
+      expect(dossier.project_champ(rdp_tdc).dependent_referentiel_filter_champs).to eq([])
+    end
+  end
 end

@@ -407,6 +407,25 @@ class Champ < ApplicationRecord
     end.uniq(&:public_id)
   end
 
+  # pf: cascade référentiel — champs referentiel_de_polynesie dont ce champ est le pilote
+  # (options['referentiel_filter']['pilot_column_id'] = "type_de_champ/<stable_id>", éventuellement
+  # suivi d'un chemin dérivé "-$.x" ou ".path"). Dans un bloc, seuls ceux de la même ligne ;
+  # un pilote hors bloc rafraîchit toutes les lignes. Utilisé par TurboChampsConcern pour
+  # re-rendre le référentiel (message d'état vide + périmètre) quand son pilote change.
+  def dependent_referentiel_filter_champs
+    pattern = /\Atype_de_champ\/#{stable_id}(\z|[-.])/
+    dependent_sids = dossier.revision.types_de_champ.filter_map do |tdc|
+      next unless tdc.referentiel_filter?
+
+      tdc.stable_id if Hash(tdc.referentiel_filter)['pilot_column_id'].to_s.match?(pattern)
+    end
+    return [] if dependent_sids.empty?
+
+    (dossier.project_champs_public_all + dossier.project_champs_private_all).filter do |champ|
+      champ.stable_id.in?(dependent_sids) && (row_id.nil? || champ.row_id.nil? || champ.row_id == row_id)
+    end
+  end
+
   private
 
   # pf: stable_ids "sources" qui doivent déclencher une cascade de formules
