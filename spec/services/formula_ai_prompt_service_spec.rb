@@ -50,6 +50,13 @@ describe FormulaAiPromptService do
       expect(subject).not_to include('Aucun agrégat global n’est possible')
     end
 
+    it 'garde l’auto-vérification cohérente avec l’agrégation sur blocs répétables' do
+      # l’ancien point 6 contredisait la section « Agrégation sur blocs répétables »
+      expect(subject).not_to include('non supportée')
+      expect(subject).to include('uniquement via une fonction d’agrégation')
+      expect(subject).to include('sur une référence `{Bloc/Sous-champ}`')
+    end
+
     context 'when output_type is "date"' do
       let(:output_type) { 'date' }
 
