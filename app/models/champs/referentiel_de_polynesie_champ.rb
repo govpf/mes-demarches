@@ -12,6 +12,10 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
   # Couvre le transfert de dossier après sélection et toute soumission forgée.
   validate :dlnuf_owner_integrity, if: -> { validate_champ_value? && external_id.present? && !other? }
 
+  # pf: cascade, second rempart (dépôt) — la ligne sélectionnée doit correspondre à la valeur
+  # actuelle du champ pilote. Couvre le pilote modifié après sélection et toute soumission forgée.
+  validate :referentiel_filter_integrity, if: -> { validate_champ_value? && external_id.present? && !other? && type_de_champ.referentiel_filter? }
+
   # pf: préserver le label humain dans value (upstream y met external_id)
   # pf: guard new_record? pour éviter que le fork (deep_clone) ne wipe data/value_json
   # sur les champs clonés — external_id_changed? est toujours true sur un new_record
@@ -185,6 +189,23 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     row_email = normalized_data&.dig(config[:field_name])
     unless row_email.to_s.casecmp?(owner_email)
       errors.add(:value, :not_dlnuf_owner)
+    end
+  end
+
+  # pf: comparaison LOCALE de row_data[colonne Baserow] avec la valeur du pilote (aucun appel
+  # Baserow). Config invalide (pilote disparu) → on ne bloque pas l'usager pour une erreur
+  # d'administration : le validateur de publication et le rempart n°1 (#search) couvrent ce cas.
+  def referentiel_filter_integrity
+    filter = ReferentielDePolynesie::ContextualFilter.for(type_de_champ:, dossier:, row_id:)
+    return if filter.invalid?
+
+    if filter.pilot_value.blank?
+      errors.add(:value, :filter_pilot_blank, pilot: filter.pilot_libelle)
+    elsif !filter.matches_row_data?(normalized_data)
+      errors.add(:value, :filter_mismatch,
+        row_value: normalized_data&.dig(filter.baserow_field_name),
+        pilot_value: filter.pilot_value,
+        pilot: filter.pilot_libelle)
     end
   end
 
