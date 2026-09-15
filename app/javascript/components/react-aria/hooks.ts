@@ -392,16 +392,15 @@ export function useRemoteList({
   // pf: cascade référentiel — `useAsyncList` ne charge qu'au montage et garde ses items en
   // cache ensuite. Quand un re-rendu Turbo change le loader (nouvelle URL parce que le champ
   // pilote a changé), le composant React n'est pas remonté : il faut recharger explicitement.
-  // On saute le premier rendu pour ne pas doubler le chargement initial (DLNUF et catalogue
-  // gardent donc exactement le comportement d'avant, leur loader étant stable).
-  const didMountRef = useRef(false);
+  // On compare l'identité du loader plutôt que de sauter le premier rendu : en StrictMode le
+  // double montage relancerait sinon un chargement inutile. Tant que `load` est stable (DLNUF,
+  // catalogue), le comportement est exactement celui d'avant.
+  const prevLoad = useRef(load);
   useEffect(() => {
-    if (!didMountRef.current) {
-      didMountRef.current = true;
-      return;
-    }
+    if (prevLoad.current === load) return;
+    prevLoad.current = load;
     list.reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `list` est recréé à chaque rendu ; seule l'identité de `load` doit déclencher un rechargement
   }, [load]);
 
   const onSelectionChange = useEvent<

@@ -95,7 +95,7 @@ class DataSources::ReferentielDePolynesieController < ApplicationController
 
   def contextual_scope(filter, table)
     if filter.invalid?
-      Sentry.capture_message('ReferentielDePolynesie: filtre contextuel invalide', extra: { table:, stable_id: @params[:stable_id] })
+      Sentry.capture_message('ReferentielDePolynesie: filtre contextuel invalide', extra: { table:, stable_id: @params[:stable_id].to_i })
       return nil
     end
     return nil if filter.pilot_value.blank?
