@@ -336,6 +336,31 @@ describe DataSources::ReferentielDePolynesieController, type: :controller do
         expect(response).to have_http_status(:ok)
       end
 
+      # pf: sans row_id, le pilote de la même ligne n'est pas projetable : fail-closed, pas de 500.
+      context 'quand le référentiel est dans un bloc répétable' do
+        let(:procedure) do
+          create(:procedure, :published, types_de_champ_public: [
+            {
+              type: :repetition, libelle: 'Produits', children: [
+                { type: :drop_down_list, libelle: 'Type de produit', options: ['Semences', 'Plants'] },
+                { type: :referentiel_de_polynesie, libelle: 'Produit', referentiel: },
+              ],
+            },
+          ])
+        end
+        let(:repetition_tdc) { procedure.active_revision.types_de_champ_public.first }
+        let(:pilot_tdc) { procedure.active_revision.children_of(repetition_tdc).first }
+        let(:rdp_tdc) { procedure.active_revision.children_of(repetition_tdc).second }
+
+        it 'sans row_id → [] sans lever d\'exception' do
+          expect(ReferentielDePolynesie::API).not_to receive(:search_with_data)
+
+          expect { get :search, params: cascade_params }.not_to raise_error
+          expect(response).to have_http_status(:ok)
+          expect(response.parsed_body).to eq([])
+        end
+      end
+
       it 'cumule le filtre cascade avec le scope DLNUF' do
         allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).with(domain_id).and_return({ field_id: 9, field_name: 'Email', field_type: 'email' })
         dossier.project_champ(pilot_tdc).update!(value: 'Semences')

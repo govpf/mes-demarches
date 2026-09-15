@@ -91,6 +91,14 @@ describe ReferentielDePolynesie::ContextualFilter do
       it('multiple_select simplifié « A, B »') { expect(filter.matches_row_data?({ 'Catégorie' => 'Plants, Semences' })).to be(true) }
       it('colonne absente → antériorité tolérée') { expect(filter.matches_row_data?({ 'Nom' => 'x' })).to be(true) }
       it('row_data nil → toléré') { expect(filter.matches_row_data?(nil)).to be(true) }
+
+      # pf: le rempart n°1 sélectionne cette ligne (opérateur `equal`) : le découpage sur la
+      # virgule ne doit pas la rendre indéposable.
+      it 'valeur exacte contenant une virgule (égalité avant découpage)' do
+        dossier.project_champ(pilot_tdc).update!(value: 'Semences, bio')
+        f = described_class.for(type_de_champ: rdp_tdc, dossier: dossier.reload)
+        expect(f.matches_row_data?({ 'Catégorie' => 'Semences, bio' })).to be(true)
+      end
     end
 
     describe '#empty_label' do
@@ -143,6 +151,13 @@ describe ReferentielDePolynesie::ContextualFilter do
     it 'conserve le référentiel du champ enfant de la répétition' do
       expect(rdp_tdc.referentiel_id).to eq(referentiel.id)
       expect(rdp_tdc.table_id).to be_present
+    end
+
+    # pf: sans row_id le champ pilote n'est pas projetable : fail-closed, jamais de 500.
+    it 'est invalide sans row_id (pilote de la même ligne)' do
+      f = described_class.for(type_de_champ: rdp_tdc, dossier:, row_id: nil)
+      expect(f.invalid?).to be(true)
+      expect(f.pilot_value).to be_nil
     end
 
     it 'résout le pilote ligne par ligne' do

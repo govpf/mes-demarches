@@ -606,6 +606,31 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
       it('n\'invalide pas (antériorité tolérée)') { is_expected.to be_truthy }
     end
 
+    # pf: sans row_data, la correspondance est invérifiable.
+    context 'quand data est entièrement absent' do
+      before { champ.update_columns(data: nil) && champ.reload }
+
+      it 'exige une nouvelle sélection en autocomplete' do
+        expect(subject).to be_falsey
+        expect(champ.errors[:value].join).to include('sélectionné à nouveau')
+      end
+
+      context 'en mode exact_match (données récupérées de façon asynchrone)' do
+        let(:referentiel) { create(:baserow_referentiel, :exact_match) }
+
+        it('ne bloque pas le dépôt (fail-open assumé)') { is_expected.to be_truthy }
+      end
+    end
+
+    context 'quand data est une chaîne brute (échec de déchiffrement)' do
+      before { champ.update_columns(data: 'blob-illisible') && champ.reload }
+
+      it 'traite les données comme absentes, sans lever' do
+        expect { subject }.not_to raise_error
+        expect(champ.errors[:value].join).to include('sélectionné à nouveau')
+      end
+    end
+
     context 'quand la config est invalide (pilote disparu)' do
       before { rdp_tdc.update!(referentiel_filter: rdp_tdc.referentiel_filter.merge('pilot_column_id' => 'type_de_champ/424242')) && dossier.reload }
       it('ne bloque pas l\'usager pour une erreur d\'administration') { is_expected.to be_truthy }

@@ -35,11 +35,15 @@ class ReferentielDePolynesie::ContextualFilter
   def baserow_field_name = config&.dig(:baserow_field_name).to_s
 
   # pf: config présente mais inexploitable : colonne pilote inconnue de la procédure, TDC pilote
-  # absent de la révision du dossier, ou pilote dans un bloc qui n'est pas celui du référentiel.
+  # absent de la révision du dossier, pilote dans un bloc qui n'est pas celui du référentiel,
+  # ou pilote de la même ligne sans row_id (le champ n'est alors pas projetable : sans ce cas
+  # `project_champ` lèverait, au lieu du fail-closed attendu).
   def invalid?
     return false unless configured?
+    return true if pilot_column.nil? || baserow_field_id <= 0
+    return false unless pilot_column.is_a?(Columns::ChampColumn)
 
-    pilot_column.nil? || baserow_field_id <= 0 || (pilot_column.is_a?(Columns::ChampColumn) && (pilot_tdc.nil? || foreign_block_pilot?))
+    pilot_tdc.nil? || foreign_block_pilot? || (same_row_pilot? && row_id.blank?)
   end
 
   def pilot_column
@@ -101,8 +105,15 @@ class ReferentielDePolynesie::ContextualFilter
   def matches_row_data?(row_data)
     return true if row_data.nil? || !row_data.key?(baserow_field_name)
 
-    values = row_data[baserow_field_name].to_s.split(',').map(&:strip)
-    values.any? { _1.casecmp?(pilot_value.to_s) }
+    pilot = pilot_value.to_s
+    return false if pilot.blank?
+
+    raw = row_data[baserow_field_name].to_s.strip
+    # pf: égalité exacte d'abord : une valeur texte contenant une virgule (« Semences, bio »)
+    # est sélectionnable au rempart n°1 (opérateur `equal`) et doit donc rester déposable.
+    return true if raw.casecmp?(pilot)
+
+    raw.split(',').map(&:strip).any? { _1.casecmp?(pilot) }
   end
 
   def empty_label

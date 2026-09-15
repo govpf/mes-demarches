@@ -142,13 +142,13 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     end
   end
 
-  # pf: dual-mode — normalise les données entre ancien format (avec row) et nouveau format (plat)
+  # pf: dual-mode — normalise les données entre ancien format (avec row) et nouveau format (plat).
+  # `data` peut aussi contenir une chaîne brute (blob non déchiffrable conservé par `data=`) :
+  # on la traite comme une absence de données plutôt que de laisser lever `key?`.
   def normalized_data
-    if data&.key?('row')
-      data['row'] # ancien format
-    else
-      data # nouveau format plat
-    end
+    return nil unless data.is_a?(Hash)
+
+    data.key?('row') ? data['row'] : data # ancien format / nouveau format plat
   end
 
   # pf: support colonnes pour tags/exports (dual-mode)
@@ -201,6 +201,12 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
 
     if filter.pilot_value.blank?
       errors.add(:value, :filter_pilot_blank, pilot: filter.pilot_libelle)
+    elsif normalized_data.blank?
+      # pf: aucune donnée de ligne → correspondance invérifiable. En autocomplete les données
+      # accompagnent la sélection : leur absence signale une soumission forgée ou un état
+      # corrompu, on exige une nouvelle sélection. En exact_match le fetch est asynchrone :
+      # fail-open assumé, le rempart n°1 reste la protection principale.
+      errors.add(:value, :filter_unverifiable) if autocomplete?
     elsif !filter.matches_row_data?(normalized_data)
       errors.add(:value, :filter_mismatch,
         row_value: normalized_data&.dig(filter.baserow_field_name),
