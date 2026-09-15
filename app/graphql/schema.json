@@ -3816,7 +3816,7 @@
             },
             {
               "name": "operateur",
-              "description": "egal | different | superieur | superieur_ou_egal | inferieur | inferieur_ou_egal | inclut | exclut | dans_archipel | hors_archipel | dans_departement | dans_region",
+              "description": "egal | different | superieur | superieur_ou_egal | inferieur | inferieur_ou_egal | inclut | exclut | dans_archipel | hors_archipel | dans_departement | hors_departement | dans_region | hors_region",
               "type": {
                 "kind": "NON_NULL",
                 "name": null,
@@ -17430,6 +17430,18 @@
               "deprecationReason": null
             },
             {
+              "name": "condition",
+              "description": "Condition d'affichage du champ (null si aucune).",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "McpCondition",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "description",
               "description": null,
               "args": [],
@@ -17552,6 +17564,128 @@
             {
               "name": "typeChamp",
               "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "McpCondition",
+          "description": "Condition d'affichage d'un champ : combinateur ET/OU et liste de termes, réutilisable telle quelle dans la mutation demarcheDefinirCondition.",
+          "fields": [
+            {
+              "name": "combinateur",
+              "description": "ET ou OU.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "termes",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "OBJECT",
+                      "name": "McpConditionTerme",
+                      "ofType": null
+                    }
+                  }
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "McpConditionTerme",
+          "description": "Un terme d'une condition d'affichage, dans le format attendu par la mutation demarcheDefinirCondition.",
+          "fields": [
+            {
+              "name": "champSourceLibelle",
+              "description": "Libellé du champ source (null si le champ a été supprimé de la révision).",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "champSourceStableId",
+              "description": "stable_id du champ source.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "operateur",
+              "description": "Opérateur : egal | different | superieur | superieur_ou_egal | inferieur | inferieur_ou_egal | inclut | exclut | dans_archipel | hors_archipel | dans_departement | hors_departement | dans_region | hors_region",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "valeur",
+              "description": "Valeur comparée, sous forme de chaîne ('true'/'false' pour un booléen).",
               "args": [],
               "type": {
                 "kind": "NON_NULL",

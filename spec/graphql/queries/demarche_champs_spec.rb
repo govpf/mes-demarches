@@ -120,4 +120,94 @@ RSpec.describe 'Query demarcheChamps', type: :graphql do
       expect(enfant[:parentStableId]).to eq(repetition[:stableId])
     end
   end
+
+  describe 'condition d affichage' do
+    let(:procedure) do
+      create(:procedure, administrateurs: [admin], types_de_champ_public: [
+        { type: :integer_number, libelle: 'Âge' },
+        { type: :yes_no, libelle: 'Majeur' },
+        { type: :text, libelle: 'Détail' },
+      ])
+    end
+    let(:age)    { procedure.draft_revision.types_de_champ.find { _1.libelle == 'Âge' } }
+    let(:majeur) { procedure.draft_revision.types_de_champ.find { _1.libelle == 'Majeur' } }
+    let(:detail) { procedure.draft_revision.types_de_champ.find { _1.libelle == 'Détail' } }
+
+    let(:query) do
+      <<-GRAPHQL
+      query($demarche: FindDemarcheInput!) {
+        demarcheChamps(demarche: $demarche) {
+          libelle
+          aCondition
+          condition { combinateur termes { champSourceStableId champSourceLibelle operateur valeur } }
+        }
+      }
+      GRAPHQL
+    end
+    let(:detail_data) { data[:demarcheChamps].find { _1[:libelle] == 'Détail' } }
+
+    context 'sans condition' do
+      it 'renvoie null' do
+        expect(detail_data[:aCondition]).to eq(false)
+        expect(detail_data[:condition]).to be_nil
+      end
+    end
+
+    context 'condition à un seul terme numérique' do
+      before do
+        detail.update!(condition: Logic::GreaterThanEq.new(Logic::ChampValue.new(age.stable_id), Logic::Constant.new(18)))
+      end
+
+      it 'renvoie le terme au format de la mutation demarcheDefinirCondition' do
+        expect(detail_data[:aCondition]).to eq(true)
+        expect(detail_data[:condition]).to eq(
+          combinateur: 'ET',
+          termes: [{ champSourceStableId: age.stable_id.to_s, champSourceLibelle: 'Âge', operateur: 'superieur_ou_egal', valeur: '18' }]
+        )
+      end
+    end
+
+    context 'condition OU à deux termes dont un booléen' do
+      before do
+        detail.update!(condition: Logic::Or.new([
+          Logic::GreaterThan.new(Logic::ChampValue.new(age.stable_id), Logic::Constant.new(65)),
+          Logic::Eq.new(Logic::ChampValue.new(majeur.stable_id), Logic::Constant.new(true)),
+        ]))
+      end
+
+      it 'renvoie le combinateur OU et les deux termes' do
+        expect(detail_data[:condition][:combinateur]).to eq('OU')
+        expect(detail_data[:condition][:termes]).to eq([
+          { champSourceStableId: age.stable_id.to_s, champSourceLibelle: 'Âge', operateur: 'superieur', valeur: '65' },
+          { champSourceStableId: majeur.stable_id.to_s, champSourceLibelle: 'Majeur', operateur: 'egal', valeur: 'true' },
+        ])
+      end
+    end
+
+    context 'terme vide laissé par l éditeur' do
+      before do
+        detail.update!(condition: Logic::And.new([
+          Logic::Eq.new(Logic::ChampValue.new(majeur.stable_id), Logic::Constant.new(false)),
+          Logic::EmptyOperator.new(Logic::Empty.new, Logic::Empty.new),
+        ]))
+      end
+
+      it 'ignore le terme vide' do
+        expect(detail_data[:condition][:termes].map { _1[:operateur] }).to eq(['egal'])
+        expect(detail_data[:condition][:termes].first[:valeur]).to eq('false')
+      end
+    end
+
+    context 'champ source supprimé de la révision' do
+      before do
+        detail.update!(condition: Logic::GreaterThan.new(Logic::ChampValue.new(999_999), Logic::Constant.new(1)))
+      end
+
+      it 'renvoie le terme avec un libellé source null' do
+        terme = detail_data[:condition][:termes].first
+        expect(terme[:champSourceStableId]).to eq('999999')
+        expect(terme[:champSourceLibelle]).to be_nil
+      end
+    end
+  end
 end
