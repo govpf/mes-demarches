@@ -30,10 +30,13 @@ describe EditableChamp::ReferentielDePolynesieComponent, type: :component do
   before { allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).and_return(nil) }
 
   context 'sans filtre contextuel' do
-    it 'garde le comportement catalogue (saisie de 2 caractères, pas de stable_id)' do
+    # pf: cascade rempart n°1 — stable_id part même sans filtre : le serveur l'exige dès
+    # qu'un dossier_id accompagne la recherche.
+    it 'garde le comportement catalogue (saisie de 2 caractères) mais transmet stable_id' do
       props = component.react_props
       expect(props[:minimumInputLength]).to eq(2)
-      expect(props[:loader]).not_to include('stable_id')
+      expect(props[:loader]).to include("stable_id=#{rdp_tdc.stable_id}")
+      expect(props[:loader]).not_to include('pilot_version')
       expect(props).not_to have_key(:emptyLabel)
     end
   end

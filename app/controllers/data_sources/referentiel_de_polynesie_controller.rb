@@ -6,8 +6,16 @@ class DataSources::ReferentielDePolynesieController < ApplicationController
   def search
     @params = search_params
     table = @params[:table]
-    dlnuf = ReferentielDePolynesie::API.dlnuf_config(table)
     drop_down_other = ActiveModel::Type::Boolean.new.cast(@params[:drop_down_other])
+
+    # pf: cascade rempart n°1 — toute recherche rattachée à un dossier doit désigner le champ
+    # (stable_id). Sans cette exigence, un client obtiendrait la table entière en omettant
+    # simplement le paramètre : le filtre contextuel serait opt-in côté client.
+    if @params[:dossier_id].present? && @params[:stable_id].blank?
+      return render json: { message: 'stable_id requis' }, status: :bad_request
+    end
+
+    dlnuf = ReferentielDePolynesie::API.dlnuf_config(table)
 
     if dlnuf == :invalid
       # pf: fail-closed — champ propriétaire mort : refuser d'exposer, JAMAIS de repli en
@@ -31,7 +39,7 @@ class DataSources::ReferentielDePolynesieController < ApplicationController
       scopes << { field_id: dlnuf[:field_id], type: 'equal', value: email }
     end
 
-    if @params[:stable_id].present?
+    if @params[:dossier_id].present?
       dossier ||= authorized_dossier
       return if performed?
 

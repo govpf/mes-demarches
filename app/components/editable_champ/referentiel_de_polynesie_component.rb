@@ -68,10 +68,14 @@ class EditableChamp::ReferentielDePolynesieComponent < EditableChamp::EditableCh
     contextual_filter.present? && contextual_filter.configured?
   end
 
+  # pf: cascade rempart n°1 — stable_id (et row_id dans un bloc) est transmis pour TOUT champ
+  # référentiel, filtré ou non : le serveur l'exige dès qu'un dossier_id accompagne la
+  # recherche, de sorte que le filtre ne puisse jamais être désactivé depuis le client.
+  # pilot_version (cache-buster) n'a de sens que pour un champ filtré.
   def contextual_loader_params
-    return {} unless contextual_filter?
-
-    { stable_id: @champ.stable_id, row_id: @champ.row_id, pilot_version: }.compact
+    params = { stable_id: @champ.stable_id, row_id: @champ.row_id }
+    params[:pilot_version] = pilot_version if contextual_filter?
+    params.compact
   end
 
   # pf: cascade — cache-buster de l'URL du loader. Le composant React n'est pas remonté par le
