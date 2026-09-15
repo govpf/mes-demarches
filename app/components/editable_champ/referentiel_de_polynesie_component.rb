@@ -32,8 +32,10 @@ class EditableChamp::ReferentielDePolynesieComponent < EditableChamp::EditableCh
       props[:autoSelectSingle] = true
       props[:emptyLabel] = I18n.t('shared.champs.referentiel_de_polynesie.dlnuf_empty')
       # pf: DLNUF — champ optionnel sans donnée : masquer le champ entier (zéro friction) ;
-      # obligatoire : rester affiché avec le message, le requis bloque le dépôt de toute façon
-      props[:hideWhenEmpty] = !@champ.mandatory?
+      # obligatoire : rester affiché avec le message, le requis bloque le dépôt de toute façon.
+      # Un champ également filtré (cascade) n'est JAMAIS masqué : une erreur de mapping Baserow
+      # ou un pilote à renseigner doivent rester visibles.
+      props[:hideWhenEmpty] = !@champ.mandatory? && !contextual_filter?
     end
 
     if contextual_filter?

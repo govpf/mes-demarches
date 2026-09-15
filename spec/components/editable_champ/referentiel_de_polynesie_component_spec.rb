@@ -79,5 +79,20 @@ describe EditableChamp::ReferentielDePolynesieComponent, type: :component do
       dossier.reload
       expect(build_component(dossier.project_champ(rdp_tdc)).react_props[:emptyLabel]).to eq('Aucun résultat pour « Plants »')
     end
+
+    # pf: DLNUF masque un champ optionnel sans donnée ; un champ filtré ne doit jamais disparaître,
+    # sinon l'usager ne voit ni le pilote à renseigner ni une erreur de mapping Baserow.
+    context 'quand la table est aussi en mode DLNUF' do
+      before do
+        allow(ReferentielDePolynesie::API).to receive(:dlnuf_config)
+          .and_return({ field_id: 9, field_name: 'Email', field_type: 'email' })
+      end
+
+      it 'ne masque pas le champ et garde le message de cascade' do
+        props = component.react_props
+        expect(props[:hideWhenEmpty]).to be_falsey
+        expect(props[:emptyLabel]).to eq('Renseignez d’abord « Type de produit »')
+      end
+    end
   end
 end
