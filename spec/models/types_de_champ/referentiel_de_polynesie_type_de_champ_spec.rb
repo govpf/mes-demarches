@@ -185,6 +185,14 @@ describe TypesDeChamp::ReferentielDePolynesieTypeDeChamp do
         expect(type_de_champ.referentiel_filter).to be_nil
       end
 
+      # pf: la table Baserow a changé sous les pieds de la config (colonne supprimée) : garder
+      # le filtre reviendrait à ne plus laisser passer aucune ligne.
+      it 'efface la config quand la colonne est absente de la table' do
+        type_de_champ.referentiel_filter = { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/7' }
+        type_de_champ.referentiel_filter_form = { 'enabled' => '1', 'baserow_field_id' => '99', 'pilot_column_id' => 'type_de_champ/7' }
+        expect(type_de_champ.referentiel_filter).to be_nil
+      end
+
       it 'garde le nom en cache si Baserow est injoignable' do
         allow(ReferentielDePolynesie::API).to receive(:table_fields).with('24').and_return(nil)
         type_de_champ.referentiel_filter = { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/7' }

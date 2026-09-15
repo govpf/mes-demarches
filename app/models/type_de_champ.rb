@@ -400,12 +400,18 @@ class TypeDeChamp < ApplicationRecord
     form = Hash(form).with_indifferent_access
     if form[:enabled] == '1' && form[:baserow_field_id].present? && form[:pilot_column_id].present?
       field_id = form[:baserow_field_id].to_i
-      field = ReferentielDePolynesie::API.table_fields(table_id)&.dig(field_id)
-      self.referentiel_filter = {
-        'baserow_field_id' => field_id,
-        'baserow_field_name' => field&.dig(:name) || Hash(referentiel_filter)['baserow_field_name'],
-        'pilot_column_id' => form[:pilot_column_id].to_s,
-      }
+      fields = ReferentielDePolynesie::API.table_fields(table_id)
+      self.referentiel_filter = if fields.is_a?(Hash) && !fields.key?(field_id)
+        # pf: Baserow a répondu et la colonne n'existe plus (table changée, colonne supprimée) :
+        # effacer plutôt que conserver un filtre mort, qui ne laisserait passer aucune ligne.
+        nil
+      else
+        {
+          'baserow_field_id' => field_id,
+          'baserow_field_name' => fields&.dig(field_id)&.dig(:name) || Hash(referentiel_filter)['baserow_field_name'],
+          'pilot_column_id' => form[:pilot_column_id].to_s,
+        }
+      end
     else
       self.referentiel_filter = nil
     end
