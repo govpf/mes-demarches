@@ -96,7 +96,13 @@ Polynésie, sous la case « option autre ») :
 
 Le contrôleur `Administrateurs::TypesDeChampController#type_de_champ_update_params`
 autorise `referentiel_filter: [:enabled, :baserow_field_id, :pilot_column_id]` ; le
-nom Baserow est résolu et mis en cache côté serveur à l'enregistrement.
+nom Baserow est résolu et mis en cache côté serveur à l’enregistrement.
+
+À cet enregistrement, deux cas sont distingués : si Baserow **répond** et ne connaît
+plus la colonne choisie (colonne supprimée, table remplacée), la configuration est
+**effacée** — la garder reviendrait à laisser un filtre mort qui ne laisse plus passer
+aucune ligne. Si Baserow est **injoignable** (aucune réponse), on conserve la config et
+le nom précédemment mis en cache.
 
 ### 2. Validation de la configuration (éditeur et publication)
 
@@ -129,6 +135,13 @@ ajoute deux paramètres :
 - **`stable_id`** du champ référentiel en cours de saisie ;
 - **`row_id`** de sa ligne quand il est dans un bloc répétable (absent sinon).
 
+Le composant envoie ces paramètres pour **tout** champ `referentiel_de_polynesie`,
+filtré ou non, et le contrôleur **exige** `stable_id` dès qu’une recherche porte un
+`dossier_id` : absent → `400 « stable_id requis »`, avant tout appel Baserow. Sans cette
+exigence le rempart n°1 serait opt-in côté client — il suffirait d’omettre le paramètre
+pour obtenir la table entière. Une recherche catalogue sans `dossier_id` (aperçu,
+champ non rattaché à un dossier) garde exactement son comportement.
+
 Flux serveur, après `authorized_dossier` :
 
 1. Retrouver le TDC par `stable_id` dans `dossier.revision` ; il doit être un
@@ -141,6 +154,8 @@ Flux serveur, après `authorized_dossier` :
    colonne dossier, `column.value(dossier.project_champ(pilot_tdc, row_id: pilot_row_id))`
    pour un champ, où `pilot_row_id` vaut `row_id` si le pilote est dans le même bloc,
    `nil` sinon. Le dossier est relu persisté : l'autosave a déjà enregistré le pilote.
+   Un pilote de la même ligne **sans `row_id`** n’est pas projetable : le filtre est
+   considéré invalide (liste vide + Sentry), jamais une exception.
 4. **Fail-closed** : valeur vide → liste vide.
 5. Sinon, ajouter un filtre à la liste des filtres de `BaserowAPI.search_with_data`. Le
    paramètre `scope:` du Socle devient **`scopes:`**, une liste, pour cumuler cascade et
@@ -161,8 +176,11 @@ Flux serveur, après `authorized_dossier` :
 `EditableChamp::ReferentielDePolynesieComponent`, quand le TDC porte un
 `referentiel_filter` :
 
-- `loader` reçoit `stable_id` et `row_id` ; `minimumInputLength: 0`.
-- **Jamais `hideWhenEmpty`**, quel que soit le flag obligatoire.
+- `loader` reçoit `stable_id` et `row_id` (envoyés de toute façon, cf. §3) plus un
+  `pilot_version` propre aux champs filtrés ; `minimumInputLength: 0`.
+- **Jamais `hideWhenEmpty`**, quel que soit le flag obligatoire — y compris sur une table
+  DLNUF, dont la règle « masquer un champ optionnel sans donnée » ne s’applique qu’aux
+  champs non filtrés.
 - `emptyLabel` calculé **au rendu** côté serveur, deux cas :
   - pilote vide → « Renseignez d'abord « Type de produit » » ;
   - pilote renseigné → « Aucun résultat pour « Plants » ».
@@ -170,12 +188,18 @@ Flux serveur, après `authorized_dossier` :
   courant (même résolution que §3, factorisée dans un service
   `ReferentielDePolynesie::ContextualFilter` utilisé par le contrôleur, le composant et
   la validation).
-- **Rafraîchissement quand le pilote change** : `TurboChampsConcern#champs_to_turbo_update`
-  ajoute aux champs re-rendus les référentiels dont le pilote vient d'être modifié
-  (`Champ#dependent_referentiel_filter_champs`, symétrique de
-  `all_dependent_formula_champs` ; dans un bloc, seuls les référentiels de la même ligne).
-  Le composant se re-rend donc avec le bon `emptyLabel`, et la liste au focus repart du
-  nouveau périmètre.
+- **Rafraîchissement quand le pilote change**, en deux temps :
+  1. `TurboChampsConcern#champs_to_turbo_update` ajoute aux champs re-rendus les
+     référentiels dont le pilote vient d’être modifié
+     (`Champ#dependent_referentiel_filter_champs`, symétrique de
+     `all_dependent_formula_champs` ; dans un bloc, seuls les référentiels de la même
+     ligne). Le re-rendu Turbo porte le nouvel `emptyLabel`.
+  2. Le composant React n’est pas remonté par ce re-rendu (coldwired met seulement les
+     props à jour) et `useAsyncList` garde ses items tant que l’URL de chargement est
+     identique. Le loader porte donc un **cache-buster `pilot_version`** : un digest court
+     de la valeur du pilote, jamais la valeur elle-même. Quand il change, l’identité de
+     `load` change, et `useRemoteList` (`app/javascript/components/react-aria/hooks.ts`)
+     appelle `list.reload()` — la liste au focus repart du nouveau périmètre.
 
 ### 5. Validation non-destructive au dépôt (anti-stale)
 
@@ -185,13 +209,21 @@ répétables. À la place, `Champs::ReferentielDePolynesieChamp` valide, sur le 
 `dlnuf_owner_integrity` existant :
 
 - comparaison **locale** de `normalized_data[baserow_field_name]` avec la valeur du
-  pilote résolue (insensible à la casse ; pour `multiple_select`, appartenance à la
-  liste) ; **aucun appel Baserow** au dépôt ;
+  pilote résolue ; **aucun appel Baserow** au dépôt. L’égalité exacte (insensible à la
+  casse, sur la valeur entière) est testée **avant** le découpage sur la virgule, sans
+  quoi une valeur texte contenant une virgule (« Semences, bio »), pourtant
+  sélectionnable au rempart n°1 avec l’opérateur `equal`, ne serait jamais déposable ;
+  le découpage ne sert que de repli pour les `multiple_select` aplatis en « A, B » ;
 - divergence → erreur bloquante sur ce champ, message
   « « Plants » ne correspond pas à « Semences ». Modifiez ce champ ou « Type de
   produit ». » ;
-- colonne absente de `normalized_data` (ligne choisie avant la config) → on
-  n'invalide pas, fail-open assumé pour l'antériorité ;
+- colonne absente d’un `normalized_data` **présent** (ligne choisie avant la config) → on
+  n’invalide pas, fail-open assumé pour l’antériorité ;
+- `normalized_data` **entièrement absent** (ni hash de ligne, ni blob déchiffrable) → la
+  correspondance est invérifiable. En **autocomplete**, où les données accompagnent la
+  sélection, leur absence signale un état corrompu ou une soumission forgée : erreur
+  `filter_unverifiable`, « doit être sélectionné à nouveau ». En `exact_match` (données
+  récupérées de façon asynchrone) le fail-open reste assumé ;
 - pilote vide au dépôt → erreur « Renseignez d'abord « Type de produit » » si le
   référentiel est renseigné.
 

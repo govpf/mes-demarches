@@ -257,10 +257,13 @@ référentiel) : choisir « Semences » dans « Type de produit » ne propose qu
 selon un autre champ du formulaire » (colonne Baserow + champ pilote, placé avant, à la racine
 ou dans la même ligne de bloc).
 
+- Colonnes Baserow filtrables : `text`, `long_text`, `email`, `formula`, `single_select` et
+  `multiple_select` (pas de `link_row`), leurs métadonnées étant lues via `table_fields`, en
+  cache 5 minutes.
 - Résolution côté serveur uniquement (`ReferentielDePolynesie::ContextualFilter`, endpoint
   `DataSources::ReferentielDePolynesieController#search` avec `dossier_id`, `stable_id`, `row_id`,
   plus un cache-buster `pilot_version` qui invalide le cache de recherche quand la valeur du
-  pilote change).
+  pilote change). `stable_id` est exigé dès qu’un `dossier_id` est transmis.
 - Fail-closed : pilote vide, config invalide ou option Baserow introuvable → liste vide.
 - Jamais de masquage du champ ; deux messages d’état vide (« Renseignez d’abord … » /
   « Aucun résultat pour … »), rafraîchis quand le pilote change (`TurboChampsConcern`), qui
