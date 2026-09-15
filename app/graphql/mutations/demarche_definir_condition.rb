@@ -8,20 +8,8 @@ module Mutations
   class DemarcheDefinirCondition < Mutations::DemarcheChampMutation
     description "Définir (ou retirer) la condition d'affichage d'un champ de la révision brouillon."
 
-    OPERATEUR_TO_LOGIC = {
-      'egal' => 'Logic::Eq',
-      'different' => 'Logic::NotEq',
-      'superieur' => 'Logic::GreaterThan',
-      'superieur_ou_egal' => 'Logic::GreaterThanEq',
-      'inferieur' => 'Logic::LessThan',
-      'inferieur_ou_egal' => 'Logic::LessThanEq',
-      'inclut' => 'Logic::IncludeOperator',
-      'exclut' => 'Logic::ExcludeOperator',
-      'dans_archipel' => 'Logic::InArchipelOperator',
-      'hors_archipel' => 'Logic::NotInArchipelOperator',
-      'dans_departement' => 'Logic::InDepartementOperator',
-      'dans_region' => 'Logic::InRegionOperator',
-    }.freeze
+    # pf: table partagée avec la lecture (Mcp::ConditionSerializer) pour garantir la symétrie.
+    OPERATEUR_TO_LOGIC = ::Mcp::ConditionSerializer::OPERATEUR_TO_LOGIC
 
     argument :stable_id, String, "stable_id du champ dont on définit la condition d'affichage.", required: true
     argument :combinateur, String, "ET ou OU pour combiner plusieurs termes (défaut : ET).", required: false, default_value: 'ET'

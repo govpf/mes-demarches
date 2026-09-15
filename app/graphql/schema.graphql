@@ -801,7 +801,7 @@ input ConditionTermeInput {
   """
   egal | different | superieur | superieur_ou_egal | inferieur |
   inferieur_ou_egal | inclut | exclut | dans_archipel | hors_archipel |
-  dans_departement | dans_region
+  dans_departement | hors_departement | dans_region | hors_region
   """
   operateur: String!
 
@@ -4312,6 +4312,11 @@ type LinkedDropDownListChampDescriptor implements ChampDescriptor {
 
 type McpChampStructure {
   aCondition: Boolean!
+
+  """
+  Condition d'affichage du champ (null si aucune).
+  """
+  condition: McpCondition
   description: String
   libelle: String!
   obligatoire: Boolean!
@@ -4325,6 +4330,45 @@ type McpChampStructure {
   prive: Boolean!
   stableId: String!
   typeChamp: String!
+}
+
+"""
+Condition d'affichage d'un champ : combinateur ET/OU et liste de termes,
+réutilisable telle quelle dans la mutation demarcheDefinirCondition.
+"""
+type McpCondition {
+  """
+  ET ou OU.
+  """
+  combinateur: String!
+  termes: [McpConditionTerme!]!
+}
+
+"""
+Un terme d'une condition d'affichage, dans le format attendu par la mutation demarcheDefinirCondition.
+"""
+type McpConditionTerme {
+  """
+  Libellé du champ source (null si le champ a été supprimé de la révision).
+  """
+  champSourceLibelle: String
+
+  """
+  stable_id du champ source.
+  """
+  champSourceStableId: String!
+
+  """
+  Opérateur : egal | different | superieur | superieur_ou_egal | inferieur |
+  inferieur_ou_egal | inclut | exclut | dans_archipel | hors_archipel |
+  dans_departement | hors_departement | dans_region | hors_region
+  """
+  operateur: String!
+
+  """
+  Valeur comparée, sous forme de chaîne ('true'/'false' pour un booléen).
+  """
+  valeur: String!
 }
 
 type McpReferentielChampConfig {

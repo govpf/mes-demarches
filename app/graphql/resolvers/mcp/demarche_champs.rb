@@ -27,6 +27,7 @@ module Resolvers
         revision = procedure.draft_revision
         coordinates = revision.revision_types_de_champ
         by_id = coordinates.index_by(&:id)
+        type_de_champs = coordinates.map(&:type_de_champ)
 
         coordinates.map do |coordinate|
           tdc = coordinate.type_de_champ
@@ -41,6 +42,7 @@ module Resolvers
             parent_stable_id: parent&.type_de_champ&.stable_id&.to_s,
             position: coordinate.position,
             a_condition: tdc.condition.present?,
+            condition: ::Mcp::ConditionSerializer.to_h(tdc.condition, type_de_champs),
             options: readable_options(tdc, revision),
           }
         end
