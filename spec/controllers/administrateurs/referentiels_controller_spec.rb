@@ -506,6 +506,8 @@ describe Administrateurs::ReferentielsController, type: :controller do
           },
         }
         expect(type_de_champ.reload.referentiel_filter).to eq('baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/3')
+        # pf: un POST sans referentiel_mapping ne doit pas toucher au mapping existant
+        expect(type_de_champ.referentiel_mapping).to eq(referentiel_mapping)
       end
     end
 

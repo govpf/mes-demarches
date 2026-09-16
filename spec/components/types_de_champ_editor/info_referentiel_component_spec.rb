@@ -100,9 +100,10 @@ describe TypesDeChampEditor::InfoReferentielComponent, type: :component do
         })
       end
 
-      it 'se replie sur l’identifiant de la colonne' do
+      it 'signale un pilote indisponible sans exposer son identifiant' do
         render_inline(component)
-        expect(page).to have_text('Lignes restreintes selon « type_de_champ/999999 » (colonne « Catégorie »)')
+        expect(page).to have_text('Lignes restreintes selon un champ qui n’est plus disponible (colonne « Catégorie »)')
+        expect(page).not_to have_text('type_de_champ/999999')
       end
     end
   end

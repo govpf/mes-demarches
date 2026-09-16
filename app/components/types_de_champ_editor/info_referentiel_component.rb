@@ -26,17 +26,19 @@ class TypesDeChampEditor::InfoReferentielComponent < ApplicationComponent
 
     config = Hash(type_de_champ.referentiel_filter)
     pilot_libelle = pilot_column_label(config['pilot_column_id'].to_s)
+    pilot = pilot_libelle ? "« #{pilot_libelle} »" : 'un champ qui n’est plus disponible'
 
-    "Lignes restreintes selon « #{pilot_libelle} » (colonne « #{config['baserow_field_name']} »)"
+    "Lignes restreintes selon #{pilot} (colonne « #{config['baserow_field_name']} »)"
   end
 
   private
 
-  # pf: repli sur l’identifiant brut si la colonne pilote a disparu de la révision de travail
+  # pf: nil si la colonne pilote n’est plus dans la révision de travail (supprimée, déplacée ou de
+  # type incompatible) ; le validateur de publication porte le message d’erreur détaillé.
   def pilot_column_label(column_id)
     procedure.find_column(h_id: { procedure_id: procedure.id, column_id: }).label
   rescue ActiveRecord::RecordNotFound
-    column_id
+    nil
   end
 
   def new_referentiel_url
