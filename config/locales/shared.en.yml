@@ -47,4 +47,4 @@ en:
       referentiel_de_polynesie:
         dlnuf_empty: "No data registered under your name"
         filter_pilot_blank: "Fill in “%{pilot}” first"
-        filter_no_match: "No result for “%{value}”"
+        filter_no_match: "No option available for “%{value}”. Change “%{pilot}” if needed."

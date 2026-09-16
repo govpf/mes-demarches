@@ -56,4 +56,4 @@ fr:
       referentiel_de_polynesie:
         dlnuf_empty: "Aucune donnée enregistrée à votre nom"
         filter_pilot_blank: "Renseignez d’abord « %{pilot} »"
-        filter_no_match: "Aucun résultat pour « %{value} »"
+        filter_no_match: "Aucun choix disponible pour « %{value} ». Modifiez « %{pilot} » si nécessaire."

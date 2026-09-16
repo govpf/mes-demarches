@@ -108,7 +108,8 @@ describe ReferentielDePolynesie::ContextualFilter do
 
       it 'annonce l\'absence de résultat pour la valeur du pilote' do
         dossier.project_champ(pilot_tdc).update!(value: 'Plants')
-        expect(described_class.for(type_de_champ: rdp_tdc, dossier: dossier.reload).empty_label).to eq('Aucun résultat pour « Plants »')
+        expect(described_class.for(type_de_champ: rdp_tdc, dossier: dossier.reload).empty_label)
+          .to eq('Aucun choix disponible pour « Plants ». Modifiez « Type de produit » si nécessaire.')
       end
     end
 

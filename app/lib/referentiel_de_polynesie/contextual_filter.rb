@@ -120,7 +120,7 @@ class ReferentielDePolynesie::ContextualFilter
     if pilot_value.blank?
       I18n.t('shared.champs.referentiel_de_polynesie.filter_pilot_blank', pilot: pilot_libelle)
     else
-      I18n.t('shared.champs.referentiel_de_polynesie.filter_no_match', value: pilot_value)
+      I18n.t('shared.champs.referentiel_de_polynesie.filter_no_match', value: pilot_value, pilot: pilot_libelle)
     end
   end
 

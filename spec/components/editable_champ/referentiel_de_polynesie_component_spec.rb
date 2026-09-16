@@ -74,10 +74,11 @@ describe EditableChamp::ReferentielDePolynesieComponent, type: :component do
       expect(component.react_props[:emptyLabel]).to eq('Renseignez d’abord « Type de produit »')
     end
 
-    it 'affiche « Aucun résultat pour » quand le pilote est renseigné' do
+    it 'affiche « Aucun choix disponible pour » quand le pilote est renseigné' do
       dossier.project_champ(pilot_tdc).update!(value: 'Plants')
       dossier.reload
-      expect(build_component(dossier.project_champ(rdp_tdc)).react_props[:emptyLabel]).to eq('Aucun résultat pour « Plants »')
+      expect(build_component(dossier.project_champ(rdp_tdc)).react_props[:emptyLabel])
+        .to eq('Aucun choix disponible pour « Plants ». Modifiez « Type de produit » si nécessaire.')
     end
 
     # pf: DLNUF masque un champ optionnel sans donnée ; un champ filtré ne doit jamais disparaître,
