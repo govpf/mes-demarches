@@ -208,14 +208,15 @@ describe 'Referentiel API:' do
             visit demande_dossier_path(created_dossier)
             expect(page).to have_content("Coordonées du point -0.570505392116188, 44.841034137099996")
             expect(page).to have_content("Type de point Point")
-            expect(page).not_to have_content("$.shape.type") # not displayed to usager
+            expect(page).not_to have_content("shape.type") # not displayed to usager
 
             # check data is also visible on demande page as an usager
             visit instructeur_dossier_path(procedure, created_dossier)
             expect(page).to have_content("Sections du formulaire")
             expect(page).not_to have_content("Coordonées du point")
             expect(page).to have_content("Type de point")
-            expect(page).to have_content("$.shape.type")
+            # pf: libellé par défaut du mapping proposé sans le préfixe « $. »
+            expect(page).to have_content("shape.type")
           end
         end
       end
@@ -309,7 +310,7 @@ describe 'Referentiel API:' do
           expect(dossier.project_champs.find { _1.stable_id.to_s == prefill_text_stable_id.to_s }.value).to eq("010002699")
           expect(dossier.project_champs.find { _1.stable_id.to_s == prefill_date_stable_id.to_s }.value).to eq("2004-12-31")
 
-          expect(page).to have_content("$.data[0].adresse_nom_voie")
+          expect(page).to have_content("data[0].adresse_nom_voie") # pf: libellé par défaut sans « $. »
           expect(page).to have_content("GEORGES GIRERD")
 
           click_on("Déposer le dossier")
@@ -319,7 +320,7 @@ describe 'Referentiel API:' do
 
           ## check as instructeur
           visit instructeur_dossier_path(procedure, created_dossier)
-          expect(page).to have_content("$.data[0].adresse_nom_voie")
+          expect(page).to have_content("data[0].adresse_nom_voie") # pf: libellé par défaut sans « $. »
           expect(page).to have_content("GEORGES GIRERD")
         end
       end

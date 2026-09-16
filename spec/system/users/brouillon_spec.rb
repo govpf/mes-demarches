@@ -393,7 +393,7 @@ describe 'The user', js: true do
   scenario 'fill referentiel_de_polynesie field' do
     allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).and_return(nil)
     allow(ReferentielDePolynesie::API).to receive(:search_with_data)
-      .with('24', 'Papeete', drop_down_other: anything)
+      .with('24', 'Papeete', drop_down_other: anything, scopes: [])
       .and_return([
         { label: '43916 - Commune de Papeete', value: '24:20', row_data: { 'Nom' => '43916 - Commune de Papeete' } },
         { label: '46397 - JEUNESSE DE PAPEETE', value: '24:31', row_data: { 'Nom' => '46397 - JEUNESSE DE PAPEETE' } },

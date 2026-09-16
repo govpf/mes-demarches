@@ -44,6 +44,10 @@ RSpec.describe Referentiels::MappingFormComponent, type: :component do
         expect(page).to have_selector("input[type=submit]")
       end
 
+      it 'propose un libellé par défaut sans le préfixe jsonpath « $. »' do
+        expect(page).to have_field("type_de_champ[referentiel_mapping][$.point.type][libelle]", with: 'point.type')
+      end
+
       context 'when referentiel is autocomplete' do
         let(:referentiel) { create(:api_referentiel, :with_autocomplete_response, :autocomplete) }
 

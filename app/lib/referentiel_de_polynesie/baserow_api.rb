@@ -53,14 +53,14 @@ class ReferentielDePolynesie::BaserowAPI
     # Note: on n'utilise PAS user_field_names=true dans la requête de recherche car Baserow exige alors
     # des noms de champs (strings) dans les filtres alors que build_search_filters utilise des IDs numériques.
     # On mappe les IDs vers les noms via le model fields() après réception.
-    def search_with_data(domain_id, term, drop_down_other: false, scope: nil)
+    def search_with_data(domain_id, term, drop_down_other: false, scopes: [])
       config = config(domain_id)
       return [] unless config
 
       search_field_id = config['Champ de recherche']
       model = fields(config)
 
-      params = build_search_filters(search_field_id, term, scope:)
+      params = build_search_filters(search_field_id, term, scopes:)
       # pf: ni terme ni scope → ne jamais renvoyer la table entière (défense en profondeur)
       return [] if params.blank?
 
@@ -129,12 +129,25 @@ class ReferentielDePolynesie::BaserowAPI
       { field_id: owner_field_id.to_i, field_name: field[:name], field_type: field[:type] }
     end
 
-    # pf: retourne { id => { name:, type: } } au lieu de { id => name }
+    # pf: retourne { id => { name:, type:, select_options: [{ id:, value: }] } } ; select_options
+    # est vide pour les colonnes sans options. Sert au mapping ET à la cascade (résolution des
+    # options en id pour single_select_equal / multiple_select_has).
     def fields(config)
       response = Typhoeus.get(list_database_table_fields(config['Table']), headers: database_headers(config['Token']), timeout: TIMEOUT)
       if response.success?
-        JSON.parse(response.body).map { [_1['id'], { name: _1['name'], type: _1['type'] }] }.to_h
+        JSON.parse(response.body).to_h do |field|
+          options = Array(field['select_options']).map { { id: _1['id'], value: _1['value'] } }
+          [field['id'], { name: field['name'], type: field['type'], select_options: options }]
+        end
       end
+    end
+
+    # pf: colonnes d'une table désignée par son id de référentiel (table méta) ; nil si inconnue
+    def table_fields(domain_id)
+      config = config(domain_id)
+      return nil unless config
+
+      fields(config)
     end
 
     # pf: convertit un type Baserow en type de mapping upstream
@@ -200,14 +213,14 @@ class ReferentielDePolynesie::BaserowAPI
       }
     end
 
-    def build_search_filters(search_field, term, scope: nil)
+    def build_search_filters(search_field, term, scopes: [])
       filters = extract_search_words(term).map do |word|
         { "field" => search_field.to_i, "type" => "contains", "value" => word }
       end
-      # pf: DLNUF — le filtre propriétaire est TOUJOURS appliqué quand un scope est présent ;
+      # pf: DLNUF et cascade — les filtres de périmètre sont TOUJOURS appliqués quand présents ;
       # q ne fait que réduire à l'intérieur du périmètre (la sécurité tient quel que soit q)
-      if scope.present?
-        filters << { "field" => scope[:field_id], "type" => "equal", "value" => scope[:value] }
+      Array(scopes).each do |scope|
+        filters << { "field" => scope[:field_id].to_i, "type" => scope[:type].presence || "equal", "value" => scope[:value] }
       end
       return {} if filters.empty?
 

@@ -50,4 +50,61 @@ describe TypesDeChampEditor::InfoReferentielComponent, type: :component do
       end
     end
   end
+
+  # pf: cascade — la carte du champ ne garde qu’un rappel en lecture seule du filtre contextuel,
+  # configuré dans le wizard « Configurer le champ » : aucun appel Baserow ne doit partir d’ici.
+  describe 'rappel du filtre contextuel' do
+    let(:referentiel) { create(:baserow_referentiel) } # baserow://24
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :drop_down_list, libelle: 'Type de produit', options: ['Semences', 'Plants'] },
+        { type: :referentiel_de_polynesie, libelle: 'Produit', referentiel: },
+      ])
+    end
+    let(:pilot_tdc) { procedure.draft_revision.types_de_champ_public.first }
+    let(:type_de_champ) { procedure.draft_revision.types_de_champ_public.second }
+    let(:component) { described_class.new(procedure:, type_de_champ:) }
+
+    # pf: ready? interroge la table méta Baserow (hors périmètre du filtre) — on le neutralise
+    before { allow_any_instance_of(Referentiels::BaserowReferentiel).to receive(:ready?).and_return(true) }
+
+    context 'sans filtre configuré' do
+      it 'n’affiche aucun rappel' do
+        render_inline(component)
+        expect(page).not_to have_text('Lignes restreintes')
+      end
+    end
+
+    context 'avec un filtre configuré' do
+      before do
+        type_de_champ.update!(referentiel_filter: {
+          'baserow_field_id' => 12,
+          'baserow_field_name' => 'Catégorie',
+          'pilot_column_id' => "type_de_champ/#{pilot_tdc.stable_id}",
+        })
+      end
+
+      it 'affiche le rappel sans interroger Baserow' do
+        expect(ReferentielDePolynesie::API).not_to receive(:table_fields)
+        render_inline(component)
+        expect(page).to have_text('Lignes restreintes selon « Type de produit » (colonne « Catégorie »)')
+      end
+    end
+
+    context 'quand le champ pilote a disparu' do
+      before do
+        type_de_champ.update!(referentiel_filter: {
+          'baserow_field_id' => 12,
+          'baserow_field_name' => 'Catégorie',
+          'pilot_column_id' => 'type_de_champ/999999',
+        })
+      end
+
+      it 'signale un pilote indisponible sans exposer son identifiant' do
+        render_inline(component)
+        expect(page).to have_text('Lignes restreintes selon un champ qui n’est plus disponible (colonne « Catégorie »)')
+        expect(page).not_to have_text('type_de_champ/999999')
+      end
+    end
+  end
 end

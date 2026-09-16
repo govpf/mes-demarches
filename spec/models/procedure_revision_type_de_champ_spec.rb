@@ -347,4 +347,44 @@ describe ProcedureRevisionTypeDeChamp do
       end
     end
   end
+
+  describe '#pilot_columns_for_referentiel_filter (cascade référentiel)' do
+    let(:referentiel) { create(:baserow_referentiel) }
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :drop_down_list, libelle: 'Type de produit', options: ['Semences', 'Plants'] },
+        { type: :date, libelle: 'Date' },
+        { type: :text, libelle: 'Commentaire' },
+        { type: :referentiel_de_polynesie, libelle: 'Produit', referentiel: },
+        { type: :drop_down_list, libelle: 'Après', options: ['x'] },
+        {
+          type: :repetition, libelle: 'Lignes', children: [
+            { type: :drop_down_list, libelle: 'Type ligne', options: ['A'] },
+            { type: :referentiel_de_polynesie, libelle: 'Produit ligne', referentiel: },
+            { type: :text, libelle: 'Après ligne' },
+          ],
+        },
+        {
+          type: :repetition, libelle: 'Autre bloc', children: [
+            { type: :drop_down_list, libelle: 'Type autre', options: ['B'] },
+          ],
+        },
+      ])
+    end
+    let(:revision) { procedure.draft_revision }
+
+    it 'à la racine : champs texte/choix placés avant, pas la date ni les champs suivants' do
+      coordinate = revision.coordinate_for(revision.types_de_champ_public[3])
+      expect(coordinate.pilot_columns_for_referentiel_filter.map(&:label)).to eq(['Type de produit', 'Commentaire'])
+    end
+
+    it 'dans un bloc : frères précédents de la même ligne + racine avant le bloc, pas l\'autre bloc' do
+      repetition = revision.types_de_champ_public[5]
+      line_rdp = revision.children_of(repetition).second
+      coordinate = revision.coordinate_for(line_rdp)
+      labels = coordinate.pilot_columns_for_referentiel_filter.map(&:label)
+      expect(labels).to include('Type ligne', 'Type de produit', 'Commentaire', 'Après', 'Produit')
+      expect(labels).not_to include('Après ligne', 'Type autre', 'Date')
+    end
+  end
 end

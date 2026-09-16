@@ -12,6 +12,10 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
   # Couvre le transfert de dossier après sélection et toute soumission forgée.
   validate :dlnuf_owner_integrity, if: -> { validate_champ_value? && external_id.present? && !other? }
 
+  # pf: cascade, second rempart (dépôt) — la ligne sélectionnée doit correspondre à la valeur
+  # actuelle du champ pilote. Couvre le pilote modifié après sélection et toute soumission forgée.
+  validate :referentiel_filter_integrity, if: -> { validate_champ_value? && external_id.present? && !other? && type_de_champ.referentiel_filter? }
+
   # pf: préserver le label humain dans value (upstream y met external_id)
   # pf: guard new_record? pour éviter que le fork (deep_clone) ne wipe data/value_json
   # sur les champs clonés — external_id_changed? est toujours true sur un new_record
@@ -138,13 +142,13 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     end
   end
 
-  # pf: dual-mode — normalise les données entre ancien format (avec row) et nouveau format (plat)
+  # pf: dual-mode — normalise les données entre ancien format (avec row) et nouveau format (plat).
+  # `data` peut aussi contenir une chaîne brute (blob non déchiffrable conservé par `data=`) :
+  # on la traite comme une absence de données plutôt que de laisser lever `key?`.
   def normalized_data
-    if data&.key?('row')
-      data['row'] # ancien format
-    else
-      data # nouveau format plat
-    end
+    return nil unless data.is_a?(Hash)
+
+    data.key?('row') ? data['row'] : data # ancien format / nouveau format plat
   end
 
   # pf: support colonnes pour tags/exports (dual-mode)
@@ -185,6 +189,29 @@ class Champs::ReferentielDePolynesieChamp < Champs::ReferentielChamp
     row_email = normalized_data&.dig(config[:field_name])
     unless row_email.to_s.casecmp?(owner_email)
       errors.add(:value, :not_dlnuf_owner)
+    end
+  end
+
+  # pf: comparaison LOCALE de row_data[colonne Baserow] avec la valeur du pilote (aucun appel
+  # Baserow). Config invalide (pilote disparu) → on ne bloque pas l'usager pour une erreur
+  # d'administration : le validateur de publication et le rempart n°1 (#search) couvrent ce cas.
+  def referentiel_filter_integrity
+    filter = ReferentielDePolynesie::ContextualFilter.for(type_de_champ:, dossier:, row_id:)
+    return if filter.invalid?
+
+    if filter.pilot_value.blank?
+      errors.add(:value, :filter_pilot_blank, pilot: filter.pilot_libelle)
+    elsif normalized_data.blank?
+      # pf: aucune donnée de ligne → correspondance invérifiable. En autocomplete les données
+      # accompagnent la sélection : leur absence signale une soumission forgée ou un état
+      # corrompu, on exige une nouvelle sélection. En exact_match le fetch est asynchrone :
+      # fail-open assumé, le rempart n°1 reste la protection principale.
+      errors.add(:value, :filter_unverifiable) if autocomplete?
+    elsif !filter.matches_row_data?(normalized_data)
+      errors.add(:value, :filter_mismatch,
+        row_value: normalized_data&.dig(filter.baserow_field_name),
+        pilot_value: filter.pilot_value,
+        pilot: filter.pilot_libelle)
     end
   end
 

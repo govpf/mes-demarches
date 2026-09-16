@@ -92,6 +92,7 @@ en:
               missing_libelle: "field label in position %{position} must be filled"
               expression_reguliere_invalid: "is invalid"
               referentiel_not_ready: "is not configured"
+              invalid_referentiel_filter: "has a filter referencing a deleted, moved or incompatible field"
             draft_types_de_champ_private:
               format: 'Private field %{message}'
               invalid_condition: "have an invalid logic"
@@ -102,6 +103,7 @@ en:
               missing_libelle: "field label in position %{position} must be filled"
               expression_reguliere_invalid: "is invalid"
               referentiel_not_ready: "is not configured"
+              invalid_referentiel_filter: "has a filter referencing a deleted, moved or incompatible field"
             attestation_template:
               format: "%{attribute} %{message}"
             initiated_mail:

@@ -200,6 +200,19 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
     end
   end
 
+  # pf: cascade référentiel — colonnes pouvant piloter le filtre d'un referentiel_de_polynesie :
+  # champs texte/choix des coordonnées supérieures (frères précédents de la même ligne, racine
+  # avant le bloc, publics pour une annotation). Pas de bloc répétable, pas d'autre bloc.
+  # Source de vérité partagée par l'éditeur (liste B) et ReferentielFilterValidator.
+  def pilot_columns_for_referentiel_filter
+    upper_coordinates
+      .map(&:type_de_champ)
+      .filter { _1.fillable? && !_1.repetition? && _1.stable_id != type_de_champ.stable_id }
+      .flat_map { _1.columns(procedure:) }
+      .filter { _1.type.in?(ReferentielDePolynesie::ContextualFilter::PILOT_COLUMN_TYPES) }
+      .uniq { _1.h_id[:column_id] }
+  end
+
   def available_in_repetition_context?(column_ref)
     # For a formula in a repetition:
     # 1. Can reference fields from the same row (siblings) that precede it

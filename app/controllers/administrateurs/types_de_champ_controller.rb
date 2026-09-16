@@ -276,7 +276,11 @@ module Administrateurs
         .permit(:type_champ, :parent_stable_id, :private, :libelle, :after_stable_id)
     end
 
-    INSTANCE_PARAMS = TypeDeChamp::INSTANCE_OPTIONS.map { |tdc| tdc != :accredited_users ? tdc : :accredited_user_string }
+    # pf: referentiel_filter est un Hash écrit via referentiel_filter_form (case + deux listes)
+    # depuis le wizard « Configurer le champ », jamais assigné depuis la carte du champ
+    INSTANCE_PARAMS = TypeDeChamp::INSTANCE_OPTIONS
+      .reject { _1 == :referentiel_filter }
+      .map { |tdc| tdc != :accredited_users ? tdc : :accredited_user_string }
     INSTANCE_EDITABLE_OPTIONS = TypesDeChamp::TeFenuaTypeDeChamp::LAYERS
 
     def type_de_champ_update_params

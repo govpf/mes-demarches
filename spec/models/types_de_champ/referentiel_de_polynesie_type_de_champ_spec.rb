@@ -148,4 +148,59 @@ describe TypesDeChamp::ReferentielDePolynesieTypeDeChamp do
       end
     end
   end
+
+  describe 'referentiel_filter (cascade)' do
+    let(:type_de_champ) { build(:type_de_champ_referentiel_de_polynesie, table_id: '24', no_coordinate: true) }
+    let(:fields) { { 12 => { name: 'Catégorie', type: 'single_select', select_options: [{ id: 1, value: 'Semences' }] } } }
+
+    before { allow(ReferentielDePolynesie::API).to receive(:table_fields).with('24').and_return(fields) }
+
+    it 'est absent par défaut' do
+      expect(type_de_champ.referentiel_filter).to be_nil
+      expect(type_de_champ.referentiel_filter?).to be(false)
+    end
+
+    it 'est conservé par clean_options pour ce type' do
+      type_de_champ.referentiel_filter = { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/7' }
+      expect(type_de_champ.clean_options.keys).to include('referentiel_filter')
+      expect(type_de_champ.referentiel_filter?).to be(true)
+    end
+
+    describe '#referentiel_filter_form=' do
+      it 'enregistre la config et résout le nom de la colonne Baserow' do
+        type_de_champ.referentiel_filter_form = { 'enabled' => '1', 'baserow_field_id' => '12', 'pilot_column_id' => 'type_de_champ/7' }
+        expect(type_de_champ.referentiel_filter).to eq(
+          'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/7'
+        )
+      end
+
+      it 'efface la config quand la case est décochée' do
+        type_de_champ.referentiel_filter = { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/7' }
+        type_de_champ.referentiel_filter_form = { 'baserow_field_id' => '12', 'pilot_column_id' => 'type_de_champ/7' }
+        expect(type_de_champ.referentiel_filter).to be_nil
+      end
+
+      it 'n\'enregistre rien si une des deux listes est vide' do
+        type_de_champ.referentiel_filter_form = { 'enabled' => '1', 'baserow_field_id' => '', 'pilot_column_id' => 'type_de_champ/7' }
+        expect(type_de_champ.referentiel_filter).to be_nil
+      end
+
+      # pf: la table Baserow a changé sous les pieds de la config (colonne supprimée) : garder
+      # le filtre reviendrait à ne plus laisser passer aucune ligne.
+      it 'efface la config quand la colonne est absente de la table' do
+        type_de_champ.referentiel_filter = { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/7' }
+        type_de_champ.referentiel_filter_form = { 'enabled' => '1', 'baserow_field_id' => '99', 'pilot_column_id' => 'type_de_champ/7' }
+        expect(type_de_champ.referentiel_filter).to be_nil
+      end
+
+      it 'garde le nom en cache si Baserow est injoignable' do
+        allow(ReferentielDePolynesie::API).to receive(:table_fields).with('24').and_return(nil)
+        type_de_champ.referentiel_filter = { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/7' }
+        type_de_champ.referentiel_filter_form = { 'enabled' => '1', 'baserow_field_id' => '12', 'pilot_column_id' => 'type_de_champ/9' }
+        expect(type_de_champ.referentiel_filter).to eq(
+          'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/9'
+        )
+      end
+    end
+  end
 end

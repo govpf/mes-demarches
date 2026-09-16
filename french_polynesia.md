@@ -248,6 +248,35 @@ Depuis la release upstream 2025-09-19-01, le flow de configuration d'un référe
 - `app/controllers/administrateurs/referentiels_controller.rb` : utilise `needs_autocomplete_configuration_step?` à la place de `autocomplete?` pour la redirection post-save
 - `app/components/referentiels/mapping_form_component.rb` : utilise `needs_autocomplete_configuration_step?` pour l'URL "Étape précédente"
 
+### Filtre contextuel (cascade)
+
+Un champ référentiel peut être restreint aux lignes Baserow dont une colonne égale la valeur
+d’un autre champ du formulaire (le « pilote », texte ou choix unique, y compris un autre
+référentiel) : choisir « Semences » dans « Type de produit » ne propose que des semences dans
+« Produit ». Configuration dans le wizard « Configurer le champ », panneau « préremplir et
+afficher », section « Restreindre les lignes proposées » (toggle + colonne Baserow + champ
+pilote, placé avant, à la racine ou dans la même ligne de bloc) ; la carte du champ n’affiche
+plus qu’un rappel en lecture seule, sans appel Baserow (retour de recette du 2026-09-15).
+
+- Colonnes Baserow filtrables : `text`, `long_text`, `email`, `formula`, `single_select` et
+  `multiple_select` (pas de `link_row`), leurs métadonnées étant lues via `table_fields`, en
+  cache 5 minutes.
+- Résolution côté serveur uniquement (`ReferentielDePolynesie::ContextualFilter`, endpoint
+  `DataSources::ReferentielDePolynesieController#search` avec `dossier_id`, `stable_id`, `row_id`,
+  plus un cache-buster `pilot_version` qui invalide le cache de recherche quand la valeur du
+  pilote change). `stable_id` est exigé dès qu’un `dossier_id` est transmis.
+- Fail-closed : pilote vide, config invalide ou option Baserow introuvable → liste vide.
+- Jamais de masquage du champ ; deux messages d’état vide (« Renseignez d’abord … » /
+  « Aucun choix disponible pour … Modifiez … si nécessaire. »), rafraîchis quand le pilote
+  change (`TurboChampsConcern`), qui recharge aussi la liste des options côté client pour
+  refléter le nouveau filtre.
+- Validation locale au dépôt sans appel Baserow (`referentiel_filter_integrity`) ; le changement
+  du pilote après sélection ne réinitialise rien mais bloque le dépôt.
+- Pilote supprimé / déplacé / changé de type : signalé par `TypesDeChamp::ReferentielFilterValidator`,
+  publication bloquée (même régime que les conditions).
+
+Spec : `docs/superpowers/specs/2026-06-17-referentiel-polynesie-filtres-contextuels-design.md`.
+
 ## Résumé par catégorie
 
 1. **Données géographiques** : Champs personnalisés pour la Polynésie (ile, commune_associee)

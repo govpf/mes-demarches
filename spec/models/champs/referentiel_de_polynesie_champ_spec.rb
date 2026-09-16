@@ -550,6 +550,99 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
     end
   end
 
+  describe 'validation cascade au dépôt (second rempart)' do
+    let(:referentiel) { create(:baserow_referentiel) }
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :drop_down_list, libelle: 'Type de produit', options: ['Semences', 'Plants'] },
+        { type: :referentiel_de_polynesie, libelle: 'Produit', referentiel: },
+      ])
+    end
+    let(:pilot_tdc) { procedure.draft_revision.types_de_champ_public.first }
+    let(:rdp_tdc) { procedure.draft_revision.types_de_champ_public.second }
+    let(:dossier) { create(:dossier, procedure:) }
+    let(:champ) { dossier.project_champ(rdp_tdc) }
+    let(:row_category) { 'Semences' }
+
+    subject { champ.validate(:champs_public_value) }
+
+    before do
+      allow(ReferentielDePolynesie::API).to receive(:dlnuf_config).and_return(nil)
+      rdp_tdc.update!(referentiel_filter: { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => "type_de_champ/#{pilot_tdc.stable_id}" })
+      dossier.project_champ(pilot_tdc).update!(value: 'Semences')
+      champ.update_columns(external_id: '24:1', value: 'Blé', data: { 'Nom' => 'Blé', 'Catégorie' => row_category })
+      dossier.reload
+    end
+
+    context 'quand la ligne correspond au pilote' do
+      it { is_expected.to be_truthy }
+    end
+
+    context 'quand la ligne correspond à la casse près' do
+      let(:row_category) { 'semences' }
+      it { is_expected.to be_truthy }
+    end
+
+    context 'quand le pilote a changé après la sélection' do
+      before { dossier.project_champ(pilot_tdc).update!(value: 'Plants') && dossier.reload }
+
+      it 'ajoute une erreur bloquante nommant les deux valeurs et le pilote' do
+        expect(subject).to be_falsey
+        expect(champ.errors[:value].join).to include('« Semences »', '« Plants »', '« Type de produit »')
+      end
+    end
+
+    context 'quand le pilote est vide alors que le référentiel est renseigné' do
+      before { dossier.project_champ(pilot_tdc).update!(value: nil) && dossier.reload }
+
+      it 'ajoute une erreur demandant de renseigner le pilote' do
+        expect(subject).to be_falsey
+        expect(champ.errors[:value].join).to include('« Type de produit »')
+      end
+    end
+
+    context 'quand la ligne a été choisie avant la config (colonne absente de data)' do
+      before { champ.update_columns(data: { 'Nom' => 'Blé' }) && champ.reload }
+      it('n\'invalide pas (antériorité tolérée)') { is_expected.to be_truthy }
+    end
+
+    # pf: sans row_data, la correspondance est invérifiable.
+    context 'quand data est entièrement absent' do
+      before { champ.update_columns(data: nil) && champ.reload }
+
+      it 'exige une nouvelle sélection en autocomplete' do
+        expect(subject).to be_falsey
+        expect(champ.errors[:value].join).to include('sélectionné à nouveau')
+      end
+
+      context 'en mode exact_match (données récupérées de façon asynchrone)' do
+        let(:referentiel) { create(:baserow_referentiel, :exact_match) }
+
+        it('ne bloque pas le dépôt (fail-open assumé)') { is_expected.to be_truthy }
+      end
+    end
+
+    context 'quand data est une chaîne brute (échec de déchiffrement)' do
+      before { champ.update_columns(data: 'blob-illisible') && champ.reload }
+
+      it 'traite les données comme absentes, sans lever' do
+        expect { subject }.not_to raise_error
+        expect(champ.errors[:value].join).to include('sélectionné à nouveau')
+      end
+    end
+
+    context 'quand la config est invalide (pilote disparu)' do
+      before { rdp_tdc.update!(referentiel_filter: rdp_tdc.referentiel_filter.merge('pilot_column_id' => 'type_de_champ/424242')) && dossier.reload }
+      it('ne bloque pas l\'usager pour une erreur d\'administration') { is_expected.to be_truthy }
+    end
+
+    context 'sans referentiel_filter' do
+      before { rdp_tdc.update!(referentiel_filter: nil) && dossier.reload }
+      let(:row_category) { 'Plants' }
+      it { is_expected.to be_truthy }
+    end
+  end
+
   describe 'inheritance from ReferentielChamp' do
     it 'inherits from Champs::ReferentielChamp' do
       expect(described_class.ancestors).to include(Champs::ReferentielChamp)

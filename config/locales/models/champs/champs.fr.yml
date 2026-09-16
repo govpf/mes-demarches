@@ -12,3 +12,6 @@ fr:
           attributes:
             value:
               not_dlnuf_owner: "ne correspond plus aux données enregistrées à votre nom. Sélectionnez à nouveau une valeur."
+              filter_pilot_blank: "ne peut pas être renseigné avant « %{pilot} »"
+              filter_unverifiable: "doit être sélectionné à nouveau"
+              filter_mismatch: "(« %{row_value} ») ne correspond pas à « %{pilot_value} ». Modifiez ce champ ou « %{pilot} »."

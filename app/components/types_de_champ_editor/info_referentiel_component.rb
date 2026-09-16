@@ -18,7 +18,28 @@ class TypesDeChampEditor::InfoReferentielComponent < ApplicationComponent
     end
   end
 
+  # pf: cascade — rappel du filtre configuré, lu depuis les options du champ : le nom de la
+  # colonne Baserow est celui mis en cache à l’enregistrement, la colonne pilote est résolue
+  # localement. Aucun appel Baserow ne doit partir à l’affichage de l’éditeur de champs.
+  def referentiel_filter_summary
+    return nil if !type_de_champ.referentiel_filter?
+
+    config = Hash(type_de_champ.referentiel_filter)
+    pilot_libelle = pilot_column_label(config['pilot_column_id'].to_s)
+    pilot = pilot_libelle ? "« #{pilot_libelle} »" : 'un champ qui n’est plus disponible'
+
+    "Lignes restreintes selon #{pilot} (colonne « #{config['baserow_field_name']} »)"
+  end
+
   private
+
+  # pf: nil si la colonne pilote n’est plus dans la révision de travail (supprimée, déplacée ou de
+  # type incompatible) ; le validateur de publication porte le message d’erreur détaillé.
+  def pilot_column_label(column_id)
+    procedure.find_column(h_id: { procedure_id: procedure.id, column_id: }).label
+  rescue ActiveRecord::RecordNotFound
+    nil
+  end
 
   def new_referentiel_url
     dup_options = referentiel ? { referentiel_id: referentiel.id } : {}

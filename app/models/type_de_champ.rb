@@ -143,7 +143,7 @@ class TypeDeChamp < ApplicationRecord
     decimal_number: [:positive_number, :min_number, :max_number, :range_number],
     integer_number: [:positive_number, :min_number, :max_number, :range_number],
     date: [], # Options gérées par OPTS_BY_TYPE (date_in_past, range_date, start_date, end_date)
-    referentiel_de_polynesie: [:table_id, :drop_down_other, :referentiel_mapping],
+    referentiel_de_polynesie: [:table_id, :drop_down_other, :referentiel_mapping, :referentiel_filter],
     te_fenua: [:parcelles, :batiments, :zones_manuelles, :te_fenua_layer],
     lexpol: [:lexpol_modele, :lexpol_mapping],
     visa: [:accredited_users],
@@ -385,6 +385,36 @@ class TypeDeChamp < ApplicationRecord
 
   def drop_down_other?
     (drop_down_list? || referentiel_de_polynesie?) && (drop_down_other == "1" || drop_down_other == true)
+  end
+
+  # pf: cascade référentiel — config { 'baserow_field_id', 'baserow_field_name', 'pilot_column_id' }
+  # (cf. docs/superpowers/specs/2026-06-17-referentiel-polynesie-filtres-contextuels-design.md §1)
+  def referentiel_filter?
+    referentiel_de_polynesie? && referentiel_filter.present?
+  end
+
+  # pf: écriture depuis l'éditeur (case « Restreindre… » + deux listes). Case décochée ou liste
+  # vide → config effacée. Le nom de la colonne Baserow est résolu côté serveur et mis en cache
+  # pour la validation locale au dépôt ; si Baserow est injoignable on garde le nom précédent.
+  def referentiel_filter_form=(form)
+    form = Hash(form).with_indifferent_access
+    if form[:enabled] == '1' && form[:baserow_field_id].present? && form[:pilot_column_id].present?
+      field_id = form[:baserow_field_id].to_i
+      fields = ReferentielDePolynesie::API.table_fields(table_id)
+      self.referentiel_filter = if fields.is_a?(Hash) && !fields.key?(field_id)
+        # pf: Baserow a répondu et la colonne n'existe plus (table changée, colonne supprimée) :
+        # effacer plutôt que conserver un filtre mort, qui ne laisserait passer aucune ligne.
+        nil
+      else
+        {
+          'baserow_field_id' => field_id,
+          'baserow_field_name' => fields&.dig(field_id)&.dig(:name) || Hash(referentiel_filter)['baserow_field_name'],
+          'pilot_column_id' => form[:pilot_column_id].to_s,
+        }
+      end
+    else
+      self.referentiel_filter = nil
+    end
   end
 
   def positive_number?

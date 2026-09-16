@@ -347,7 +347,18 @@ export function RemoteComboBox({
             errorMessage: translations?.search_error
           })
         : loader,
-    [loader, minimumInputLength, limit, coerce, usePost, translations]
+    // pf: cascade référentiel — dépendre de `translations.search_error` (une chaîne) et non de
+    // l'objet `translations`, recréé à chaque rendu par `s.create` : l'identité de `load` doit
+    // ne changer QUE quand le loader change réellement, sinon le rechargement déclenché par
+    // `useRemoteList` bouclerait à chaque rendu (adresse, communes…).
+    [
+      loader,
+      minimumInputLength,
+      limit,
+      coerce,
+      usePost,
+      translations?.search_error
+    ]
   );
 
   const { selectedItem, onReset, shouldShowPopover, error, ...comboBoxProps } =

@@ -12,3 +12,6 @@ en:
           attributes:
             value:
               not_dlnuf_owner: "no longer matches the data registered under your name. Please select a value again."
+              filter_pilot_blank: "cannot be filled before “%{pilot}”"
+              filter_unverifiable: "must be selected again"
+              filter_mismatch: "(“%{row_value}”) does not match “%{pilot_value}”. Change this field or “%{pilot}”."
