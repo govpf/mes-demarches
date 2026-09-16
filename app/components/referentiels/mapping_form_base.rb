@@ -33,10 +33,12 @@ class Referentiels::MappingFormBase < ApplicationComponent
     "type_de_champ[referentiel_mapping][#{self.class.jsonpath_to_simili(jsonpath)}][#{attribute_name}]"
   end
 
-  # pf : TODO possibly uncomment later, but for now it make a lot of edge case when version upgrade
-  # def display_jsonpath(jsonpath)
-  #   jsonpath.delete_prefix('$.')
-  # end
+  # pf: libellé par défaut sans le préfixe jsonpath « $. » — l'admin le retirait à la main à
+  # chaque colonne (retour de recette 2026-09-15). Les clés du mapping restent les jsonpaths
+  # complets ; seule la valeur proposée dans le champ « libellé » change.
+  def display_jsonpath(jsonpath)
+    jsonpath.delete_prefix('$.')
+  end
 
   def bordered_container_class_names
     "border-background-contrast-grey fr-p-4w"
