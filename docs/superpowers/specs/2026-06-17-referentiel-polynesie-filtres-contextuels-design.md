@@ -78,12 +78,17 @@ complet (`procedure_id` redondant, et les options sont copiées d'une révision 
 l'autre au sein de la même procédure). La `Column` se retrouve par
 `procedure.find_column(h_id: { procedure_id:, column_id: })`.
 
-**Éditeur de formulaire** (`TypesDeChampEditor::ChampComponent`, bloc du référentiel de
-Polynésie, sous la case « option autre ») :
+**Éditeur de formulaire.** Écart par rapport à la version initiale (retour de recette du
+2026-09-15) : la configuration a été déplacée du bloc du référentiel dans la carte du
+champ vers le **panneau 3 du wizard « Configurer le champ »**
+(`Referentiels::ReferentielFilterComponent`, rendu par
+`prefill_and_display_component.html.haml`, sous les tableaux de préremplissage et
+d’affichage), dans une section « Indiquez si les lignes proposées doivent être
+restreintes selon un champ du formulaire » :
 
-- Case à cocher **« Restreindre les lignes proposées selon un autre champ du
-  formulaire »**, décochée par défaut. Bascule Stimulus : les deux listes ci-dessous
-  n'apparaissent que cochée. Décocher puis enregistrer **efface** `referentiel_filter`.
+- Toggle **« Restreindre les lignes proposées »**, décoché par défaut. Les deux listes
+  ci-dessous n’apparaissent que coché. Décocher puis valider **efface**
+  `referentiel_filter`.
 - **Liste A — colonne Baserow** : alimentée par `BaserowAPI.fields(config)`, limitée aux
   types `text`, `long_text`, `email`, `formula`, `single_select`, `multiple_select`
   (pas de `link_row` en v1). Stockée par id, nom en cache. Si Baserow est injoignable, la liste affiche
@@ -92,17 +97,32 @@ Polynésie, sous la case « option autre ») :
   restreintes aux coordonnées **supérieures** admissibles : coordonnées racine
   précédant le référentiel (ou précédant son bloc), et frères précédents dans la même
   répétition. Même logique que `coordinate.upper_coordinates` utilisée par les
-  conditions, filtrée sur le type et l'emplacement.
+  conditions, filtrée sur le type et l’emplacement.
 
-Le contrôleur `Administrateurs::TypesDeChampController#type_de_champ_update_params`
-autorise `referentiel_filter: [:enabled, :baserow_field_id, :pilot_column_id]` ; le
-nom Baserow est résolu et mis en cache côté serveur à l’enregistrement.
+La **carte du champ** (`TypesDeChampEditor::InfoReferentielComponent`) n’affiche plus le
+formulaire de configuration : elle porte un **rappel en lecture seule**, sans appel
+Baserow — « Lignes restreintes selon « Type de produit » (colonne « Catégorie ») ». Si la
+colonne pilote a disparu de la révision brouillon (supprimée, déplacée ou changée de
+type), le rappel se replie sur « Lignes restreintes selon un champ qui n’est plus
+disponible (colonne « Catégorie ») » plutôt que d’exposer l’identifiant technique du
+pilote (`type_de_champ/999999`) — le validateur de publication (§2) porte déjà le
+message d’erreur détaillé.
+
+Le contrôleur `Administrateurs::ReferentielsController#update_prefill_and_display_type_de_champ`
+enregistre `referentiel_filter_form` (même formulaire que le mapping et l’affichage,
+soumis en une fois depuis le panneau 3) via `referentiel_filter_params` ; le nom Baserow
+est résolu et mis en cache côté serveur à l’enregistrement.
 
 À cet enregistrement, deux cas sont distingués : si Baserow **répond** et ne connaît
 plus la colonne choisie (colonne supprimée, table remplacée), la configuration est
 **effacée** — la garder reviendrait à laisser un filtre mort qui ne laisse plus passer
 aucune ligne. Si Baserow est **injoignable** (aucune réponse), on conserve la config et
 le nom précédemment mis en cache.
+
+**Règle de placement** (retour de recette du 2026-09-15) : ce qui parle du formulaire
+reste dans la carte du champ (obligatoire, description, option « autre ») ; ce qui relie
+les colonnes Baserow au formulaire va dans « Configurer le champ » (mode, indications,
+préremplissage, affichage, filtre).
 
 ### 2. Validation de la configuration (éditeur et publication)
 
@@ -183,7 +203,10 @@ Flux serveur, après `authorized_dossier` :
   champs non filtrés.
 - `emptyLabel` calculé **au rendu** côté serveur, deux cas :
   - pilote vide → « Renseignez d'abord « Type de produit » » ;
-  - pilote renseigné → « Aucun résultat pour « Plants » ».
+  - pilote renseigné → « Aucun choix disponible pour « Plants ». Modifiez « Type de
+    produit » si nécessaire. » (retour de recette du 2026-09-15 : la formulation
+    initiale, « Aucun résultat pour « Plants » », n’indiquait pas à l’usager comment
+    sortir de l’état vide).
   Le libellé du pilote vient de la `Column`, sa valeur de `Column#value` sur le dossier
   courant (même résolution que §3, factorisée dans un service
   `ReferentielDePolynesie::ContextualFilter` utilisé par le contrôleur, le composant et
