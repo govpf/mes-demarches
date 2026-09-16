@@ -455,6 +455,60 @@ describe Administrateurs::ReferentielsController, type: :controller do
       end
     end
 
+    # pf: cascade — le filtre contextuel est enregistré par le même formulaire que le mapping
+    context 'avec un filtre contextuel (referentiel_de_polynesie)' do
+      let(:types_de_champ_public) do
+        [
+          { type: :drop_down_list, libelle: 'Type de produit', options: ['Semences', 'Plants'], stable_id: 3 },
+          { type: :referentiel_de_polynesie, stable_id:, referentiel_mapping: },
+        ]
+      end
+      let(:type_de_champ) { procedure.draft_revision.types_de_champ.find(&:referentiel_de_polynesie?) }
+      let(:referentiel) { create(:baserow_referentiel, types_de_champ: [type_de_champ]) }
+      let(:fields) { { 12 => { name: 'Catégorie', type: 'single_select', select_options: [] } } }
+
+      before { allow(ReferentielDePolynesie::API).to receive(:table_fields).with('24').and_return(fields) }
+
+      it 'enregistre le filtre avec le mapping' do
+        patch :update_prefill_and_display_type_de_champ, params: {
+          procedure_id: procedure.id,
+          stable_id: type_de_champ.stable_id,
+          id: referentiel.id,
+          type_de_champ: {
+            referentiel_mapping: referentiel_mapping,
+            referentiel_filter_form: { enabled: '1', baserow_field_id: '12', pilot_column_id: 'type_de_champ/3' },
+          },
+        }
+        expect(type_de_champ.reload.referentiel_filter).to eq('baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/3')
+      end
+
+      it 'efface le filtre quand la case est décochée' do
+        type_de_champ.update!(referentiel_filter: { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/3' })
+        patch :update_prefill_and_display_type_de_champ, params: {
+          procedure_id: procedure.id,
+          stable_id: type_de_champ.stable_id,
+          id: referentiel.id,
+          type_de_champ: {
+            referentiel_mapping: referentiel_mapping,
+            referentiel_filter_form: { baserow_field_id: '12', pilot_column_id: 'type_de_champ/3' },
+          },
+        }
+        expect(type_de_champ.reload.referentiel_filter).to be_nil
+      end
+
+      it 'enregistre le filtre seul quand le mapping est vide' do
+        patch :update_prefill_and_display_type_de_champ, params: {
+          procedure_id: procedure.id,
+          stable_id: type_de_champ.stable_id,
+          id: referentiel.id,
+          type_de_champ: {
+            referentiel_filter_form: { enabled: '1', baserow_field_id: '12', pilot_column_id: 'type_de_champ/3' },
+          },
+        }
+        expect(type_de_champ.reload.referentiel_filter).to eq('baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/3')
+      end
+    end
+
     describe '#autocomplete_configuration' do
       let(:type_de_champ) { procedure.draft_revision.types_de_champ.first }
       let(:referentiel) { create(:api_referentiel, :autocomplete, :with_autocomplete_response, types_de_champ: [type_de_champ]) }

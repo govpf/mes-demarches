@@ -53,7 +53,16 @@ module Administrateurs
     end
 
     def update_prefill_and_display_type_de_champ
-      if @type_de_champ.update(referentiel_mapping: @type_de_champ.safe_referentiel_mapping.deep_merge(referentiel_mapping_params))
+      attributes = {}
+      # pf: cascade — le panneau 3 peut n'afficher que le filtre contextuel (mapping vide) ;
+      # sans ce garde-fou, `require(:referentiel_mapping)` lèverait ParameterMissing
+      if params.dig(:type_de_champ, :referentiel_mapping).present?
+        attributes[:referentiel_mapping] = @type_de_champ.safe_referentiel_mapping.deep_merge(referentiel_mapping_params)
+      end
+      # pf: cascade — le filtre contextuel est enregistré avec le mapping (même formulaire, panneau 3)
+      attributes[:referentiel_filter_form] = referentiel_filter_params if referentiel_filter_params
+
+      if @type_de_champ.update(attributes)
         if @type_de_champ.public?
           redirect_to champs_admin_procedure_path(@procedure), flash: { notice: "La configuration du pré remplissage des champs et/ou affichage des données récupérées a bien été enregistrée" }
         else
@@ -112,6 +121,13 @@ module Administrateurs
           permitted_mapping[Referentiels::MappingFormBase.simili_to_jsonpath(jsonpath_key)] = attributes.permit(:type, :prefill_stable_id, :example_value, :libelle, :prefill, :display_instructeur, :display_usager).to_h
         end
       permitted_mapping
+    end
+
+    # pf: cascade — case + deux listes, consommées par TypeDeChamp#referentiel_filter_form=
+    def referentiel_filter_params
+      return nil if params.dig(:type_de_champ, :referentiel_filter_form).blank?
+
+      params.require(:type_de_champ).require(:referentiel_filter_form).permit(:enabled, :baserow_field_id, :pilot_column_id).to_h
     end
 
     def referentiel_params

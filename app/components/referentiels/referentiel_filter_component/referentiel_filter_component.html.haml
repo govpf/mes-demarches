@@ -1,0 +1,27 @@
+-# pf: cascade — restreindre les lignes proposées selon un champ du formulaire
+.fr-mt-4w{ data: { controller: 'hide-target' } }
+  %p.fr-text--regular.fr-text--sm.fr-mb-2w Indiquez si les lignes proposées doivent être restreintes selon un champ du formulaire
+  .fr-toggle
+    = check_box_tag 'type_de_champ[referentiel_filter_form][enabled]', '1', enabled?,
+      id: field_id(:enabled),
+      class: 'fr-toggle__input',
+      data: { 'hide-target-target': 'source' }
+    = label_tag field_id(:enabled), 'Restreindre les lignes proposées', class: 'fr-toggle__label fr-label'
+  .flex.flex-gap.fr-mt-2w{ class: class_names('fr-hidden': !enabled?), data: { 'hide-target-target': 'toHide' } }
+    .flex-grow
+      = label_tag field_id(:baserow_field_id), 'Colonne du référentiel à filtrer', class: 'fr-label'
+      = select_tag 'type_de_champ[referentiel_filter_form][baserow_field_id]',
+        options_for_select(baserow_options, current_value(:baserow_field_id)),
+        include_blank: 'Choisir une colonne',
+        id: field_id(:baserow_field_id),
+        class: 'fr-select'
+      - if fields_unavailable?
+        %p.fr-hint-text.fr-mb-0 Colonnes indisponibles pour le moment
+    .flex-grow
+      = label_tag field_id(:pilot_column_id), 'Champ du formulaire qui pilote le filtre', class: 'fr-label'
+      = select_tag 'type_de_champ[referentiel_filter_form][pilot_column_id]',
+        options_for_select(pilot_options, current_value(:pilot_column_id)),
+        include_blank: 'Choisir un champ',
+        id: field_id(:pilot_column_id),
+        class: 'fr-select'
+      %p.fr-hint-text.fr-mb-0 Seuls les champs texte ou à choix unique placés avant ce champ sont proposés.

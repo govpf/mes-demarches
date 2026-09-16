@@ -129,65 +129,6 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
         expect(page).to have_css('textarea[placeholder*="Montant HT"]')
       end
     end
-
-    describe 'tdc referentiel_de_polynesie — filtre contextuel' do
-      let(:referentiel) { create(:baserow_referentiel) }
-      let(:procedure) do
-        create(:procedure, types_de_champ_public: [
-          { type: :drop_down_list, libelle: 'Type de produit', options: ['Semences', 'Plants'] },
-          { type: :referentiel_de_polynesie, libelle: 'Produit', referentiel: },
-        ])
-      end
-      let(:coordinate) { procedure.draft_revision.revision_types_de_champ_public.second }
-      let(:fields) do
-        {
-          1 => { name: 'Nom', type: 'text', select_options: [] },
-          12 => { name: 'Catégorie', type: 'single_select', select_options: [{ id: 100, value: 'Semences' }] },
-          20 => { name: 'Fichier', type: 'file', select_options: [] },
-        }
-      end
-      # pf: le `before` du describe 'render' englobant (ligne 15) appelle déjà render_inline
-      # AVANT que le `before` de ce bloc ne s'exécute (RSpec exécute les hooks outer -> inner).
-      # Ce premier rendu déclenche InfoReferentielComponent#ready? -> BaserowAPI.config (HTTP réel)
-      # puis, une fois la liste A branchée, ReferentielDePolynesie::API.table_fields (HTTP réel
-      # aussi, table_id '24' étant configuré via .env). On pose donc les doubles dans ce `let`,
-      # exécuté à la première évaluation de `component` (donc avant tout rendu), plutôt que dans
-      # un `before` qui arriverait trop tard.
-      let(:component) do
-        allow_any_instance_of(Referentiels::BaserowReferentiel).to receive(:ready?).and_return(true)
-        allow(ReferentielDePolynesie::API).to receive(:table_fields).with('24').and_return(fields)
-        described_class.new(coordinate:, upper_coordinates: coordinate.upper_coordinates)
-      end
-
-      it 'affiche la case décochée et les listes masquées par défaut' do
-        render_inline(component)
-        expect(page).to have_unchecked_field('Restreindre les lignes proposées selon un autre champ du formulaire')
-        expect(page).to have_css('[data-hide-target-target="toHide"].fr-hidden')
-        expect(page).to have_select('type_de_champ[referentiel_filter_form][baserow_field_id]', with_options: ['Nom', 'Catégorie'])
-        expect(page).not_to have_select('type_de_champ[referentiel_filter_form][baserow_field_id]', with_options: ['Fichier'])
-        expect(page).to have_select('type_de_champ[referentiel_filter_form][pilot_column_id]', with_options: ['Type de produit'])
-      end
-
-      it 'affiche la case cochée et les listes visibles quand un filtre est configuré' do
-        coordinate.type_de_champ.update!(referentiel_filter: { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => "type_de_champ/#{procedure.draft_revision.types_de_champ_public.first.stable_id}" })
-        render_inline(component)
-        expect(page).to have_checked_field('Restreindre les lignes proposées selon un autre champ du formulaire')
-        expect(page).to have_css('[data-hide-target-target="toHide"]:not(.fr-hidden)')
-        expect(page).to have_select('type_de_champ[referentiel_filter_form][baserow_field_id]', selected: 'Catégorie')
-      end
-
-      it 'garde la colonne en cache et prévient quand Baserow est injoignable' do
-        allow(ReferentielDePolynesie::API).to receive(:table_fields).with('24').and_return(nil)
-        coordinate.type_de_champ.update!(referentiel_filter: { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => 'type_de_champ/1' })
-        # pf: composant frais — `component` a déjà été rendu (une fois) par le `before` du describe
-        # 'render' englobant, avant que ce `it` ne pose le double `table_fields: nil` ; réutiliser
-        # cette instance servirait sa liste A mémoïsée (@referentiel_filter_baserow_options) de la
-        # première fois plutôt que de refléter le nouveau double.
-        render_inline(described_class.new(coordinate:, upper_coordinates: coordinate.upper_coordinates))
-        expect(page).to have_select('type_de_champ[referentiel_filter_form][baserow_field_id]', selected: 'Catégorie')
-        expect(page).to have_text('Colonnes indisponibles pour le moment')
-      end
-    end
   end
 
   describe 'formule feature flag' do

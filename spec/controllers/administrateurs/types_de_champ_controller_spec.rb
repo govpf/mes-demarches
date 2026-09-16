@@ -281,32 +281,6 @@ describe Administrateurs::TypesDeChampController, type: :controller do
         end
       end
     end
-
-    context 'filtre contextuel d\'un referentiel_de_polynesie' do
-      let(:referentiel) { create(:baserow_referentiel) }
-      let(:procedure) do
-        create(:procedure, types_de_champ_public: [
-          { type: :drop_down_list, libelle: 'Type de produit', options: ['Semences', 'Plants'] },
-          { type: :referentiel_de_polynesie, libelle: 'Produit', referentiel: },
-        ])
-      end
-      let(:pilot_tdc) { procedure.draft_revision.types_de_champ_public.first }
-      let(:rdp_tdc) { procedure.draft_revision.types_de_champ_public.second }
-      let(:fields) { { 12 => { name: 'Catégorie', type: 'single_select', select_options: [] } } }
-
-      before { allow(ReferentielDePolynesie::API).to receive(:table_fields).with('24').and_return(fields) }
-
-      it 'enregistre la config quand la case est cochée et les deux listes renseignées' do
-        post :update, params: { procedure_id: procedure.id, stable_id: rdp_tdc.stable_id, type_de_champ: { referentiel_filter_form: { enabled: '1', baserow_field_id: '12', pilot_column_id: "type_de_champ/#{pilot_tdc.stable_id}" } } }, format: :turbo_stream
-        expect(rdp_tdc.reload.referentiel_filter).to eq('baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => "type_de_champ/#{pilot_tdc.stable_id}")
-      end
-
-      it 'efface la config quand la case est décochée' do
-        rdp_tdc.update!(referentiel_filter: { 'baserow_field_id' => 12, 'baserow_field_name' => 'Catégorie', 'pilot_column_id' => "type_de_champ/#{pilot_tdc.stable_id}" })
-        post :update, params: { procedure_id: procedure.id, stable_id: rdp_tdc.stable_id, type_de_champ: { referentiel_filter_form: { baserow_field_id: '12', pilot_column_id: "type_de_champ/#{pilot_tdc.stable_id}" } } }, format: :turbo_stream
-        expect(rdp_tdc.reload.referentiel_filter).to be_nil
-      end
-    end
   end
 
   # l1, l2, l3 => l1, l3, l2
