@@ -99,8 +99,10 @@ class ReferentielDePolynesie::BaserowAPI
       fetch_row(domain_id, row_id)
     end
 
+    # pf: ignore un identifiant de la table méta qui ne correspond plus à aucune colonne (colonne
+    # supprimée côté Baserow) : un nil ici faisait tomber l’éditeur de toute la démarche.
     def field_names(model, field_ids)
-      field_ids&.split(/,/)&.map(&:strip)&.map { model[_1.to_i]&.[](:name) } || []
+      field_ids&.split(/,/)&.map(&:strip)&.filter_map { model[_1.to_i]&.[](:name) } || []
     end
 
     def config(row_id)
