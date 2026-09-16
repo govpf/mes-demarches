@@ -7,7 +7,7 @@
       class: 'fr-toggle__input',
       data: { 'hide-target-target': 'source' }
     = label_tag field_id(:enabled), 'Restreindre les lignes proposées', class: 'fr-toggle__label fr-label'
-  .flex.flex-gap.fr-mt-2w{ class: class_names('fr-hidden': !enabled?), data: { 'hide-target-target': 'toHide' } }
+  .flex.flex-gap-2.fr-mt-2w{ class: class_names('fr-hidden': !enabled?), data: { 'hide-target-target': 'toHide' } }
     .flex-grow
       = label_tag field_id(:baserow_field_id), 'Colonne du référentiel à filtrer', class: 'fr-label'
       = select_tag 'type_de_champ[referentiel_filter_form][baserow_field_id]',
