@@ -371,10 +371,10 @@
                       = t(".layers.#{layer}")
           -# pf: option « autre » avec texte libre pour le référentiel de Polynésie
           - if type_de_champ.referentiel_de_polynesie?
-            .cell.flex.align-center.fr-mt-1w
-              = form.check_box :drop_down_other, class: "small-margin small", id: dom_id(type_de_champ, :drop_down_other)
-              = form.label :drop_down_other, for: dom_id(type_de_champ, :drop_down_other) do
-                Proposer une option « autre » avec un texte libre
+            .cell.fr-mt-2w
+              .fr-toggle
+                = form.check_box :drop_down_other, id: dom_id(type_de_champ, :drop_down_other), class: 'fr-toggle__input'
+                = form.label :drop_down_other, 'Proposer une option « autre » avec un texte libre', for: dom_id(type_de_champ, :drop_down_other), class: 'fr-toggle__label fr-label'
           -# pf: cascade — restreindre les lignes proposées selon un autre champ du formulaire (lot A)
           - if type_de_champ.referentiel_de_polynesie? && type_de_champ.table_id.present?
             .cell.fr-mt-2w{ data: { controller: 'hide-target' } }
