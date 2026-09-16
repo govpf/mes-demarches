@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# pf: cascade — troisième section du panneau « préremplir et afficher » : restreindre les lignes
+# pf: cascade — première section du panneau « préremplir et afficher » : restreindre les lignes
 # proposées par le référentiel de Polynésie selon un champ du formulaire (colonne Baserow ↔ pilote).
 # Vit ici, avec le préremplissage et l’affichage, parce qu’il relie les colonnes Baserow au
 # formulaire ; la carte du champ ne garde qu’un rappel en lecture seule.

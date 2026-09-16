@@ -82,9 +82,10 @@ l'autre au sein de la même procédure). La `Column` se retrouve par
 2026-09-15) : la configuration a été déplacée du bloc du référentiel dans la carte du
 champ vers le **panneau 3 du wizard « Configurer le champ »**
 (`Referentiels::ReferentielFilterComponent`, rendu par
-`prefill_and_display_component.html.haml`, sous les tableaux de préremplissage et
-d’affichage), dans une section « Indiquez si les lignes proposées doivent être
-restreintes selon un champ du formulaire » :
+`prefill_and_display_component.html.haml`, en tête de page, avant les tableaux de
+préremplissage et d’affichage : hauteur fixe, toujours visible, et le filtre précède
+logiquement l’usage de la ligne choisie), dans une section « Indiquez si les lignes
+proposées doivent être restreintes selon un champ du formulaire » :
 
 - Toggle **« Restreindre les lignes proposées »**, décoché par défaut. Les deux listes
   ci-dessous n’apparaissent que coché. Décocher puis valider **efface**
