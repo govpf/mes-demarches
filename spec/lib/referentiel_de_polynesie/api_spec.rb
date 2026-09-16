@@ -48,6 +48,35 @@ describe ReferentielDePolynesie::API do
     end
   end
 
+  describe '.config' do
+    let(:config) { { 'Champs usager' => 'Nom', 'Champ propriétaire' => '' } }
+
+    before do
+      allow(described_class).to receive(:engine).and_return(ReferentielDePolynesie::BaserowAPI)
+      Rails.cache.clear
+    end
+
+    it 'délègue au moteur et met en cache', caching: true do
+      expect(ReferentielDePolynesie::BaserowAPI).to receive(:config).with('24').once.and_return(config)
+      2.times { expect(described_class.config('24')).to eq(config) }
+    end
+
+    it 'retourne nil (mis en cache) quand la table est inconnue', caching: true do
+      expect(ReferentielDePolynesie::BaserowAPI).to receive(:config).with('99').once.and_return(nil)
+      2.times { expect(described_class.config('99')).to be_nil }
+    end
+
+    it 'retourne nil pour un id invalide sans appeler le moteur' do
+      expect(ReferentielDePolynesie::BaserowAPI).not_to receive(:config)
+      expect(described_class.config('0')).to be_nil
+    end
+
+    it 'retourne nil sans moteur configuré' do
+      allow(described_class).to receive(:engine).and_return(nil)
+      expect(described_class.config('24')).to be_nil
+    end
+  end
+
   describe '.table_fields' do
     let(:fields) { { 12 => { name: 'Catégorie', type: 'single_select', select_options: [] } } }
 

@@ -76,7 +76,7 @@ describe Referentiels::BaserowReferentiel do
 
     context 'when configured and baserow_config is present' do
       before do
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:config)
+        allow(ReferentielDePolynesie::API).to receive(:config)
           .with('24')
           .and_return({ 'Champs usager' => 'Nom' })
       end
@@ -88,7 +88,7 @@ describe Referentiels::BaserowReferentiel do
 
     context 'when configured but baserow_config is nil' do
       before do
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:config)
+        allow(ReferentielDePolynesie::API).to receive(:config)
           .with('24')
           .and_return(nil)
       end
@@ -127,7 +127,7 @@ describe Referentiels::BaserowReferentiel do
       end
 
       before do
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:config)
+        allow(ReferentielDePolynesie::API).to receive(:config)
           .with('24')
           .and_return(config)
         allow(ReferentielDePolynesie::BaserowAPI).to receive(:fields)
@@ -142,7 +142,7 @@ describe Referentiels::BaserowReferentiel do
 
     context 'when baserow_config is nil' do
       before do
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:config)
+        allow(ReferentielDePolynesie::API).to receive(:config)
           .with('24')
           .and_return(nil)
       end

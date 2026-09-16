@@ -54,8 +54,9 @@ class Referentiels::BaserowReferentiel < Referentiel
     false
   end
 
+  # pf: via la façade API pour bénéficier du cache court (l’éditeur de champs appelle ready? par carte)
   def baserow_config
-    @baserow_config ||= ReferentielDePolynesie::BaserowAPI.config(table_id)
+    @baserow_config ||= ReferentielDePolynesie::API.config(table_id)
   end
 
   def headers
