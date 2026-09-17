@@ -85,8 +85,8 @@ Cette section documente les modifications techniques spécifiques à la Polynés
 
 ## Vues
 
-### AccountDropdown (`app/views/layouts/_account_dropdown.haml`)
-- **Lignes 20, 26, 36** : Modifications minimales pour utiliser la navigation contextuelle
+### AccountDropdownComponent (`app/components/account_dropdown_component.rb` + `app/components/account_dropdown_component/account_dropdown_component.html.haml`)
+- **Liens de bascule usager / instructeur / administrateur** : modifications minimales pour utiliser la navigation contextuelle
 - Utilisation de `contextual_or_default_path_for_profile` au lieu des chemins fixes
 - Commentaires `# pf:` pour identifier les modifications spécifiques PF
 

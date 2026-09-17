@@ -342,7 +342,7 @@ class FormulaAiPromptService
       3. ✅ Chaque variable `{...}` figure bien dans « Variables disponibles » (et PAS dans « Variables NON accessibles ») ?
       4. ✅ Le type de retour correspond au type attendu ?
       5. ✅ Tu n’utilises pas `=` seul pour tester une égalité ?
-      6. ✅ Tu n’utilises aucune fonction d’agrégation sur un bloc répétable (non supportée) ?
+      6. ✅ Si tu agrèges un bloc répétable, c’est uniquement via une fonction d’agrégation (`NB`, `SOMME`, `MOYENNE`, `MIN`, `MAX`, `MEDIANE`, `JOINDRE`) sur une référence `{Bloc/Sous-champ}`, sans accéder à une ligne précise ni filtrer par condition, et la formule est placée APRÈS le bloc ?
       7. ✅ Ton explication tient en 2 à 4 phrases et est compréhensible par un non-développeur ?
 
       Si une seule de ces vérifications échoue, **reformule ou réponds IMPOSSIBLE**.
