@@ -21,13 +21,20 @@
 
 @page {
   size: A4;
-  margin: 17mm 17mm 34mm; // add margin at the bottom to add address
+  // pf: 20mm en bas = 13mm de zone pied de page + 7mm de marge d'impression.
+  // Upstream réserve 34mm avec un pied décalé de 17mm, ce qui laissait ~23mm de vide au-dessus du pied
+  // et posait le pied à 1,4mm du bord de la feuille.
+  margin: 17mm 17mm 20mm;
 
   @bottom-center {
     font-size: 8pt;
     content: element(footer) '\A' counter(page) ' / ' counter(pages);
     white-space: nowrap;
-    margin-top: 17mm;
+    // pf: le pied est ancré en bas de sa boîte : s'il gagne une ligne, il grandit vers le haut
+    // sans se rapprocher du bord de la feuille. Capacité : 13mm, soit 3 lignes de texte + le compteur ;
+    // au-delà, il déborde sur la zone de contenu.
+    vertical-align: bottom;
+    margin-bottom: 7mm;
     text-align: center;
   }
 }
@@ -202,7 +209,7 @@
 
   .signature {
     text-align: right;
-    margin-top: 10mm;
+    margin-top: 5mm; // pf: 10mm upstream ; le tampon rond laisse déjà de l'air, on le rapproche du nom du signataire
     margin-right: 25mm;
   }
 
@@ -226,6 +233,10 @@
     font-weight: 100;
     white-space: normal;
     text-align: center;
+
+    p {
+      margin: 0; // pf: simple_format produit des <p> ; leurs marges par défaut gonflent le pied de 2,5mm par paragraphe
+    }
 
     @media screen {
       position: absolute;
