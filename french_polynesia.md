@@ -228,7 +228,7 @@ Le référentiel Baserow est spécifique à la Polynésie française. Il s'intè
 ### Architecture
 
 - **Stockage** : L'ID de table Baserow est stocké dans la colonne `url` au format `baserow://TABLE_ID`
-- **Configuration externe** : Les champs accessibles (usager / instructeur) sont définis via les variables d'environnement `API_BASEROW_URL`, `API_BASEROW_TOKEN`, `API_BASEROW_CONFIG_TABLE` (lues directement dans `ReferentielDePolynesie::BaserowAPI`), pas dans le modèle
+- **Configuration externe** : la table méta Baserow (`API_BASEROW_CONFIG_TABLE`, jointe avec `API_BASEROW_URL` et `API_BASEROW_TOKEN`, lues dans `ReferentielDePolynesie::BaserowAPI`) fournit par table : `Table`, `Token`, `Champ de recherche` et `Champ propriétaire` (DLNUF). Les colonnes `Champs usager` et `Champs instructeur` **ne sont plus lues depuis le 2026-09-17** : les colonnes affichées à l’usager et à l’instructeur (tags, exports, sous-colonnes dans l’éditeur) viennent exclusivement de `TypeDeChamp#referentiel_mapping` (wizard « Configurer le champ »). La maintenance task `T20260917migrateBaserowMetaColumnsToMappingTask` a figé une dernière fois le contenu de `Champs instructeur` dans le mapping des champs qui en dépendaient encore ; les deux colonnes peuvent être supprimées de Baserow.
 - **Recherche autocomplete** : Gérée par le contrôleur PF spécifique `data_sources/referentiel_de_polynesie_controller` via `data_sources_rdp_search_path`, **pas** par le flow upstream `DataSources::ReferentielController`
 
 ### Divergence avec le flow upstream `AutocompleteConfigurationComponent`

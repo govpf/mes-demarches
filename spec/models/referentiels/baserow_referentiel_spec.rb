@@ -110,46 +110,17 @@ describe Referentiels::BaserowReferentiel do
   describe '#headers' do
     let(:referentiel) { build(:baserow_referentiel, url: 'baserow://24') }
 
-    context 'when baserow_config is present' do
-      let(:config) do
-        {
-          'Champs usager' => '1,2',
-          'Champs instructeur' => '3,2',
-        }
-      end
-
-      let(:model) do
-        {
-          1 => { name: 'Nom', type: 'text' },
-          2 => { name: 'Archipel', type: 'text' },
-          3 => { name: 'Code', type: 'number' },
-        }
-      end
-
-      before do
-        allow(ReferentielDePolynesie::API).to receive(:config)
-          .with('24')
-          .and_return(config)
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:fields)
-          .with(config)
-          .and_return(model)
-      end
-
-      it 'returns unique headers from usager and instructeur fields' do
-        expect(referentiel.headers).to eq(['Nom', 'Archipel', 'Code'])
-      end
+    it 'liste toutes les colonnes de la table, sans lire les colonnes méta usager/instructeur' do
+      allow(ReferentielDePolynesie::API).to receive(:table_fields).with('24').and_return(
+        1 => { name: 'Nom', type: 'text' }, 2 => { name: 'Archipel', type: 'text' }, 3 => { name: 'Code', type: 'number' }
+      )
+      expect(ReferentielDePolynesie::API).not_to receive(:config)
+      expect(referentiel.headers).to eq(['Nom', 'Archipel', 'Code'])
     end
 
-    context 'when baserow_config is nil' do
-      before do
-        allow(ReferentielDePolynesie::API).to receive(:config)
-          .with('24')
-          .and_return(nil)
-      end
-
-      it 'returns empty array' do
-        expect(referentiel.headers).to eq([])
-      end
+    it 'retourne une liste vide quand Baserow est injoignable' do
+      allow(ReferentielDePolynesie::API).to receive(:table_fields).with('24').and_return(nil)
+      expect(referentiel.headers).to eq([])
     end
   end
 

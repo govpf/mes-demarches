@@ -85,31 +85,27 @@ describe TypesDeChamp::ReferentielDePolynesieTypeDeChamp do
       end
     end
 
-    context 'with Baserow API error' do
+    context 'with a mapping whose libelle differs from the column name' do
       before do
-        allow_any_instance_of(TypesDeChamp::ReferentielDePolynesieTypeDeChamp)
-          .to receive(:fetch_instructeur_fields_from_baserow)
-          .and_raise(StandardError, 'Connection timeout')
+        type_de_champ.update!(referentiel_mapping: {
+          '$.code_postal' => { 'type' => 'string', 'libelle' => 'Code postal', 'display_instructeur' => '1' },
+          '$.ile' => { 'type' => 'string', 'libelle' => '', 'display_usager' => '1' },
+        })
       end
 
-      it 'handles error gracefully in paths' do
-        expect { type_de_champ.dynamic_type.paths }.not_to raise_error
-        expect(type_de_champ.dynamic_type.paths.size).to eq(1) # Only :value
+      it 'uses the column as tag path and the libelle as label, instructeur columns only' do
+        expect(type_de_champ.dynamic_type.paths.map { _1.slice(:path, :libelle) }).to eq([
+          { path: :value, libelle: type_de_champ.libelle },
+          { path: :code_postal, libelle: "#{type_de_champ.libelle} (Code postal)" },
+        ])
       end
     end
 
-    # pf: la table méta Baserow peut lister une colonne supprimée depuis (id périmé) ; l’éditeur
-    # de la démarche ne doit pas tomber pour autant (undefined method 'to_sym' for nil)
-    context 'with a stale column id in the Baserow config' do
-      before do
-        type_de_champ.update!(options: type_de_champ.options.merge('table_id' => '19'))
-        allow(ReferentielDePolynesie::API).to receive(:engine).and_return(ReferentielDePolynesie::BaserowAPI)
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:config).and_return({ 'Table' => '19', 'Champs instructeur' => '5,9382,6' })
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:fields).and_return({ 5 => { name: 'Nom', type: 'text' }, 6 => { name: 'Code', type: 'text' } })
-      end
-
-      it 'skips the missing column in paths' do
-        expect(type_de_champ.dynamic_type.paths.map { _1[:path] }).to eq([:value, :Nom, :Code])
+    # pf: la table méta Baserow (« Champs instructeur ») n’est plus lue : sans mapping, seul :value
+    context 'without mapping' do
+      it 'exposes only the value and never calls Baserow' do
+        expect(ReferentielDePolynesie::API).not_to receive(:engine)
+        expect(type_de_champ.dynamic_type.paths.map { _1[:path] }).to eq([:value])
       end
     end
   end

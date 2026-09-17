@@ -172,12 +172,11 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
         { path: 'archipel', label: 'Archipel' },
       ]
     when 'referentiel_de_polynesie'
-      # Get columns from referentiel if it exists
-      if tdc.referentiel&.headers.present?
-        tdc.referentiel.headers.map { |header| { path: header, label: header } }
-      else
-        nil
-      end
+      # pf: colonnes du mapping (celles présentes dans value_json), sans appel Baserow
+      tdc.referentiel_mapping_displayable.map do |jsonpath, opts|
+        column = jsonpath.delete_prefix('$.')
+        { path: column, label: opts[:libelle].presence || column }
+      end.presence
     when 'siret', 'rna'
       # SIRET/RNA have predefined sub-paths
       [

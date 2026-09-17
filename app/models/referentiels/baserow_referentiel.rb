@@ -59,16 +59,10 @@ class Referentiels::BaserowReferentiel < Referentiel
     @baserow_config ||= ReferentielDePolynesie::API.config(table_id)
   end
 
+  # pf: toutes les colonnes de la table (façade avec cache court). Les colonnes méta « Champs usager »
+  # et « Champs instructeur » ne sont plus lues : l’affichage passe par referentiel_mapping.
   def headers
-    return [] unless baserow_config
-
-    model = ReferentielDePolynesie::BaserowAPI.fields(baserow_config)
-    return [] unless model
-
-    usager_fields = ReferentielDePolynesie::BaserowAPI.field_names(model, baserow_config['Champs usager'])
-    instructeur_fields = ReferentielDePolynesie::BaserowAPI.field_names(model, baserow_config['Champs instructeur'])
-
-    (usager_fields + instructeur_fields).uniq
+    Hash(ReferentielDePolynesie::API.table_fields(table_id)).values.map { _1[:name] }
   end
 
   # pf: JSONPath plat (plus de $.row. prefix) pour harmoniser avec le format upstream
