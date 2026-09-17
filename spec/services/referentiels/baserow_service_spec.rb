@@ -110,7 +110,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
       end
 
       before do
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:config)
+        allow(ReferentielDePolynesie::API).to receive(:config)
           .with(referentiel.table_id)
           .and_return(config)
         allow(ReferentielDePolynesie::BaserowAPI).to receive(:secrets)
@@ -145,7 +145,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
       end
 
       before do
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:config)
+        allow(ReferentielDePolynesie::API).to receive(:config)
           .with(referentiel.table_id)
           .and_return(config)
         allow(ReferentielDePolynesie::BaserowAPI).to receive(:secrets)
@@ -168,7 +168,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
 
     context 'when baserow_config is nil' do
       before do
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:config)
+        allow(ReferentielDePolynesie::API).to receive(:config)
           .with(referentiel.table_id)
           .and_return(nil)
       end
@@ -188,7 +188,7 @@ RSpec.describe Referentiels::BaserowService, type: :service do
 
     context 'when an exception is raised' do
       before do
-        allow(ReferentielDePolynesie::BaserowAPI).to receive(:config)
+        allow(ReferentielDePolynesie::API).to receive(:config)
           .and_raise(StandardError, 'API Error')
       end
 

@@ -11,6 +11,18 @@ class ReferentielDePolynesie::API
       engine&.available_tables || []
     end
 
+    # pf: ligne de configuration de la table (table méta Baserow) avec le même cache court :
+    # l’éditeur de champs la lit pour chaque carte référentiel (BaserowReferentiel#ready?), ce qui
+    # coûtait un appel HTTP par carte à chaque affichage.
+    def config(domain_id)
+      return nil if domain_id.to_i <= 0 || engine.nil?
+
+      cached = Rails.cache.fetch("referentiel_de_polynesie/config/#{domain_id}", expires_in: DLNUF_CONFIG_TTL) do
+        engine.config(domain_id) || :none
+      end
+      cached == :none ? nil : cached
+    end
+
     def dlnuf_config(domain_id)
       return nil if domain_id.to_i <= 0 || engine.nil?
 
