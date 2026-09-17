@@ -314,4 +314,21 @@ describe ReferentielDePolynesie::BaserowAPI do
       expect(described_class.send(:build_search_filters, 3, '', scopes: [])).to eq({})
     end
   end
+
+  describe '.field_names' do
+    let(:model) { { 5 => { name: 'Nom', type: 'text' }, 6 => { name: 'Code', type: 'text' } } }
+
+    it 'traduit les identifiants en noms de colonnes' do
+      expect(described_class.field_names(model, '5, 6')).to eq(['Nom', 'Code'])
+    end
+
+    it 'ignore un identifiant périmé (colonne supprimée de la table Baserow)' do
+      expect(described_class.field_names(model, '5,9382,6')).to eq(['Nom', 'Code'])
+    end
+
+    it 'retourne une liste vide sans identifiants' do
+      expect(described_class.field_names(model, nil)).to eq([])
+      expect(described_class.field_names(model, '')).to eq([])
+    end
+  end
 end
