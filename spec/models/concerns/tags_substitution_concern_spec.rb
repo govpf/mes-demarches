@@ -309,20 +309,18 @@ describe TagsSubstitutionConcern, type: :model do
       let(:commune_tdc) { procedure.active_revision.types_de_champ.first }
 
       before do
-        allow_any_instance_of(TypesDeChamp::ReferentielDePolynesieTypeDeChamp)
-          .to receive(:fetch_instructeur_fields)
-          .and_return(['code_postal', 'archipel'])
+        commune_tdc.update!(referentiel_mapping: {
+          '$.code_postal' => { 'type' => 'string', 'libelle' => 'code_postal', 'display_instructeur' => '1' },
+          '$.archipel' => { 'type' => 'string', 'libelle' => 'archipel', 'display_instructeur' => '1' },
+        })
 
         champ = dossier.project_champs_public.first
         champ.update!(
           value: 'Papeete',
           external_id: '12345'
         )
-        # pf: structure réelle des données Baserow avec row imbriqué et instructeur_fields
-        champ.update_external_data!(data: {
-          'row' => { 'code_postal' => '98714', 'archipel' => 'Iles du Vent' },
-          'instructeur_fields' => ['code_postal', 'archipel'],
-        })
+        # pf: ligne Baserow à plat (simplify_row), columnisée dans value_json selon le mapping
+        champ.update_external_data!(data: { 'code_postal' => '98714', 'archipel' => 'Iles du Vent' })
       end
 
       it { is_expected.to eq('Papeete (code postal : 98714, archipel : Iles du Vent)') }

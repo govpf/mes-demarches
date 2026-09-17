@@ -9,9 +9,11 @@ describe DossierExportConcern do
     let(:champ) { dossier.project_champs_public.first }
 
     before do
-      allow_any_instance_of(TypesDeChamp::ReferentielDePolynesieTypeDeChamp)
-        .to receive(:fetch_instructeur_fields)
-        .and_return(['code_postal', 'archipel', 'ile'])
+      type_de_champ.update!(referentiel_mapping: {
+        '$.code_postal' => { 'type' => 'string', 'libelle' => 'code_postal', 'display_instructeur' => '1' },
+        '$.archipel' => { 'type' => 'string', 'libelle' => 'archipel', 'display_instructeur' => '1' },
+        '$.ile' => { 'type' => 'string', 'libelle' => 'ile', 'display_instructeur' => '1' },
+      })
 
       champ.update!(value: 'Papeete', external_id: '12345')
       champ.update_external_data!(data: {
