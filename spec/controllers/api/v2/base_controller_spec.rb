@@ -96,4 +96,24 @@ describe API::V2::BaseController, type: :controller do
       end
     end
   end
+
+  # pf: en requête server-to-server (robot dans le cluster), l'en-tête Host est le nom de service
+  # interne ; PF est mono-domaine, les URL générées doivent toujours porter APP_HOST
+  describe 'Current.host' do
+    let(:admin) { administrateurs(:default_admin) }
+    let(:bearer) { APIToken.generate(admin)[1] }
+
+    controller(API::V2::BaseController) { def fake_action = render(plain: Current.host) }
+
+    before do
+      routes.draw { get 'fake_action' => 'api/v2/base#fake_action' }
+      request.headers['Authorization'] = "Bearer token=#{bearer}"
+      request.host = 'mes-demarches-app.ds-production.svc.cluster.local'
+    end
+
+    it 'is forced to APP_HOST so that generated URLs never expose the internal cluster hostname' do
+      get :fake_action
+      expect(response.body).to eq(ENV['APP_HOST'])
+    end
+  end
 end

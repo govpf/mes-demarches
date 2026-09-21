@@ -1135,6 +1135,20 @@ describe API::V2::GraphqlController do
           end
         end
 
+        # pf: robot dans le cluster → en-tête Host interne ; le commentaire miroir du mail
+        # d'acceptation doit malgré tout pointer sur l'hôte public (APP_HOST)
+        context 'when called through the internal cluster hostname' do
+          before { request.host = 'mes-demarches-app.ds-production.svc.cluster.local' }
+
+          it 'builds the mirrored notification links with the public host' do
+            expect(gql_errors).to eq(nil)
+
+            body = dossier.reload.commentaires.last.body
+            expect(body).to include("//#{ENV['APP_HOST']}/dossiers/#{dossier.id}")
+            expect(body).not_to include('svc.cluster.local')
+          end
+        end
+
         context 'success without motivation' do
           let(:query) do
             "mutation {

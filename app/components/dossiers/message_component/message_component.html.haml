@@ -12,9 +12,10 @@
     .fr-mt-1v.fr-mb-1w
       = badge
   .rich-text
+    -# pf: un expéditeur automatisé (AUTOMATED_SENDER_EMAILS) reste un instructeur : son Markdown passe par SimpleFormatComponent
     - if commentaire.discarded?
       %p= "(#{t('.deleted_body')})"
-    - elsif commentaire.sent_by_system?
+    - elsif commentaire.sent_by_system? && !commentaire.sent_by_instructeur?
       = sanitize(commentaire.body, scrubber: Sanitizers::MailScrubber.new)
     - else
       = render SimpleFormatComponent.new(commentaire.body, allow_a: groupe_gestionnaire.nil? && commentaire.sent_by_instructeur?, allow_autolink: groupe_gestionnaire.nil? && commentaire.sent_by_instructeur?)

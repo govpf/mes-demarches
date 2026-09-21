@@ -164,6 +164,24 @@ RSpec.describe Dossiers::MessageComponent, type: :component do
         let(:commentaire) { create(:commentaire, instructeur: instructeur, body: "rdv sur https://demarche.numerique.gouv.fr") }
         it { is_expected.to have_link("https://demarche.numerique.gouv.fr", href: "https://demarche.numerique.gouv.fr") }
       end
+
+      # pf: un robot (AUTOMATED_SENDER_EMAILS) est affiché comme « Email automatique »
+      # mais reste un instructeur : son Markdown doit être rendu comme celui d'un humain
+      describe 'markdown from an automated sender' do
+        let(:instructeur) { create(:instructeur, email: AUTOMATED_SENDER_EMAILS.first) }
+        let(:commentaire) { create(:commentaire, instructeur:, body: "Bonjour **usager**, voir [la notice](https://example.org/notice) ou https://example.com/brut") }
+
+        it 'is displayed as an automatic email' do
+          is_expected.to have_text(component.t('.automatic_email'))
+          is_expected.to have_selector(".fr-background-alt--grey")
+        end
+
+        it 'renders markdown and links' do
+          is_expected.to have_selector("strong", text: "usager")
+          is_expected.to have_link("la notice", href: "https://example.org/notice")
+          is_expected.to have_link("https://example.com/brut", href: "https://example.com/brut")
+        end
+      end
     end
 
     describe '#commentaire_from_guest?' do
