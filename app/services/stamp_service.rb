@@ -15,7 +15,13 @@ class StampService
       add_qrcode(canvas, margin, page_height - margin, qrcode_size, url)
       add_text(doc, canvas, margin + qrcode_size, margin, url)
 
-      pdf_string(doc)
+      begin
+        pdf_string(doc)
+      rescue HexaPDF::Error => e
+        Rails.logger.warn("StampService: impossible de tamponner le PDF (blob #{blob.id}), envoi du fichier original : #{e.message}")
+        file.rewind
+        file.read
+      end
     end
   end
 
