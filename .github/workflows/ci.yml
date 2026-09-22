@@ -302,6 +302,11 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
+          # pf: le label org.opencontainers.image.revision permet à prod_deploy.sh de vérifier
+          # que l'image correspond au commit déployé ; APP_VERSION alimente les releases Sentry
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ github.sha }}
           cache-from: type=registry,ref=${{env.repo}}:buildcache
           cache-to:   type=registry,ref=${{env.repo}}:buildcache,mode=max
 #      - name: Debug environment
