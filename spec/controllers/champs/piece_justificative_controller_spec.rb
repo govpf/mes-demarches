@@ -233,6 +233,12 @@ describe Champs::PieceJustificativeController, type: :controller do
       it 'updates dossier.last_champ_private_updated_at' do
         expect { subject }.to change { dossier.reload.last_champ_private_updated_at }
       end
+
+      # pf: une annotation privée ne doit pas rendre le dossier « modifié » côté usager,
+      # sinon la notification dossier_modifie apparaît chez les instructeurs
+      it 'does not update dossier.last_champ_updated_at' do
+        expect { subject }.not_to change { dossier.reload.last_champ_updated_at }
+      end
     end
 
     context 'when the file is invalid' do

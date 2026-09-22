@@ -83,7 +83,8 @@ class Champs::PieceJustificativeController < Champs::ChampController
       ChampRevision.create_or_update_revision(@champ, current_instructeur.id)
     end
 
-    @champ.dossier.update(last_champ_updated_at: Time.zone.now.utc) if save_succeed
+    # pf: pas de bump inconditionnel de last_champ_updated_at ici (ligne upstream 2022 retirée depuis) :
+    # update_timestamps distingue public / privé, sinon une PJ d'annotation rendait le dossier « modifié »
     if save_succeed
       @champ.fetch_later! if @champ.uses_external_data?
 
