@@ -44,7 +44,10 @@ export class TruncateNotificationsController extends ApplicationController {
     const notificationBadge = document.querySelector<HTMLElement>(
       '.notification-badge'
     );
-    return container!.offsetWidth - notificationBadge!.offsetWidth;
+    if (container === null || notificationBadge === null) {
+      return 0;
+    }
+    return container.offsetWidth - notificationBadge.offsetWidth;
   }
 
   private truncateNotification(
