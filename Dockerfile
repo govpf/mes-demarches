@@ -224,6 +224,11 @@ RUN RAILS_ENV=production NODE_OPTIONS=--max-old-space-size=4000 bundle exec rail
 
 RUN chmod a+x $APP_PATH/app/lib/*.sh
 
+#----- Version applicative (release Sentry, clé de cache) : lue par ApplicationVersion.
+# pf: déclarée après la précompilation pour ne pas invalider le cache des assets à chaque commit
+ARG APP_VERSION
+RUN if [ -n "$APP_VERSION" ]; then echo "$APP_VERSION" > $APP_PATH/version; fi
+
 EXPOSE 3000
 ENTRYPOINT ["/app/app/lib/docker-entry-point.sh"]
 CMD ["rails", "server", "-b", "0.0.0.0"]
