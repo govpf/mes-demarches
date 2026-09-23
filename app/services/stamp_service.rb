@@ -25,7 +25,9 @@ class StampService
 
   def pdf_string(doc)
     io = StringIO.new(''.b)
-    doc.write(io)
+    # Les PDF déposés ne sont pas toujours conformes (ex. police CID sans CIDSystemInfo) :
+    # la validation stricte ferait échouer le téléchargement alors que le document reste lisible.
+    doc.write(io, validate: false)
     io.string
   end
 
