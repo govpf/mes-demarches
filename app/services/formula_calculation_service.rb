@@ -181,8 +181,14 @@ class FormulaCalculationService
   # Retourne un message d'aide ciblé, ou nil si pas ce cas.
   def self.detect_equals_operator_hint(expression)
     return nil if expression.blank?
+    # Neutralise d'abord les chaînes littérales (mêmes règles que le tokenizer
+    # Dentaku : pas d'échappement) et les références {…}, dont le contenu peut
+    # légitimement contenir un '=' (URL avec query string, libellé de champ).
+    # Balayage unique de gauche à droite : une apostrophe dans un libellé
+    # ({Nom de l'usager}) n'ouvre pas de chaîne.
+    code = expression.gsub(/"[^"]*"|'[^']*'|\{[^}]*\}/, '_')
     # Match '=' qui n'est pas précédé ni suivi de '=', '<', '>', '!'
-    if expression.match?(/(?<![=<>!])=(?!=)/)
+    if code.match?(/(?<![=<>!])=(?!=)/)
       I18n.t('formula_errors.equals_operator_hint')
     end
   end

@@ -966,6 +966,23 @@ describe FormulaCalculationService do
     it 'returns nil on blank expression' do
       expect(described_class.detect_equals_operator_hint('')).to be_nil
     end
+
+    it 'does not trigger on = inside a double-quoted string' do
+      expression = 'CONCATENER("https://www.mes-demarches.gov.pf/commencer/xxx?champ_Q2hhbXAtMTk3MDI3=", ENTIER({N° dossier}))'
+      expect(described_class.detect_equals_operator_hint(expression)).to be_nil
+    end
+
+    it 'does not trigger on = inside a single-quoted string' do
+      expect(described_class.detect_equals_operator_hint("CONCATENER('a=b', {x})")).to be_nil
+    end
+
+    it 'does not trigger on = inside a champ reference' do
+      expect(described_class.detect_equals_operator_hint("SI({Montant = HT} > 5, {Nom de l'usager}, 0)")).to be_nil
+    end
+
+    it 'still detects single = outside strings' do
+      expect(described_class.detect_equals_operator_hint('SI({x} = "a=b", 1, 0)')).to include("Utilisez '=='")
+    end
   end
 
   # pf: Non-regression — les fonctions FR (SI, ARRONDI, SOMME, AGE…) sont des
