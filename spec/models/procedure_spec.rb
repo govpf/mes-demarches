@@ -1054,6 +1054,23 @@ describe Procedure do
         expect { published_tdc.reload }.not_to raise_error
         expect { draft_tdc.reload }.to raise_error(ActiveRecord::RecordNotFound)
       end
+
+      context "avec des traitements référençant la révision brouillon sur un dossier d'une autre révision" do
+        let(:dossier) { create(:dossier, :accepte, procedure:) }
+
+        before do
+          procedure.draft_revision.add_type_de_champ(tdc_attributes)
+          dossier.traitements.update_all(revision_id: procedure.draft_revision_id)
+        end
+
+        it "réinitialise le brouillon sans violer la clé étrangère" do
+          previous_draft_revision = procedure.draft_revision
+
+          expect { procedure.reset_draft_revision! }.not_to raise_error
+          expect { previous_draft_revision.reload }.to raise_error(ActiveRecord::RecordNotFound)
+          expect(dossier.reload.traitements.map(&:revision_id).uniq).to eq([nil])
+        end
+      end
     end
   end
 
@@ -1171,6 +1188,15 @@ describe Procedure do
       expect(procedure.draft_revision).not_to be_nil
       expect(procedure.revisions.count).to eq(2)
       expect(procedure.revisions).to eq([procedure.published_revision, procedure.draft_revision])
+    end
+
+    context 'depuis une démarche dépubliée' do
+      let(:procedure) { create(:procedure, :unpublished) }
+
+      it do
+        expect(procedure.close?).to be_truthy
+        expect(procedure.closed_at).to eq(now)
+      end
     end
   end
 

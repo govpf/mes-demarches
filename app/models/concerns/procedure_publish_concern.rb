@@ -48,6 +48,9 @@ module ProcedurePublishConcern
       transaction do
         draft_revision.types_de_champ.filter(&:only_present_on_draft?).each(&:destroy)
         draft_revision.update(dossier_submitted_message: nil)
+        # pf: des traitements peuvent référencer la révision brouillon alors que
+        # leur dossier est sur une autre révision (FK fk_rails_fffe85c30d).
+        Traitement.where(revision_id: draft_revision_id).update_all(revision_id: nil)
         draft_revision.destroy
         update!(draft_revision: create_new_revision(published_revision))
       end

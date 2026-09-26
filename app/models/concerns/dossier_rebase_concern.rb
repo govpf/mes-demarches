@@ -18,7 +18,9 @@ module DossierRebaseConcern
   end
 
   def can_rebase?
-    procedure.published_revision.present? && revision != procedure.published_revision && !termine?
+    # pf: un dossier de test (révision brouillon) ne doit jamais être « rebasé »
+    # à rebours vers la révision publiée : il deviendrait un vrai dossier.
+    procedure.published_revision.present? && revision != procedure.published_revision && !revision.draft? && !termine?
   end
 
   def pending_changes
