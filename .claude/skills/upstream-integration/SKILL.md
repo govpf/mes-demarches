@@ -44,11 +44,20 @@ git fetch upstream --tags
 git log $DERNIER_TAG_PF..upstream/main --oneline | head -30
 ```
 
-**Décision : 1 release ou cumul ?**
+**Décision : 1 release ou cumul ?** → lancer le planificateur de lots :
 
-Cumul possible **uniquement si** : pas de maintenance task de backfill intercalée entre deux migrations qui posent des contraintes (voir [conflict-resolution-patterns.md](./conflict-resolution-patterns.md) section migrations).
+```bash
+ruby .claude/scripts/upstream_lots.rb --until <dernière release visée>   # --budget N (défaut 15), --json plan.json
+```
 
-🛑 **STOP — Demander à l'utilisateur** : "X releases identifiées entre `$DERNIER_TAG_PF` et upstream. Cumul ou une par une ?" (utiliser AskUserQuestion).
+Il découpe les releases non intégrées en lots déployables d'un coup (1 lot ≈ 1 session de 2 h) :
+- **coût** = conflits simulés (`git merge-tree` contre un devpf synthétique à jour de la release précédant le lot), les vues HAML→ERB à réécrire comptant double ;
+- **barrière dure** : MT qui écrit des données avant une migration `NOT NULL` / `CHECK` / index unique de la même table → lot coupé, ou backfill intégré à la migration (issue C) ;
+- **alertes** : clé étrangère ou suppression liée à une MT, colonne ignorée puis supprimée dans le même lot, zones PF (FC/OmniAuth, delayed_job, openstack, API Particulier, version Ruby).
+
+Le plan est précis pour le prochain lot et indicatif au-delà : **le relancer après chaque lot mergé** dans devpf. Seul le premier lot est à exécuter.
+
+🛑 **STOP — Présenter la fiche du prochain lot** (releases, conflits prévus, migrations, MT, alertes) et faire valider le périmètre (utiliser AskUserQuestion).
 
 ### Étape 2 — Création de la branche
 
@@ -214,7 +223,7 @@ Ces fichiers concentrent beaucoup de fix dans l'absolu, mais ces fix sont **lié
 | `git checkout --theirs config/locales/` proposé | ❌ STOP — résoudre fichier par fichier |
 | Conflit dans `france_connect/` sans toucher `omniauth/` | ❌ STOP — ouvrir omniauth-franceconnect-checklist.md |
 | Migration ajoute `validate_check_constraint` ou `change_column_null` | ❌ STOP — chercher MT de backfill intercalée |
-| Plus de 5 releases dans le cumul | ⚠️ Risque PG::CheckViolation élevé, faire 2 PR |
+| Lot sorti du planificateur avec une alerte 🔴 | ❌ STOP — issue C ou couper le lot |
 | Une MT contient `update_all` ou `where(...).update!` sans `run_on_first_deploy` | ❌ STOP — arbre de décision MT |
 | `Gemfile.lock` résolu en `--ours` ou `--theirs` | ⚠️ Régénérer obligatoirement via `bundle install` |
 | Code PF identifié (mais sans tag `# pf:`) supprimé par upstream | ❌ STOP — restaurer + tag |
