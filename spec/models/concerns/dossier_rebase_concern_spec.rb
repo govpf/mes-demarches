@@ -96,6 +96,30 @@ describe DossierRebaseConcern do
         end
       end
     end
+
+    context 'dossier de test sur la révision brouillon' do
+      let(:dossier) { create(:dossier, :en_instruction, procedure: procedure) }
+
+      before do
+        procedure.publish!(procedure.administrateurs.first)
+        procedure.draft_revision.add_type_de_champ({
+          type_champ: TypeDeChamp.type_champs.fetch(:text),
+          libelle: "Un champ text",
+        })
+        procedure.reload
+        dossier.update_column(:revision_id, procedure.draft_revision_id)
+        dossier.reload
+      end
+
+      it 'ne doit pas être rebasé vers la révision publiée' do
+        expect(dossier.revision).to be_draft
+        expect(dossier.can_rebase?).to be_falsey
+      end
+
+      it 'reste sur la révision brouillon après rebase!' do
+        expect { dossier.rebase! }.not_to change { dossier.reload.revision_id }
+      end
+    end
   end
 
   describe "#rebase" do

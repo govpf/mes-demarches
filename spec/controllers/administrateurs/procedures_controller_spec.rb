@@ -1044,6 +1044,15 @@ describe Administrateurs::ProceduresController, type: :controller do
         expect(procedure.closing_reason).to eq('other')
       end
 
+      context 'when the procedure is unpublished' do
+        let(:procedure) { create(:procedure, :unpublished, administrateur: admin, lien_site_web: lien_site_web) }
+
+        it 'closes the procedure' do
+          expect(procedure.close?).to be_truthy
+          expect(response).to redirect_to admin_procedure_path(procedure.id)
+        end
+      end
+
       context 'the admin can notify users if there are file in brouillon or en_cours' do
         let!(:procedure) { create(:procedure_with_dossiers, :published, dossiers_count: 2, administrateur: admin, lien_site_web: lien_site_web) }
         it 'archives the procedure and redirects to page to notify users' do
