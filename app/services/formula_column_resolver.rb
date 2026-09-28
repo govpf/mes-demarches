@@ -110,38 +110,9 @@ class FormulaColumnResolver
     end
   end
 
+  # pf: liste blanche et encodage partagés avec l'éditeur (FormulaSystemColumns)
   def build_system_columns_index(index)
-    # Map dossier columns using semantic tags from TagsSubstitutionConcern
-    # For now, we'll map the most common ones manually
-    # TODO: Generate this automatically from TagsSubstitutionConcern
-
-    # Dossier metadata
-    index['dossier_number'] = find_column_by_table_and_column('self', 'id')
-    index['dossier_state'] = find_column_by_table_and_column('self', 'state')
-    index['dossier_depose_at'] = find_column_by_table_and_column('self', 'depose_at')
-    index['dossier_en_instruction_at'] = find_column_by_table_and_column('self', 'en_instruction_at')
-    index['dossier_processed_at'] = find_column_by_table_and_column('self', 'processed_at')
-
-    # Individual columns (if procedure is for individual)
-    if @procedure.for_individual
-      index['individual_gender'] = find_column_by_table_and_column('individual', 'gender')
-      index['individual_first_name'] = find_column_by_table_and_column('individual', 'prenom')
-      index['individual_last_name'] = find_column_by_table_and_column('individual', 'nom')
-    end
-
-    # Entreprise columns (if procedure is for moral person)
-    unless @procedure.for_individual
-      index['entreprise_siren'] = find_column_by_table_and_column('etablissement', 'entreprise_siren')
-      index['entreprise_siret'] = find_column_by_table_and_column('etablissement', 'siret')
-      index['entreprise_raison_sociale'] = find_column_by_table_and_column('etablissement', 'entreprise_raison_sociale')
-    end
-
-    # Remove nil values (columns that don't exist)
-    index.compact!
-  end
-
-  def find_column_by_table_and_column(table, column)
-    @procedure.columns.find { |col| col.table == table && col.column.to_s == column.to_s }
+    index.merge!(FormulaSystemColumns.index(@procedure))
   end
 
   def encode_column_id(column, tdc)

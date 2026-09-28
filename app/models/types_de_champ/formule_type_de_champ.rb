@@ -400,8 +400,6 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   # de compatibilite ascendante), ainsi que le chemin optionnel {tdc123/path}.
   FORMULE_DEPS_TDC_PATTERN = /\{tdc(\d+)(?:\/[^}]+)?\}/
   FORMULE_DEPS_LEGACY_PATTERN = /\{(\d+)\}/
-  FORMULE_DEPS_STATE_PATTERN = /\{dossier_(depose|en_construction|en_instruction|processed)_at\}/
-  FORMULE_DEPS_IDENTITE_PATTERN = /\{(?:individual_|entreprise_)/
 
   def compute_formule_deps_from_expression(expression)
     deps = {}
@@ -412,8 +410,9 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     champs = (tdc_ids + legacy_ids).uniq.sort
     deps['champs'] = champs
 
-    deps['has_state'] = true if expr_str.match?(FORMULE_DEPS_STATE_PATTERN)
-    deps['has_identite'] = true if expr_str.match?(FORMULE_DEPS_IDENTITE_PATTERN)
+    # pf: déclencheurs déclarés par colonne dans FormulaSystemColumns
+    deps['has_state'] = true if FormulaSystemColumns.references_trigger?(expr_str, :state)
+    deps['has_identite'] = true if FormulaSystemColumns.references_trigger?(expr_str, :identite)
 
     deps
   end

@@ -26,6 +26,18 @@ describe FormulaColumnResolver do
     it 'résout une colonne système' do
       expect(resolver.resolve('dossier_number')).not_to be_nil
     end
+
+    # pf: l'éditeur encode les colonnes système hors identifiants historiques
+    # en "<table>_<colonne>" : le resolver doit les connaître (sinon
+    # « Colonne inconnue : self_created_at »).
+    it 'résout une colonne système de la liste blanche encodée <table>_<colonne>' do
+      expect(resolver.resolve('self_created_at')).to have_attributes(table: 'self', column: 'created_at')
+    end
+
+    it 'ne résout pas une colonne d’instruction hors liste blanche' do
+      expect(resolver.resolve('followers_instructeurs_email')).to be_nil
+      expect(resolver.resolve('groupe_instructeur_id')).to be_nil
+    end
   end
 
   describe 'résolution des blocs répétables (étape A — formules-agrégat)' do

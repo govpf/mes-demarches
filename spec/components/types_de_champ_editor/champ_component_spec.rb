@@ -176,6 +176,42 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
     end
   end
 
+  # pf: seules les colonnes système de la liste blanche (scalaires stables)
+  # sont proposées, avec l'identifiant que le resolver sait résoudre.
+  describe '#available_columns_for_formula avec colonnes système' do
+    let(:procedure) { create(:procedure, types_de_champ_public: [{ type: :formule, libelle: 'Total' }]) }
+    let(:formule_tdc) { procedure.draft_revision.types_de_champ.find { _1.libelle == 'Total' } }
+    let(:coordinate) { procedure.draft_revision.coordinate_for(formule_tdc) }
+    let(:component) { described_class.new(coordinate:, upper_coordinates: []) }
+    let(:columns) { component.available_columns_for_formula }
+    let(:ids) { columns.map { _1[:id] } }
+
+    it 'propose la date de création sous l’identifiant self_created_at' do
+      expect(columns).to include(a_hash_including(id: 'self_created_at', label: 'Date de création'))
+    end
+
+    it 'conserve les identifiants historiques' do
+      expect(ids).to include('dossier_number', 'dossier_depose_at')
+    end
+
+    it 'propose la date de passage en construction (recalculée à la transition)' do
+      expect(ids).to include('dossier_en_construction_at')
+    end
+
+    it 'ne propose pas les colonnes d’instruction ni les dates mouvantes' do
+      expect(ids).not_to include('followers_instructeurs_email', 'groupe_instructeur_id', 'dossier_labels_label_id', 'self_updated_at', 'self_last_champ_updated_at', 'self_expired_at', 'self_archived', 'self_motivation')
+    end
+
+    it 'n’expose aucune colonne sans identifiant' do
+      expect(columns).to all(include(:id))
+    end
+
+    it 'n’expose que des identifiants résolubles' do
+      resolver = FormulaColumnResolver.new(procedure.draft_revision)
+      ids.each { |id| expect(resolver.resolve(id)).not_to be_nil, "#{id} non résolu" }
+    end
+  end
+
   describe 'ACCEPTED_TYPES' do
     it 'contains expected conversions' do
       expect(described_class::ACCEPTED_TYPES).to include(

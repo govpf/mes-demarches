@@ -35,6 +35,19 @@ RSpec.describe TypesDeChamp::FormulaValidator do
     end
   end
 
+  context 'with a formula referencing a whitelisted system column' do
+    let(:types) { [{ type: :formule, libelle: 'Calcul' }] }
+
+    before do
+      formule_tdc = procedure.draft_revision.types_de_champ_public.find(&:formule?)
+      formule_tdc.update_column(:options, { 'formule_expression' => 'ANNEE({self_created_at})' })
+    end
+
+    it 'does not add errors' do
+      expect { subject }.not_to change { procedure.errors.count }
+    end
+  end
+
   context 'with a formula referencing a following champ (order violation)' do
     let(:types) { [{ type: :formule, libelle: 'Calcul' }, { type: :integer_number, libelle: 'Montant' }] }
 
