@@ -44,6 +44,7 @@ features = [
   # pf: feature flag pour l'affichage en grille des champs côté instructeur (PR #334)
   :dossier_layout_grid,
   :switch_domain,
+  :llm_nightly_improve_procedure,
 ]
 
 def database_exists?

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Dossier < ApplicationRecord
-  self.ignored_columns += [:search_terms, :private_search_terms, :editing_fork_origin_id]
+  self.ignored_columns += [:search_terms, :private_search_terms, :editing_fork_origin_id, :last_champ_piece_jointe_updated_at]
 
   include DossierCloneConcern
   include DossierCorrectableConcern
@@ -66,8 +66,16 @@ class Dossier < ApplicationRecord
         browser: Current.browser)
     end
 
-    def submit_en_construction(processed_at: Time.zone.now)
+    def usager_submit_en_construction(processed_at: Time.zone.now)
       build(state: Dossier.states.fetch(:en_construction),
+        processed_at:,
+        revision_id: proxy_association.owner.revision_id,
+        browser: Current.browser)
+    end
+
+    def instructeur_submit_en_construction(instructeur:, processed_at: Time.zone.now)
+      build(state: Dossier.states.fetch(:en_construction),
+        instructeur_email: instructeur.email,
         processed_at:,
         revision_id: proxy_association.owner.revision_id,
         browser: Current.browser)
@@ -331,7 +339,7 @@ class Dossier < ApplicationRecord
     end
   end
 
-  scope :never_touched_brouillon_expired, -> { visible_by_user.brouillon.where.missing(:etablissement, :individual).where(last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil, identity_updated_at: nil, parent_dossier: nil, last_commentaire_updated_at: nil).where(created_at: ..2.weeks.ago) }
+  scope :never_touched_brouillon_expired, -> { visible_by_user.brouillon.where.missing(:etablissement, :individual).where(last_champ_updated_at: nil, identity_updated_at: nil, parent_dossier: nil, last_commentaire_updated_at: nil).where(created_at: ..2.weeks.ago) }
   scope :brouillon_expired, -> do
     state_brouillon
       .visible_by_user
@@ -351,6 +359,13 @@ class Dossier < ApplicationRecord
   scope :without_brouillon_expiration_notice_sent, -> { where(brouillon_close_to_expiration_notice_sent_at: nil) }
   scope :without_en_construction_expiration_notice_sent, -> { where(en_construction_close_to_expiration_notice_sent_at: nil) }
   scope :without_termine_expiration_notice_sent, -> { where(termine_close_to_expiration_notice_sent_at: nil) }
+  scope :without_dossier_expirant_notification, -> do
+    where.not(
+      id: DossierNotification.where(notification_type: :dossier_expirant)
+                            .select(:dossier_id)
+    )
+  end
+
   scope :deleted_by_user_expired, -> { where(dossiers: { hidden_by_user_at: ...REMAINING_WEEKS_BEFORE_DELETION.weeks.ago }) }
   scope :deleted_by_administration_expired, -> { where(dossiers: { hidden_by_administration_at: ...REMAINING_WEEKS_BEFORE_DELETION.weeks.ago }) }
   scope :deleted_by_automatic_expired, -> { where(dossiers: { hidden_by_expired_at: ...REMAINING_WEEKS_BEFORE_DELETION.weeks.ago }) }
@@ -688,6 +703,7 @@ class Dossier < ApplicationRecord
       en_construction_close_to_expiration_notice_sent_at: nil,
       termine_close_to_expiration_notice_sent_at: nil)
     update_expired_at
+    DossierNotification.destroy_notifications_by_dossier_and_type(self, :dossier_expirant)
   end
 
   def extend_conservation_and_restore(conservation_extension, author)
@@ -885,6 +901,7 @@ class Dossier < ApplicationRecord
       if is_administration?(author) && can_be_deleted_by_administration?(reason)
         update(hidden_by_administration_at: Time.zone.now, hidden_by_reason: reason)
         log_dossier_operation(author, :supprimer, self)
+        DossierNotification.create_notifications_for_non_customisable_type(self, :dossier_suppression)
       elsif is_user?(author) && can_be_deleted_by_user?
         update(hidden_by_user_at: Time.zone.now, dossier_transfer_id: nil, hidden_by_reason: reason)
         log_dossier_operation(author, :supprimer, self)
@@ -913,6 +930,7 @@ class Dossier < ApplicationRecord
     transaction do
       if is_administration?(author)
         update(hidden_by_administration_at: nil)
+        DossierNotification.destroy_notifications_by_dossier_and_type(self, :dossier_suppression)
       elsif is_user?(author)
         update(hidden_by_user_at: nil)
       end
@@ -1138,12 +1156,14 @@ class Dossier < ApplicationRecord
     end)
   end
 
-  def update_champs_timestamps(changed_champs)
+  def update_champs_timestamps(changed_champs, stream)
     return if changed_champs.empty?
     updated_at = Time.zone.now
-    attributes = { updated_at:, last_champ_updated_at: updated_at }
-    if changed_champs.any?(&:piece_justificative_or_titre_identite?)
-      attributes[:last_champ_piece_jointe_updated_at] = updated_at
+    attributes = { updated_at: }
+    if stream == Champ::USER_BUFFER_STREAM
+      attributes[:last_champ_updated_at] = updated_at
+    elsif stream == Champ::INSTRUCTEUR_BUFFER_STREAM
+      attributes[:last_champ_instructeur_updated_at] = updated_at
     end
     update_columns(attributes)
   end

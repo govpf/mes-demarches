@@ -790,8 +790,10 @@ class FormulaCalculationService
     #
     # Pour les formules amont (transitivité), la valeur est lue via @value_overrides
     # par compute_formulas_in_order avant même d'arriver dans all_champs.
-    @all_champs ||= if @dossier.stream == Champ::USER_BUFFER_STREAM
-      buffer_champs = @dossier.champs.filter { |c| c.stream == Champ::USER_BUFFER_STREAM }
+    # pf: vaut pour les deux buffers (usager et instructeur, upstream 2025-12-08-01),
+    # comme champs_on_stream.
+    @all_champs ||= if @dossier.stream.in?([Champ::USER_BUFFER_STREAM, Champ::INSTRUCTEUR_BUFFER_STREAM])
+      buffer_champs = @dossier.champs.filter { |c| c.stream == @dossier.stream }
       main_champs = @dossier.champs.filter { |c| c.stream == Champ::MAIN_STREAM }
       (buffer_champs + main_champs).uniq(&:public_id)
     else

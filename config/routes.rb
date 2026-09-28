@@ -796,6 +796,12 @@ Rails.application.routes.draw do
           delete :nullify_referentiel
           post :duplicate
         end
+
+        collection do
+          get 'simplify/:rule', action: :simplify, as: :simplify, constraints: { rule: /#{LLMRuleSuggestion.rules.keys.join('|')}/ }
+          post 'accept_simplification/:llm_suggestion_rule_id', action: :accept_simplification, as: :accept_simplification
+          post 'simplify/enqueue/:rule', action: :enqueue_simplify, as: :enqueue_simplify, constraints: { rule: /#{LLMRuleSuggestion.rules.keys.join('|')}/ }
+        end
       end
 
       resources :mail_templates, only: [:index] do

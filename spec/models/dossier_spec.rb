@@ -330,6 +330,40 @@ describe Dossier, type: :model do
     end
   end
 
+  describe "#extend_conservation" do
+    subject { dossier.extend_conservation(1.month) }
+
+    let(:dossier) { create(:dossier, :en_construction) }
+
+    context "when the dossier has a dossier_expirant notification" do
+      let!(:notification_expirant) { create(:dossier_notification, dossier:, notification_type: :dossier_expirant) }
+
+      it "destroys dossier_expirant notification" do
+        subject
+        expect(DossierNotification.count).to eq(0)
+      end
+    end
+  end
+
+  describe "#restore" do
+    subject { dossier.restore(author) }
+
+    let(:dossier) { create(:dossier, :en_construction, :with_individual, hidden_by_administration_at: 1.hour.ago) }
+
+    context "when an instructeur restore the dossier" do
+      let(:author) { create(:instructeur) }
+
+      context "when there is a dossier_suppression notification" do
+        let!(:notification_suppression) { create(:dossier_notification, dossier:, notification_type: :dossier_suppression) }
+
+        it "destroys the notification" do
+          subject
+          expect(DossierNotification.count).to eq(0)
+        end
+      end
+    end
+  end
+
   describe 'methods' do
     let(:dossier) { create(:dossier, :with_entreprise, user: user) }
     let(:etablissement) { dossier.etablissement }
@@ -577,43 +611,6 @@ describe Dossier, type: :model do
           expect(dossier.depose_at).to eq(beginning_of_day)
           expect(dossier.en_construction_at).to be > beginning_of_day
         end
-
-        context 'when dossier have piece_justificative or titre_identite' do
-          include Logic
-
-          let(:procedure) { create(:procedure, types_de_champ_public:) }
-          let(:dossier) { create(:dossier, :brouillon, :with_populated_champs, procedure:) }
-
-          context 'when piece_justificative' do
-            let(:types_de_champ_public) { [{ type: :piece_justificative, condition: ds_eq(constant(true), constant(visible)) }] }
-            let(:champ) { dossier.project_champs_public.find(&:piece_justificative?) }
-
-            context 'when not visible' do
-              let(:visible) { false }
-              it { expect { subject }.to change { Champ.exists?(champ.id) } }
-            end
-
-            context 'when visible' do
-              let(:visible) { true }
-              it { expect { subject }.not_to change { champ.reload.piece_justificative_file.attached? } }
-            end
-          end
-
-          context 'when titre identite' do
-            let(:types_de_champ_public) { [{ type: :titre_identite, condition: ds_eq(constant(true), constant(visible)) }] }
-            let(:champ) { dossier.project_champs_public.find(&:titre_identite?) }
-
-            context 'when not visible' do
-              let(:visible) { false }
-              it { expect { subject }.to change { Champ.exists?(champ.id) } }
-            end
-
-            context 'when visible' do
-              let(:visible) { true }
-              it { expect { subject }.not_to change { champ.reload.piece_justificative_file.attached? } }
-            end
-          end
-        end
       end
 
       context 'when the procedure.routing_enabled? is true' do
@@ -815,6 +812,19 @@ describe Dossier, type: :model do
           dossier.assign_to_groupe_instructeur(new_groupe_instructeur, DossierAssignment.modes.fetch(:auto))
           expect(DossierNotification.where(instructeur: new_instructeur, dossier:, notification_type: :dossier_modifie)).to be_empty
           expect(DossierNotification.where(instructeur: new_instructeur, dossier:, notification_type: :dossier_depose)).to be_present
+        end
+      end
+
+      context "when dossier must have a non customisable notification" do
+        let!(:old_expirant_notification) { create(:dossier_notification, dossier:, instructeur:, notification_type: :dossier_expirant, display_at: 1.week.ago) }
+        let(:new_groupe_instructeur) { create(:groupe_instructeur, procedure:, instructeurs: [new_instructeur]) }
+
+        before { dossier.update(expired_at: 1.week.from_now) }
+
+        it "refreshes notifications for new instructeur" do
+          dossier.assign_to_groupe_instructeur(new_groupe_instructeur, DossierAssignment.modes.fetch(:auto))
+          expect(DossierNotification.where(instructeur: instructeur, dossier:, notification_type: :dossier_expirant)).to be_empty
+          expect(DossierNotification.where(instructeur: new_instructeur, dossier:, notification_type: :dossier_expirant)).to be_present
         end
       end
     end
@@ -1206,6 +1216,24 @@ describe Dossier, type: :model do
 
       it 'affect the right deletion reason to the dossier' do
         expect(dossier.hidden_by_reason).to eq("user_request")
+      end
+
+      context "when the instructeur hide the dossier" do
+        let(:groupe_instructeur) { create(:groupe_instructeur, instructeurs: [create(:instructeur)]) }
+        let(:dossier) { create(:dossier, state: "accepte", groupe_instructeur:) }
+        let(:user) { create(:instructeur) }
+        let(:reason) { :instructeur_request }
+
+        it "creates dossier_suppression notification with correct delay" do
+          subject
+          expect(DossierNotification.count).to eq(1)
+
+          notification = DossierNotification.last
+          expect(notification.dossier_id).to eq(dossier.id)
+          expect(notification.instructeur_id).to eq(groupe_instructeur.instructeur_ids.first)
+          expect(notification.notification_type).to eq("dossier_suppression")
+          expect(notification.display_at.to_date).to eq(Time.zone.now.to_date)
+        end
       end
     end
   end
@@ -2606,51 +2634,6 @@ describe Dossier, type: :model do
     end
   end
 
-  describe "remove_titres_identite!" do
-    let(:declarative_with_state) { nil }
-    let(:procedure) { create(:procedure, declarative_with_state:, types_de_champ_public: [{ type: :titre_identite }, { type: :titre_identite }]) }
-    let(:dossier) { create(:dossier, :en_instruction, :followed, :with_populated_champs, procedure:) }
-    let(:champ_titre_identite) { dossier.champs.first }
-    let(:champ_titre_identite_vide) { dossier.champs.second }
-
-    before do
-      champ_titre_identite_vide.piece_justificative_file.purge
-    end
-
-    it "clean up titres identite on accepter" do
-      expect(champ_titre_identite.piece_justificative_file.attached?).to be_truthy
-      expect(champ_titre_identite_vide.piece_justificative_file.attached?).to be_falsey
-      dossier.accepter!(instructeur: dossier.followers_instructeurs.first, motivation: "yolo!")
-      expect(Champ.exists?(champ_titre_identite.id)).to be_falsey
-    end
-
-    it "clean up titres identite on refuser" do
-      expect(champ_titre_identite.piece_justificative_file.attached?).to be_truthy
-      expect(champ_titre_identite_vide.piece_justificative_file.attached?).to be_falsey
-      dossier.refuser!(instructeur: dossier.followers_instructeurs.first, motivation: "yolo!")
-      expect(Champ.exists?(champ_titre_identite.id)).to be_falsey
-    end
-
-    it "clean up titres identite on classer_sans_suite" do
-      expect(champ_titre_identite.piece_justificative_file.attached?).to be_truthy
-      expect(champ_titre_identite_vide.piece_justificative_file.attached?).to be_falsey
-      dossier.classer_sans_suite!(instructeur: dossier.followers_instructeurs.first, motivation: "yolo!")
-      expect(Champ.exists?(champ_titre_identite.id)).to be_falsey
-    end
-
-    context 'en_construction' do
-      let(:declarative_with_state) { 'accepte' }
-      let(:dossier) { create(:dossier, :en_construction, :followed, :with_populated_champs, procedure:) }
-
-      it "clean up titres identite on accepter_automatiquement" do
-        expect(champ_titre_identite.piece_justificative_file.attached?).to be_truthy
-        expect(champ_titre_identite_vide.piece_justificative_file.attached?).to be_falsey
-        dossier.accepter_automatiquement!
-        expect(Champ.exists?(champ_titre_identite.id)).to be_falsey
-      end
-    end
-  end
-
   describe '#log_api_entreprise_job_exception' do
     let(:dossier) { create(:dossier) }
 
@@ -2866,7 +2849,7 @@ describe Dossier, type: :model do
     let(:dossier) { create(:dossier, procedure:, brouillon_close_to_expiration_notice_sent_at: 10.days.ago) }
     let(:changed_champs) { dossier.champs.filter(&:text?) }
 
-    subject { -> { dossier.update_champs_timestamps(changed_champs) } }
+    subject { -> { dossier.update_champs_timestamps(changed_champs, Champ::USER_BUFFER_STREAM) } }
 
     it do
       is_expected.to change(dossier, :last_champ_updated_at)
@@ -2878,7 +2861,6 @@ describe Dossier, type: :model do
 
       it do
         is_expected.to change(dossier, :last_champ_updated_at)
-        is_expected.to change(dossier, :last_champ_piece_jointe_updated_at)
         is_expected.to change(dossier, :updated_at)
       end
     end
@@ -2888,19 +2870,17 @@ describe Dossier, type: :model do
 
       it do
         is_expected.to change(dossier, :last_champ_updated_at)
-        is_expected.to change(dossier, :last_champ_piece_jointe_updated_at)
         is_expected.to change(dossier, :updated_at)
       end
     end
   end
 
   describe '#never_touched_brouillon_expired' do
-    let!(:dossier) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil) } }
-    let!(:dossier_2) { travel_to(1.week.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil) } }
-    let!(:dossier_with_champ_updated) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: 1.day.ago, last_champ_piece_jointe_updated_at: nil) } }
-    let!(:dossier_with_piece_jointe_updated) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: 1.day.ago) } }
+    let!(:dossier) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil) } }
+    let!(:dossier_2) { travel_to(1.week.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil) } }
+    let!(:dossier_with_champ_updated) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: 1.day.ago) } }
 
-    let!(:dossier_en_construction) { create(:dossier, :en_construction, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil) }
+    let!(:dossier_en_construction) { create(:dossier, :en_construction, last_champ_updated_at: nil) }
 
     subject { Dossier.never_touched_brouillon_expired }
 
@@ -2914,13 +2894,13 @@ describe Dossier, type: :model do
     end
 
     context 'when the dossier has an etablissement' do
-      let!(:dossier_with_etablissement) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil, etablissement: create(:etablissement)) } }
+      let!(:dossier_with_etablissement) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, etablissement: create(:etablissement)) } }
 
       it { is_expected.not_to include(dossier_with_etablissement) }
     end
 
     context 'when the dossier has an individual' do
-      let!(:dossier_with_individual) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, last_champ_piece_jointe_updated_at: nil, individual: create(:individual)) } }
+      let!(:dossier_with_individual) { travel_to(3.weeks.ago) { create(:dossier, :brouillon, last_champ_updated_at: nil, individual: create(:individual)) } }
 
       it { is_expected.not_to include(dossier_with_individual) }
     end

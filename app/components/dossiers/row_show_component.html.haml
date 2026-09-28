@@ -13,7 +13,7 @@
       = value
 
   -# pf: badge "modifié le" sorti du libellé, descendu sous la valeur pour éviter les collisions en colonne étroite (grid instructeur).
+  -# Le badge lui-même est le composant upstream (ChampUpdatedComponent, 2025-12-08-01).
   - if updated_at.present?
     .champ-updated-line
-      %span.champ-updated{ class: badge_updated_class }
-        = t(:updated_at, scope: [:views, :shared, :dossiers, :form], datetime: helpers.try_format_datetime(updated_at, format: :veryshort))
+      = render Dossiers::ChampUpdatedComponent.new(updated_at:, seen_at:)

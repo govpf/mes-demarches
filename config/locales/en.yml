@@ -378,7 +378,8 @@ en:
       dossiers:
         form:
           submitted_at: "Submitted on %{datetime}"
-          updated_at: "Updated on %{datetime}"
+          user_updated_at: "Updated by user on %{datetime}"
+          instructeur_updated_at: "Updated by instructor on %{datetime}"
           switched_to_instruction_at: "Switched to instruction on %{datetime}"
           revert_to_submitted_at: "Correction requested on on %{datetime}"
           download_attestation: "Download attestation"
@@ -886,6 +887,7 @@ en:
       human: "%A %-d %B at %Hh%M"
       short_datetime: "%b %d %Y %I:%M %p"
       short_date: "%d/%m/%Y"
+      dashed: "%Y-%m-%d"
   date:
     formats:
       short_date: "%d/%m/%Y"
