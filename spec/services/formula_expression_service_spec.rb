@@ -123,7 +123,7 @@ describe FormulaExpressionService do
       expect(result).to eq('{Date de naissance}')
     end
 
-    it 'preserves system columns unchanged' do
+    it 'preserves system columns unchanged when the revision has no procedure' do
       stable_expr = '{dossier_number} + {individual_first_name}'
       result = FormulaExpressionService.convert_to_libelles(stable_expr, revision)
 
@@ -142,6 +142,33 @@ describe FormulaExpressionService do
       result = FormulaExpressionService.convert_to_libelles(stable_expr, revision)
 
       expect(result).to eq('{Commune} + {DN} + {dossier_number}')
+    end
+  end
+
+  # pf: colonnes système — l'éditeur réaffiche l'expression via
+  # convert_to_libelles : un identifiant brut ({self_created_at}) ne doit
+  # jamais y apparaître pour une colonne de la liste blanche.
+  describe 'colonnes système' do
+    let(:procedure) { create(:procedure, :published, for_individual: true) }
+    let(:revision) { procedure.active_revision }
+
+    it 'réaffiche {self_created_at} en {Date de création}' do
+      expect(described_class.convert_to_libelles('ANNEE({self_created_at})', revision)).to eq('ANNEE({Date de création})')
+    end
+
+    it 'réaffiche les identifiants historiques par leur libellé' do
+      label = procedure.columns.find { _1.table == 'individual' && _1.column == 'prenom' }.label
+      expect(described_class.convert_to_libelles('{individual_first_name}', revision)).to eq("{#{label}}")
+    end
+
+    it 'convertit {Date de création} en {self_created_at}' do
+      expr, deps = described_class.convert_to_stable_ids('ANNEE({Date de création})', revision)
+      expect(expr).to eq('ANNEE({self_created_at})')
+      expect(deps).to be_empty
+    end
+
+    it 'laisse intacte une colonne hors liste blanche' do
+      expect(described_class.convert_to_libelles('{followers_instructeurs_email}', revision)).to eq('{followers_instructeurs_email}')
     end
   end
 

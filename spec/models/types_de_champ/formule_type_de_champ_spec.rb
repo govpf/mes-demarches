@@ -551,6 +551,34 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       end
     end
 
+    # pf: les déclencheurs de recalcul des colonnes système sont déclarés dans
+    # FormulaSystemColumns — has_state / has_identite en découlent.
+    context 'with system columns' do
+      {
+        '{dossier_state}' => 'has_state',
+        '{dossier_en_construction_at}' => 'has_state',
+        '{individual_first_name}' => 'has_identite',
+        '{self_mandataire_first_name}' => 'has_identite',
+        '{self_for_tiers}' => 'has_identite',
+        '{entreprise_siret}' => 'has_identite',
+        '{etablissement_code_naf}' => 'has_identite',
+      }.each do |expr, flag|
+        context expr do
+          let(:expression) { expr }
+
+          it("sets #{flag}") { expect(deps[flag]).to be(true) }
+        end
+      end
+
+      context 'with a frozen system column' do
+        let(:expression) { 'ANNEE({self_created_at}) + {dossier_number}' }
+
+        it 'sets no trigger flag' do
+          expect(deps).to eq('champs' => [])
+        end
+      end
+    end
+
     context 'with a path suffix in the tdc reference' do
       let(:expression) { '{tdc42/nom}' }
 

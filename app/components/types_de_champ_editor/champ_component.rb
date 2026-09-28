@@ -111,33 +111,8 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
 
       type_de_champ.encode_column_id(column, tdc)
     elsif column.is_a?(Columns::DossierColumn)
-      # Map dossier column to semantic tag
-      case [column.table, column.column.to_s]
-      when ['self', 'id']
-        'dossier_number'
-      when ['self', 'state']
-        'dossier_state'
-      when ['self', 'depose_at']
-        'dossier_depose_at'
-      when ['self', 'en_instruction_at']
-        'dossier_en_instruction_at'
-      when ['self', 'processed_at']
-        'dossier_processed_at'
-      when ['individual', 'gender']
-        'individual_gender'
-      when ['individual', 'prenom']
-        'individual_first_name'
-      when ['individual', 'nom']
-        'individual_last_name'
-      when ['etablissement', 'entreprise_siren']
-        'entreprise_siren'
-      when ['etablissement', 'siret']
-        'entreprise_siret'
-      when ['etablissement', 'entreprise_raison_sociale']
-        'entreprise_raison_sociale'
-      else
-        "#{column.table}_#{column.column}"
-      end
+      # pf: encodage partagé avec FormulaColumnResolver et FormulaExpressionService
+      FormulaSystemColumns.formula_id(column)
     else
       nil
     end

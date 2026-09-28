@@ -1006,6 +1006,18 @@ describe FormulaCalculationService do
   # de distinguer "formule plantée" (nil) de "formule retournant chaîne
   # vide légitime" (""). Cas concret : AGE sur un champ date vide retourne
   # nil (cf. lambda AGE qui fait `next nil if birth.nil?`).
+  describe '#compute_value avec une colonne système' do
+    let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :formule, libelle: 'Année' }]) }
+    let(:dossier) { create(:dossier, procedure:, created_at: Time.zone.parse('2024-03-15 10:00')) }
+    let(:formule_champ) { dossier.project_champs_public.first }
+
+    before { formule_champ.type_de_champ.update(formule_expression: 'ANNEE({self_created_at})') }
+
+    it 'calcule à partir de la date de création du dossier' do
+      expect(described_class.new(dossier, locale: :fr).compute_value(formule_champ)).to eq('2024')
+    end
+  end
+
   describe '#compute_value with formula returning nil' do
     let(:formule_champ) { Champs::FormuleChamp.new(dossier: dossier) }
     let(:service) { described_class.new(dossier, locale: :fr) }

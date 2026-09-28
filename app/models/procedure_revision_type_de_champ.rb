@@ -119,8 +119,10 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
     return [] unless type_de_champ.formule?
 
     # System columns: always available
-    system_columns = procedure.dossier_columns_for_export +
-                     procedure.usager_columns_for_export
+    # pf: restreintes à la liste blanche de FormulaSystemColumns (seules
+    # colonnes que le resolver sait résoudre et que le calcul garde à jour).
+    system_columns = (procedure.dossier_columns_for_export + procedure.usager_columns_for_export)
+      .filter { FormulaSystemColumns.formula_id(_1) }
 
     # pf: ordre de retour — TDC champs d'ABORD, colonnes système ensuite.
     # L'autocomplete frontend ne montre par défaut que les ~10 premières

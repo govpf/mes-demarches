@@ -13,6 +13,8 @@ class FormulaExpressionService
         if tdc
           dependencies << tdc.stable_id
           "{tdc#{tdc.stable_id}}"
+        elsif (system_id = find_system_column_id_by_label(libelle, revision))
+          "{#{system_id}}"
         else
           match # Garde l'original si pas trouvé
         end
@@ -56,13 +58,23 @@ class FormulaExpressionService
           tdc = find_type_de_champ_by_stable_id(stable_id, revision)
           tdc ? "{#{tdc.libelle}}" : match
         else
-          # System columns like {dossier_number} - keep as is
-          match
+          # pf: colonnes système ({dossier_number}, {self_created_at}…) → libellé
+          column = system_columns_index(revision)[ref]
+          column ? "{#{column.label}}" : match
         end
       end
     end
 
     private
+
+    # pf: liste blanche partagée avec l'éditeur et le resolver
+    def system_columns_index(revision)
+      revision.procedure ? FormulaSystemColumns.index(revision.procedure) : {}
+    end
+
+    def find_system_column_id_by_label(libelle, revision)
+      system_columns_index(revision).find { |_id, column| column.label&.strip&.casecmp?(libelle) }&.first
+    end
 
     def find_type_de_champ_by_libelle(libelle, revision)
       revision.types_de_champ.find { |tdc| tdc.libelle&.strip&.casecmp?(libelle.strip) }

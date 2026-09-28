@@ -4,6 +4,7 @@
 # pour résoudre le problème N+1 (136+ requêtes → <10 requêtes)
 # Pattern identique à ConditionValidator : validation au niveau Procedure avec tous les tdcs préchargés
 class TypesDeChamp::FormulaValidator < ActiveModel::EachValidator
+  NEW_FORMAT_REFERENCE = /\{(tdc\d+|#{Regexp.union(FormulaSystemColumns::ID_PREFIXES).source})/
   # Validate formula references across all formula fields
   # tdcs: all types_de_champ (public or private) already loaded
   # collection: :draft_types_de_champ_public or :draft_types_de_champ_private
@@ -19,7 +20,7 @@ class TypesDeChamp::FormulaValidator < ActiveModel::EachValidator
       next if tdc.formule_expression.blank?
 
       # Detect format: new (tdc456, dossier_number) or old (456, labels)
-      has_new_format = tdc.formule_expression.match?(/\{(tdc\d+|dossier_|individual_|entreprise_)/)
+      has_new_format = tdc.formule_expression.match?(NEW_FORMAT_REFERENCE)
 
       if has_new_format
         validate_column_references(procedure, collection, tdc, revision, tdcs, tdc_index)

@@ -232,7 +232,12 @@ export class FormulaEditorController extends ApplicationController {
         return `{${columnId}}`;
       } else {
         // Check if it's already a column_id
-        if (/^(tdc\d+|dossier_|individual_|entreprise_)/.test(label.trim())) {
+        // pf: préfixes en miroir de FormulaSystemColumns::ID_PREFIXES
+        if (
+          /^(tdc\d+|dossier_|individual_|entreprise_|self_|etablissement_)/.test(
+            label.trim()
+          )
+        ) {
           return match; // Already a column_id
         }
         throw new Error(
