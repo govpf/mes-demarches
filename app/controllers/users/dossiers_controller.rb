@@ -371,7 +371,7 @@ module Users
 
       if dossier.errors.blank? && dossier.can_passer_en_construction?
         dossier.merge_user_buffer_stream!
-        dossier.submit_en_construction!
+        dossier.usager_submit_en_construction!
 
         redirect_to dossier_path(dossier)
       else
@@ -584,7 +584,7 @@ module Users
 
     def ensure_pro_connect_for_procedure(procedure = dossier.procedure)
       return if procedure.blank?
-      return if procedure.pro_connect_restriction_none?
+      return if !procedure.pro_connect_restriction_all?
       return if logged_in_with_pro_connect?
 
       flash.alert = t('users.dossiers.pro_connect_restriction_required')

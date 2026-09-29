@@ -221,83 +221,19 @@ module DossierChampsConcern
   end
 
   def merge_user_buffer_stream!
-    buffer_champ_ids_h = champs.where(stream: Champ::USER_BUFFER_STREAM, stable_id: revision_stable_ids)
-      .pluck(:id, :stable_id, :row_id)
-      .index_by { |(_, stable_id, row_id)| TypeDeChamp.public_id(stable_id, row_id) }
-      .transform_values(&:first)
+    buffer_ids, changed_ids = changed_champ_ids_for_merge(Champ::USER_BUFFER_STREAM)
 
-    return if buffer_champ_ids_h.empty?
+    return if buffer_ids.blank?
 
-    discarded_row_ids = champs.where(stream: Champ::USER_BUFFER_STREAM, stable_id: revision_stable_ids)
-      .where.not(row_id: nil)
-      .where.not(discarded_at: nil)
-      .pluck(:row_id)
+    merge_buffer_champs(buffer_ids, changed_ids, Champ::USER_BUFFER_STREAM)
+  end
 
-    changed_main_champ_ids_h = champs.where(stream: Champ::MAIN_STREAM, stable_id: revision_stable_ids)
-      .pluck(:id, :stable_id, :row_id)
-      .index_by { |(_, stable_id, row_id)| TypeDeChamp.public_id(stable_id, row_id) }
-      .transform_values(&:first)
+  def merge_instructeur_buffer_stream!
+    buffer_ids, changed_ids = changed_champ_ids_for_merge(Champ::INSTRUCTEUR_BUFFER_STREAM)
 
-    buffer_champ_ids = buffer_champ_ids_h.values
-    changed_main_champ_ids = changed_main_champ_ids_h.filter_map { |public_id, id| id if buffer_champ_ids_h.key?(public_id) }.to_set
+    return if buffer_ids.blank?
 
-    now = Time.zone.now
-    history_stream = "#{Champ::HISTORY_STREAM}#{now}"
-    changed_champs = champs.filter { _1.id.in?(buffer_champ_ids) }
-
-    if discarded_row_ids.present?
-      changed_main_champ_ids += champs.where(stream: Champ::MAIN_STREAM, row_id: discarded_row_ids).pluck(:id)
-    end
-
-    transaction do
-      champs.where(id: changed_main_champ_ids, stream: Champ::MAIN_STREAM).update_all(stream: history_stream)
-      champs.where(id: buffer_champ_ids, stream: Champ::USER_BUFFER_STREAM).update_all(stream: Champ::MAIN_STREAM, updated_at: now)
-      update_champs_timestamps(changed_champs)
-    end
-
-    champs.where(id: changed_main_champ_ids, stream: history_stream)
-      .where(type: ['Champs::PieceJustificativeChamp', 'Champs::TitreIdentiteChamp'])
-      .with_attached_piece_justificative_file.find_each do |champ|
-      files = champ.piece_justificative_file.map { _1.slice(:filename, :checksum) }
-      if files.present?
-        champ.update_column(:data, files)
-        champ.piece_justificative_file.purge_later
-      end
-    end
-
-    # update loaded champ instances
-    champs.each do |champ|
-      if champ.id.in?(changed_main_champ_ids)
-        champ.stream = history_stream
-      elsif champ.id.in?(buffer_champ_ids)
-        champ.stream = Champ::MAIN_STREAM
-      end
-    end
-
-    # pf: Le merge est terminé. Les buffer ont été promus à main, les
-    # anciens main sont passés en history. Le dossier vit conceptuellement
-    # sur main désormais — le @stream encore à user:buffer (hérité du
-    # before_action :set_dossier_stream du controller) ne reflète plus rien.
-    #
-    # On reset les caches dérivés (champs_by_public_id, project_champs_*,
-    # etc. qui pouvaient encore filtrer sur buffer) puis on aligne @stream
-    # explicitement. Toute opération suivante voit un état cohérent.
-    reset_champs_cache
-    @stream = Champ::MAIN_STREAM
-
-    # pf: Recalcul des formules privées après merge. Pendant que le dossier
-    # était sur user:buffer, refresh_formulas_after a explicitement skippé
-    # les formules privées (cf. check_valid_stream_on_write? qui interdit
-    # l'écriture privée hors main). Maintenant que les sources promues sont
-    # sur main et que @stream est aligné, on peut les recalculer.
-    #
-    # On cible uniquement les formules privées : les formules publiques ont
-    # été calculées en cascade pendant que le dossier était en buffer (sur
-    # user:buffer), puis promues à main par l'update_all ci-dessus.
-    private_formula_stable_ids = revision.types_de_champ_private
-      .filter(&:formule?)
-      .map(&:stable_id)
-    compute_formulas_in_order(only: private_formula_stable_ids) if private_formula_stable_ids.any?
+    merge_buffer_champs(buffer_ids, changed_ids, Champ::INSTRUCTEUR_BUFFER_STREAM)
   end
 
   def reset_user_buffer_stream!
@@ -309,8 +245,21 @@ module DossierChampsConcern
     reset_champs_cache
   end
 
+  def reset_instructeur_buffer_stream!
+    champs.where(stream: Champ::INSTRUCTEUR_BUFFER_STREAM).destroy_all
+
+    # update loaded champ instances
+    association(:champs).target = champs.filter { _1.stream != Champ::INSTRUCTEUR_BUFFER_STREAM }
+
+    reset_champs_cache
+  end
+
   def user_buffer_changes?
     champs_on_user_buffer_stream.present?
+  end
+
+  def instructeur_buffer_changes?
+    champs_on_instructeur_buffer_stream.present?
   end
 
   def user_buffer_changes_on_champ?(champ)
@@ -329,6 +278,10 @@ module DossierChampsConcern
     with_stream(Champ::MAIN_STREAM, &block)
   end
 
+  def with_instructeur_buffer_stream(&block)
+    with_stream(Champ::INSTRUCTEUR_BUFFER_STREAM, &block)
+  end
+
   def with_user_history_stream(&block)
     with_stream(Champ::USER_HISTORY_STREAM, &block)
   end
@@ -342,7 +295,7 @@ module DossierChampsConcern
   end
 
   def history
-    champs_in_revision.filter(&:history_stream?)
+    champs.filter(&:history_stream?)
   end
 
   # pf: méthode publique nécessaire pour éviter boucle infinie dans les conditions
@@ -352,6 +305,91 @@ module DossierChampsConcern
   end
 
   private
+
+  def changed_champ_ids_for_merge(stream)
+    stream_h = champs.where(stream:, stable_id: revision_stable_ids)
+      .pluck(:stable_id, :row_id, :id)
+      .to_h { |(stable_id, row_id, id)| [TypeDeChamp.public_id(stable_id, row_id), id] }
+
+    return [[], []] if stream_h.empty?
+
+    main_h = champs.where(stream: Champ::MAIN_STREAM, stable_id: revision_stable_ids)
+      .pluck(:stable_id, :row_id, :id)
+      .to_h { |(stable_id, row_id, id)| [TypeDeChamp.public_id(stable_id, row_id), id] }
+
+    main_public_ids = main_h.keys
+    stream_public_ids = stream_h.keys
+
+    changed_ids = main_public_ids.intersection(stream_public_ids).map { main_h[it] }
+    stream_ids = stream_h.values
+
+    # mark champs in discarded rows as changed
+    discarded_row_ids = champs.where(stream:, stable_id: revision_stable_ids)
+      .where.not(row_id: nil)
+      .where.not(discarded_at: nil)
+      .pluck(:row_id)
+
+    if discarded_row_ids.present?
+      changed_ids += champs.where(stream: Champ::MAIN_STREAM, row_id: discarded_row_ids).pluck(:id)
+    end
+
+    [stream_ids, changed_ids]
+  end
+
+  def merge_buffer_champs(buffer_ids, changed_ids, stream)
+    now = Time.zone.now
+    history_stream = "#{Champ::HISTORY_STREAM}#{now}"
+    buffer_champs = champs.filter { buffer_ids.member?(it.id) }
+
+    transaction do
+      # if merging user buffer, discard any instructeur made changes
+      if stream == Champ::USER_BUFFER_STREAM
+        champs.where(id: buffer_ids, stream:).pluck(:stable_id, :row_id).each do |(stable_id, row_id)|
+          champs.where(stream: Champ::INSTRUCTEUR_BUFFER_STREAM, stable_id:, row_id:).destroy_all
+        end
+      end
+
+      # move champs with changes from "main" to "history" stream
+      champs.where(id: changed_ids, stream: Champ::MAIN_STREAM).update_all(stream: history_stream)
+      # move champs from "buffer" to "main"
+      champs.where(id: buffer_ids, stream:).update_all(stream: Champ::MAIN_STREAM, updated_at: now)
+      update_champs_timestamps(buffer_champs, stream)
+    end
+
+    # update loaded champ instances
+    champs.each do |champ|
+      if champ.id.in?(changed_ids)
+        champ.stream = history_stream
+      elsif champ.id.in?(buffer_ids)
+        champ.stream = Champ::MAIN_STREAM
+      end
+    end
+
+    # pf: Le merge est terminé. Les buffer ont été promus à main, les
+    # anciens main sont passés en history. Le dossier vit conceptuellement
+    # sur main désormais — le @stream encore au buffer (hérité du
+    # before_action :set_dossier_stream du controller) ne reflète plus rien.
+    #
+    # On reset les caches dérivés (champs_by_public_id, project_champs_*,
+    # etc. qui pouvaient encore filtrer sur buffer) puis on aligne @stream
+    # explicitement. Toute opération suivante voit un état cohérent.
+    reset_champs_cache
+    @stream = Champ::MAIN_STREAM
+
+    # pf: Recalcul des formules privées après merge. Pendant que le dossier
+    # était sur un buffer, refresh_formulas_after a explicitement skippé
+    # les formules privées (cf. check_valid_stream_on_write? qui interdit
+    # l'écriture privée hors main). Maintenant que les sources promues sont
+    # sur main et que @stream est aligné, on peut les recalculer.
+    #
+    # On cible uniquement les formules privées : les formules publiques ont
+    # été calculées en cascade pendant que le dossier était en buffer, puis
+    # promues à main par l'update_all ci-dessus.
+    private_formula_stable_ids = revision.types_de_champ_private
+      .filter(&:formule?)
+      .map(&:stable_id)
+    compute_formulas_in_order(only: private_formula_stable_ids) if private_formula_stable_ids.any?
+  end
 
   def with_stream(stream)
     if block_given?
@@ -381,6 +419,8 @@ module DossierChampsConcern
     @champs_on_stream ||= case stream
     when Champ::USER_BUFFER_STREAM
       (champs_on_user_buffer_stream + champs_on_main_stream).uniq(&:public_id)
+    when Champ::INSTRUCTEUR_BUFFER_STREAM
+      (champs_on_instructeur_buffer_stream + champs_on_main_stream).uniq(&:public_id)
     when Champ::USER_HISTORY_STREAM
       # pf: backport upstream 2026-01-20-01 (dossier_champs_concern.rb:342-350).
       # On part de `champs` et NON de `champs_in_revision` : tout l'intérêt de
@@ -392,10 +432,13 @@ module DossierChampsConcern
         champs_on_main_stream
       else
         champs
-          .reject(&:user_buffer_stream?)
+          # only "main" and "history"
+          .reject(&:buffer_stream?)
+          # only updates made before last submission
           .filter { _1.updated_at <= en_construction_at }
-          .sort_by(&:updated_at)
-          .reverse
+          # take last change
+          .sort_by(&:updated_at).reverse
+          # compact
           .uniq(&:public_id)
       end
     else
@@ -421,6 +464,10 @@ module DossierChampsConcern
 
   def champs_on_user_buffer_stream
     champs_in_revision.filter(&:user_buffer_stream?)
+  end
+
+  def champs_on_instructeur_buffer_stream
+    champs_in_revision.filter(&:instructeur_buffer_stream?)
   end
 
   def filled_champ(type_de_champ, row_id: nil, with_discarded: false)
