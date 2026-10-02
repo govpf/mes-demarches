@@ -49,7 +49,13 @@ class Champs::PieceJustificativeController < Champs::ChampController
   end
 
   def template
-    redirect_to rails_blob_url(@champ.type_de_champ.piece_justificative_template.blob, disposition: 'attachment')
+    piece_justificative_template = @champ.type_de_champ.piece_justificative_template
+    if piece_justificative_template.attached?
+      redirect_to rails_blob_url(piece_justificative_template.blob, disposition: 'attachment')
+    else
+      flash.alert = "Le modèle demandé n’existe pas."
+      redirect_to :root, status: :bad_request
+    end
   end
 
   private
