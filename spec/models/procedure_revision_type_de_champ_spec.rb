@@ -387,4 +387,33 @@ describe ProcedureRevisionTypeDeChamp do
       expect(labels).not_to include('Après ligne', 'Type autre', 'Date')
     end
   end
+
+  # pf: positions publiques et privées numérotées séparément — ne jamais les comparer.
+  describe '#aggregable_repetition_types_de_champ' do
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :text, libelle: 'Nom' },
+        { type: :repetition, libelle: 'Bloc public', children: [{ type: :integer_number, libelle: 'Colis' }] },
+        { type: :formule, libelle: 'Formule publique' },
+        { type: :repetition, libelle: 'Bloc public après', children: [{ type: :integer_number, libelle: 'Poids' }] },
+      ], types_de_champ_private: [
+        { type: :formule, libelle: 'Annotation formule' },
+        { type: :repetition, libelle: 'Bloc privé', children: [{ type: :integer_number, libelle: 'Montant' }] },
+      ])
+    end
+    let(:revision) { procedure.draft_revision }
+
+    def aggregable_for(libelle)
+      tdc = revision.types_de_champ.find { _1.libelle == libelle }
+      revision.coordinate_for(tdc).aggregable_repetition_types_de_champ.map(&:libelle)
+    end
+
+    it 'formule publique : blocs publics qui la précèdent uniquement' do
+      expect(aggregable_for('Formule publique')).to eq(['Bloc public'])
+    end
+
+    it 'annotation privée en tête : tous les blocs publics, pas les blocs privés suivants' do
+      expect(aggregable_for('Annotation formule')).to contain_exactly('Bloc public', 'Bloc public après')
+    end
+  end
 end

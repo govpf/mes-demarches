@@ -178,6 +178,18 @@ class ProcedureRevisionTypeDeChamp < ApplicationRecord
     end
   end
 
+  # pf: blocs répétables qu'une formule peut agréger (NB({Bloc}), SOMME({Bloc/Sous-champ})) :
+  # ceux qui la précèdent (ou précèdent son bloc parent), plus tous les blocs publics
+  # pour une annotation privée. Les positions publiques et privées étant numérotées
+  # séparément, on passe par upper_coordinates au lieu de comparer des positions.
+  # Source de vérité partagée par l'éditeur, FormulaValidator et forward_reference?.
+  def aggregable_repetition_types_de_champ
+    upper_coordinates
+      .map(&:type_de_champ)
+      .filter(&:repetition?)
+      .uniq(&:stable_id)
+  end
+
   # pf: Liste canonique des colonnes qu'une formule peut référencer (validation
   # backend ET autocomplete UI partagent cette liste — c'est la source de vérité).
   # Pour une formule dans un bloc répétable, inclut les siblings (champs antérieurs

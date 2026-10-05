@@ -198,4 +198,41 @@ describe FormulaExpressionService do
       expect(result).to eq('SOMME({tdc100/sub_99999})')
     end
   end
+
+  # pf: chemin API/MCP — la forme agrégat {Bloc/Sous-champ} doit être traduite
+  # en {tdc<bloc>/sub_<id>} avec le bloc en dépendance (sinon stockée en libellé
+  # brut → « Champs inconnus » et formule inerte).
+  describe '.convert_to_stable_ids avec agrégat de bloc répétable' do
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :repetition, libelle: 'Achats / ventes', children: [{ type: :integer_number, libelle: 'Prix HT' }] },
+        { type: :formule, libelle: 'Total' },
+      ])
+    end
+    let(:revision) { procedure.draft_revision }
+    let(:bloc_tdc) { revision.types_de_champ.find { _1.libelle == 'Achats / ventes' } }
+    let(:prix_tdc) { revision.types_de_champ.find { _1.libelle == 'Prix HT' } }
+
+    before { allow(revision).to receive(:types_de_champ).and_call_original }
+
+    it 'convertit {Bloc/Sous-champ} et enregistre la dépendance au bloc, même si le libellé du bloc contient « / »' do
+      expr, deps = FormulaExpressionService.convert_to_stable_ids('SOMME({Achats / ventes/prix ht})', revision)
+
+      expect(expr).to eq("SOMME({tdc#{bloc_tdc.stable_id}/sub_#{prix_tdc.stable_id}})")
+      expect(deps).to eq([bloc_tdc.stable_id])
+    end
+
+    it 'fait l’aller-retour avec convert_to_libelles' do
+      expr, = FormulaExpressionService.convert_to_stable_ids('SOMME({Achats / ventes/Prix HT})', revision)
+
+      expect(FormulaExpressionService.convert_to_libelles(expr, revision)).to eq('SOMME({Achats / ventes/Prix HT})')
+    end
+
+    it 'laisse tel quel un sous-champ inconnu' do
+      expr, deps = FormulaExpressionService.convert_to_stable_ids('SOMME({Achats / ventes/Inconnu})', revision)
+
+      expect(expr).to eq('SOMME({Achats / ventes/Inconnu})')
+      expect(deps).to be_empty
+    end
+  end
 end
