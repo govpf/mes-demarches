@@ -153,6 +153,52 @@ RSpec.describe TypesDeChamp::FormulaValidator do
     end
   end
 
+  # pf: positions publiques et privées numérotées séparément — une annotation
+  # privée en tête de liste doit pouvoir agréger un bloc public placé loin.
+  context 'with a private aggregate formula referencing a public repetition block' do
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :text, libelle: 'Nom' },
+        { type: :text, libelle: 'Prénom' },
+        { type: :repetition, libelle: 'Certificats', children: [{ type: :integer_number, libelle: 'Nombre de colis' }] },
+      ], types_de_champ_private: [
+        { type: :formule, libelle: 'Total des colis' },
+      ])
+    end
+    let(:revision) { procedure.draft_revision }
+    let(:bloc_tdc) { revision.types_de_champ.find { _1.libelle == 'Certificats' } }
+    let(:colis_tdc) { revision.types_de_champ.find { _1.libelle == 'Nombre de colis' } }
+    let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Total des colis' } }
+
+    subject { procedure.validate(:types_de_champ_private_editor) }
+
+    it 'accepts SOMME({bloc public/sous-champ}) sans erreur' do
+      formule_tdc.update_column(:options, { 'formule_expression' => "SOMME({tdc#{bloc_tdc.stable_id}/sub_#{colis_tdc.stable_id}})" })
+      expect { subject }.not_to change { procedure.errors.count }
+    end
+  end
+
+  context 'with a public aggregate formula referencing a private repetition block' do
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :text, libelle: 'Nom' },
+        { type: :text, libelle: 'Prénom' },
+        { type: :formule, libelle: 'Total' },
+      ], types_de_champ_private: [
+        { type: :repetition, libelle: 'Contrôles', children: [{ type: :integer_number, libelle: 'Montant' }] },
+      ])
+    end
+    let(:revision) { procedure.draft_revision }
+    let(:bloc_tdc) { revision.types_de_champ.find { _1.libelle == 'Contrôles' } }
+    let(:formule_tdc) { revision.types_de_champ.find { _1.libelle == 'Total' } }
+
+    it 'adds an error (un champ public ne lit pas les annotations privées)' do
+      formule_tdc.update_column(:options, { 'formule_expression' => "NB({tdc#{bloc_tdc.stable_id}})" })
+      expect { subject }.to change { procedure.errors.count }.by_at_least(1)
+      expect(procedure.errors.full_messages.join).to include('bloc')
+    end
+  end
+
   context 'with a private formula referencing a public champ' do
     let(:procedure) do
       create(:procedure, types_de_champ_public: [

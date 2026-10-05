@@ -176,6 +176,27 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
     end
   end
 
+  # pf: une annotation privée peut agréger tout bloc public, quelle que soit sa
+  # position (positions publiques et privées numérotées séparément).
+  describe '#available_columns_for_formula pour une annotation privée et un bloc public' do
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :text, libelle: 'Nom' },
+        { type: :repetition, libelle: 'Certificats', children: [{ type: :integer_number, libelle: 'Nombre de colis' }] },
+      ], types_de_champ_private: [
+        { type: :formule, libelle: 'Total des colis' },
+      ])
+    end
+    let(:formule_tdc) { procedure.draft_revision.types_de_champ.find { _1.libelle == 'Total des colis' } }
+    let(:coordinate) { procedure.draft_revision.coordinate_for(formule_tdc) }
+    let(:component) { described_class.new(coordinate:, upper_coordinates: []) }
+
+    it 'expose le sous-champ "Certificats/Nombre de colis"' do
+      bloc = component.available_columns_for_formula.find { _1[:label] == 'Certificats' }
+      expect(bloc[:paths].map { _1[:label] }).to include('Certificats/Nombre de colis')
+    end
+  end
+
   # pf: seules les colonnes système de la liste blanche (scalaires stables)
   # sont proposées, avec l'identifiant que le resolver sait résoudre.
   describe '#available_columns_for_formula avec colonnes système' do

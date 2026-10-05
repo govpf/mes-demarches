@@ -78,18 +78,10 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     base + repetition_aggregate_columns
   end
 
-  # pf: blocs répétables agrégables (placés avant la formule) + leurs sous-champs.
+  # pf: blocs répétables agrégables (placés avant la formule, ou publics pour une
+  # annotation privée) + leurs sous-champs.
   def repetition_aggregate_columns
-    reference_position = coordinate.parent&.position || coordinate.position
-    own_parent_sid = coordinate.parent_type_de_champ&.stable_id
-
-    revision.types_de_champ.filter_map do |tdc|
-      next unless tdc.repetition?
-      next if tdc.stable_id == own_parent_sid
-
-      bloc_coordinate = revision.coordinate_for(tdc)
-      next if bloc_coordinate.nil? || bloc_coordinate.position >= reference_position
-
+    coordinate.aggregable_repetition_types_de_champ.map do |tdc|
       sub_paths = revision.children_of(tdc).filter(&:fillable?).map do |sub|
         { path: "sub_#{sub.stable_id}", label: "#{tdc.libelle}/#{sub.libelle}" }
       end

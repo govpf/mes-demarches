@@ -13,6 +13,11 @@ class FormulaExpressionService
         if tdc
           dependencies << tdc.stable_id
           "{tdc#{tdc.stable_id}}"
+        elsif (bloc, sub_tdc = find_repetition_sub_champ_by_libelle(libelle, revision))
+          # pf: agrégat bloc répétable {Bloc/Sous-champ} → {tdc<bloc>/sub_<sub_id>}
+          # (miroir de convert_to_libelles) ; la dépendance est le bloc.
+          dependencies << bloc.stable_id
+          "{tdc#{bloc.stable_id}/sub_#{sub_tdc.stable_id}}"
         elsif (system_id = find_system_column_id_by_label(libelle, revision))
           "{#{system_id}}"
         else
@@ -78,6 +83,22 @@ class FormulaExpressionService
 
     def find_type_de_champ_by_libelle(libelle, revision)
       revision.types_de_champ.find { |tdc| tdc.libelle&.strip&.casecmp?(libelle.strip) }
+    end
+
+    # pf: résout « Bloc/Sous-champ » en [bloc, sous-champ]. Essaie chaque « / »
+    # comme séparateur, un libellé de bloc ou de sous-champ pouvant en contenir.
+    def find_repetition_sub_champ_by_libelle(libelle, revision)
+      libelle.to_enum(:scan, '/').each do
+        separator = Regexp.last_match.begin(0)
+        bloc = find_type_de_champ_by_libelle(libelle[0...separator], revision)
+        next unless bloc&.repetition?
+
+        sub_libelle = libelle[(separator + 1)..].strip
+        sub_tdc = revision.children_of(bloc).find { |child| child.libelle&.strip&.casecmp?(sub_libelle) }
+        return [bloc, sub_tdc] if sub_tdc
+      end
+
+      nil
     end
 
     def find_type_de_champ_by_stable_id(stable_id, revision)
