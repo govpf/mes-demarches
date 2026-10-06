@@ -34,7 +34,7 @@ require 'set'
 require 'tmpdir'
 
 TAG_RE = /\A20\d{2}-\d{2}-\d{2}-\d{2}\z/
-UPSTREAM_REPO = 'demarches-simplifiees/demarches-simplifiees.fr'
+UPSTREAM_REPO = 'demarche-numerique/demarche.numerique.gouv.fr'
 CACHE_DIR = File.expand_path('~/.cache/mes-demarches/upstream-releases')
 
 # Fichiers régénérés ou résolus mécaniquement : exclus de la surface de conflit
