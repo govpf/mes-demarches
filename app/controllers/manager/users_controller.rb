@@ -17,6 +17,9 @@ module Manager
         end
 
         redirect_to edit_manager_user_path(user)
+      elsif targeted_user == user
+        flash[:error] = "L’email saisi est déjà celui de ce compte."
+        redirect_to edit_manager_user_path(user)
       else
         targeted_user.merge(user)
 
