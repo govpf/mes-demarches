@@ -22,4 +22,4 @@
                 = "#{champ_revision.instructeur ? champ_revision.instructeur.email.split('@')[0] : t('.instructeur_deleted')} #{l(champ_revision.updated_at, format: :short)}"
                 %br
                 %span
-                  = champ_revision.rebuild_champ.to_s
+                  = champ_revision.display_value

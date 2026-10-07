@@ -5,6 +5,8 @@ class ChampRevision < ApplicationRecord
   belongs_to :instructeur, inverse_of: false, optional: false
   belongs_to :etablissement, optional: true, dependent: :destroy
 
+  FILE_CHAMP_TYPES = ['Champs::TitreIdentiteChamp', 'Champs::PieceJustificativeChamp'].freeze
+
   def self.create_or_update_revision(champ, instructeur_id)
     champ_revision = where(champ:).order(:id).last
     min_delay = champ.type == 'Champs::TextareaChamp' ? 2.minutes : 5.seconds
@@ -16,11 +18,18 @@ class ChampRevision < ApplicationRecord
       champ_revision.send("#{attrbt}=", champ.attributes[attrbt])
     end
 
-    if ['Champs::TitreIdentiteChamp', 'Champs::PieceJustificativeChamp'].include?(champ.type)
+    if FILE_CHAMP_TYPES.include?(champ.type)
       champ_revision.value ||= champ.piece_justificative_file.map(&:filename).join(', ')
     end
 
     champ_revision.save
+  end
+
+  # pf: pour une pièce jointe, value contient les noms de fichiers à l'instant de la
+  # révision. Le champ reconstruit (dup) n'a pas de fichiers attachés, donc
+  # champ_blank? le jugerait vide et to_s rendrait "" : on affiche value tel quel.
+  def display_value
+    FILE_CHAMP_TYPES.include?(champ.type) ? value.to_s : rebuild_champ.to_s
   end
 
   def rebuild_champ
