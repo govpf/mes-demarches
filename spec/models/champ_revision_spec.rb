@@ -76,4 +76,24 @@ describe ChampRevision do
         end
       end
     end
+
+  # pf: l'historique d'une annotation PJ doit afficher les noms de fichiers stockés,
+  # même quand la pièce a été remplacée ou supprimée depuis.
+  describe "#display_value" do
+    let(:procedure) { create(:procedure, :published, types_de_champ_private: [{ type: :piece_justificative }]) }
+    let(:dossier) { create(:dossier, :en_instruction, procedure:) }
+    let(:champ) { dossier.project_champs_private.first }
+    let(:instructeur) { create(:instructeur) }
+
+    before do
+      champ.piece_justificative_file.attach(io: StringIO.new('pdf'), filename: 'ancien.pdf', content_type: 'application/pdf')
+      champ.save!
+      ChampRevision.create_or_update_revision(champ, instructeur.id)
+      champ.piece_justificative_file.purge
+    end
+
+    it "affiche les noms de fichiers de la révision" do
+      expect(ChampRevision.where(champ:).last.display_value).to eq('ancien.pdf')
+    end
+  end
 end

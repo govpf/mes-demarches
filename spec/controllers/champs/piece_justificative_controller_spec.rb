@@ -216,6 +216,14 @@ describe Champs::PieceJustificativeController, type: :controller do
 
           expect(ChampRevision.where(champ_id: champ.id).first.instructeur_id).to eq(instructeur.id)
         end
+
+        it 'stocke les noms de fichiers dans la révision' do
+          subject
+
+          revision = ChampRevision.where(champ_id: champ.id).last
+          expect(revision.value).to eq('piece_justificative_0.pdf')
+          expect(revision.display_value).to eq('piece_justificative_0.pdf')
+        end
       end
     end
 

@@ -48,7 +48,8 @@ class AttachmentsController < ApplicationController
     end
 
     # Handle ChampRevision for private champs (fork-specific)
-    if champ? && champ.private?
+    # pf: current_instructeur peut manquer (propriétaire d'un dossier de prévisualisation)
+    if champ? && champ.private? && current_instructeur.present?
       ChampRevision.create_or_update_revision(champ, current_instructeur.id)
     end
 
@@ -63,6 +64,7 @@ class AttachmentsController < ApplicationController
   def ensure_legitimate_access
     return if user_or_invite_changing_its_dossier?
     return if instructeur_changing_a_private_attachment?
+    return if admin_changing_a_private_attachment_of_its_preview?
     return if admin_changing_its_procedure?
     return if admin_changing_its_attestation_template?
     return if admin_changing_its_type_de_champ?
@@ -82,7 +84,13 @@ class AttachmentsController < ApplicationController
   end
 
   def instructeur_changing_a_private_attachment?
-    champ&.private? && current_user.instructeur? && current_instructeur.in?(champ.dossier.groupe_instructeur.instructeurs)
+    # pf: un dossier de prévisualisation n'a pas de groupe instructeur
+    champ&.private? && current_user.instructeur? && champ.dossier.groupe_instructeur.present? && current_instructeur.in?(champ.dossier.groupe_instructeur.instructeurs)
+  end
+
+  # pf: les annotations privées sont remplissables en prévisualisation par son propriétaire
+  def admin_changing_a_private_attachment_of_its_preview?
+    champ&.private? && champ.dossier.for_procedure_preview? && current_user.owns?(champ.dossier)
   end
 
   def admin_changing_its_procedure?
