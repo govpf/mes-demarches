@@ -113,6 +113,40 @@ describe AttachmentsController, type: :controller do
       end
     end
 
+    # pf: les annotations privées sont remplissables en prévisualisation ; ce dossier
+    # brouillon n'a pas de groupe instructeur et appartient à l'administrateur.
+    context 'on a private attachment of a procedure preview dossier' do
+      let(:procedure) { create(:procedure, types_de_champ_private: [{ type: :piece_justificative }]) }
+      let(:administrateur) { procedure.administrateurs.first }
+      let(:dossier) { procedure.draft_revision.dossier_for_preview(administrateur.user) }
+      let(:champ) { dossier.project_champs_private.first }
+      let(:attachment) { champ.piece_justificative_file.attachments.first }
+
+      before do
+        champ.piece_justificative_file.attach(io: StringIO.new('pdf'), filename: 'annotation.pdf', content_type: 'application/pdf')
+        champ.save!
+        sign_in(administrateur.user)
+      end
+
+      it 'removes the attachment' do
+        expect(dossier.groupe_instructeur).to be_nil
+        is_expected.to have_http_status(200)
+        expect(champ.reload.piece_justificative_file.attached?).to be(false)
+      end
+
+      it 'records the revision' do
+        subject
+        expect(ChampRevision.where(champ:).last&.value).to eq('')
+      end
+
+      context 'when the user does not own the preview dossier' do
+        let(:other_admin) { create(:administrateur) }
+        before { sign_in(other_admin.user) }
+
+        it { is_expected.to have_http_status(404) }
+      end
+    end
+
     context 'as an administrateur' do
       let(:procedure) { create(:procedure, :with_logo) }
       let(:administrateur) { procedure.administrateurs.first }
