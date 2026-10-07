@@ -13,7 +13,7 @@ Tu dois créer une release GitHub pour le projet mes-demarches en suivant EXACTE
 - Chercher les commits de merge de tags upstream : `git log <dernier-tag>..masterpf --grep="Merge tag" --oneline`
 - Pour chaque tag upstream identifié (format AAAA-MM-JJ-NN), récupérer le contenu EXACT de la release :
   ```bash
-  gh release view AAAA-MM-JJ-NN --repo demarches-simplifiees/demarches-simplifiees.fr --json body --jq .body
+  gh release view AAAA-MM-JJ-NN --repo demarche-numerique/demarche.numerique.gouv.fr --json body --jq .body
   ```
 - **CRITIQUE** : Ne PAS inclure d'éléments de releases postérieures à celle intégrée
 

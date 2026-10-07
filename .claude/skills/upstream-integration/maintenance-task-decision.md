@@ -174,7 +174,7 @@ for task in $NEW_TASKS; do
   echo "--- Type d'opération ---"
   grep -nE "update_all|update!|destroy|create|where.*nil" "$task" | head -5
   echo "--- Documentation upstream (release notes) ---"
-  # À croiser avec : gh release view AAAA-MM-JJ-NN --repo demarches-simplifiees/demarches-simplifiees.fr
+  # À croiser avec : gh release view AAAA-MM-JJ-NN --repo demarche-numerique/demarche.numerique.gouv.fr
   echo ""
 done
 ```
@@ -184,7 +184,7 @@ done
 **À faire systématiquement** : récupérer le contenu de la release upstream et chercher les mentions de la MT.
 
 ```bash
-gh release view <TARGET_TAG> --repo demarches-simplifiees/demarches-simplifiees.fr | grep -iE "maintenance|task|backfill|à exécuter|à lancer"
+gh release view <TARGET_TAG> --repo demarche-numerique/demarche.numerique.gouv.fr | grep -iE "maintenance|task|backfill|à exécuter|à lancer"
 ```
 
 Indices :

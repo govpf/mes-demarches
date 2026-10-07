@@ -2,7 +2,7 @@
 
 ## Vue d'ensemble du projet
 
-**mes-demarches** est un fork de [demarches-simplifiees.fr](https://github.com/demarches-simplifiees/demarches-simplifiees.fr) adapté aux besoins spécifiques de la Polynésie française.
+**mes-demarches** est un fork de [demarches-simplifiees.fr, désormais demarche.numerique.gouv.fr](https://github.com/demarche-numerique/demarche.numerique.gouv.fr) adapté aux besoins spécifiques de la Polynésie française.
 
 ### But du projet
 Ce projet permet aux administrations publiques de créer des démarches administratives dématérialisées. Les citoyens peuvent ainsi effectuer leurs démarches en ligne de manière simplifiée, tandis que les agents publics disposent d'outils pour instruire et traiter ces demandes.
@@ -282,11 +282,11 @@ PR_MERGE_COMMIT=$(git log --merges --oneline --grep="#229" | head -1 | awk '{pri
 git log ${PR_MERGE_COMMIT}^..${PR_MERGE_COMMIT}^2 --oneline | grep "Merge pull request" | head -20
 
 # Comparer avec les releases upstream de la période pour identifier les manquantes
-gh release list --repo demarches-simplifiees/demarches-simplifiees.fr --limit 50 | grep "2025-04"
+gh release list --repo demarche-numerique/demarche.numerique.gouv.fr --limit 50 | grep "2025-04"
 
 # Étape 4: Pour CHAQUE release upstream identifiée, récupérer son contenu
-gh release view 2025-04-16-01 --repo demarches-simplifiees/demarches-simplifiees.fr
-gh release view 2025-04-16-02 --repo demarches-simplifiees/demarches-simplifiees.fr
+gh release view 2025-04-16-01 --repo demarche-numerique/demarche.numerique.gouv.fr
+gh release view 2025-04-16-02 --repo demarche-numerique/demarche.numerique.gouv.fr
 # etc.
 ```
 
@@ -439,7 +439,7 @@ gh release view pf-2025-12-04 --json body --jq '.body' | grep -E "2025-04-(16|17
 # 7. Récupérer le contenu de CHAQUE release
 for release in 2025-04-16-01 2025-04-16-02 2025-04-17-01 2025-04-23-01 2025-04-24-01 2025-04-30-01; do
   echo "=== $release ==="
-  gh release view $release --repo demarches-simplifiees/demarches-simplifiees.fr
+  gh release view $release --repo demarche-numerique/demarche.numerique.gouv.fr
 done
 
 # 8. Rédiger la release en copiant exactement le contenu de chaque release upstream
@@ -472,7 +472,7 @@ gh release create pf-2025-12-05 --target masterpf --title "5 décembre 2025" --n
 
 ### Vue d'ensemble
 
-L'intégration des releases upstream de [demarches-simplifiees.fr](https://github.com/demarches-simplifiees/demarches-simplifiees.fr) nécessite une approche méthodique pour maintenir les spécificités PF tout en bénéficiant des améliorations upstream.
+L'intégration des releases upstream de [demarches-simplifiees.fr](https://github.com/demarche-numerique/demarche.numerique.gouv.fr) nécessite une approche méthodique pour maintenir les spécificités PF tout en bénéficiant des améliorations upstream.
 
 ### Processus d'intégration
 
