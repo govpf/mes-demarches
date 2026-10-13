@@ -121,6 +121,8 @@ Rails.application.routes.draw do
     get 'exports/instructeurs/last_half_year' => 'instructeurs#export_last_half_year'
     get 'exports/administrateurs/with_publiee_procedure' => 'administrateurs#export_with_publiee_procedure'
     get 'exports/instructeurs/currently_active' => 'instructeurs#export_currently_active'
+    # pf: inventaire CSV des démarches (avec service et volumétrie), absent d'upstream
+    get 'exports/procedures' => 'procedures#export_csv'
 
     get 'import_procedure_tags' => 'procedures#import_data'
     post 'import_tags' => 'procedures#import_tags'
