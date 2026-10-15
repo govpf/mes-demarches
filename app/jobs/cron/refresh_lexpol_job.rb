@@ -10,6 +10,10 @@
 class Cron::RefreshLexpolJob < Cron::CronJob
   self.schedule_expression = "every day at 5 am"
 
+  # pf: Étalement des jobs : une rafale de ~400 authentifications simultanées
+  # faisait échouer ~80 % des rafraîchissements (Lexpol ne répondait pas)
+  SPREAD_INTERVAL = 2.seconds
+
   def perform(*args)
     lexpol_champs = find_active_lexpol_champs
 
@@ -17,8 +21,8 @@ class Cron::RefreshLexpolJob < Cron::CronJob
 
     # pf: Enqueuer un job individuel pour chaque champ
     # Cela permet de paralléliser et de ne pas bloquer en cas d'erreur sur un champ
-    lexpol_champs.find_each do |champ|
-      RefreshLexpolChampJob.perform_later(champ.id)
+    lexpol_champs.find_each.with_index do |champ, index|
+      RefreshLexpolChampJob.set(wait: index * SPREAD_INTERVAL).perform_later(champ.id)
     end
 
     Rails.logger.info("Lexpol: #{lexpol_champs.count} refresh jobs enqueued successfully")

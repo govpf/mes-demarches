@@ -22,6 +22,31 @@ RSpec.describe APILexpol do
     end
   end
 
+  describe 'erreurs HTTP' do
+    def response(code, return_code = :ok)
+      Typhoeus::Response.new(code:, return_code:, body: '')
+    end
+
+    it 'lève LexpolUnavailable quand Lexpol ne répond pas (timeout)' do
+      allow(Typhoeus).to receive(:post).and_return(response(0, :operation_timedout))
+
+      expect { api_lexpol.authenticate }
+        .to raise_error(APILexpol::LexpolUnavailable, /HTTP 0, operation_timedout/)
+    end
+
+    it 'lève LexpolUnavailable sur une erreur serveur' do
+      allow(Typhoeus).to receive(:post).and_return(response(503))
+
+      expect { api_lexpol.authenticate }.to raise_error(APILexpol::LexpolUnavailable, /HTTP 503/)
+    end
+
+    it 'lève LexpolAccessDenied sur un 403' do
+      allow(Typhoeus).to receive(:post).and_return(response(403))
+
+      expect { api_lexpol.authenticate }.to raise_error(APILexpol::LexpolAccessDenied)
+    end
+  end
+
   describe '#get_models' do
     it 'retrieves the list of models' do
       VCR.use_cassette('get_models') do
@@ -141,12 +166,12 @@ RSpec.describe APILexpol do
 
       it 'raises generic error on other HTTP errors' do
         allow(Typhoeus).to receive(:post).and_return(
-          double(success?: false, code: 500, body: 'Internal Server Error')
+          double(success?: false, code: 400, body: 'Bad Request')
         )
 
         expect {
           api_lexpol.send(:request_authentication)
-        }.to raise_error(StandardError, /Erreur d'authentification Lexpol/)
+        }.to raise_error(RuntimeError, /Erreur d'authentification Lexpol \(HTTP 400\)/)
       end
     end
 

@@ -106,6 +106,28 @@ RSpec.describe RefreshLexpolChampJob, type: :job do
       end
     end
 
+    context 'when Lexpol is unavailable (timeout, 5xx)' do
+      before do
+        allow_any_instance_of(APILexpol).to receive(:get_dossier_infos)
+          .and_raise(APILexpol::LexpolUnavailable.new("L'authentification Lexpol", 0, :operation_timedout))
+      end
+
+      it 'reschedules the job instead of giving up until the next day' do
+        expect(Sentry).not_to receive(:capture_exception)
+
+        expect { described_class.perform_now(lexpol_champ.id) }
+          .to have_enqueued_job(described_class).with(lexpol_champ.id)
+      end
+
+      it 'reports to Sentry once retries are exhausted' do
+        job = described_class.new(lexpol_champ.id)
+        job.exception_executions = { '[APILexpol::LexpolUnavailable]' => 4 }
+
+        expect(Sentry).to receive(:capture_exception).with(APILexpol::LexpolUnavailable, extra: { champ_id: lexpol_champ.id })
+        expect { job.perform_now }.not_to have_enqueued_job(described_class)
+      end
+    end
+
     context 'when unexpected error occurs' do
       it 'captures the exception without raising' do
         allow_any_instance_of(APILexpol).to receive(:get_dossier_infos).and_raise(StandardError.new('API error'))

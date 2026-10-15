@@ -55,6 +55,23 @@ RSpec.describe Cron::RefreshLexpolJob, type: :job do
       expect { described_class.perform_now }.not_to raise_error
     end
 
+    context 'when several champs must be refreshed' do
+      let!(:autre_champ_instruction) do
+        champ = create(:dossier, :en_instruction, procedure: procedure).champs.find { |c| c.is_a?(Champs::LexpolChamp) }
+        champ.update(value: 'NOR005', data: { lexpol_status: 'En préparation' })
+        champ
+      end
+
+      it 'spreads the jobs over time to avoid a burst of Lexpol authentications' do
+        freeze_time do
+          described_class.perform_now
+
+          expect(RefreshLexpolChampJob).to have_been_enqueued.with(champ_instruction_sans_lien.id).at(Time.current)
+          expect(RefreshLexpolChampJob).to have_been_enqueued.with(autre_champ_instruction.id).at(Time.current + described_class::SPREAD_INTERVAL)
+        end
+      end
+    end
+
     context 'when there are no champs to refresh' do
       before do
         # Ajouter un lien à tous les champs

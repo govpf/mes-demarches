@@ -15,6 +15,18 @@ class APILexpol
       super("Accès refusé à Lexpol pour #{email_used} (HTTP #{http_code})")
     end
   end
+
+  # pf: Exception pour les erreurs transitoires (timeout, connexion impossible, 429, 5xx)
+  # Permet aux appelants (jobs) de retenter plus tard plutôt que d'abandonner
+  class LexpolUnavailable < StandardError
+    attr_reader :http_code, :return_code
+
+    def initialize(context, http_code, return_code)
+      @http_code = http_code
+      @return_code = return_code
+      super("#{context} : Lexpol indisponible (HTTP #{http_code}, #{return_code})")
+    end
+  end
   # Syntaxe de LEXPOL_SERVICE_EMAILS :
   # Cette variable d'environnement doit contenir une liste de numéros Tahiti avec leurs emails associés.
   # Format attendu : "T123456(email1),D654321(email2),003970(email3)"
@@ -109,7 +121,9 @@ class APILexpol
       raise LexpolAccessDenied.new(@email_agent, response.code)
     end
 
-    raise "Erreur d'authentification Lexpol : #{response.body}"
+    raise_if_unavailable(response, "L'authentification Lexpol")
+
+    raise "Erreur d'authentification Lexpol (HTTP #{response.code}) : #{response.body}"
   end
 
   def request(method, endpoint, error_message, body = {})
@@ -124,7 +138,16 @@ class APILexpol
       raise LexpolAccessDenied.new(@email_agent, response.code)
     end
 
+    raise_if_unavailable(response, error_message)
+
     raise "#{error_message} renvoi l'erreur HTML #{response.code}."
+  end
+
+  # pf: code 0 = pas de réponse HTTP (timeout, connexion refusée...), le détail est dans return_code
+  def raise_if_unavailable(response, context)
+    return unless response.code == 0 || response.code == 408 || response.code == 429 || response.code >= 500
+
+    raise LexpolUnavailable.new(context, response.code, response.return_code)
   end
 
   def request_options(body, method = :post)
