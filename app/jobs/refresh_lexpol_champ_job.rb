@@ -13,6 +13,12 @@ class RefreshLexpolChampJob < ApplicationJob
   # - Les vraies erreurs techniques sont loggées dans Sentry
   discard_on ActiveRecord::RecordNotFound
 
+  # pf: Lexpol indisponible (timeout, 429, 5xx) : on retente plus tard,
+  # sinon le champ reste périmé jusqu'au cron du lendemain
+  retry_on APILexpol::LexpolUnavailable, wait: :polynomially_longer, attempts: 5 do |job, error|
+    Sentry.capture_exception(error, extra: { champ_id: job.arguments.first })
+  end
+
   def perform(champ_id)
     champ = Champs::LexpolChamp.find(champ_id)
 
@@ -34,6 +40,8 @@ class RefreshLexpolChampJob < ApplicationJob
       try_refresh_with_service_account(champ, dossier)
     end
 
+  rescue APILexpol::LexpolUnavailable
+    raise # pf: géré par retry_on
   rescue StandardError => e
     # pf: Erreur technique inattendue : log mais ne pas bloquer les autres rafraîchissements
     Rails.logger.error("Unexpected error refreshing Lexpol champ #{champ.id}: #{e.message}")
