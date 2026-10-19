@@ -18,14 +18,14 @@
               .fr-radio-group.fr-radio-rich
                 = f.radio_button :for_tiers, false, required: true, id: "radio-self-manage"
                 %label.fr-label{ for: "radio-self-manage" }
-                  = t('activerecord.attributes.dossier.for_tiers.false')
+                  = t('activerecord.attributes.dossier/for_tiers.false')
                 .fr-radio-rich__img
                   %span.fr-icon-user-fill
             .fr-fieldset__element
               .fr-radio-group.fr-radio-rich
                 = f.radio_button :for_tiers, true, required: true, id: "radio-tiers-manage"
                 %label.fr-label{ for: "radio-tiers-manage" }
-                  = t('activerecord.attributes.dossier.for_tiers.true')
+                  = t('activerecord.attributes.dossier/for_tiers.true')
                 .fr-radio-rich__img
                   %span.fr-icon-parent-fill
 
