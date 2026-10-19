@@ -11,9 +11,10 @@ en:
         pending_correction: Request correction
         mandataire_first_name: First name
         mandataire_last_name: Last name
-        for_tiers:
-          false: For yourself
-          true: "For someone else : a family member, a relative, a professional, someone you represent."
+        for_tiers: "Filing on behalf of someone else"
+      dossier/for_tiers:
+        false: For yourself
+        true: "For someone else : a family member, a relative, a professional, someone you represent."
       dossier/state: &state
         brouillon: "Draft"
         en_construction: "In progress"
