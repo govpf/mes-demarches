@@ -25,7 +25,7 @@ describe 'As an administrateur I can add lexpol champ', js: true do
       select('Lexpol', from: 'Type de champ')
       fill_in 'Libellé du champ', with: 'Libellé de champ lexpol', fill_options: { clear: :backspace }
 
-      wait_until { procedure.draft_types_de_champ_public.first.type_champ == TypeDeChamp.type_champs.fetch(:lexpol) }
+      wait_until { procedure.draft_revision.reload.types_de_champ_public.first&.type_champ == TypeDeChamp.type_champs.fetch(:lexpol) }
       expect(page).to have_content('Formulaire enregistré')
 
       expect(page).to have_content('Sélectionner un modèle Lexpol')

@@ -264,4 +264,134 @@ describe TypesDeChampEditor::ChampComponent, type: :component do
       expect(page).not_to have_css('option', text: 'Titre identité')
     end
   end
+
+  # pf: la liste des modèles Lexpol est commune à tous les admins de la démarche :
+  # elle est lue avec le compte de service du numéro Tahiti du service, et non plus
+  # réservée aux super admins.
+  describe 'sélection du modèle Lexpol' do
+    let(:procedure) { create(:procedure, :with_service, types_de_champ_public: [{ type: :lexpol, libelle: 'Arrêté' }]) }
+    let(:coordinate) { procedure.draft_revision.revision_types_de_champ_public.first }
+    let(:component) { described_class.new(coordinate:, upper_coordinates: []) }
+    let(:user) { create(:user, email: 'admin@mes-demarches.gov.pf') }
+    let(:numero_tahiti) { '003970' }
+    let(:service_emails) { { numero_tahiti => 'redacteur.geda@service.gov.pf' } }
+    let(:api_lexpol) { instance_double(APILexpol) }
+
+    before do
+      procedure.service.update_column(:siret, numero_tahiti)
+      allow(APILexpol).to receive(:service_emails).and_return(service_emails)
+      allow_any_instance_of(described_class).to receive(:filter_featured_type_champ).and_return(true)
+      allow_any_instance_of(described_class).to receive(:current_user).and_return(user)
+      allow_any_instance_of(described_class).to receive(:current_super_admin).and_return(nil)
+    end
+
+    context 'quand un compte de service est configuré pour le numéro Tahiti' do
+      before do
+        allow(APILexpol).to receive(:new).with(user.email, numero_tahiti, true).and_return(api_lexpol)
+        allow(api_lexpol).to receive(:get_models).and_return([['Arrêté de subvention', 'M42']])
+      end
+
+      it 'liste les modèles du compte de service pour un admin non super admin' do
+        render_inline(component)
+        expect(page).to have_css('option[value="M42"]', text: 'Arrêté de subvention')
+      end
+    end
+
+    context 'quand le modèle configuré n’est pas visible du compte de service' do
+      before do
+        coordinate.type_de_champ.update!(lexpol_modele: 'M99')
+        allow(APILexpol).to receive(:new).with(user.email, numero_tahiti, true).and_return(api_lexpol)
+        allow(api_lexpol).to receive(:get_models).and_return([['Arrêté de subvention', 'M42']])
+      end
+
+      it 'conserve le modèle sélectionné pour que l’autosave ne l’efface pas, et prévient' do
+        render_inline(component)
+        expect(page).to have_css('select[name$="[lexpol_modele]"] option[selected][value="M99"]', text: 'Modèle M99 (non accessible)')
+        expect(page).to have_css('option[value="M42"]', text: 'Arrêté de subvention')
+        expect(page).to have_text('Le modèle M99 n’est pas accessible avec le compte de service (redacteur.geda@service.gov.pf)')
+        expect(page).to have_text('Les dossiers de test échoueront')
+      end
+    end
+
+    context 'quand le modèle configuré est dans la liste' do
+      before do
+        coordinate.type_de_champ.update!(lexpol_modele: 'M42')
+        allow(APILexpol).to receive(:new).and_return(api_lexpol)
+        allow(api_lexpol).to receive(:get_models).and_return([['Arrêté de subvention', 'M42']])
+      end
+
+      it 'le sélectionne sans avertissement' do
+        render_inline(component)
+        expect(page).to have_css('option[selected][value="M42"]', text: 'Arrêté de subvention')
+        expect(page).not_to have_text('non accessible')
+      end
+    end
+
+    context 'quand aucun compte de service n’est configuré' do
+      let(:service_emails) { {} }
+
+      before do
+        allow(APILexpol).to receive(:new).with(user.email, numero_tahiti, false).and_return(api_lexpol)
+        allow(api_lexpol).to receive(:get_models).and_return([['Mon modèle', 'M7']])
+      end
+
+      it 'utilise le compte personnel de l’admin' do
+        render_inline(component)
+        expect(page).to have_css('option[value="M7"]', text: 'Mon modèle')
+      end
+    end
+
+    context 'quand l’accès est refusé au compte de service' do
+      before do
+        allow(APILexpol).to receive(:new).and_return(api_lexpol)
+        allow(api_lexpol).to receive(:get_models).and_raise(APILexpol::LexpolAccessDenied.new('redacteur.geda@service.gov.pf', 403))
+      end
+
+      it 'nomme le compte de service à chaque rendu (le refus n’est pas mis en cache)', :caching do
+        2.times do
+          render_inline(described_class.new(coordinate:, upper_coordinates: []))
+          expect(page).to have_text('Aucun modèle Lexpol n’est accessible avec le compte de service (redacteur.geda@service.gov.pf)')
+          expect(page).to have_text('déclarez ce compte de service sur les modèles')
+          expect(page).not_to have_text('Erreur lors de la récupération des modèles Lexpol')
+        end
+      end
+
+      context 'avec un modèle déjà configuré' do
+        before { coordinate.type_de_champ.update!(lexpol_modele: 'M42') }
+
+        it 'affiche le modèle en lecture seule et le conserve' do
+          render_inline(component)
+          expect(page).to have_text(/Modèle configuré :\s+M42/)
+          expect(page).to have_css('input[type=hidden][name$="[lexpol_modele]"][value="M42"]', visible: false)
+          expect(page).not_to have_css('select[name$="[lexpol_modele]"]')
+        end
+      end
+    end
+
+    context 'quand le compte de service ne voit aucun modèle' do
+      before do
+        allow(APILexpol).to receive(:new).and_return(api_lexpol)
+        allow(api_lexpol).to receive(:get_models).and_return([])
+      end
+
+      it 'invite à déclarer le compte de service plutôt qu’afficher une erreur technique' do
+        render_inline(component)
+        expect(page).to have_text('Aucun modèle Lexpol n’est accessible avec le compte de service (redacteur.geda@service.gov.pf)')
+        expect(page).not_to have_text('Erreur lors de la récupération des modèles Lexpol')
+      end
+    end
+
+    context 'quand Lexpol est indisponible' do
+      before do
+        allow(APILexpol).to receive(:new).and_return(api_lexpol)
+        allow(api_lexpol).to receive(:get_models).and_raise(StandardError, 'timeout')
+      end
+
+      it 'affiche l’erreur technique' do
+        render_inline(component)
+        expect(page).to have_text('Erreur lors de la récupération des modèles Lexpol')
+        expect(page).to have_text('timeout')
+      end
+    end
+  end
 end
