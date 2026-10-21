@@ -176,13 +176,16 @@ RSpec.describe Champs::LexpolController, type: :controller do
       end
     end
 
-    context 'with service account for draft revision' do
-      let(:draft_procedure) { create(:procedure, types_de_champ_public: [{ type: :lexpol }], instructeurs: [instructeur]) }
+    context 'for a draft revision (dossier de test)' do
+      let(:draft_procedure) { create(:procedure, :with_service, types_de_champ_public: [{ type: :lexpol }], instructeurs: [instructeur]) }
       let(:draft_dossier) { create(:dossier, procedure: draft_procedure) }
       let(:draft_tdc) { draft_procedure.draft_revision.types_de_champ.first }
       let(:draft_champ) { draft_dossier.champ_for_update(draft_tdc, row_id: nil, updated_by: instructeur).tap(&:save!) }
+      let(:service_emails) { {} }
 
       before do
+        draft_procedure.service.update_column(:siret, '003970')
+        allow(APILexpol).to receive(:service_emails).and_return(service_emails)
         allow_any_instance_of(LexpolService).to receive(:upsert_dossier).and_return('NOR-TEST')
 
         post :upsert, params: {
@@ -191,9 +194,23 @@ RSpec.describe Champs::LexpolController, type: :controller do
         }
       end
 
-      it 'indicates service account was used' do
-        expect(response).to redirect_to(root_path)
-        expect(flash[:notice]).to include('compte de service')
+      context 'with a service account configured for the numéro Tahiti' do
+        let(:service_emails) { { '003970' => 'service@example.com' } }
+
+        it 'indicates service account was used' do
+          expect(response).to redirect_to(root_path)
+          expect(flash[:notice]).to include('compte de service')
+        end
+      end
+
+      # pf: sans compte de service, le dossier de test passe par le compte personnel :
+      # le message ne doit pas prétendre le contraire
+      context 'without service account configured' do
+        it 'does not claim the service account was used' do
+          expect(response).to redirect_to(root_path)
+          expect(flash[:notice]).to start_with('Dossier Lexpol')
+          expect(flash[:notice]).not_to include('compte de service')
+        end
       end
     end
 

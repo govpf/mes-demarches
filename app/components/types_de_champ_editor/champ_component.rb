@@ -319,34 +319,61 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
   end
 
   def lexpol_models
+    return @lexpol_models if defined?(@lexpol_models)
+
+    @lexpol_models = fetch_lexpol_models
+  end
+
+  # pf: liste commune à tous les admins de la démarche : on interroge Lexpol avec le
+  # compte de service du numéro Tahiti (seuls les modèles déclarés pour lui sont visibles),
+  # et avec le compte personnel de l'admin à défaut de compte de service.
+  # Pas de cache ici : APILexpol#get_models met déjà en cache les seuls succès,
+  # par compte interrogé ; un refus d'accès n'est donc jamais mémorisé.
+  def fetch_lexpol_models
     service_siret = coordinate.procedure&.service&.siret
     return [] if service_siret.blank?
 
-    # Pour la configuration : seuls les super admins utilisent les comptes de test
-    use_test_user = current_super_admin.present?
-    email = current_super_admin&.email || current_user.email
-
-    cache_key = "lexpol_models:#{service_siret}:#{use_test_user}"
-    Rails.cache.fetch(cache_key, expires_in: 15.minutes) do
-      begin
-        APILexpol.new(email, service_siret, use_test_user).get_models
-      rescue APILexpol::LexpolAccessDenied => e
-        # pf: Stocker l'erreur d'accès pour affichage différencié dans le template
-        Rails.logger.error "Lexpol: Accès refusé pour #{e.email_used}"
-        @lexpol_error = { type: :access_denied, email: e.email_used }
-        []
-      rescue => e
-        # pf: Autres erreurs (réseau, parsing, etc.)
-        Rails.logger.error "Erreur lors de la récupération des modèles Lexpol: #{e.message}"
-        @lexpol_error = { type: :generic, message: e.message }
-        []
-      end
-    end
+    APILexpol.new(current_user.email, service_siret, lexpol_service_account_email.present?).get_models
+  rescue APILexpol::LexpolAccessDenied => e
+    # pf: Stocker l'erreur d'accès pour affichage différencié dans le template
+    Rails.logger.error "Lexpol: Accès refusé pour #{e.email_used}"
+    @lexpol_error = { type: :access_denied, email: e.email_used }
+    []
+  rescue => e
+    # pf: Autres erreurs (réseau, parsing, etc.)
+    Rails.logger.error "Erreur lors de la récupération des modèles Lexpol: #{e.message}"
+    @lexpol_error = { type: :generic, message: e.message }
+    []
   end
 
   # pf: Permet au template d'afficher un message d'erreur adapté
   def lexpol_error
     @lexpol_error
+  end
+
+  # pf: modèle déjà enregistré sur le champ
+  def lexpol_configured_model
+    type_de_champ.options&.[]('lexpol_modele').presence
+  end
+
+  # pf: le modèle enregistré n'est pas visible du compte interrogé (choisi avec un autre
+  # compte, ou pas encore déclaré pour le compte de service)
+  def lexpol_configured_model_unavailable?
+    lexpol_configured_model.present? && lexpol_models.none? { |_, id| id.to_s == lexpol_configured_model.to_s }
+  end
+
+  # pf: l'autosave envoie tout le formulaire : un modèle absent des options serait
+  # remplacé par l'invite vide et effacé. On le garde donc comme option sélectionnée.
+  def lexpol_model_options
+    options = lexpol_models.map { |libelle, id| [libelle.truncate(80), id] }
+    options.unshift(["Modèle #{lexpol_configured_model} (non accessible)", lexpol_configured_model]) if lexpol_configured_model_unavailable?
+    options
+  end
+
+  # pf: compte de service Lexpol associé au numéro Tahiti du service (LEXPOL_SERVICE_EMAILS)
+  def lexpol_service_account_email
+    service_siret = coordinate.procedure&.service&.siret
+    APILexpol.service_emails[service_siret] if service_siret.present?
   end
 
   def lexpol_service_configured?

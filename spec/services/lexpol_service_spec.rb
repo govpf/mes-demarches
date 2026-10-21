@@ -217,6 +217,22 @@ describe LexpolService do
     end
   end
 
+  describe '#create_dossier' do
+    before do
+      allow(apilexpol).to receive_messages(create_dossier: 'NOR-1', email_agent: 'redacteur.geda@service.gov.pf',
+                                           get_dossier_infos: { 'statut_libelle' => 'En préparation' })
+    end
+
+    # pf: le rédacteur côté Lexpol est le compte réellement utilisé, pas l'utilisateur connecté
+    it 'enregistre le NOR et le compte Lexpol qui a créé le dossier' do
+      service.create_dossier
+
+      lexpol_champ.reload
+      expect(lexpol_champ.value).to eq('NOR-1')
+      expect(lexpol_champ.lexpol_auteur_email).to eq('redacteur.geda@service.gov.pf')
+    end
+  end
+
   describe '.lexpol_variables' do
     let(:draft_procedure) { create(:procedure, :for_individual) }
     let!(:draft_lexpol_tdc) { create(:type_de_champ_lexpol, procedure: draft_procedure) }

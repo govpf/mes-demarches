@@ -111,37 +111,44 @@
                 = form.label :lexpol_modele, "Sélectionner un modèle Lexpol", class: 'flex-grow', for: dom_id(type_de_champ, :lexpol_modele)
                 - if lexpol_service_configured?
                   - models = lexpol_models
+                  -# pf: le compte interrogé est celui du service s'il est configuré, sinon celui de l'admin
+                  - compte_lexpol = lexpol_service_account_email.present? ? "le compte de service (#{lexpol_service_account_email})" : "votre compte (#{current_user.email})"
                   - if models.any?
                     = form.select :lexpol_modele,
-                                  models.map { |k,v| [k.truncate(80), v] },
+                                  lexpol_model_options,
                                   { prompt: 'Sélectionnez un modèle' },
                                   { class: 'fr-select small-margin small', id: dom_id(type_de_champ, :lexpol_modele) }
-                  - elsif lexpol_error && lexpol_error[:type] == :access_denied
+                    - if lexpol_configured_model_unavailable?
+                      .fr-message.fr-message--warning.fr-mt-1w
+                        %p.fr-mb-0
+                          Le modèle #{lexpol_configured_model} n’est pas accessible avec #{compte_lexpol}.
+                          - if lexpol_service_account_email.present?
+                            Les dossiers de test échoueront tant que ce compte de service n’est pas déclaré sur ce modèle dans Lexpol.
+                  - else
                     - if type_de_champ.options&.[]('lexpol_modele').present?
-                      .fr-message.fr-message--info
+                      .fr-message{ class: lexpol_error&.dig(:type) == :generic ? 'fr-message--error' : 'fr-message--info' }
                         %p.fr-mb-1w
                           %strong Modèle configuré :
                           = type_de_champ.options['lexpol_modele']
                         %p.fr-text--sm.fr-mb-0
-                          Vous ne pouvez pas modifier le modèle car votre compte (#{lexpol_error[:email]}) n'a pas accès à Lexpol.
-                          %br
-                          Contactez votre administrateur pour obtenir les permissions nécessaires.
+                          - if lexpol_error&.dig(:type) == :generic
+                            Erreur lors de la récupération des modèles Lexpol : #{lexpol_error[:message]}
+                          - else
+                            Le modèle ne peut pas être modifié car aucun modèle Lexpol n’est accessible avec #{compte_lexpol}.
                       = form.hidden_field :lexpol_modele
+                    - elsif lexpol_error&.dig(:type) == :generic
+                      .fr-message.fr-message--error
+                        %p Erreur lors de la récupération des modèles Lexpol.
+                        %p.fr-text--sm.fr-mb-0= lexpol_error[:message]
                     - else
                       .fr-message.fr-message--error
                         %p.fr-mb-1w
-                          Votre compte (#{lexpol_error[:email]}) n'a pas accès à Lexpol.
+                          Aucun modèle Lexpol n’est accessible avec #{compte_lexpol}.
                         %p.fr-text--sm.fr-mb-0
-                          Pour configurer un champ Lexpol, vous devez soit :
-                          %br
-                          • Être habilité dans Lexpol avec ce compte
-                          %br
-                          • Demander à un collègue ayant accès de configurer le modèle
-                  - else
-                    .fr-message.fr-message--error
-                      %p Erreur lors de la récupération des modèles Lexpol.
-                      - if lexpol_error && lexpol_error[:message]
-                        %p.fr-text--sm.fr-mb-0= lexpol_error[:message]
+                          - if lexpol_service_account_email.present?
+                            Dans Lexpol, déclarez ce compte de service sur les modèles à utiliser dans la démarche.
+                          - else
+                            Pour configurer un champ Lexpol, vous devez être habilité dans Lexpol avec ce compte, ou demander à un collègue habilité de choisir le modèle.
                 - else
                   .fr-message.fr-message--info
                     %p
