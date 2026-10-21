@@ -3,6 +3,7 @@
 class Champs::TeFenuaChamp < Champ
   # We are not using scopes here as we want to access
   # the following collections on unsaved records.
+  before_save :strip_html_from_value
   before_save :sync_geo_areas_from_value
 
   def parcelles
@@ -115,6 +116,31 @@ class Champs::TeFenuaChamp < Champ
   end
 
   private
+
+  HTML_CHARS = /[<>]/
+
+  # La valeur est un GeoJSON fourni tel quel par le navigateur de l'usager puis
+  # réaffiché chez l'instructeur : on retire les chevrons des identifiants et des
+  # propriétés pour qu'aucune balise ne puisse y être injectée.
+  # Le JSON est toujours décodé : un chevron peut y être écrit "<".
+  def strip_html_from_value
+    return unless value_changed? && value.present?
+
+    parsed_value = JSON.parse(value)
+    stripped_value = strip_html(parsed_value)
+    self.value = stripped_value.to_json if stripped_value != parsed_value
+  rescue JSON::ParserError
+    nil
+  end
+
+  def strip_html(object)
+    case object
+    when Hash then object.transform_values { strip_html(it) }
+    when Array then object.map { strip_html(it) }
+    when String then object.gsub(HTML_CHARS, '')
+    else object
+    end
+  end
 
   def sync_geo_areas_from_value
     return unless value_changed? && value.present?

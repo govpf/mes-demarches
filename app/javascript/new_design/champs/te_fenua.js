@@ -48,8 +48,6 @@ function initializeTeFenuaMap(container) {
 async function initialize() {
   initializeTeFenuaMap(document);
 
-  window.viewOnMap = viewOnMap;
-
   // delegate('change', '[data-te-fenua-place]', (event) => {
   //   let map = getMapFromAddress(event.target);
   //   if (map) {
@@ -84,48 +82,55 @@ function getInputFromMap(mapElement) {
 //   }
 // }
 
-function getLink(feature) {
-  const link = `<button type="button" onclick="window.viewOnMap(this, '${feature.getId()}')"><img alt="Voir sur la carte" src="${MARKER_PATH}" style="max-width: 1rem; height: auto"></button>`;
-  return link;
+// Les libellés viennent de la valeur du champ : on les insère comme du texte.
+function createLink(feature) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.addEventListener('click', () => viewOnMap(button, feature.getId()));
+  const img = document.createElement('img');
+  img.alt = 'Voir sur la carte';
+  img.src = MARKER_PATH;
+  img.style.maxWidth = '1rem';
+  img.style.height = 'auto';
+  button.appendChild(img);
+  return button;
 }
 
-let parcelleToHtml = (html, feature) => {
-  const p = feature.getProperties();
-  const area = formatArea(feature.getGeometry());
-  const labels = [p.label, p.commune_associee, area]
-    .filter(Boolean)
-    .join(' - ');
-  return `${html}\n<li>${getLink(feature)}&nbsp;${labels}</li>`;
-};
+function joinLabels(labels) {
+  return labels.filter(Boolean).join(' - ');
+}
 
-let batimentToHtml = (html, feature) => {
+function parcelleLabel(feature) {
   const p = feature.getProperties();
   const area = formatArea(feature.getGeometry());
-  const labels = [p.info_titre || p.nom || p.sous_categorie, area]
-    .filter(Boolean)
-    .join(' - ');
-  return `${html}\n<li>${getLink(feature)}&nbsp;${labels}</li>`;
-};
-let zoneToHtml = (html, feature) => {
+  return joinLabels([p.label, p.commune_associee, area]);
+}
+
+function batimentLabel(feature) {
+  const p = feature.getProperties();
+  const area = formatArea(feature.getGeometry());
+  return joinLabels([p.info_titre || p.nom || p.sous_categorie, area]);
+}
+
+function zoneLabel(feature) {
   const p = feature.getProperties();
   const area = formatArea(feature.getGeometry());
   const ca = p.commune_associee !== p.commune ? p.commune_associee : null;
   const cadastre = p.section + p.numero;
-  const labels = [feature.getId(), area, cadastre, ca, p.commune, p.ile]
-    .filter(Boolean)
-    .join(' - ');
-  return `${html}\n<li>${getLink(feature)}&nbsp;${labels}</li>`;
-};
+  return joinLabels([feature.getId(), area, cadastre, ca, p.commune, p.ile]);
+}
 
-let markerToHtml = (html, feature) => {
+function markerLabel(feature) {
   const p = feature.getProperties();
-  // const area = formatArea(feature.getGeometry());
   const ca = p.commune_associee !== p.commune ? p.commune_associee : null;
-  const labels = [feature.getId(), p.section + p.numero, ca, p.commune, p.ile]
-    .filter(Boolean)
-    .join(' - ');
-  return `${html}\n<li>${getLink(feature)}&nbsp;${labels}</li>`;
-};
+  return joinLabels([
+    feature.getId(),
+    p.section + p.numero,
+    ca,
+    p.commune,
+    p.ile
+  ]);
+}
 
 function getMapFromLocationButton(element) {
   const mapElement = element.closest('.geo-areas').previousElementSibling;
@@ -144,14 +149,19 @@ function viewOnMap(element, id) {
   if (feature) fitExtent(map, feature.getGeometry().getExtent());
 }
 
-function getHtml(layer, toHtml, title) {
-  let features = layer.getSource().getFeatures();
-  if (features.length) {
-    const header = `<div class="areas-title">${title}</div>`;
-    const zones = features.reduce(toHtml, '<ul>') + '</ul>';
-    return header + zones;
-  }
-  return '';
+function appendAreas(container, layer, toLabel, title) {
+  const features = layer.getSource().getFeatures();
+  if (!features.length) return;
+  const header = document.createElement('div');
+  header.className = 'areas-title';
+  header.textContent = title;
+  const list = document.createElement('ul');
+  features.forEach((feature) => {
+    const item = document.createElement('li');
+    item.append(createLink(feature), '\u00a0' + toLabel(feature));
+    list.appendChild(item);
+  });
+  container.append(header, list);
 }
 
 function centerMapOnLocation(map) {
@@ -203,11 +213,11 @@ function createControl(map, handler, action, tooltip = 'Bouton') {
 }
 
 function updateInformations(informations, map) {
-  informations.innerHTML =
-    getHtml(map.parcellesLayer, parcelleToHtml, 'Parcelles') +
-    getHtml(map.batimentsLayer, batimentToHtml, 'Batiments') +
-    getHtml(map.markerLayer, markerToHtml, 'Lieux') +
-    getHtml(map.zoneManuellesLayer, zoneToHtml, 'Zones');
+  informations.replaceChildren();
+  appendAreas(informations, map.parcellesLayer, parcelleLabel, 'Parcelles');
+  appendAreas(informations, map.batimentsLayer, batimentLabel, 'Batiments');
+  appendAreas(informations, map.markerLayer, markerLabel, 'Lieux');
+  appendAreas(informations, map.zoneManuellesLayer, zoneLabel, 'Zones');
 }
 
 function initMap(mapElement, map) {
