@@ -12,8 +12,9 @@ module Champs
       force_create = params[:force_create].present?
       service.upsert_dossier(force_create: force_create)
 
-      # pf: Message adapté selon le mode utilisé
-      if use_service_account
+      # pf: Message adapté selon le compte réellement utilisé (sans compte de service
+      # configuré, un dossier de test passe par le compte personnel)
+      if apilexpol.using_service_account?
         flash[:notice] = "Dossier Lexpol #{@champ.value.blank? ? 'créé' : 'mis à jour'} avec succès (compte de service)"
       else
         flash[:notice] = "Dossier Lexpol #{@champ.value.blank? ? 'créé' : 'mis à jour'} avec succès"
@@ -46,7 +47,7 @@ module Champs
 
     rescue => e
       Sentry.capture_exception(e)
-      mode = use_service_account ? "compte de service" : "votre compte (#{current_user.email})"
+      mode = apilexpol&.using_service_account? ? "le compte de service" : "votre compte (#{current_user.email})"
       flash[:alert] = "Impossible de #{@champ.value.blank? ? 'créer' : 'mettre à jour'} le dossier Lexpol avec #{mode}. #{e.message}"
     ensure
       redirect_back fallback_location: root_path
@@ -119,7 +120,8 @@ module Champs
 
     # pf: Détermine si on doit utiliser le compte de service pour upsert
     # Utilise la révision du DOSSIER, pas de la procédure (un dossier peut être en test même si la procédure est publiée)
-    # Pour les révisions draft : toujours utiliser le compte de service
+    # Pour les révisions draft : compte de service s'il est configuré pour le numéro Tahiti
+    # (un dossier créé par un agent est un dossier de production dans Lexpol), sinon compte personnel
     # Pour les révisions publiées : utiliser le compte personnel (fallback pour super-admins géré dans le rescue)
     def should_use_service_account?
       @champ.dossier&.revision&.draft?

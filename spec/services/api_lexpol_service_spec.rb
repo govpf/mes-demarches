@@ -105,12 +105,20 @@ RSpec.describe APILexpol do
         it "uses the corresponding service email" do
           expect(api_lexpol.instance_variable_get(:@email_agent)).to eq("manager@example.com")
         end
+
+        it "indique que le compte de service est utilisé" do
+          expect(api_lexpol.using_service_account?).to be(true)
+        end
       end
 
       context "and an unknown TAHITI is provided" do
         let(:numero_tahiti) { "999999" }
         it "falls back to the initially given email" do
           expect(api_lexpol.instance_variable_get(:@email_agent)).to eq("instructeur@mes-demarches.gov.pf")
+        end
+
+        it "indique que le compte personnel est utilisé" do
+          expect(api_lexpol.using_service_account?).to be(false)
         end
 
         it "logs a warning about unknown SIRET" do

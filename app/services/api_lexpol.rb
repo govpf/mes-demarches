@@ -32,6 +32,8 @@ class APILexpol
   # Format attendu : "T123456(email1),D654321(email2),003970(email3)"
   # Exemple : "003970(admin@example.com),D123456(manager@example.com)"
 
+  attr_reader :email_agent
+
   BASE_URL = ENV.fetch('LEXPOL_BASE_URL', 'https://devapilexpol.cloud.pf/api/v1/geda')
   TOKEN_EXPIRATION_TIME = 290 # less than 5 minutes
   MODEL_EXPIRATION_TIME = 900 # 15 min
@@ -40,7 +42,14 @@ class APILexpol
     raise ArgumentError, "Email requis" if email.blank?
 
     @email_agent = determine_email_agent(email, numero_tahiti, use_test_user)
+    @using_service_account = @email_agent != email
     @use_certificate = ENV.fetch('LEXPOL_CERTIFICATE_ENABLED', '').casecmp('enabled').zero?
+  end
+
+  # pf: vrai si les appels passent par le compte de service du numéro Tahiti
+  # (demandé ET configuré dans LEXPOL_SERVICE_EMAILS), faux si compte personnel
+  def using_service_account?
+    @using_service_account
   end
 
   def authenticate

@@ -42,7 +42,9 @@ class LexpolService
     nor = apilexpol.create_dossier(model_id, build_variables)
     return nil if nor.blank?
 
-    champ.update!(value: nor)
+    # pf: on retient le compte réellement utilisé (compte de service pour un dossier de test),
+    # pas l'utilisateur connecté : c'est lui le rédacteur côté Lexpol
+    champ.update!(value: nor, lexpol_auteur_email: apilexpol.email_agent)
     refresh_lexpol_data!
     nor
   end
