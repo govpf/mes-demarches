@@ -119,6 +119,8 @@ class LexpolService
           if champ.is_a?(Champs::MultipleDropDownListChamp)
             variables["#{name} (liste)"] = LexpolFieldsService.format_as_html_list(champ.selected_options)
           end
+
+          add_etablissement_variables(variables, champ) if champ.is_a?(Champs::SiretChamp)
         end
       end
 
@@ -181,6 +183,8 @@ class LexpolService
         base << "#{tdc.libelle} (liste)" if tdc.type_champ == 'multiple_drop_down_list'
         # pf: un champ datetime expose aussi son heure dans une variable dédiée
         base << "#{tdc.libelle}#{HEURE_SUFFIX}" if tdc.type_champ == 'datetime'
+        # pf: un champ Numéro Tahiti expose aussi les données de son établissement
+        base.concat(etablissement_columns(tdc, procedure).map(&:label)) if tdc.type_champ == 'siret'
         base
       end
 
@@ -212,6 +216,22 @@ class LexpolService
     if raw_value.is_a?(Time) || raw_value.is_a?(DateTime)
       variables["#{name}#{HEURE_SUFFIX}"] = LexpolFieldsService.format_heure(raw_value)
     end
+  end
+
+  # pf: un champ Numéro Tahiti transmet aussi les données de son établissement,
+  # sous les libellés de ses colonnes d'export (« <libellé> – Entreprise raison
+  # sociale »). Les valeurs sont lues sur l'établissement plutôt que dans
+  # value_json : les anciens dossiers ne l'ont pas toujours, et il stocke les
+  # dates en chaîne ISO alors que Lexpol attend jj/mm/aaaa.
+  def add_etablissement_variables(variables, champ)
+    self.class.etablissement_columns(champ.type_de_champ, dossier.procedure).each do |column|
+      value = champ.etablissement&.public_send(column.jsonpath.delete_prefix('$.'))
+      variables[self.class.normalize_variable_name(column.label)] = value.nil? ? '' : LexpolFieldsService.format_lexpol_value(value)
+    end
+  end
+
+  def self.etablissement_columns(type_de_champ, procedure)
+    type_de_champ.columns(procedure:).grep(Columns::JSONPathColumn)
   end
 
   def column_raw_value(column, dossier)

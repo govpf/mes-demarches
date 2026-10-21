@@ -132,6 +132,62 @@ describe LexpolService do
       end
     end
 
+    context 'avec un champ Numéro Tahiti' do
+      let!(:siret_tdc) do
+        create(:type_de_champ_siret, libelle: 'Numéro Tahiti du prestataire', procedure: procedure)
+      end
+      let(:etablissement) do
+        create(:etablissement,
+               siret: 'G33972001',
+               entreprise_raison_sociale: 'SARL TAHITI SERVICES',
+               entreprise_nom_commercial: 'TAHITI SERVICES',
+               entreprise_date_creation: '1990-04-24')
+      end
+
+      before do
+        procedure.draft_revision.add_type_de_champ(siret_tdc)
+        dossier.reload
+        champ = dossier.champs.find { |c| c.type_de_champ == siret_tdc }
+        champ.update!(value: 'G33972001', etablissement:, value_json: etablissement.champ_value_json)
+        dossier.reload
+      end
+
+      it "transmet les données de l'établissement préfixées par le libellé du champ" do
+        variables = service.build_variables
+
+        expect(variables['Numéro Tahiti du prestataire']).to eq('G33972001')
+        expect(variables['Numéro Tahiti du prestataire – Entreprise raison sociale']).to eq('SARL TAHITI SERVICES')
+        expect(variables['Numéro Tahiti du prestataire – Entreprise nom commercial']).to eq('TAHITI SERVICES')
+        expect(variables).to have_key('Numéro Tahiti du prestataire – Entreprise SIREN')
+        expect(variables).to have_key('Numéro Tahiti du prestataire – Entreprise forme juridique')
+        expect(variables).to have_key('Numéro Tahiti du prestataire – Libellé NAF')
+      end
+
+      it 'transmet la date de création au format jj/mm/aaaa' do
+        variables = service.build_variables
+
+        expect(variables['Numéro Tahiti du prestataire – Entreprise date de création']).to eq('24/04/1990')
+      end
+
+      it "lit l'établissement même quand value_json n'a pas été renseigné" do
+        dossier.champs.find { |c| c.type_de_champ == siret_tdc }.update!(value_json: nil)
+        dossier.reload
+
+        variables = service.build_variables
+
+        expect(variables['Numéro Tahiti du prestataire – Entreprise raison sociale']).to eq('SARL TAHITI SERVICES')
+      end
+
+      it "transmet des variables vides quand le numéro n'est pas résolu" do
+        dossier.champs.find { |c| c.type_de_champ == siret_tdc }.update!(etablissement: nil, value_json: nil)
+        dossier.reload
+
+        variables = service.build_variables
+
+        expect(variables['Numéro Tahiti du prestataire – Entreprise raison sociale']).to eq('')
+      end
+    end
+
     context 'avec un champ datetime' do
       let!(:datetime_tdc) do
         create(:type_de_champ_datetime, libelle: 'Créneau souhaité', procedure: procedure)
@@ -276,6 +332,26 @@ describe LexpolService do
 
         expect(variables).to include('Créneau souhaité')
         expect(variables).to include('Créneau souhaité (heure)')
+      end
+    end
+
+    context 'avec un champ Numéro Tahiti' do
+      let!(:siret_tdc) do
+        create(:type_de_champ_siret, libelle: 'Numéro Tahiti du prestataire', procedure: draft_procedure)
+      end
+
+      it "inclut les variables de l'établissement préfixées par le libellé du champ" do
+        variables = described_class.lexpol_variables(draft_lexpol_tdc, draft_procedure)
+
+        expect(variables).to include(
+          'Numéro Tahiti du prestataire',
+          'Numéro Tahiti du prestataire – Entreprise raison sociale',
+          'Numéro Tahiti du prestataire – Entreprise SIREN',
+          'Numéro Tahiti du prestataire – Entreprise nom commercial',
+          'Numéro Tahiti du prestataire – Entreprise forme juridique',
+          'Numéro Tahiti du prestataire – Entreprise date de création',
+          'Numéro Tahiti du prestataire – Libellé NAF'
+        )
       end
     end
 
