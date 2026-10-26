@@ -20,8 +20,8 @@ RSpec.describe Dossiers::EditFooterComponent, type: :component do
 
     context 'when dossier can not be submitted' do
       before { allow(component).to receive(:can_passer_en_construction?).and_return(false) }
-      it 'renders submit button with disabled' do
-        expect(subject).to have_selector('a', text: 'Pourquoi je ne peux pas déposer mon dossier ?')
+      it 'renders submit button with disabled, and the link opening the explanation on click only' do
+        expect(subject).to have_selector("a[data-fr-opened='false']", text: 'Pourquoi je ne peux pas déposer mon dossier ?')
         expect(subject).to have_selector('button[disabled]', text: 'Déposer le dossier')
       end
     end

@@ -151,6 +151,9 @@ class Champ < ApplicationRecord
     type_de_champ.mandatory? && visible?
   end
 
+  # pf: backport partiel d'upstream (1b1c5316ff) pour que la case à cocher puisse le redéfinir
+  def blank_for_condition? = blank? && !drop_down_other?
+
   def mandatory_blank?
     type_de_champ.mandatory_blank?(self)
   end

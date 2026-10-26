@@ -44,14 +44,16 @@ describe 'Dossier Inéligibilité', js: true do
       expect(page).to have_selector(:button, text: "Déposer le dossier", disabled: true)
       expect(page).to have_selector("#modal-eligibilite-rules-dialog", visible: true)
 
-      # reload page and see error
+      # reload page: the deposit stays closed, the alert waits for a click
       visit brouillon_dossier_path(dossier)
       expect(page).to have_selector(:button, text: "Déposer le dossier", disabled: true)
-      expect(page).to have_content("Vous ne pouvez pas déposer votre dossier")
+      expect(page).to have_selector("#modal-eligibilite-rules-dialog", visible: false)
 
-      # modal is closable, and we can change our dossier response to be eligible
+      click_on "Pourquoi je ne peux pas déposer mon dossier ?"
       expect(page).to have_selector("#modal-eligibilite-rules-dialog", visible: true)
       expect(page).to have_text("Vous ne pouvez pas déposer votre dossier")
+
+      # modal is closable, and we can change our dossier response to be eligible
       within("#modal-eligibilite-rules-dialog") { click_on "Fermer" }
       expect(page).to have_selector("#modal-eligibilite-rules-dialog", visible: false)
 
@@ -180,6 +182,43 @@ describe 'Dossier Inéligibilité', js: true do
       # it works, yay
       click_on "Déposer les modifications"
       wait_until { dossier.reload.en_construction? == true }
+    end
+  end
+
+  # pf: backport upstream 3570fe70b3, une case jamais touchée vaut « Non » dès l'arrivée
+  describe 'ineligibilite_rules on a checkbox, which reads « Non » before anyone touches it' do
+    let(:types_de_champ_public) { [{ type: :checkbox, libelle: 'certifie', stable_id: 1 }, { type: :text, libelle: 'texte', stable_id: 2 }] }
+    let(:ineligibilite_rules) { ds_eq(champ_value(1), constant(false)) }
+
+    scenario "n'alerte ni à l'arrivée ni sur un autre champ, alerte une fois la case décochée" do
+      visit brouillon_dossier_path(dossier)
+      expect(page).to have_selector(:button, text: "Déposer le dossier", disabled: true)
+      expect(page).to have_selector('#modal-eligibilite-rules-dialog', visible: false)
+
+      fill_in 'texte', with: 'coucou'
+      wait_for_autosave
+      expect(page).to have_selector(:button, text: "Déposer le dossier", disabled: true)
+      expect(page).to have_selector('#modal-eligibilite-rules-dialog', visible: false)
+
+      find('label', text: 'certifie').click # coche
+      wait_for_autosave
+      expect(page).to have_selector(:button, text: "Déposer le dossier", disabled: false)
+      expect(page).to have_selector('#modal-eligibilite-rules-dialog', visible: false)
+
+      find('label', text: 'certifie').click # décoche
+      wait_for_autosave
+      expect(page).to have_selector('#modal-eligibilite-rules-dialog', visible: true)
+      expect(page).to have_content(ineligibilite_message)
+      expect(page).to have_selector(:button, text: "Déposer le dossier", disabled: true)
+    end
+
+    scenario "laisse ouvrir l'explication à la demande" do
+      visit brouillon_dossier_path(dossier)
+      expect(page).to have_selector('#modal-eligibilite-rules-dialog', visible: false)
+
+      click_on "Pourquoi je ne peux pas déposer mon dossier ?"
+      expect(page).to have_selector('#modal-eligibilite-rules-dialog', visible: true)
+      expect(page).to have_content(ineligibilite_message)
     end
   end
 

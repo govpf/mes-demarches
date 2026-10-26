@@ -61,7 +61,7 @@ class Logic::ChampValue < Logic::Term
 
     return nil if targeted_champ.nil?
     return nil if !targeted_champ.visible?
-    return nil if targeted_champ.blank? & !targeted_champ.drop_down_other?
+    return nil if targeted_champ.blank_for_condition?
 
     case targeted_champ.type
     when "Champs::YesNoChamp",

@@ -104,6 +104,16 @@ describe Logic::ChampValue do
         expect(champ_value(champ.stable_id).type([champ.type_de_champ])).to eq(:boolean)
         is_expected.to eq(true)
       end
+
+      # pf: une case jamais touchée (nil) vaut « non », pas « sans valeur »
+      context 'with a nil value' do
+        let(:value) { nil }
+
+        it do
+          is_expected.to be(false)
+          expect(ds_eq(champ_value(champ.stable_id), constant(false)).compute([champ])).to be(true)
+        end
+      end
     end
 
     context 'departement tdc' do

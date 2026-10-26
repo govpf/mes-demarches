@@ -1168,6 +1168,30 @@ describe Users::DossiersController, type: :controller do
         end
       end
 
+      # pf: la modale répond à la saisie d'un champ lu par la règle (backport upstream 3570fe70b3)
+      context 'when the edited champ is not one the rule reads' do
+        let(:submit_payload) do
+          {
+            id: dossier.id,
+            validate:,
+            dossier: {
+              champs_public_attributes: {
+                text_champ.public_id => { value: 'coucou' },
+              },
+            },
+          }
+        end
+
+        before { number_champ.update_columns(value: (must_be_greater_than + 1).to_s) }
+
+        it 'closes the deposit without raising the popup' do
+          subject
+          dossier.reload
+          expect(dossier.can_passer_en_construction?).to be_falsey
+          expect(response.body).to match(/aria-controls='modal-eligibilite-rules-dialog'[^>]*data-fr-opened='false'/)
+        end
+      end
+
       context 'when not validating' do
         let(:validate) { nil }
         let(:value) { must_be_greater_than + 1 }
