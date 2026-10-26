@@ -646,6 +646,32 @@ describe 'The user', js: true do
       end
     end
 
+    # pf: condition « case à cocher = non » alors que la case n'a jamais été touchée
+    context 'with a condition on an unchecked checkbox' do
+      let(:checkbox_stable_id) { 999 }
+      let(:procedure) do
+        create(:procedure, :published, :for_individual,
+          types_de_champ_public: [
+            { type: :checkbox, libelle: 'je suis déjà inscrit', stable_id: checkbox_stable_id, mandatory: false },
+            { type: :text, libelle: 'motif de première inscription', condition: ds_eq(champ_value(checkbox_stable_id), constant(false)), mandatory: false },
+          ])
+      end
+
+      scenario 'the conditioned champ is visible until the checkbox is checked' do
+        log_in(user, procedure)
+
+        fill_individual
+
+        expect(page).to have_css('label', text: 'motif de première inscription', visible: true)
+
+        check('je suis déjà inscrit', allow_label_click: true)
+        expect(page).to have_no_css('label', text: 'motif de première inscription', visible: true)
+
+        uncheck('je suis déjà inscrit', allow_label_click: true)
+        expect(page).to have_css('label', text: 'motif de première inscription', visible: true)
+      end
+    end
+
     context 'with a visibilite in cascade' do
       let(:age_stable_id) { 999 }
       let(:permis_stable_id) { 9999 }
