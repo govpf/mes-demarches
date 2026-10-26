@@ -168,17 +168,25 @@ describe 'shared/dossiers/edit', type: :view do
     end
   end
 
-  context 'when dossier transitions rules are computable and passer_en_construction is false' do
-    let(:types_de_champ_public) { [] }
+  context 'when the ineligibilite rules are met' do
+    include Logic
+
+    let(:types_de_champ_public) { [{ type: :checkbox, stable_id: 1 }] }
     let(:dossier) { create(:dossier, procedure:) }
 
     before do
-      allow(dossier).to receive(:can_passer_en_construction?).and_return(false)
-      allow(dossier.revision).to receive(:ineligibilite_enabled?).and_return(true)
+      dossier.revision.update!(
+        ineligibilite_enabled: true,
+        ineligibilite_message: 'non éligible',
+        ineligibilite_rules: ds_eq(champ_value(1), constant(false))
+      )
     end
 
-    it 'renders broken transitions rules dialog' do
-      expect(subject).to have_selector("#ineligibilite_rules_modal [data-fr-opened='true']")
+    it 'closes the deposit and leaves the alert to the footer link, without opening it' do
+      expect(dossier.can_passer_en_construction?).to be false
+      expect(subject).to have_selector('button[disabled]', text: 'Déposer le dossier')
+      expect(subject).to have_selector("a[data-fr-opened='false']", text: 'Pourquoi je ne peux pas déposer mon dossier ?')
+      expect(subject).to have_selector("#ineligibilite_rules_modal [data-fr-opened='false']")
     end
   end
 end

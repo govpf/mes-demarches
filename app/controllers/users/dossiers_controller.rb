@@ -710,6 +710,7 @@ module Users
     def update_dossier_and_compute_errors
       public_id, champ_attributes = champs_public_attributes_params.to_h.first
       champ = dossier.public_champ_for_update(public_id, updated_by: current_user.email)
+      @updated_champ = champ # pf: la modale d'inéligibilité ne s'ouvre que sur un champ lu par la règle
       if champ.referentiel? && champ.autocomplete?
         champ_attributes = champ_attributes.merge(params.require(:dossier).require(:champs_public_attributes).require(public_id).permit(:data).to_h)
       end
