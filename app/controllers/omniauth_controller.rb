@@ -2,7 +2,7 @@
 
 class OmniauthController < ApplicationController
   before_action :redirect_to_login_if_connection_aborted, only: [:callback]
-  before_action :securely_retrieve_fci, only: [:merge, :merge_with_existing_account, :merge_with_new_account, :resend_and_renew_merge_confirmation, :send_email_merge_request, :merge_using_provider_email]
+  before_action :securely_retrieve_fci, only: [:merge, :merge_with_existing_account, :resend_and_renew_merge_confirmation, :send_email_merge_request, :merge_using_provider_email]
   before_action :securely_retrieve_fci_from_email_merge_token, only: [:merge_using_email_link]
   before_action :set_user_by_confirmation_token, only: [:confirm_email]
 
@@ -92,33 +92,11 @@ class OmniauthController < ApplicationController
     end
   end
 
-  def merge_with_new_account
-    user = User.find_by(email: sanitized_email_params)
-    provider = provider_param
-
-    if user.nil?
-      @fci.safely_associate_user!(sanitized_email_params)
-      @fci.user.update!(email_verified_at: Time.current)
-
-      flash.notice = t('omniauth.flash.connection_done', application_name: Current.application_name, provider: t("omniauth.provider.#{provider}"))
-      connect_user(provider, @fci.user)
-    else
-      # L'email appartient à un autre utilisateur, envoyer un email de confirmation
-      @fci.update(requested_email: sanitized_email_params)
-
-      @fci.create_email_merge_token!
-      provider = provider_param
-
-      UserMailer.omniauth_merge_confirmation(@fci.email_france_connect, @fci.email_merge_token, @fci.email_merge_token_created_at, provider)
-        .deliver_later
-
-      redirect_to root_path, notice: t('omniauth.flash.confirmation_mail_sent')
-    end
-  end
-
   def resend_and_renew_merge_confirmation
     merge_token = @fci.create_merge_token!
     provider = provider_param
+    # pf: le lien de fusion vise le compte de l'adresse du provider (cf. merge_using_email_link)
+    @fci.update(requested_email: sanitize(@fci.email_france_connect))
     # pf: le mail contient un lien basé sur email_merge_token : il faut le (re)créer,
     # sinon il part à nil et le rendu du mail échoue (jobs morts, usager sans mail).
     # Même séquence que l'upstream FC d'origine (create_email_merge_token! avant l'envoi).
@@ -129,8 +107,23 @@ class OmniauthController < ApplicationController
   end
 
   def send_email_merge_request
-    @fci.update(requested_email: sanitized_email_params)
     provider = provider_param
+    user = User.find_by(email: sanitized_email_params)
+
+    # pf: un compte existe à cette adresse : son mot de passe est exigé avant d'envoyer
+    # le lien de fusion (cf. amont #13065 sur FranceConnect)
+    if user.present?
+      if password_params.blank?
+        return render_confirm_email_merge_password(provider)
+      end
+
+      if !user.valid_for_authentication? { user.valid_password?(password_params) }
+        flash.now[:alert] = t('omniauth.flash.invalid_password')
+        return render_confirm_email_merge_password(provider)
+      end
+    end
+
+    @fci.update(requested_email: sanitized_email_params)
 
     @fci.create_email_merge_token!
     UserMailer.omniauth_merge_confirmation(
@@ -271,6 +264,12 @@ class OmniauthController < ApplicationController
       sign_out :user
       redirect_to new_user_session_path, alert: I18n.t('omniauth.flash.redirect_new_user_session')
     end
+  end
+
+  def render_confirm_email_merge_password(provider)
+    @provider = provider
+    @merge_email = sanitized_email_params
+    render :confirm_email_merge_password, status: :unprocessable_entity
   end
 
   def destination_path(user) = stored_location_for(user) || root_path(user)

@@ -21,7 +21,17 @@ class API::Public::V1::JSONDescriptionProceduresController < API::Public::V1::Ba
         demarche: { "number": @procedure.id },
         includeRevision: true,
       },
+      context: unauthenticated_context,
       operation_name: "getDemarcheDescriptor")
       .to_h.dig("data", "demarcheDescriptor").to_json
+  end
+
+  def unauthenticated_context
+    {
+      administrateur_id: nil,
+      procedure_ids: [],
+      write_access: false,
+      remote_ip: request.remote_ip,
+    }
   end
 end

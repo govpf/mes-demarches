@@ -78,5 +78,35 @@ RSpec.describe RecoveryService, type: :service do
         expect(dossier_transfer_log.to).to eq(next_user.email)
       end
     end
+
+    context 'when the previous_user has dossiers on the same procedure for several siret' do
+      let!(:previous_user) { create(:user) }
+      let!(:next_user) { create(:user) }
+
+      let!(:procedure) { create(:procedure) }
+      let!(:siret) { '123' }
+      let!(:other_siret) { 'other_123' }
+
+      let!(:dossier_for_requested_siret) do
+        create(:dossier, procedure: procedure,
+               etablissement: create(:etablissement, siret:),
+               user: previous_user)
+      end
+
+      let!(:dossier_for_other_siret) do
+        create(:dossier, procedure: procedure,
+               etablissement: create(:etablissement, siret: other_siret),
+               user: previous_user)
+      end
+
+      let(:procedure_ids) { [procedure.id] }
+
+      it 'only transfers the dossiers attached to the requested siret' do
+        subject
+
+        expect(next_user.dossiers).to contain_exactly(dossier_for_requested_siret)
+        expect(dossier_for_other_siret.reload.user).to eq(previous_user)
+      end
+    end
   end
 end

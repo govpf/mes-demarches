@@ -462,7 +462,7 @@ en:
       avis:
         introduction_file_explaination: "File attached to the request for advice"
       search:
-        dossier_not_in_instructor_group: "File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it is attached to the “%{groupe_instructeur_label}” instructor group."
+        dossier_not_in_instructor_group: "File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it is attached to another instructor group."
         deleted_dossier: "The File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it was deleted on %{deleted_at}."
         hidden_dossier: "The File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it was move to the "
         hidden_dossier_link: "bin"
@@ -1085,6 +1085,11 @@ en:
       use_another_email: "No, use another address."
       alternative_email: "Please provide the email to use for contacting you."
       confirm: "Confirm"
+    confirm_email_merge_password:
+      title: "Confirm the association with your account"
+      intro_html: "An account already exists for <b>%{email}</b>. To authorise its association with %{provider}, please enter the password of this account."
+      password_label: "Password"
+      submit: "Confirm"
     merge:
       title: "Merge %{provider} and %{application_name} accounts"
       subtitle: "Hello, your %{provider} account uses %{email} as contact email. But there is an account on %{application_name} with this email."

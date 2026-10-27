@@ -2315,6 +2315,19 @@ describe Instructeurs::DossiersController, type: :controller do
         expect(subject.body).to include('Ajouter un label')
       end
     end
+
+    context 'when a label_id belongs to another procedure' do
+      let(:other_procedure) { create(:procedure, :with_labels) }
+      let(:foreign_label) { other_procedure.labels.first }
+
+      subject(:cross_procedure_request) do
+        post :dossier_labels, params: { procedure_id: procedure.id, dossier_id: dossier.id, label_id: [foreign_label.id], statut: 'a-suivre' }, format: :turbo_stream
+      end
+
+      it 'does not assign the label from the other procedure to the dossier' do
+        expect { cross_procedure_request }.not_to change { dossier.dossier_labels.count }
+      end
+    end
   end
 
   describe '#rendez_vous' do
@@ -2337,6 +2350,31 @@ describe Instructeurs::DossiersController, type: :controller do
       it 'should not crash' do
         expect { subject }.not_to raise_error
         expect(response).to have_http_status(:ok)
+      end
+    end
+  end
+
+  describe '#bilans_bdf' do
+    let(:etablissement) { create(:etablissement, entreprise_bilans_bdf: [{ "date_arret_exercice" => "2024", "chiffre_affaires_ht" => "1000" }]) }
+    let(:dossier) { create(:dossier, :en_construction, :with_individual, procedure:, etablissement:) }
+
+    subject { get :bilans_bdf, params: { procedure_id: procedure.id, dossier_id: dossier.id, format: } }
+
+    context 'with an allowed format' do
+      let(:format) { :csv }
+
+      it 'returns the spreadsheet' do
+        subject
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'with a disallowed format' do
+      let(:format) { :inline }
+
+      it 'redirects without invoking the dynamic render' do
+        subject
+        expect(response).to redirect_to(instructeur_procedure_path(procedure))
       end
     end
   end

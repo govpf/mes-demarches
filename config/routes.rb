@@ -214,7 +214,6 @@ Rails.application.routes.draw do
   get '/auth/:provider/merge/:merge_token' => 'omniauth#merge', as: :omniauth_merge, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   post '/auth/:provider/resend_and_renew_merge_confirmation' => 'omniauth#resend_and_renew_merge_confirmation', as: :omniauth_resend_and_renew_merge_confirmation, constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
   post '/auth/merge_with_existing_account' => 'omniauth#merge_with_existing_account', as: 'omniauth_merge_with_existing_account'
-  post '/auth/merge_with_new_account' => 'omniauth#merge_with_new_account', as: 'omniauth_merge_with_new_account'
   post '/auth/send_email_merge_request' => 'omniauth#send_email_merge_request', as: 'omniauth_send_email_merge_request'
   post '/auth/merge_using_provider_email' => 'omniauth#merge_using_provider_email', as: 'omniauth_merge_using_provider_email'
   get '/auth/:provider/merge_using_email_link/:email_merge_token' => 'omniauth#merge_using_email_link', as: 'omniauth_merge_using_email_link', constraints: { :provider => /google|microsoft|yahoo|tatou|sipf/ }
@@ -419,6 +418,7 @@ Rails.application.routes.draw do
         get 'attestation'
         get 'qrcode/:created_at', action: 'qrcode', as: :qrcode
         get 'transferer', to: 'dossiers#transferer'
+        post 'transferer', to: 'transfers#create', as: :transfer
         get 'papertrail', format: :pdf
         get 'set_accuse_lecture_agreement_at'
         get 'corbeille', to: 'dossiers#show_in_trash'
@@ -426,7 +426,7 @@ Rails.application.routes.draw do
       end
 
       collection do
-        resources :transfers, only: [:create, :update, :destroy]
+        resources :transfers, only: [:update, :destroy]
       end
     end
 
@@ -566,7 +566,7 @@ Rails.application.routes.draw do
           resources :avis, only: [], path: "(:statut)/dossiers", defaults: { statut: 'a-suivre' } do
             member do
               patch 'revoquer'
-              get 'remind'
+              patch 'remind'
             end
           end
 

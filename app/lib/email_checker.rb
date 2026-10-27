@@ -652,6 +652,7 @@ class EmailChecker
   end
 
   def self.suggestions(parsed_email:, similar_domains:)
-    similar_domains.map { Mail::Address.new("#{parsed_email.local}@#{_1}").to_s }
+    local = Rails::Html::FullSanitizer.new.sanitize(parsed_email.local)
+    similar_domains.map { "#{local}@#{_1}" }
   end
 end
