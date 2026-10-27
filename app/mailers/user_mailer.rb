@@ -43,6 +43,9 @@ class UserMailer < ApplicationMailer
     @subject = "Veuillez confirmer la fusion de compte"
 
     configure_defaults_for_email(email)
+    # pf: ce mail sert à vérifier l'adresse : sans contournement, BalancerDeliveryMethod
+    # le bloque pour une adresse inconnue ou non vérifiée
+    bypass_unverified_mail_protection!
 
     mail(to: email, subject: @subject)
   end

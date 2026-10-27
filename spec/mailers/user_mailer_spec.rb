@@ -115,14 +115,18 @@ RSpec.describe UserMailer, type: :mailer do
     it 'renders the email with correct merge link and expiration date' do
       expect(subject.to).to eq([email])
       expect(subject.body).to include(email_merge_token)
-      expect(subject.body).to include(email_merge_token_created_at.strftime("%d-%m-%Y"))
+      expect(subject.body).to include((email_merge_token_created_at + FranceConnectInformation::MERGE_VALIDITY).strftime("%d-%m-%Y à %H:%M"))
+    end
+
+    it 'is delivered even to an unknown or unverified address' do
+      expect(subject[BalancerDeliveryMethod::BYPASS_UNVERIFIED_MAIL_PROTECTION]).to be_present
     end
 
     context 'with wrong argument order (token and timestamp swapped)' do
       subject { described_class.omniauth_merge_confirmation(email, 'wrong@email.com', email_merge_token, provider) }
 
-      it 'raises because strftime is called on a String' do
-        expect { subject.body }.to raise_error(ActionView::Template::Error, /strftime/)
+      it 'raises because the timestamp is a String' do
+        expect { subject.body }.to raise_error(ActionView::Template::Error)
       end
     end
   end
