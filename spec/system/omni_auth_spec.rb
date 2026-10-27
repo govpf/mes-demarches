@@ -93,7 +93,16 @@ describe 'Omni Auth Connexion' do
               fill_in 'email', with: 'new_email@a.com'
               click_on 'Utiliser cette adresse électronique'
 
+              # pf: l'adresse saisie doit être confirmée avant la création du compte
+              expect(page).to have_content('Nous venons de vous envoyer le mail de confirmation')
+              expect(User.find_by(email: 'new_email@a.com')).to be_nil
+
+              perform_enqueued_jobs
+              link = open_email('new_email@a.com').body.match(%r{href="[^"]*(/auth/google/merge_using_email_link/[^"]+)"})[1]
+              visit link
+
               expect(page).to have_content('Dossiers')
+              expect(User.find_by(email: 'new_email@a.com').email_verified_at).to be_present
             end
 
             context 'and the user wants an email that belongs to another account', js: true do
@@ -108,6 +117,11 @@ describe 'Omni Auth Connexion' do
                   fill_in 'email', with: 'an_existing_email@a.com'
                   click_on 'Utiliser cette adresse électronique'
                 end
+
+                # pf: le mot de passe du compte existant est exigé avant l'envoi du lien
+                expect(page).to have_content('Confirmer l’association à votre compte')
+                fill_in 'password', with: SECURE_PASSWORD
+                click_on 'Confirmer'
 
                 expect(page).to have_content('Nous venons de vous envoyer le mail de confirmation')
               end

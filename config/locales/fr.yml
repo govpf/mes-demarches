@@ -1155,6 +1155,11 @@ fr:
       already_exists: "Ce compte %{email} existe déjà sur %{application_name}."
       fill_in_password: "Pour les fusionner, entrez votre mot de passe"
       back: "Retour"
+    confirm_email_merge_password:
+      title: "Confirmer l’association à votre compte"
+      intro_html: "Un compte existe déjà à l’adresse <b>%{email}</b>. Pour autoriser son association à %{provider}, veuillez saisir le mot de passe de ce compte."
+      password_label: "Mot de passe"
+      submit: "Confirmer"
     merge:
       title: "Fusion des comptes %{provider} et %{application_name}"
       subtitle: "Bonjour, votre compte %{provider} utilise %{email} comme adresse électronique de contact. Or il existe un compte sur %{application_name} avec cet email."

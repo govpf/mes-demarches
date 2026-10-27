@@ -1075,6 +1075,11 @@ en:
       use_another_email: "No, use another address."
       alternative_email: "Please provide the email to use for contacting you."
       confirm: "Confirm"
+    confirm_email_merge_password:
+      title: "Confirm the association with your account"
+      intro_html: "An account already exists for <b>%{email}</b>. To authorise its association with %{provider}, please enter the password of this account."
+      password_label: "Password"
+      submit: "Confirm"
     merge:
       title: "Merge %{provider} and %{application_name} accounts"
       subtitle: "Hello, your %{provider} account uses %{email} as contact email. But there is an account on %{application_name} with this email."
