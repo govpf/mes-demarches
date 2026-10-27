@@ -460,7 +460,7 @@ en:
       avis:
         introduction_file_explaination: "File attached to the request for advice"
       search:
-        dossier_not_in_instructor_group: "File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it is attached to the “%{groupe_instructeur_label}” instructor group."
+        dossier_not_in_instructor_group: "File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it is attached to another instructor group."
         deleted_dossier: "The File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it was deleted on %{deleted_at}."
         hidden_dossier: "The File no. %{dossier_id} of the procedure “%{procedure_libelle}” matches your search but it was move to the "
         hidden_dossier_link: "bin"

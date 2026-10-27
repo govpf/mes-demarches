@@ -230,6 +230,8 @@ class Procedure < ApplicationRecord
   validates :lien_site_web, presence: true, if: :publiee?
   validates :lien_notice, url: { no_local: true, allow_blank: true }
   validates :lien_dpo, url: { no_local: true, allow_blank: true, accept_email: true }
+  validates :web_hook_url, url: { no_local: true, allow_blank: true }
+  validates :web_hook_url, no_private_ip_url: true, allow_blank: true
 
   validates :draft_types_de_champ_public,
     'types_de_champ/condition': true,
@@ -656,7 +658,7 @@ class Procedure < ApplicationRecord
 
   def restore(author)
     if discarded? && undiscard
-      dossiers.hidden_by_administration.find_each do |dossier|
+      dossiers.hidden_by_procedure_removed.find_each do |dossier|
         dossier.restore(author)
       end
     end
@@ -893,7 +895,7 @@ class Procedure < ApplicationRecord
     label_ids_positions = ordered_label_ids.each.with_index.to_h
     Label.transaction do
       label_ids_positions.each do |label_id, position|
-        Label.where(id: label_id).update(position:)
+        labels.where(id: label_id).update(position:)
       end
     end
   end

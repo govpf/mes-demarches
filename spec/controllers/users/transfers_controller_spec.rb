@@ -65,15 +65,25 @@ describe Users::TransfersController, type: :controller do
   end
 
   describe "POST create" do
-    subject { post :create, params: { dossier_transfer: { email: email, dossier: dossier.id } } }
+    subject { post :create, params: { id: dossier.id, dossier_transfer: { email: email } } }
 
     before do
       sign_in(sender_user)
-      subject
+    end
+
+    context "transfers only the targeted dossier, not all" do
+      let(:email) { "test@rspec.net" }
+      let!(:other_dossier) { create(:dossier, user: sender_user) }
+
+      it "transfers only the dossier from the URL" do
+        expect { subject }.to change { DossierTransfer.count }.by(1)
+        expect(DossierTransfer.last.dossiers).to eq([dossier])
+      end
     end
 
     context "with valid email" do
       let(:email) { "test@rspec.net" }
+      before { subject }
 
       it do
         expect(DossierTransfer.last.email).to eq(email)
@@ -83,6 +93,7 @@ describe Users::TransfersController, type: :controller do
 
     context 'with upper case email' do
       let(:email) { "Test@rspec.net" }
+      before { subject }
       it { expect(DossierTransfer.last.email).to eq(email.strip.downcase) }
     end
 

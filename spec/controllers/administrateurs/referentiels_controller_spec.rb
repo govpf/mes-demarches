@@ -8,6 +8,39 @@ describe Administrateurs::ReferentielsController, type: :controller do
 
   before { sign_in(procedure.administrateurs.first.user) }
 
+  describe 'IDOR on retrieve_referentiel (edit/update)' do
+    let(:other_referentiel) { create(:api_referentiel, :exact_match, :with_authentication_data) }
+    let(:other_procedure) { create(:procedure, types_de_champ_public: [{ type: :referentiel, referentiel: other_referentiel }]) }
+    let(:other_admin) { other_procedure.administrateurs.first }
+
+    it 'blocks reading another admin referentiel via edit' do
+      expect {
+        get :edit, params: { procedure_id: procedure.id, stable_id:, id: other_referentiel.id }
+      }.to raise_error(ActiveRecord::RecordNotFound)
+    end
+
+    it 'blocks modifying another admin referentiel via update' do
+      expect {
+        patch :update, params: {
+          procedure_id: procedure.id, stable_id:, id: other_referentiel.id,
+          referentiel: { hint: 'hacked' },
+        }, format: :turbo_stream
+      }.to raise_error(ActiveRecord::RecordNotFound)
+    end
+  end
+
+  describe 'IDOR on build_or_clone_by_id_params (clone credentials)' do
+    let(:other_referentiel) { create(:api_referentiel, :exact_match, :with_authentication_data) }
+    let(:other_procedure) { create(:procedure, types_de_champ_public: [{ type: :referentiel, referentiel: other_referentiel }]) }
+    let(:other_admin) { other_procedure.administrateurs.first }
+
+    it 'blocks cloning authentication_data from another admin referentiel' do
+      expect {
+        get :new, params: { procedure_id: procedure.id, stable_id:, referentiel_id: other_referentiel.id }
+      }.to raise_error(ActiveRecord::RecordNotFound)
+    end
+  end
+
   describe '#new' do
     it 'renders successifully' do
       get :new, params: { procedure_id: procedure.id, stable_id: }
@@ -23,7 +56,8 @@ describe Administrateurs::ReferentielsController, type: :controller do
           mode: 'exact_match',
         }
       end
-      let(:referentiel) { create(:api_referentiel, **original_data) }
+      let(:type_de_champ) { procedure.draft_revision.types_de_champ.first }
+      let(:referentiel) { create(:api_referentiel, :exact_match, types_de_champ: [type_de_champ], **original_data) }
 
       it 'clone existing one' do
         get :new, params: { procedure_id: procedure.id, referentiel_id: referentiel.id, stable_id: }
