@@ -7,7 +7,7 @@ describe Columns::DossierColumn do
     context 'when dossier columns' do
       context 'when procedure for individual' do
         let(:individual) { create(:individual, nom: "Sim", prenom: "Paul", gender: 'M.') }
-        let(:procedure) { create(:procedure, for_individual: true, groupe_instructeurs: [groupe_instructeur]) }
+        let(:procedure) { create(:procedure, for_individual: true, no_gender: false, groupe_instructeurs: [groupe_instructeur]) } # pf: civilité demandée → colonne Civilité (upstream 2025-12-22-01)
         let(:dossier) { create(:dossier, individual:, mandataire_first_name: "Martin", mandataire_last_name: "Christophe", for_tiers: true) }
 
         it 'retrieve individual information' do

@@ -290,7 +290,8 @@ describe LexpolService do
   end
 
   describe '.lexpol_variables' do
-    let(:draft_procedure) { create(:procedure, :for_individual) }
+    # pf: civilité demandée → variable Civilité (upstream omet la colonne si no_gender)
+    let(:draft_procedure) { create(:procedure, :for_individual, no_gender: false) }
     let!(:draft_lexpol_tdc) { create(:type_de_champ_lexpol, procedure: draft_procedure) }
 
     it "inclut les variables depuis les colonnes d'export" do
