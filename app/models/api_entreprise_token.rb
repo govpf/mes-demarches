@@ -18,7 +18,9 @@ class APIEntrepriseToken
   def expired?
     # pf: in PF, API Entreprise is not used (no SIREN/SIRET equivalent)
     # so it's normal to not have a token - return false instead of true
-    return false if decoded_token.blank?
+    return false if @jwt_token.blank?
+    # un jeton présent mais illisible reste considéré comme expiré (comme upstream)
+    return true if decoded_token.blank?
 
     # we have a decoded token but no exp claim, consider it as non-expiring
     return false if expires_at.nil?
@@ -63,6 +65,7 @@ class APIEntrepriseToken
 
     @decoded_token ||= JWT.decode(@jwt_token, nil, false)[0]
   rescue JWT::DecodeError => e
-    raise TokenError, e.message
+    Rails.logger.error e.message
+    {}
   end
 end

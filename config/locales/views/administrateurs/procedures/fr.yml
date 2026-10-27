@@ -76,7 +76,6 @@ fr:
         dpd_part_polynesie_body: "Bonjour%0AQue pensez-vous de la démarche %{id} sur %{path}%0AD’avance merci."
         back_to_procedure: 'Annuler et revenir à la page de la démarche'
         submit: Publier
-      technical_issues: Des problèmes impactent le bon fonctionnement de la démarche
       check_path:
         path_not_available:
           owner: Cette url est identique à celle d’une autre de vos démarches publiées. Si vous publiez cette démarche, le lien ne pointera plus sur l'ancienne démarche.
@@ -126,7 +125,7 @@ fr:
         accuse_lecture_hint: Activé
         api_entreprise_token: Jeton API entreprise
         api_entreprise_token_hint: Jeton configuré
-        mail_templates: Configuration des emails
+        mail_templates: Modèles d’email
         mail_templates_hint: Contenu des emails automatiques
         sva_svr: Silence Vaut Accord ou Rejet
         sva_svr_hint:

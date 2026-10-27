@@ -7204,7 +7204,7 @@
             },
             {
               "name": "dpoURL",
-              "description": "URL ou email pour contacter le Délégué à la Protection des Données (DPO)",
+              "description": "URL ou adresse électronique pour contacter le Délégué à la Protection des Données (DPO)",
               "args": [],
               "type": {
                 "kind": "SCALAR",
@@ -21474,7 +21474,7 @@
             },
             {
               "name": "email",
-              "description": "Email du bénéficiaire (dans le cas d'un dossier déposé par et pour l'usager connecté, l'email est celui de l'usager connecté. Dans le cas d'un dossier déposé pour un bénéficiaire, l'email est celui du bénéficiaire, s'il a été renseigné)",
+              "description": "Adresse électronique du bénéficiaire (dans le cas d’un dossier déposé par et pour l’usager connecté, l’adresse électronique est celle de l’usager connecté. Dans le cas d’un dossier déposé pour un bénéficiaire, l’adresse électronique est celle du bénéficiaire, si elle a été renseignée)",
               "args": [],
               "type": {
                 "kind": "SCALAR",
@@ -22134,7 +22134,7 @@
           "fields": [
             {
               "name": "email",
-              "description": "Email de l'usager",
+              "description": "Adresse électronique de l’usager",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
