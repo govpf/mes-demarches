@@ -82,7 +82,7 @@ describe 'France Connect Connexion' do
 
               visit link
 
-              expect(page).to have_content("Les comptes FranceConnect et #{Current.application_name} sont à présent fusionnés")
+              expect(page).to have_content("Les comptes FranceConnect et #{APPLICATION_NAME} sont à présent fusionnés")
               expect(page).to have_content(alternative_email)
 
               expect(User.find_by(email: alternative_email).email_verified_at).to be_present
