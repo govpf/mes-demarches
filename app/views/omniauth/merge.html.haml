@@ -35,7 +35,7 @@
   .new-account.hidden
     %p= t('.title_fill_in_email', application_name: Current.application_name)
 
-    = form_tag omniauth_merge_with_new_account_path, class: 'mt-2 form' do
+    = form_tag omniauth_send_email_merge_request_path, class: 'mt-2 form' do
       = hidden_field_tag :merge_token, @fci.merge_token, id: dom_id(@fci, :new_account_merge_token)
       = hidden_field_tag :provider, @provider, id: dom_id(@fci, :new_account_provider)
       = label_tag :email, t('views.registrations.new.email_label'), for: dom_id(@fci, :new_account_email), class: 'fr-label'

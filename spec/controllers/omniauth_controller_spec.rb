@@ -292,50 +292,110 @@ describe OmniauthController, type: :controller do
     end
   end
 
-  describe '#merge_with_new_account' do
+  # pf: la fusion d'une identité provider dans un compte existant exige une preuve
+  # du titulaire du compte (mot de passe, ou lien reçu à l'adresse du compte).
+  describe 'merge into an existing account without proof' do
+    include ActiveJob::TestHelper
+
     let(:fci) { FranceConnectInformation.create!(user_info) }
     let(:merge_token) { fci.create_merge_token! }
-    let(:email) { ' Account@a.com ' }
-    let(:format) { :turbo_stream }
+    let!(:account) { create(:user, email: 'account@a.com') }
 
-    subject { post :merge_with_new_account, params: { merge_token:, email:, provider: }, format: format }
+    def merge_links_sent_to(address)
+      ActionMailer::Base.deliveries
+        .filter { |mail| mail.to.map(&:downcase).include?(address.downcase) }
+        .flat_map { |mail| (mail.html_part || mail).body.decoded.scan(%r{/auth/#{provider}/merge_using_email_link/[\w-]+}) }
+        .uniq
+    end
 
-    it_behaves_like "a method that needs a valid merge token"
-
-    context 'when the email does not belong to any user' do
-      it 'creates the account, signs in, and delete the merge token' do
-        subject
-        fci.reload
-
-        expect(fci.user.email).to eq(email.downcase.strip)
-        expect(fci.user.email_verified_at).to be_present
-        expect(fci.merge_token).to be_nil
-        expect(controller.current_user).to eq(fci.user)
-        expect(response).to redirect_to(root_path)
+    def follow_merge_links_of(address)
+      merge_links_sent_to(address).each do |link|
+        @request.reset_session
+        get :merge_using_email_link, params: { provider:, email_merge_token: link.split('/').last }
       end
     end
 
-    context 'when an account with the same email exists' do
-      let!(:user) { create(:user, email: email) }
+    before { ActionMailer::Base.deliveries.clear }
 
-      it 'sends email confirmation and redirects to root' do
-        mailer_double = double('mailer', deliver_later: nil)
-        expect(UserMailer).to receive(:omniauth_merge_confirmation)
-          .with(fci.email_france_connect, kind_of(String), kind_of(Time), provider)
-          .and_return(mailer_double)
-
-        subject
-        fci.reload
-
-        expect(fci.user).to be_nil
-        expect(fci.merge_token).not_to be_nil
-        expect(fci.requested_email).to eq(email.downcase.strip)
-        expect(fci.email_merge_token).to be_present
-        expect(controller.current_user).to be_nil
-
-        expect(response).to redirect_to(root_path)
-        expect(flash[:notice]).to eq(I18n.t('omniauth.flash.confirmation_mail_sent'))
+    def request_merge(email:, password: nil)
+      perform_enqueued_jobs do
+        post :send_email_merge_request, params: { merge_token:, email:, password:, provider: }.compact
       end
+    end
+
+    context 'without password' do
+      before { request_merge(email: account.email) }
+
+      it 'asks for the password of the account and sends no merge link' do
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to render_template(:confirm_email_merge_password)
+        expect(merge_links_sent_to(account.email)).to be_empty
+        expect(merge_links_sent_to(email)).to be_empty
+        expect(fci.reload.requested_email).to be_nil
+      end
+    end
+
+    context 'with a wrong password' do
+      before { request_merge(email: account.email, password: 'not the password') }
+
+      it 'sends no merge link and counts the failed attempt' do
+        expect(response).to render_template(:confirm_email_merge_password)
+        expect(flash[:alert]).to eq(I18n.t('omniauth.flash.invalid_password'))
+        expect(merge_links_sent_to(account.email)).to be_empty
+        expect(account.reload.failed_attempts).to eq(1)
+      end
+    end
+
+    context 'with the password of the account' do
+      let!(:account) { create(:user, email: 'account@a.com', password: SECURE_PASSWORD) }
+
+      before { request_merge(email: account.email, password: SECURE_PASSWORD) }
+
+      it 'sends the merge link to the account address only' do
+        expect(merge_links_sent_to(account.email)).to be_present
+        expect(merge_links_sent_to(email)).to be_empty
+      end
+
+      it 'links the provider identity to the account when the link is followed' do
+        follow_merge_links_of(account.email)
+
+        expect(fci.reload.user).to eq(account)
+        expect(controller.current_user).to eq(account)
+      end
+    end
+  end
+
+  describe '#send_email_merge_request with an unused email' do
+    include ActiveJob::TestHelper
+
+    let(:fci) { FranceConnectInformation.create!(user_info) }
+    let(:merge_token) { fci.create_merge_token! }
+    let(:new_email) { 'new_account@a.com' }
+
+    before { ActionMailer::Base.deliveries.clear }
+
+    subject do
+      perform_enqueued_jobs do
+        post :send_email_merge_request, params: { merge_token:, email: " #{new_email.upcase} ", provider: }
+      end
+    end
+
+    it 'creates no account before the address is confirmed' do
+      expect { subject }.not_to change { User.count }
+      expect(controller.current_user).to be_nil
+      expect(response).to redirect_to(root_path)
+    end
+
+    it 'creates the verified account when the link sent to this address is followed' do
+      subject
+      mail = ActionMailer::Base.deliveries.last
+      expect(mail.to).to eq([new_email])
+
+      get :merge_using_email_link, params: { provider:, email_merge_token: fci.reload.email_merge_token }
+
+      expect(fci.reload.user.email).to eq(new_email)
+      expect(fci.user.email_verified_at).to be_present
+      expect(controller.current_user).to eq(fci.user)
     end
   end
 
@@ -358,6 +418,16 @@ describe OmniauthController, type: :controller do
 
       expect { post :resend_and_renew_merge_confirmation, params: { merge_token:, provider: } }
         .to change { fci.reload.email_merge_token }.from(nil)
+    end
+
+    it 'links the provider identity to the account of the provider email when the link is followed' do
+      account = create(:user, email: email.downcase)
+      post :resend_and_renew_merge_confirmation, params: { merge_token:, provider: }
+
+      get :merge_using_email_link, params: { provider:, email_merge_token: fci.reload.email_merge_token }
+
+      expect(fci.reload.user).to eq(account)
+      expect(controller.current_user).to eq(account)
     end
   end
 end
