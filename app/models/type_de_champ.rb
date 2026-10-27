@@ -467,7 +467,14 @@ class TypeDeChamp < ApplicationRecord
       TypeDeChamp.type_champs.fetch(:epci),
       TypeDeChamp.type_champs.fetch(:dossier_link),
       TypeDeChamp.type_champs.fetch(:siret),
-    ])
+    ]) || referentiel_in_exact_match?
+  end
+
+  def referentiel_in_exact_match?
+    maybe_referentiel = type_champ == TypeDeChamp.type_champs.fetch(:referentiel)
+    maybe_exact_match = referentiel&.exact_match?
+
+    maybe_referentiel && maybe_exact_match
   end
 
   def fillable?
@@ -605,6 +612,8 @@ class TypeDeChamp < ApplicationRecord
       Champs::YesNoChamp.options
     elsif checkbox?
       Champs::CheckboxChamp.options
+    elsif civilite?
+      Champs::CiviliteChamp.options
     end
   end
 
@@ -681,7 +690,7 @@ class TypeDeChamp < ApplicationRecord
       :decimal
     when type_champs.fetch(:multiple_drop_down_list)
       :enums
-    when type_champs.fetch(:drop_down_list), type_champs.fetch(:departements), type_champs.fetch(:regions)
+    when type_champs.fetch(:drop_down_list), type_champs.fetch(:departements), type_champs.fetch(:regions), type_champs.fetch(:civilite)
       :enum
     when type_champs.fetch(:checkbox), type_champs.fetch(:yes_no)
       :boolean
@@ -894,7 +903,7 @@ class TypeDeChamp < ApplicationRecord
   end
 
   def pj_limit_formats?
-    options[:pj_limit_formats].present?
+    [true, '1'].include?(options[:pj_limit_formats])
   end
 
   def pj_format_families

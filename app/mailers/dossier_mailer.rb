@@ -5,7 +5,6 @@ class DossierMailer < ApplicationMailer
   class AbortDeliveryError < StandardError; end
 
   helper ServiceHelper
-  helper MailerHelper
   helper ProcedureHelper
 
   layout 'mailers/layout'
@@ -20,7 +19,6 @@ class DossierMailer < ApplicationMailer
   def notify_new_draft
     @dossier = params[:dossier]
     # pf: le check d'état est déjà fait dans DraftNotificationJob, pas besoin de raise ici
-    configure_defaults_for_user(@dossier.user)
 
     I18n.with_locale(@dossier.user_locale) do
       @service = @dossier.procedure.service
@@ -36,7 +34,6 @@ class DossierMailer < ApplicationMailer
   def notify_new_answer
     commentaire = params[:commentaire]
     dossier = commentaire.dossier
-    configure_defaults_for_user(dossier.user)
 
     I18n.with_locale(dossier.user_locale) do
       @dossier = dossier
@@ -52,8 +49,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_new_commentaire_to_instructeur(dossier, instructeur_email)
-    configure_defaults_for_email(instructeur_email)
-
     I18n.with_locale(dossier.user_locale) do
       @dossier = dossier
       @subject = default_i18n_subject(dossier_id: dossier.id, libelle_demarche: dossier.procedure.libelle)
@@ -65,7 +60,6 @@ class DossierMailer < ApplicationMailer
   def notify_pending_correction
     commentaire = params[:commentaire]
     dossier = commentaire.dossier
-    configure_defaults_for_user(dossier.user)
 
     I18n.with_locale(dossier.user_locale) do
       @dossier = dossier
@@ -82,8 +76,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_new_avis_to_instructeur(avis, instructeur_email)
-    configure_defaults_for_email(instructeur_email)
-
     I18n.with_locale(avis.dossier.user_locale) do
       @avis = avis
       @subject = default_i18n_subject(dossier_id: avis.dossier.id, libelle_demarche: avis.procedure.libelle)
@@ -93,8 +85,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_new_dossier_depose_to_instructeur(dossier, instructeur_email)
-    configure_defaults_for_email(instructeur_email)
-
     I18n.with_locale(dossier.user_locale) do
       @dossier = dossier
       @subject = default_i18n_subject(dossier_id: dossier.id, libelle_demarche: dossier.procedure.libelle)
@@ -104,8 +94,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_brouillon_near_deletion(dossiers, to_email)
-    configure_defaults_for_email(to_email)
-
     I18n.with_locale(dossiers.first.user_locale) do
       @subject = default_i18n_subject(count: dossiers.size)
       @dossiers = dossiers
@@ -116,8 +104,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_brouillon_deletion(dossier_hashes, to_email)
-    configure_defaults_for_email(to_email)
-
     @subject = default_i18n_subject(count: dossier_hashes.size)
     @dossier_hashes = dossier_hashes
 
@@ -125,8 +111,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_en_construction_deletion_to_administration(dossier, to_email)
-    configure_defaults_for_email(to_email)
-
     @subject = default_i18n_subject(dossier_id: dossier.id)
     @dossier = dossier
 
@@ -134,8 +118,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_automatic_deletion_to_user(hidden_dossiers, to_email)
-    configure_defaults_for_email(to_email)
-
     I18n.with_locale(hidden_dossiers.first.user_locale) do
       @state = hidden_dossiers.first.state
       @subject = default_i18n_subject(count: hidden_dossiers.size)
@@ -147,8 +129,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_automatic_deletion_to_administration(hidden_dossiers, to_email)
-    configure_defaults_for_email(to_email)
-
     @subject = default_i18n_subject(count: hidden_dossiers.size)
     @hidden_dossiers = hidden_dossiers
     @deletion_date = Dossier::REMAINING_WEEKS_BEFORE_DELETION.weeks.from_now
@@ -157,8 +137,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_near_deletion_to_user(dossiers, to_email)
-    configure_defaults_for_email(to_email)
-
     I18n.with_locale(dossiers.first.user_locale) do
       @state = dossiers.first.state
       @subject = default_i18n_subject(count: dossiers.size, state: @state)
@@ -170,8 +148,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_near_deletion_to_administration(dossiers, to_email)
-    configure_defaults_for_email(to_email)
-
     @state = dossiers.first.state
     @subject = default_i18n_subject(count: dossiers.size, state: @state)
     @dossiers = dossiers
@@ -188,8 +164,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_groupe_instructeur_changed(instructeur, dossier)
-    configure_defaults_for_user(instructeur.user)
-
     @subject = default_i18n_subject(dossier_id: dossier.id)
     @dossier = dossier
 
@@ -197,8 +171,6 @@ class DossierMailer < ApplicationMailer
   end
 
   def notify_brouillon_not_submitted(dossier)
-    configure_defaults_for_user(dossier.user)
-
     I18n.with_locale(dossier.user_locale) do
       @subject = default_i18n_subject(dossier_id: dossier.id)
       @dossier = dossier
@@ -212,7 +184,6 @@ class DossierMailer < ApplicationMailer
 
     @user = User.find_by(email: @transfer.email)
 
-    configure_defaults_for_email(@transfer.email)
     bypass_unverified_mail_protection!
     I18n.with_locale(@transfer.user_locale) do
       @subject = default_i18n_subject()

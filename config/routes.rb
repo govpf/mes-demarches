@@ -408,6 +408,7 @@ Rails.application.routes.draw do
         post 'brouillon', to: 'dossiers#submit_brouillon'
         get 'modifier', to: 'dossiers#modifier'
         post 'modifier', to: 'dossiers#submit_en_construction'
+        post 'check_completude', to: 'dossiers#check_completude'
         get 'champs/:stable_id', to: 'dossiers#champ', as: :champ
         get 'merci'
         get 'demande'
@@ -693,8 +694,6 @@ Rails.application.routes.draw do
         patch 'update_monavis'
         get 'accuse_lecture'
         patch 'update_accuse_lecture'
-        get 'jeton'
-        patch 'update_jeton'
         get 'rdv'
         patch 'rdv', to: 'procedures#update_rdv'
         get 'pro_connect_restricted'
@@ -706,11 +705,20 @@ Rails.application.routes.draw do
         get 'api_champ_columns'
       end
 
-      get :api_particulier, controller: 'jeton_particulier'
+      get 'jetons', to: 'jetons#index'
 
-      resource 'api_particulier', only: [] do
-        resource 'jeton', only: [:show, :update], controller: 'jeton_particulier'
-        resource 'sources', only: [:show, :update], controller: 'sources_particulier'
+      resource :jetons, only: [], controller: 'jetons' do
+        get 'api_particulier', action: :edit_particulier
+        patch 'api_particulier', action: :update_particulier
+        delete 'api_particulier', action: :destroy_particulier
+
+        get 'api_entreprise', action: :edit_entreprise
+        patch 'api_entreprise', action: :update_entreprise
+        delete 'api_entreprise', action: :destroy_entreprise
+      end
+
+      resource :api_particulier, only: [], as: :api_particulier do
+        resource :sources, only: [:show, :update], controller: 'sources_particulier'
       end
 
       resources :conditions, only: [:update, :destroy], param: :stable_id do
@@ -799,6 +807,7 @@ Rails.application.routes.draw do
 
         collection do
           get 'simplify/:rule', action: :simplify, as: :simplify, constraints: { rule: /#{LLMRuleSuggestion.rules.keys.join('|')}/ }
+          get 'simplify/poll/:rule', action: :poll_simplify, as: :poll_simplify, constraints: { rule: /#{LLMRuleSuggestion.rules.keys.join('|')}/ }
           post 'accept_simplification/:llm_suggestion_rule_id', action: :accept_simplification, as: :accept_simplification
           post 'simplify/enqueue/:rule', action: :enqueue_simplify, as: :enqueue_simplify, constraints: { rule: /#{LLMRuleSuggestion.rules.keys.join('|')}/ }
         end

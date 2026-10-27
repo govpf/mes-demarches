@@ -44,11 +44,6 @@ module Dsfr
         # because validation adds errors to champ instances that may differ from the form object
         # or directly on the champ object
         if object.is_a?(Champ) && object.dossier.present?
-          # pf: dedoublonnage. La meme erreur figure souvent dans les deux sources —
-          # le controller valide le dossier, qui importe l'erreur du champ en
-          # NestedError, tandis que l'instance du champ la porte aussi. Sans uniq,
-          # Dsfr::InputStatusMessageComponent les rend via to_sentence et l'usager
-          # lit « doit etre un numero Tahiti ... et doit etre un numero Tahiti ... ».
           (dossier_errors_for_champ + errors.full_messages_for(attribute_or_rich_body)).uniq
         else
           errors.full_messages_for(attribute_or_rich_body)
@@ -71,9 +66,9 @@ module Dsfr
 
       def default_hint
         if I18n.exists?("activerecord.attributes.#{object.class.name.underscore}.hints.#{@attribute}")
-          I18n.t("activerecord.attributes.#{object.class.name.underscore}.hints.#{@attribute}")
+          I18n.t("activerecord.attributes.#{object.class.name.underscore}.hints.#{@attribute}", application_name: APPLICATION_NAME)
         elsif I18n.exists?("activerecord.attributes.#{object.class.name.underscore}.hints.#{@attribute}_html")
-          I18n.t("activerecord.attributes.#{object.class.name.underscore}.hints.#{@attribute}_html").html_safe
+          I18n.t("activerecord.attributes.#{object.class.name.underscore}.hints.#{@attribute}_html", application_name: APPLICATION_NAME).html_safe
         end
       end
 

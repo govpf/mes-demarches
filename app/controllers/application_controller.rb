@@ -39,15 +39,9 @@ class ApplicationController < ActionController::Base
     # TODO: remove this block when migration to new domain is done
     Current.host = request.host_with_port
 
-    if Current.host.include?(".gouv.fr")
-      Current.application_name = "demarche.numerique.gouv.fr"
-      Current.contact_email = "contact@demarche.numerique.gouv.fr"
-      Current.application_base_url = "https://demarche.numerique.gouv.fr"
-    else
-      Current.application_name = APPLICATION_NAME
-      Current.contact_email = CONTACT_EMAIL
-      Current.application_base_url = APPLICATION_BASE_URL
-    end
+    Current.application_name = APPLICATION_NAME
+    Current.contact_email = CONTACT_EMAIL
+    Current.application_base_url = APPLICATION_BASE_URL
   end
 
   before_action :redirect_transitoire_domain
@@ -176,24 +170,28 @@ class ApplicationController < ActionController::Base
 
   def authenticate_instructeur!
     if !instructeur_signed_in?
+      store_location_for(:user, request.fullpath)
       redirect_to new_user_session_path
     end
   end
 
   def authenticate_expert!
     if !expert_signed_in?
+      store_location_for(:user, request.fullpath)
       redirect_to new_user_session_path
     end
   end
 
   def authenticate_instructeur_or_expert!
     if !instructeur_signed_in? && !expert_signed_in?
+      store_location_for(:user, request.fullpath)
       redirect_to new_user_session_path
     end
   end
 
   def authenticate_administrateur!
     if !administrateur_signed_in?
+      store_location_for(:user, request.fullpath)
       redirect_to new_user_session_path
     end
   end
@@ -330,9 +328,7 @@ class ApplicationController < ActionController::Base
 
   def redirect_transitoire_domain
     if request.host.include?('demarches.numerique.gouv.fr')
-      gon.redirect_url = "https://#{ENV['APP_HOST']}#{request.fullpath}"
-      Current.application_name = APPLICATION_NAME # set new logo name
-      render 'application/transitoire_redirect', layout: 'application'
+      redirect_to "http://#{ENV['APP_HOST']}#{request.fullpath}", allow_other_host: true, status: 301
     end
   end
 

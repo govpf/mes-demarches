@@ -19,7 +19,7 @@ class API::V2::BaseController < ApplicationController
     # pf: en requête server-to-server (robot dans le cluster), l'en-tête Host est le nom de service
     # interne (*.svc.cluster.local). PF est mono-domaine : les URL générées pendant la requête
     # (commentaire miroir des notifications, liens de prefill…) doivent porter l'hôte public,
-    # comme le fait déjà MailerDefaultsConfigurableConcern pour les e-mails.
+    # comme les e-mails (hôte = APP_HOST via config.action_mailer.default_url_options).
     Current.host = ENV["APP_HOST"]
   end
 

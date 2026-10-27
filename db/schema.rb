@@ -888,6 +888,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_25_123737) do
     t.string "display_annotation_instructeur_notifications", default: "followed", null: false
     t.string "display_attente_avis_notifications", default: "followed", null: false
     t.string "display_attente_correction_notifications", default: "followed", null: false
+    t.string "display_attente_reponse_notifications", default: "followed", null: false
     t.string "display_avis_externe_notifications", default: "followed", null: false
     t.string "display_dossier_depose_notifications", default: "all", null: false
     t.string "display_dossier_modifie_notifications", default: "followed", null: false
@@ -1510,6 +1511,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_25_123737) do
   add_foreign_key "dossier_notifications", "dossiers"
   add_foreign_key "dossier_notifications", "instructeurs"
   add_foreign_key "dossier_operation_logs", "bill_signatures"
+  add_foreign_key "dossier_pending_responses", "commentaires"
+  add_foreign_key "dossier_pending_responses", "dossiers"
   add_foreign_key "dossier_transfer_logs", "dossiers"
   add_foreign_key "dossiers", "batch_operations"
   add_foreign_key "dossiers", "dossier_transfers"

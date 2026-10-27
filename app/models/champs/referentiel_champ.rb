@@ -128,7 +128,7 @@ class Champs::ReferentielChamp < Champ
     in [:checkbox | :yes_no, v]
       bool = ActiveModel::Type::Boolean.new.cast(v)
       bool.nil? ? nil : (bool ? Champs::BooleanChamp::TRUE_VALUE : Champs::BooleanChamp::FALSE_VALUE)
-    in [:text | :textarea | :engagement_juridique | :dossier_link | :email | :phone | :iban | :siret | :formatted, v]
+    in [:text | :textarea | :engagement_juridique | :dossier_link | :email | :phone | :iban | :siret | :formatted | :referentiel, v]
       v.to_s
     # case of type from mapping, used to store for display
     in [:boolean, v]
@@ -144,7 +144,7 @@ class Champs::ReferentielChamp < Champ
 
   def cast_value_for_type_de_champ(value, type_de_champ)
     case type_de_champ.type_champ.to_sym
-    when :siret
+    when :siret, :referentiel
       { external_id: call_caster(type_de_champ.type_champ, value, type_de_champ) }
     else
       { value: call_caster(type_de_champ.type_champ, value, type_de_champ) }
@@ -154,8 +154,7 @@ class Champs::ReferentielChamp < Champ
   def cast_displayable_values(json)
     referentiel_mapping_displayable.reduce({}) do |accu, (jsonpath, mapping)|
       json = json.first if json.is_a?(Array) # when json is an array, we take the first element
-
-      casted_value = call_caster(mapping[:type], JsonPath.on(json, jsonpath).first)
+      casted_value = call_caster(mapping[:type], JSONPathUtil.on_safe(json, jsonpath).first)
       accu[jsonpath] = casted_value if !casted_value.nil?
       accu
     end
@@ -185,7 +184,7 @@ class Champs::ReferentielChamp < Champ
 
   def update_repetition_prefillable_champs(data, repetition_type_de_champ, mappings)
     group_mappings_by_json_array(mappings).each do |array_key, array_mappings|
-      json_array = Array(JsonPath.on(data.with_indifferent_access, array_key).first)
+      json_array = Array(JSONPathUtil.on_safe(data.with_indifferent_access, array_key).first)
       next unless json_array.is_a?(Array)
 
       json_array.each do |json_value|
@@ -193,7 +192,7 @@ class Champs::ReferentielChamp < Champ
         row_id = determine_row_id(repetition_type_de_champ)
         array_mappings.each do |jsonpath, type_de_champ|
           if JSONPathUtil.json_path_contains_array?(jsonpath)
-            raw_value = JsonPath.on(json_value, JSONPathUtil.extract_key_after_array(jsonpath)).first
+            raw_value = JSONPathUtil.on_safe(json_value, JSONPathUtil.extract_key_after_array(jsonpath)).first
           else
             raw_value = json_value
           end
@@ -220,7 +219,7 @@ class Champs::ReferentielChamp < Champ
 
   def update_simple_prefillable_champs(data, mappings)
     mappings.each do |jsonpath, type_de_champ|
-      raw_value = JsonPath.on(data.is_a?(Hash) ? data.with_indifferent_access : data, jsonpath).first
+      raw_value = JSONPathUtil.on_safe(data, jsonpath).first
       update_prefillable_champ(type_de_champ:, raw_value:)
     end
   end

@@ -768,6 +768,7 @@ describe Users::DossiersController, type: :controller do
         it do
           expect(response).to render_template(:modifier)
           expect(response.body).to have_content("doit être rempli")
+          expect(response.body).not_to have_content("et doit être rempli")
           expect(response.body).to have_link(empty_champ.libelle, href: "##{empty_champ.focusable_input_id}")
         end
       end
@@ -1728,6 +1729,27 @@ describe Users::DossiersController, type: :controller do
         expect(DossierMailer).not_to have_received(:notify_new_commentaire_to_instructeur).with(dossier, instructeur_without_instant_message.email)
         expect(flash.notice).to be_present
         expect(dossier.reload.last_commentaire_updated_at).to eq(now)
+      end
+
+      context 'when dossier is marked as waiting for response' do
+        let(:instructeur_message) { create(:commentaire, dossier: dossier, instructeur: instructeur_with_instant_message) }
+        let!(:pending_response) { create(:dossier_pending_response, dossier: dossier, commentaire: instructeur_message) }
+
+        before do
+          DossierNotification.create_notification(dossier, :attente_reponse)
+        end
+
+        it "marks pending response as responded when user responds" do
+          expect {
+            subject
+          }.to change { pending_response.reload.responded_at }.from(nil)
+        end
+
+        it "removes attente_reponse notification when user responds" do
+          expect {
+            subject
+          }.to change { DossierNotification.where(dossier: dossier, notification_type: :attente_reponse).count }.to(0)
+        end
       end
     end
 

@@ -5,6 +5,7 @@ class Dossier < ApplicationRecord
 
   include DossierCloneConcern
   include DossierCorrectableConcern
+  include DossierPendingResponseConcern
   include DossierFilteringConcern
   include DateEncodingConcern
   include DossierPrefillableConcern
@@ -48,7 +49,7 @@ class Dossier < ApplicationRecord
   has_many :champs, dependent: :destroy
   has_many :commentaires, inverse_of: :dossier, dependent: :destroy
   has_many :commentaires_chronological, -> { chronological }, class_name: 'Commentaire', inverse_of: false
-  has_many :preloaded_commentaires, -> { includes(:dossier_correction, piece_jointe_attachments: :blob).order(created_at: :desc) }, class_name: 'Commentaire', inverse_of: :dossier
+  has_many :preloaded_commentaires, -> { includes(:dossier_correction, :dossier_pending_response, piece_jointe_attachments: :blob).order(created_at: :desc) }, class_name: 'Commentaire', inverse_of: :dossier
 
   has_many :invites, dependent: :destroy
   has_many :follows, -> { active }, inverse_of: :dossier, dependent: :destroy
@@ -901,10 +902,11 @@ class Dossier < ApplicationRecord
       if is_administration?(author) && can_be_deleted_by_administration?(reason)
         update(hidden_by_administration_at: Time.zone.now, hidden_by_reason: reason)
         log_dossier_operation(author, :supprimer, self)
-        DossierNotification.create_notifications_for_non_customisable_type(self, :dossier_suppression)
+        DossierNotification.create_notifications_for_non_customisable_type(self, :dossier_suppression) if hidden_by_user?
       elsif is_user?(author) && can_be_deleted_by_user?
         update(hidden_by_user_at: Time.zone.now, dossier_transfer_id: nil, hidden_by_reason: reason)
         log_dossier_operation(author, :supprimer, self)
+        DossierNotification.create_notifications_for_non_customisable_type(self, :dossier_suppression) if hidden_by_administration?
       elsif is_automatic?(author) && can_be_deleted_by_automatic?(reason)
         update(hidden_by_expired_at: Time.zone.now, hidden_by_reason: reason)
         log_automatic_dossier_operation(:supprimer, self)
@@ -1173,7 +1175,7 @@ class Dossier < ApplicationRecord
   end
 
   def enqueue_fetch_external_data_jobs
-    project_champs_public_all.each do |champ|
+    project_champs.each do |champ|
       if champ.uses_external_data? && champ.may_fetch_later?
         champ.fetch_later!
       end

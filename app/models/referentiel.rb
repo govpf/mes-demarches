@@ -32,6 +32,6 @@ class Referentiel < ApplicationRecord
   end
 
   def self.header_to_path(header)
-    header.parameterize.underscore
+    header.to_s.parameterize.underscore
   end
 end
