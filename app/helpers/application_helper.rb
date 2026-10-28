@@ -228,10 +228,47 @@ module ApplicationHelper
   # pf: sanitization HTML spécifique pour attestation v2
   def attestation_v2_sanitize(html)
     config = Rails.application.config.attestation_v2
-    ActionController::Base.helpers.sanitize(
+    sanitized = ActionController::Base.helpers.sanitize(
       html,
       tags: config[:allowed_tags],
       attributes: config[:allowed_attributes]
     )
+    restrict_attestation_v2_urls(sanitized)
+  end
+
+  ATTESTATION_V2_SAFE_REL = ['noopener', 'noreferrer', 'nofollow'].freeze
+
+  private
+
+  # pf: le rendu PDF ne charge que des ressources de l'application : images inline
+  # et URL du domaine applicatif ; les autres URL et valeurs de rel sont retirées.
+  def restrict_attestation_v2_urls(html)
+    fragment = Loofah.fragment(html.to_s)
+
+    fragment.css('[src]').each do |node|
+      node.remove_attribute('src') unless attestation_v2_safe_src?(node['src'])
+    end
+
+    fragment.css('[href]').each do |node|
+      node.remove_attribute('href') unless attestation_v2_app_url?(node['href'])
+    end
+
+    fragment.css('[rel]').each do |node|
+      rel = node['rel'].to_s.split & ATTESTATION_V2_SAFE_REL
+      rel.empty? ? node.remove_attribute('rel') : node['rel'] = rel.join(' ')
+    end
+
+    fragment.to_html.html_safe # rubocop:disable Rails/OutputSafety -- déjà passé par sanitize, on n'a fait que retirer des attributs
+  end
+
+  def attestation_v2_safe_src?(url)
+    url.to_s.strip.match?(%r{\Adata:image/[a-z0-9.+-]+[;,]}i) || attestation_v2_app_url?(url)
+  end
+
+  def attestation_v2_app_url?(url)
+    uri = URI.parse(url.to_s.strip)
+    uri.scheme.in?(['https', 'http']) && uri.host.present? && uri.host.casecmp?(ENV.fetch('APP_HOST', '').split(':').first.to_s)
+  rescue URI::InvalidURIError
+    false
   end
 end
