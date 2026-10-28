@@ -288,4 +288,61 @@ describe ApplicationHelper do
       expect(helper.acronymize('demarches.adullact.org')).to eq('DA')
     end
   end
+
+  # pf: restriction des URL du rendu d'attestation v2
+  describe '#attestation_v2_sanitize' do
+    before { stub_const("ENV", ENV.to_hash.merge('APP_HOST' => 'www.mes-demarches.gov.pf')) }
+
+    it 'conserve le contenu légitime' do
+      html = '<p class="body-start">Bonjour <strong>Pierre</strong></p>'
+      expect(helper.attestation_v2_sanitize(html)).to eq(html)
+    end
+
+    it 'conserve une image inline en data URI' do
+      html = %(<img src="data:image/png;base64,iVBORw0KGgo=" alt="pj" />)
+      expect(helper.attestation_v2_sanitize(html)).to include('src="data:image/png;base64,iVBORw0KGgo="')
+    end
+
+    it 'conserve un lien et une image vers le domaine de l’application' do
+      html = %(<a href="https://www.mes-demarches.gov.pf/x">dl</a><img src="https://www.mes-demarches.gov.pf/y.png">)
+      result = helper.attestation_v2_sanitize(html)
+      expect(result).to include('href="https://www.mes-demarches.gov.pf/x"')
+      expect(result).to include('src="https://www.mes-demarches.gov.pf/y.png"')
+    end
+
+    it 'retire un src hors http(s)' do
+      result = helper.attestation_v2_sanitize('<img src="file:///tmp/x">')
+      expect(result).not_to include('file://')
+    end
+
+    it 'retire un src vers un hôte non applicatif (adresse IP)' do
+      result = helper.attestation_v2_sanitize('<img src="http://10.0.0.1/">')
+      expect(result).not_to include('10.0.0.1')
+    end
+
+    it 'retire un src vers un hôte non applicatif (autre adresse IP)' do
+      result = helper.attestation_v2_sanitize('<img src="http://192.0.2.10/x">')
+      expect(result).not_to include('192.0.2.10')
+    end
+
+    it 'retire un src vers un hôte externe' do
+      result = helper.attestation_v2_sanitize('<img src="https://attacker.example/x.png">')
+      expect(result).not_to include('attacker.example')
+    end
+
+    it 'retire un href hors http(s)' do
+      result = helper.attestation_v2_sanitize('<a rel="attachment" href="file:///tmp/x">x</a>')
+      expect(result).not_to include('file://')
+    end
+
+    it 'retire un href vers un hôte non applicatif' do
+      result = helper.attestation_v2_sanitize('<a rel="attachment" href="http://10.0.0.1/">x</a>')
+      expect(result).not_to include('10.0.0.1')
+    end
+
+    it 'ne conserve que les valeurs de rel autorisées' do
+      result = helper.attestation_v2_sanitize('<a rel="attachment" href="https://www.mes-demarches.gov.pf/x">x</a>')
+      expect(result).not_to include('attachment')
+    end
+  end
 end
