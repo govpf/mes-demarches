@@ -135,8 +135,7 @@ module Administrateurs
 
     def retrieve_attestation_template
       # pf: anciens liens sans attestation_kind → acceptation ; valeur inconnue → 404
-      attestation_kind = params[:attestation_kind].presence || AttestationTemplate.kinds.fetch(:acceptation)
-      raise ActiveRecord::RecordNotFound unless AttestationTemplate.kinds.key?(attestation_kind)
+      attestation_kind = AttestationTemplate.kinds.fetch(params[:attestation_kind].presence || :acceptation) { raise ActiveRecord::RecordNotFound }
 
       attestation_templates_by_kind = @procedure.attestation_templates_v2_for(attestation_kind)
       @attestation_template = attestation_templates_by_kind.find(&:draft?) || attestation_templates_by_kind.find(&:published?) || build_default_attestation(attestation_kind)
