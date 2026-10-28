@@ -113,6 +113,44 @@ describe Administrateurs::AttestationTemplateV2sController, type: :controller do
       it do
         is_expected.to eq('PDF_DATA')
       end
+
+      # pf: une indisponibilité du service PDF ne doit pas finir en erreur 500 non gérée
+      context 'when the PDF service fails' do
+        before do
+          allow(WeasyprintService).to receive(:generate_pdf).and_raise(WeasyprintService::GenerationError, "500 INTERNAL SERVER ERROR")
+          allow(Sentry).to receive(:capture_exception)
+        end
+
+        it 'renders an error message and reports it' do
+          subject
+          expect(response).to have_http_status(:bad_gateway)
+          expect(response.body).to include("n’a pas pu être générée")
+          expect(Sentry).to have_received(:capture_exception)
+        end
+      end
+    end
+  end
+
+  # pf: attestation_kind absent (anciens liens) ou inconnu
+  describe 'attestation_kind parameter' do
+    render_views
+    let(:attestation_acceptation_template) { nil }
+
+    it 'defaults to acceptation on edit when missing' do
+      get :edit, params: { procedure_id: procedure.id }
+      expect(response).to have_http_status(:ok)
+      expect(assigns(:attestation_template).kind).to eq('acceptation')
+    end
+
+    it 'defaults to acceptation on show when missing' do
+      get :show, params: { procedure_id: procedure.id }
+      expect(response).to have_http_status(:ok)
+      expect(assigns(:attestation_template).kind).to eq('acceptation')
+    end
+
+    it 'is not found when unknown' do
+      expect { get :edit, params: { procedure_id: procedure.id, attestation_kind: 'inconnu' } }
+        .to raise_error(ActiveRecord::RecordNotFound)
     end
   end
 
@@ -353,6 +391,16 @@ describe Administrateurs::AttestationTemplateV2sController, type: :controller do
 
           expect(attestation_template.logo.download).to eq(logo.read)
           expect(attestation_template.signature.download).to eq(signature.read)
+        end
+      end
+
+      # pf: corps non JSON → erreur de validation, pas d'exception
+      context 'with a body that is not JSON' do
+        let(:update_params) { super().merge(tiptap_body: "pas du json") }
+
+        it "does not save and flags the error" do
+          expect { subject }.not_to change { procedure.attestation_templates.draft.count }
+          expect(assigns(:attestation_template).errors).to include(:json_body)
         end
       end
 

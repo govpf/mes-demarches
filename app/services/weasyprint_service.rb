@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class WeasyprintService
+  class GenerationError < StandardError; end
+
   def self.generate_pdf(html, options = {})
     headers = {
       'Content-Type' => 'application/json',
@@ -17,7 +19,7 @@ class WeasyprintService
     if response.success?
       response.body
     else
-      raise StandardError, "PDF Generation failed: #{response.code} #{response.status_message}"
+      raise GenerationError, "PDF Generation failed: #{response.code} #{response.status_message}"
     end
   end
 end
