@@ -24,6 +24,7 @@ class AttestationTemplate < ApplicationRecord
   validates :json_body, tags: true, if: -> { procedure.present? && version == 2 }
   validates :footer, length: { maximum: 190 }
   validates :kind, presence: true
+  validate :tiptap_body_parsable
 
   FILE_MAX_SIZE = 1.megabyte
   validates :logo, content_type: ['image/png', 'image/jpg', 'image/jpeg'], size: { less_than: FILE_MAX_SIZE }
@@ -144,7 +145,11 @@ class AttestationTemplate < ApplicationRecord
   end
 
   def tiptap_body=(json)
+    @tiptap_body_unparsable = false
     self.json_body = JSON.parse(json)
+  rescue JSON::ParserError
+    # pf: corps non JSON → erreur de validation plutôt qu'une 500
+    @tiptap_body_unparsable = true
   end
 
   def analyze_v1_content
@@ -469,6 +474,10 @@ class AttestationTemplate < ApplicationRecord
   end
 
   private
+
+  def tiptap_body_parsable
+    errors.add(:json_body, :invalid) if @tiptap_body_unparsable
+  end
 
   def convert_html_element_to_tiptap(element, inline_mode: false)
     case element.name.downcase

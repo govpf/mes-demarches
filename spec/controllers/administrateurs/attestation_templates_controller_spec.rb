@@ -304,7 +304,7 @@ describe Administrateurs::AttestationTemplatesController, type: :controller do
           expect(v2_template.footer).to eq('Pied de page standard')
           expect(v2_template.activated).to be true
 
-          expect(response).to redirect_to(edit_admin_procedure_attestation_template_v2_path(procedure))
+          expect(response).to redirect_to(edit_admin_procedure_attestation_template_v2_path(procedure, attestation_kind: :acceptation))
           expect(flash.notice).to include('migrée vers v2')
         end
 

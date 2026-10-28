@@ -14,7 +14,7 @@ module Administrateurs
       @signature = attributes.fetch(:signature)
 
       # pf: générer QR code pour la prévisualisation
-      @qrcode_url = admin_procedure_attestation_template_v2_path(@procedure, format: :pdf)
+      @qrcode_url = admin_procedure_attestation_template_v2_path(@procedure, format: :pdf, attestation_kind: @attestation_template.kind)
       @qrcode_svg = @attestation_template.generate_qrcode_svg(@qrcode_url)
 
       respond_to do |format|
@@ -34,7 +34,14 @@ module Administrateurs
           # File.write("/tmp/attestation_debug_#{@procedure.id}.html", html)
           # Rails.logger.info "HTML sauvegardé dans /tmp/attestation_debug_#{@procedure.id}.html"
 
-          pdf = WeasyprintService.generate_pdf(html, procedure_id: @procedure.id, path: request.path, user_id: current_user.id)
+          begin
+            pdf = WeasyprintService.generate_pdf(html, procedure_id: @procedure.id, path: request.path, user_id: current_user.id)
+          rescue WeasyprintService::GenerationError => e
+            # pf: service PDF indisponible → message lisible dans l'aperçu plutôt qu'une 500
+            Sentry.capture_exception(e)
+            render plain: "La prévisualisation de l’attestation n’a pas pu être générée. Réessayez dans quelques instants.", status: :bad_gateway
+            return
+          end
 
           send_data(pdf, filename: 'attestation.pdf', type: 'application/pdf', disposition: 'inline')
         end
@@ -127,7 +134,8 @@ module Administrateurs
     private
 
     def retrieve_attestation_template
-      attestation_kind = params[:attestation_kind]
+      # pf: anciens liens sans attestation_kind → acceptation ; valeur inconnue → 404
+      attestation_kind = AttestationTemplate.kinds.fetch(params[:attestation_kind].presence || :acceptation) { raise ActiveRecord::RecordNotFound }
 
       attestation_templates_by_kind = @procedure.attestation_templates_v2_for(attestation_kind)
       @attestation_template = attestation_templates_by_kind.find(&:draft?) || attestation_templates_by_kind.find(&:published?) || build_default_attestation(attestation_kind)

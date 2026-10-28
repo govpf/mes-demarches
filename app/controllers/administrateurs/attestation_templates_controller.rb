@@ -76,7 +76,7 @@ module Administrateurs
         flash.notice = "✅ Attestation migrée vers v2 ! Vous pouvez la modifier ou revenir à v1 si nécessaire."
       end
 
-      redirect_to edit_admin_procedure_attestation_template_v2_path(@procedure)
+      redirect_to edit_admin_procedure_attestation_template_v2_path(@procedure, attestation_kind: v2_template.kind)
     end
 
     private
