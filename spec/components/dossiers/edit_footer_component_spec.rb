@@ -62,4 +62,22 @@ RSpec.describe Dossiers::EditFooterComponent, type: :component do
       end
     end
   end
+
+  # pf: le stub de show_for_user? ci-dessus ne couvre pas le panneau des annotations
+  # privées, où l'instructeur n'est pas propriétaire du dossier
+  context 'when rendered in the private annotations panel' do
+    let(:dossier) { create(:dossier, :en_construction) }
+    let(:annotation) { true }
+
+    before do
+      allow(component).to receive(:owner?).and_return(false)
+      allow(component).to receive(:show_for_user?).and_call_original
+    end
+
+    it 'does not render the invite actions nor the invite notice' do
+      expect(subject).to include('Vos annotations sont automatiquement enregistrées.')
+      expect(subject).not_to include('Vérifier le dossier')
+      expect(subject).not_to include('le titulaire du dossier doit le déposer')
+    end
+  end
 end
