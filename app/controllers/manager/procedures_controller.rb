@@ -55,6 +55,23 @@ module Manager
       redirect_to manager_procedure_path(procedure)
     end
 
+    # pf: inventaire CSV de toutes les démarches, pour le pilotage.
+    # Upstream n'expose aucun export de la liste des démarches (seulement
+    # administrateurs / instructeurs via #data_exports).
+    def export_csv
+      procedures = Procedure.includes(:service, :administrateurs)
+      dossiers_counts = dossiers_counts_by_procedure_id
+
+      csv = CSV.generate(headers: true) do |csv|
+        csv << PROCEDURES_EXPORT_HEADERS
+        procedures.find_each do |procedure|
+          csv << procedure_export_row(procedure, dossiers_counts.fetch(procedure.id, 0))
+        end
+      end
+
+      send_data csv, filename: "demarches_#{Date.today.strftime('%d-%m-%Y')}.csv"
+    end
+
     def export_mail_brouillons
       dossiers = procedure.dossiers.state_brouillon.visible_by_user.includes(:user)
       emails = dossiers.map { |dossier| dossier.user_email_for(:display) }.sort.uniq
@@ -179,6 +196,43 @@ module Manager
     end
 
     private
+
+    # pf: en-têtes de l'inventaire des démarches (cf. #export_csv)
+    PROCEDURES_EXPORT_HEADERS = [
+      'ID', 'Libellé', 'Lien', 'État', 'Publiée le', 'Fermée le', 'Dossiers',
+      'Service ID', 'Service', 'SIRET', 'Organisme', 'Type organisme', 'Email du service',
+      'Administrateurs',
+    ]
+
+    def procedure_export_row(procedure, dossiers_count)
+      service = procedure.service
+
+      [
+        procedure.id,
+        procedure.libelle,
+        procedure.path,
+        procedure.aasm_state,
+        procedure.published_at&.to_date,
+        procedure.closed_at&.to_date,
+        dossiers_count,
+        service&.id,
+        service&.nom,
+        service&.siret,
+        service&.organisme,
+        service&.type_organisme,
+        service&.email,
+        procedure.administrateurs.map(&:email).join(' '),
+      ]
+    end
+
+    # Un seul agrégat plutôt qu'un `procedure.dossiers.count` par ligne : les dossiers
+    # n'ont pas de procedure_id, le lien passe par groupe_instructeurs.
+    def dossiers_counts_by_procedure_id
+      Dossier
+        .joins(:groupe_instructeur)
+        .group('groupe_instructeurs.procedure_id')
+        .count
+    end
 
     def find_resource(param)
       procedure = super

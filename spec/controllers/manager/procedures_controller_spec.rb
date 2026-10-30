@@ -54,6 +54,46 @@ describe Manager::ProceduresController, type: :controller do
     end
   end
 
+  describe '#export_csv' do
+    let!(:procedure) { create(:procedure, :published, :with_service, libelle: 'Demande de subvention', administrateurs: [administrateur]) }
+    let!(:procedure_sans_service) { create(:procedure) }
+    let!(:procedure_supprimee) { create(:procedure, :discarded) }
+
+    let(:csv) { CSV.parse(response.body, headers: true) }
+    let(:row) { csv.find { |r| r['ID'] == procedure.id.to_s } }
+
+    before do
+      create_list(:dossier, 2, procedure: procedure)
+      get :export_csv
+    end
+
+    it 'renvoie un fichier CSV daté' do
+      expect(response.header['Content-Disposition'])
+        .to include("demarches_#{Date.today.strftime('%d-%m-%Y')}.csv")
+    end
+
+    it 'liste les démarches non supprimées' do
+      expect(csv.map { |r| r['ID'] })
+        .to contain_exactly(procedure.id.to_s, procedure_sans_service.id.to_s)
+    end
+
+    it 'expose le service, son SIRET et le nombre de dossiers' do
+      expect(row['Libellé']).to eq('Demande de subvention')
+      expect(row['Service']).to eq(procedure.service.nom)
+      expect(row['SIRET']).to eq(procedure.service.siret)
+      expect(row['Dossiers']).to eq('2')
+      expect(row['Administrateurs']).to include(administrateur.email)
+    end
+
+    it 'laisse les colonnes service vides quand la démarche n’en a pas' do
+      row = csv.find { |r| r['ID'] == procedure_sans_service.id.to_s }
+
+      expect(row['SIRET']).to be_nil
+      expect(row['Service']).to be_nil
+      expect(row['Dossiers']).to eq('0')
+    end
+  end
+
   describe '#discard' do
     let(:dossier) { create(:dossier, :accepte) }
     let(:procedure) { dossier.procedure }
