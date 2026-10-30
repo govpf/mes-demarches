@@ -128,24 +128,26 @@ describe 'user access to the list of their dossiers', js: true do
       expect(page).to have_select 'Statut', selected: 'Sélectionner un statut', options: ['Sélectionner un statut', 'Accepté', 'Refusé', 'Classé sans suite']
     end
 
+    # pf: dates éloignées de minuit — la factory date les dossiers de 10.minutes.ago et le
+    # filtre compare à minuit UTC : avec Date.today/Date.yesterday, échec entre 00:00 et 00:10 UTC
     scenario 'user filters by created_at' do
-      dossier_en_construction.update!(created_at: Date.yesterday)
+      dossier_en_construction.update!(created_at: 3.days.ago)
 
       expect(page).to have_text('7 dossiers')
       click_on('Sélectionner un filtre')
-      fill_in 'from_created_at_date', with: Date.today
+      fill_in 'from_created_at_date', with: 1.day.ago.to_date
       click_on('Appliquer les filtres')
       expect(page).to have_text('6 dossiers')
     end
 
     scenario 'user uses multiple filters' do
-      dossier_en_construction.update!(created_at: Date.yesterday)
+      dossier_en_construction.update!(created_at: 3.days.ago)
 
       expect(page).to have_select 'Statut', selected: 'Sélectionner un statut', options: ['Sélectionner un statut', 'Brouillon', 'En construction', 'En instruction', 'À corriger']
 
       expect(page).to have_text('7 dossiers')
       click_on('Sélectionner un filtre')
-      fill_in 'from_created_at_date', with: Date.today
+      fill_in 'from_created_at_date', with: 1.day.ago.to_date
       click_on('Appliquer les filtres')
       expect(page).to have_text('6 dossiers')
       expect(page).to have_text('1 filtre actif')
@@ -157,7 +159,7 @@ describe 'user access to the list of their dossiers', js: true do
       expect(page).to have_text('2 filtres actifs')
 
       click_on('Sélectionner un filtre')
-      fill_in 'from_depose_at_date', with: Date.today
+      fill_in 'from_depose_at_date', with: 1.day.ago.to_date
       click_on('Appliquer les filtres')
       expect(page).to have_text('2 dossiers')
       expect(page).to have_text('3 filtres actifs')
