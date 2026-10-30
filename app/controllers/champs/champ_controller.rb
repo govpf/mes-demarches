@@ -9,6 +9,8 @@ class Champs::ChampController < ApplicationController
   def find_champ
     dossier = policy_scope(Dossier).with_revision.includes(:champs).find(params[:dossier_id])
     type_de_champ = dossier.find_type_de_champ_by_stable_id(params[:stable_id])
+    raise ActiveRecord::RecordNotFound if type_de_champ.nil?
+
     dossier.with_update_stream(current_user) if type_de_champ.public?
 
     if type_de_champ.repetition?
