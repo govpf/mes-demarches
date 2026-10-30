@@ -2,7 +2,7 @@
 
 source 'https://gem.coop'
 
-gem 'rails', '~> 7.2.2' # allows update to security fixes at any time
+gem 'rails', '~> 7.2.2', '>= 7.2.3.2' # allows update to security fixes at any time
 
 gem 'aasm'
 gem 'active_model_serializers'
