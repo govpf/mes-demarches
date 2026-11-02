@@ -52,7 +52,7 @@
         "geojson": "^0.5.0",
         "graphiql": "^5.2.0",
         "graphql": "^16.11.0",
-        "highcharts": "^10.3.3",
+        "highcharts": "^11.4.9",
         "lightgallery": "^2.9.0",
         "maplibre-gl": "^6.10.0",
         "match-sorter": "^8.1.0",
@@ -1038,7 +1038,7 @@
 
     "hasown": ["hasown@2.0.3", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-ej4AhfhfL2Q2zpMmLo7U1Uv9+PyhIZpgQLGT1F9miIGmiCJIoCgSmczFdrc97mWT4kVY72KA+WnnhJ5pghSvSg=="],
 
-    "highcharts": ["highcharts@10.3.3", "", {}, "sha512-r7wgUPQI9tr3jFDn3XT36qsNwEIZYcfgz4mkKEA6E4nn5p86y+u1EZjazIG4TRkl5/gmGRtkBUiZW81g029RIw=="],
+    "highcharts": ["highcharts@11.4.9", "", { "peerDependencies": { "jspdf": "^4.1.0", "svg2pdf.js": "^2.7.0" }, "optionalPeers": ["jspdf", "svg2pdf.js"] }, "sha512-LSFxFZBeffm45OUiTDntYfzZPCbMTs0oyg6lxsE6EHhdIWhlq/8WTYkHlEUHl3+vabdgWP7+EQx0DkoaaE/4rg=="],
 
     "hotkeys-js": ["hotkeys-js@4.0.3", "", {}, "sha512-adK3E0KGXiIm8rcRhn2JHEvCVzgg54UtHtufxHVWM0I95hakyxn80aX6ez0nxVEdbzzgrb9g2lMJIThFSyTSFQ=="],
 
