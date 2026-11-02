@@ -7,6 +7,8 @@ describe Champs::PieceJustificativeController, type: :controller do
   let(:champ) { dossier.project_champs_public.first }
 
   describe '#download' do
+    # les annotations privées ne sont modifiables que sur un dossier déposé
+    let(:dossier) { create(:dossier, :en_construction, user: user, procedure: procedure) }
     let(:instructeur) { procedure.defaut_groupe_instructeur.instructeurs.first }
     let(:annotation) { dossier.project_champs_private.first }
     let(:uploaded_file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
@@ -256,6 +258,8 @@ describe Champs::PieceJustificativeController, type: :controller do
       end
 
       context 'when the champ is private' do
+        # les annotations privées ne sont modifiables que sur un dossier déposé
+        let(:dossier) { create(:dossier, :en_construction, user: user, procedure: procedure) }
         let(:champ) { dossier.project_champs_private.first }
         let(:instructeur) { create(:instructeur) }
         let(:procedure) { create(:procedure, :published, :with_instructeur, types_de_champ_public: [{ type: :piece_justificative }], types_de_champ_private: [{ type: :piece_justificative }], instructeurs: [instructeur]) }
