@@ -133,6 +133,7 @@ module Experts
 
     def sign_up
       @email = params[:email]
+      @confirmation_token = params[:confirmation_token]
       @dossier = Avis.includes(:dossier).find(params[:id]).dossier
 
       render
@@ -142,7 +143,11 @@ module Experts
       procedure_id = params[:procedure_id]
       avis_id = params[:id]
       email = params[:email]
-      confirmation_token = params[:user][:confirmation_token]
+      confirmation_token = params.dig(:user, :confirmation_token).presence
+      if confirmation_token.nil?
+        return redirect_to root_path, alert: "Vous n’avez pas accès à cet avis."
+      end
+
       avis = Avis.joins(:procedure, expert: :user)
         .find_by(id: avis_id, procedure: { id: procedure_id }, user: { email:, confirmation_token: })
       if avis.nil?

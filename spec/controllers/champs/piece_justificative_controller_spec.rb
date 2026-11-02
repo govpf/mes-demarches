@@ -7,6 +7,8 @@ describe Champs::PieceJustificativeController, type: :controller do
   let(:champ) { dossier.project_champs_public.first }
 
   describe '#download' do
+    # les annotations privées ne sont modifiables que sur un dossier déposé
+    let(:dossier) { create(:dossier, :en_construction, user: user, procedure: procedure) }
     let(:instructeur) { procedure.defaut_groupe_instructeur.instructeurs.first }
     let(:annotation) { dossier.project_champs_private.first }
     let(:uploaded_file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
@@ -162,6 +164,57 @@ describe Champs::PieceJustificativeController, type: :controller do
     end
   end
 
+  describe 'ensure_legitimate_access' do
+    let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :text }]) }
+    let(:dossier) { create(:dossier, user: user, procedure: procedure) }
+    let(:champ) { dossier.project_champs_public.first }
+
+    before { sign_in user }
+
+    it 'returns not found when the champ is not a piece_justificative' do
+      put :update, params: { dossier_id: champ.dossier_id, stable_id: champ.stable_id }, format: :turbo_stream
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe 'dossier state guard' do
+    before { sign_in user }
+
+    context 'when the dossier is en_instruction' do
+      let(:dossier) { create(:dossier, :en_instruction, user: user, procedure: procedure) }
+      let(:champ) { dossier.project_champs_public.first }
+
+      it 'returns not found' do
+        put :update, params: { dossier_id: champ.dossier_id, stable_id: champ.stable_id }, format: :turbo_stream
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    context 'when the dossier is accepte' do
+      let(:dossier) { create(:dossier, :accepte, user: user, procedure: procedure) }
+      let(:champ) { dossier.project_champs_public.first }
+
+      it 'returns not found' do
+        put :update, params: { dossier_id: champ.dossier_id, stable_id: champ.stable_id }, format: :turbo_stream
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+  end
+
+  describe 'private champ scope restriction' do
+    before { sign_in user }
+
+    context 'when a non-instructeur user tries to access a private champ' do
+      let(:dossier) { create(:dossier, user: user, procedure: procedure) }
+      let(:champ) { dossier.project_champs_private.first }
+
+      it 'returns not found' do
+        put :update, params: { dossier_id: champ.dossier_id, stable_id: champ.stable_id }, format: :turbo_stream
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+  end
+
   describe '#update' do
     render_views
     before { sign_in user }
@@ -205,6 +258,8 @@ describe Champs::PieceJustificativeController, type: :controller do
       end
 
       context 'when the champ is private' do
+        # les annotations privées ne sont modifiables que sur un dossier déposé
+        let(:dossier) { create(:dossier, :en_construction, user: user, procedure: procedure) }
         let(:champ) { dossier.project_champs_private.first }
         let(:instructeur) { create(:instructeur) }
         let(:procedure) { create(:procedure, :published, :with_instructeur, types_de_champ_public: [{ type: :piece_justificative }], types_de_champ_private: [{ type: :piece_justificative }], instructeurs: [instructeur]) }

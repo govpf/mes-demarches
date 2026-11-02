@@ -84,6 +84,8 @@ class Export < ApplicationRecord
 
     recent_export = pending
       .or(generated.where(updated_at: (5.minutes.ago)..))
+      .for_groupe_instructeurs(groupe_instructeurs.map(&:id))
+      .where(user_profile: user_profile)
       .includes(:procedure_presentation)
       .find_by(attributes)
 

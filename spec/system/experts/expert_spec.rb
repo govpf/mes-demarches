@@ -22,7 +22,8 @@ describe 'Inviting an expert:', js: true do
       let(:password) { 'This is an expert password' }
 
       before 'Signing up' do
-        visit sign_up_expert_avis_path(avis.dossier.procedure, avis, email: avis.expert.email)
+        avis.expert.user.invite_expert_and_send_avis!(avis)
+        visit sign_up_expert_avis_path(avis.dossier.procedure, avis, email: avis.expert.email, confirmation_token: avis.expert.user.confirmation_token)
 
         expect(page).to have_field('Adresse électronique', with: avis.expert.email, disabled: true)
         fill_in 'Mot de passe', with: password

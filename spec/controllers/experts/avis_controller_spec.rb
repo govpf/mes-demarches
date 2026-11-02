@@ -670,6 +670,43 @@ describe Experts::AvisController, type: :controller do
         it { is_expected.to redirect_to(root_path) }
       end
 
+      # Sécurité: un confirmation_token absent ou vide ne doit jamais matcher,
+      # même si un expert déjà confirmé a confirmation_token = NULL en base
+      # (cas d’un user créé via User.create_or_promote_to_expert avec confirmed_at).
+      context 'when the expert user has a NULL confirmation_token in database' do
+        let(:password) { '{Another-$3cure-p4ssWord}' }
+        before { avis.expert.user.update_column(:confirmation_token, nil) }
+
+        context 'when the confirmation_token param is omitted' do
+          subject do
+            post :update_expert, params: {
+              id: avis_id,
+              procedure_id:,
+              email:,
+              user: { password: },
+            }
+          end
+
+          it { is_expected.to redirect_to(root_path) }
+
+          it 'does not change the expert password' do
+            subject
+            expect(avis.expert.user.reload.valid_password?(password)).to be false
+          end
+        end
+
+        context 'when the confirmation_token param is empty' do
+          let(:confirmation_token) { "" }
+
+          it { is_expected.to redirect_to(root_path) }
+
+          it 'does not change the expert password' do
+            subject
+            expect(avis.expert.user.reload.valid_password?(password)).to be false
+          end
+        end
+      end
+
       context 'when valid token is provided' do
         let(:confirmation_token) { valid_confirmation_token }
 

@@ -130,6 +130,35 @@ RSpec.describe Export, type: :model do
         end
       end
     end
+
+    context 'when a recent export exists for a different procedure with the same default parameters' do
+      let!(:other_procedure) { create(:procedure) }
+      let!(:other_groupe_instructeur) { create(:groupe_instructeur, procedure: other_procedure) }
+      let!(:other_administrateur) { create(:administrateur) }
+      let!(:other_procedure_export) do
+        Export.find_or_create_fresh_export(:csv, [other_groupe_instructeur], other_administrateur)
+      end
+
+      let!(:requesting_procedure) { create(:procedure) }
+      let!(:requesting_groupe_instructeur) { create(:groupe_instructeur, procedure: requesting_procedure) }
+      let!(:requesting_administrateur) { create(:administrateur) }
+
+      subject(:requesting_export) do
+        Export.find_or_create_fresh_export(:csv, [requesting_groupe_instructeur], requesting_administrateur)
+      end
+
+      it 'does not return the export bound to the other procedure' do
+        expect(requesting_export).not_to eq(other_procedure_export)
+      end
+
+      it 'returns an export scoped to the requesting groupe instructeur' do
+        expect(requesting_export.groupe_instructeurs).to contain_exactly(requesting_groupe_instructeur)
+      end
+
+      it 'creates a new export for the requesting procedure' do
+        expect { requesting_export }.to change { Export.count }.by(1)
+      end
+    end
   end
 
   describe '.dossiers_for_export' do
