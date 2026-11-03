@@ -177,6 +177,22 @@ describe Champs::PieceJustificativeController, type: :controller do
     end
   end
 
+  describe 'titre identite' do
+    # pf: le champ « titre d'identité » rattache ses fichiers par ce contrôleur
+    let(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :titre_identite }]) }
+    let(:dossier) { create(:dossier, user: user, procedure: procedure) }
+    let(:champ) { dossier.project_champs_public.first }
+    let(:file) { fixture_file_upload('spec/fixtures/files/image-no-exif.jpg', 'image/jpeg') }
+
+    before { sign_in user }
+
+    it 'attaches the file to a titre identite champ' do
+      put :update, params: { dossier_id: champ.dossier_id, stable_id: champ.stable_id, blob_signed_id: file }, format: :turbo_stream
+      expect(response).to have_http_status(:ok)
+      expect(champ.reload.piece_justificative_file).to be_attached
+    end
+  end
+
   describe 'dossier state guard' do
     before { sign_in user }
 
