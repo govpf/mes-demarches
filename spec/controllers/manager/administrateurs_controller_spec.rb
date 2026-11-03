@@ -79,4 +79,15 @@ describe Manager::AdministrateursController, type: :controller do
       expect(response).to have_http_status(:success)
     end
   end
+
+  describe '#data_exports' do
+    render_views
+
+    it 'propose le téléchargement de l’inventaire des démarches' do
+      get :data_exports
+
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include('/manager/exports/procedures')
+    end
+  end
 end
