@@ -652,6 +652,16 @@ class FormulaCalculationService
         return @value_overrides[column.stable_id]
       end
 
+      # pf: référence à une AUTRE formule-ligne de la même ligne (ex. Montant réel
+      # = MIN(Montant théorique, Plafond)). Les formules-ligne ne sont jamais
+      # persistées (formule_champs_for_tdc : return [] if tdc.child?) : on la
+      # recalcule à la volée pour la ligne courante au lieu de lire nil → 0.
+      # Pas de récursion infinie : une formule ne référence que des champs qui
+      # la précèdent (forward_reference).
+      if path == :value && @row_id.present? && (line_formula = line_formula_champ(column.stable_id))
+        return column.value(line_formula)
+      end
+
       champ = find_champ_by_stable_id_and_row(column.stable_id, @row_id)
 
       if champ.nil?
@@ -673,6 +683,19 @@ class FormulaCalculationService
       end
     else
       nil
+    end
+  end
+
+  # pf: Champ in-memory portant la valeur recalculée de la formule-ligne
+  # `stable_id` pour la ligne courante, ou nil si `stable_id` n'est pas une
+  # formule-ligne. Le Champ sert uniquement à passer par column.value pour
+  # garder le typage habituel d'une référence de formule.
+  def line_formula_champ(stable_id)
+    tdc = @revision.types_de_champ.find { |t| t.stable_id == stable_id }
+    return nil unless tdc&.formule? && tdc.child?(@revision)
+
+    tdc.build_champ(dossier: @dossier, row_id: @row_id, stream: @dossier.stream).tap do |champ|
+      champ.value = compute_line_formula_value(tdc, @row_id)
     end
   end
 
