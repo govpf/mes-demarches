@@ -31,6 +31,15 @@ Conséquence : `SOMME({Bloc/Sous-formule})` ne trouvait aucune valeur. Workaroun
 actuel : recalculer la formule-ligne à la volée pour chaque ligne (correct mais
 inélégant — cf. [[project_formule_ligne_repetition_materialization]]).
 
+Même angle mort pour une **formule-ligne qui référence une autre formule-ligne
+de la même ligne** (ex. `Montant réel = MIN(Montant théorique, Plafond)`,
+démarche 3893 / dossier 690725) : la formule amont, jamais persistée, était lue
+`nil` → 0, ce qui faisait tomber à 0 les agrégats en aval. Second workaround
+(PR #618) : `FormulaCalculationService#extract_column_value` → `line_formula_champ`
+recalcule la formule-ligne amont à la volée pour la ligne courante (via
+`compute_line_formula_value`). Coût : une formule-ligne référencée N fois est
+recalculée N fois (et récursivement sur toute la chaîne).
+
 ---
 
 ## 2. Cible : un seul accumulateur ordonné, keyé par ligne
@@ -100,11 +109,17 @@ linéaire et déterministe.
 3. Déplier les lignes de bloc dans la passe (sous-champs + formules-ligne par
    ligne) et **persister** les formules-ligne au passage (lève la limitation
    `return [] if tdc.child?` de `formule_champs_for_tdc`).
-4. Retirer le workaround `compute_line_formula_value` et le garde
-   `dossier_champs_formule_recomputing` une fois la passe en place.
+4. Retirer les workarounds une fois la passe en place :
+   - `compute_line_formula_value` (agrégat de formules-ligne) ;
+   - `line_formula_champ` + la branche correspondante de `extract_column_value`
+     (formule-ligne → formule-ligne de la même ligne, PR #618) ;
+   - le garde `dossier_champs_formule_recomputing`.
 5. Spec de non-régression : `spec/models/champs/formule_cascade_audit_spec.rb`
    (agrégat de formule-ligne) + un cas **annotation privée agrégeant un bloc
-   public**.
+   public** + la **formule-ligne chaînée** (contexte « formule-ligne chaînée sur
+   une autre formule-ligne » de `spec/services/formula_calculation_service_spec.rb`
+   et `spec/system/users/formula_repetition_chained_line_spec.rb`), qui doivent
+   rester verts quel que soit le mécanisme.
 
 ---
 
