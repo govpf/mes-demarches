@@ -1517,5 +1517,58 @@ describe FormulaCalculationService do
         expect(service.compute_value(total_champ)).to eq('300')
       end
     end
+
+    # pf: formule-ligne qui référence une AUTRE formule-ligne de la même ligne
+    # (ex. Montant réel = MIN(Montant théorique, Plafond), dossier 690725).
+    # Aucune des deux n'est persistée (return [] if tdc.child?) : la formule aval
+    # doit recalculer la formule amont à la volée pour sa ligne, sinon elle lit
+    # nil → 0 et l'agrégat hors bloc vaut 0 aussi.
+    context 'formule-ligne chaînée sur une autre formule-ligne' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          {
+            type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+              { type: :integer_number, libelle: 'Surface' },
+              { type: :formule, libelle: 'Montant aide' },
+              { type: :formule, libelle: 'Montant théorique' },
+              { type: :formule, libelle: 'Montant réel' },
+            ],
+          },
+          { type: :formule, libelle: 'Total' },
+        ])
+      end
+      let(:surface_tdc) { revision.types_de_champ.find { _1.libelle == 'Surface' } }
+      let(:aide_tdc) { revision.types_de_champ.find { _1.libelle == 'Montant aide' } }
+      let(:theorique_tdc) { revision.types_de_champ.find { _1.libelle == 'Montant théorique' } }
+      let(:reel_tdc) { revision.types_de_champ.find { _1.libelle == 'Montant réel' } }
+      let(:total_tdc) { revision.types_de_champ.find { _1.libelle == 'Total' } }
+      let(:total_champ) { dossier.project_champs_public.find { _1.stable_id == total_tdc.stable_id } }
+
+      before do
+        aide_tdc.update!(formule_expression: '20')
+        theorique_tdc.update!(formule_expression: "{tdc#{surface_tdc.stable_id}} * {tdc#{aide_tdc.stable_id}}")
+        reel_tdc.update!(formule_expression: "MIN({tdc#{theorique_tdc.stable_id}}, 1000)")
+        total_tdc.update!(formule_expression: "SOMME({tdc#{bloc_tdc.stable_id}/sub_#{reel_tdc.stable_id}})")
+      end
+
+      def add_row_with_surface(surface)
+        row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+        dossier.champ_for_update(surface_tdc, row_id:, updated_by: 'test').update!(value: surface.to_s)
+        row_id
+      end
+
+      it 'calcule la formule aval à partir de la formule amont non persistée de la même ligne' do
+        row_id = add_row_with_surface(30) # aide 20 → théorique 600 → réel 600
+        add_row_with_surface(75)          # aide 20 → théorique 1500 → réel 1000
+        reel_champ = reel_tdc.build_champ(dossier:, row_id:, stream: dossier.stream)
+        expect(service.compute_value(reel_champ)).to eq('600')
+      end
+
+      it 'agrège la formule aval de chaque ligne' do
+        add_row_with_surface(30) # réel 600
+        add_row_with_surface(75) # réel 1000
+        expect(service.compute_value(total_champ)).to eq('1600')
+      end
+    end
   end
 end
