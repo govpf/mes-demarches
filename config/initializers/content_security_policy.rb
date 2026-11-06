@@ -21,7 +21,7 @@ Rails.application.configure do
 
     # CSS: We have a lot of inline style, and some <style> tags.
     # It's too complicated to be fixed right now (and it wouldn't add value: this is hardcoded in views, so not subject to injections)
-    policy.style_src(:self, :unsafe_inline, "*.crisp.chat", "crisp.chat", "unpkg.com", "cdn.jsdelivr.net")
+    policy.style_src(:self, :unsafe_inline, "*.crisp.chat", "crisp.chat", "unpkg.com")
 
     connect_whitelist = ["wss://*.crisp.chat", "*.crisp.chat", "integration.lasuite.numerique.gouv.fr", "app.franceconnect.gouv.fr", "openmaptiles.data.gouv.fr", "openmaptiles.geo.data.gouv.fr", "openmaptiles.github.io", "tiles.geo.api.gouv.fr", "data.geopf.fr", "object.data.gouv.fr"]
     connect_whitelist << ENV.fetch('APP_HOST')
