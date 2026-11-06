@@ -90,6 +90,35 @@ c'est précisément ce qui manque à `value_overrides` aujourd'hui.
 
 ---
 
+## 3 bis. Affichage en révision brouillon (dossier de test)
+
+Aujourd'hui, en révision draft, `project_champ` recalcule chaque formule en
+mémoire à l'affichage, mais une formule qui en lit une autre lit sa valeur
+**persistée**. Si l'admin modifie l'expression d'une formule amont, la formule
+aval affiche une valeur périmée jusqu'à la prochaine saisie sur le dossier
+(ex. `Double = Montant × 2 → × 3` : `Plus un = Double + 1` reste à 21 au lieu
+de 31).
+
+**Exigence** : en draft, l'affichage passe par la même passe accumulante (en
+mémoire, sans persister) — chaque formule lit la valeur amont fraîchement
+calculée dans l'accumulateur. Critère d'acceptation : le test `pending` « révision
+brouillon : formule racine chaînée après modification de l'expression amont »
+de `spec/models/champs/formule_cascade_audit_spec.rb` passe (retirer le `pending`).
+
+---
+
+## 3 ter. Graphe de dépendances : à conserver
+
+Indépendant de la passe, mais à ne pas perdre si `dependent_formula_stable_ids`
+est réécrit : un agrégat dépend du **bloc** (`{bloc/sub}` → dep = bloc), pas de
+la formule-ligne. Quand le parcours atteint une formule-ligne (ex. `Coef →
+Taux` racine `→ Montant` de ligne), il doit aussi suivre le bloc parent, sinon
+l'agrégat n'est jamais recalculé quand la source vient d'hors du bloc
+(corrigé dans `Champ#dependent_formula_stable_ids`, contexte « formule-ligne
+qui lit une formule racine » de `formule_cascade_audit_spec.rb`).
+
+---
+
 ## 4. Le point dur
 
 Le seul morceau non trivial : **l'ordre de dépliage des blocs** quand les
