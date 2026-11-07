@@ -1,7 +1,7 @@
 # Pré-remplissage des pièces justificatives via référentiel Baserow — Spec de faisabilité
 
 **Date :** 2026-06-05
-**Statut :** Spec de faisabilité (pas de plan d'implémentation tant que non validée)
+**Statut :** REMPLACÉE le 2026-11-06 par `2026-11-06-prefill-piece-justificative-reference-md-design.md` (mécanisme par référence MD, voir son §10)
 **Scope décidé :** cibles `piece_justificative` pré-remplies depuis une colonne **fichier** Baserow, via le mapping `referentiel_de_polynesie` existant
 **Décision attendue :** **arbitrage avec l'option Clone** (cf. §3) — les deux ne couvrent pas le même besoin
 
