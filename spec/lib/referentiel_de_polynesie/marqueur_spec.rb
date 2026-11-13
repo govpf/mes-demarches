@@ -5,9 +5,11 @@ require 'rails_helper'
 describe ReferentielDePolynesie::Marqueur do
   def parse(texte) = described_class.parse(texte)
 
-  it { expect(parse(nil)).to be_nil }
-  it { expect(parse('')).to be_nil }
-  it { expect(parse("Texte libre\nsans marqueur")).to be_nil }
+  it 'renvoie nil sans ligne marqueur' do
+    expect(parse(nil)).to be_nil
+    expect(parse('')).to be_nil
+    expect(parse("Texte libre\nsans marqueur")).to be_nil
+  end
 
   it 'lit la ligne machine après une ligne humaine' do
     expect(parse("Référentiel DLNUF : lignes effacées.\nmes-demarches: referentiel=DLNUF; proprietaire=12345"))
