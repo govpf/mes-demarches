@@ -39,4 +39,15 @@ describe ReferentielDePolynesie::Marqueur do
   it('refuse une clé vide') { expect(parse('mes-demarches: =DLNUF')).to eq(:invalid) }
   it('refuse une ligne vide après le préfixe') { expect(parse('mes-demarches:')).to eq(:invalid) }
   it('refuse un préfixe mal formé') { expect(parse('mes-demarches : referentiel=DLNUF')).to eq(:invalid) }
+
+  it 'refuse les variantes de préfixe plausibles (accent, espace, souligné)' do
+    [
+      'mes-démarches: referentiel=DLNUF', 'Mes-Démarches: referentiel=DLNUF', 'mes demarches: referentiel=DLNUF',
+      'mes_demarches: referentiel=DLNUF', 'mes-demarche: referentiel=DLNUF',
+    ].each do |texte|
+      expect(parse(texte)).to eq(:invalid), texte
+    end
+  end
+
+  it('refuse une clé répétée') { expect(parse('mes-demarches: referentiel=DLNUF; referentiel=archive')).to eq(:invalid) }
 end

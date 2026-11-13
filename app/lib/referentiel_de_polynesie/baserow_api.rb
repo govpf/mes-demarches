@@ -106,8 +106,12 @@ class ReferentielDePolynesie::BaserowAPI
     end
 
     def config(row_id)
-      response = Typhoeus.get(row_url(ENV['API_BASEROW_CONFIG_TABLE'], row_id), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
+      response = config_response(row_id)
       response.success? ? JSON.parse(response.body) : nil
+    end
+
+    def config_response(row_id)
+      Typhoeus.get(row_url(ENV['API_BASEROW_CONFIG_TABLE'], row_id), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
     end
 
     # pf: DLNUF (« Dites-le-nous une fois ») — mode lu d'abord dans le marqueur de table
@@ -117,8 +121,14 @@ class ReferentielDePolynesie::BaserowAPI
     # Fail-closed : toute incohérence donne :invalid, JAMAIS nil (des données personnelles
     # seraient déclassées en liste publique).
     def dlnuf_config(domain_id)
-      config = config(domain_id)
-      return nil unless config
+      response = config_response(domain_id)
+      unless response.success?
+        return nil if response.code == 404 # pf: ligne méta inexistante : rien à servir
+
+        return :invalid # pf: panne passagère (timeout, 5xx) : refuser, sinon « catalogue » serait mis en cache
+      end
+
+      config = JSON.parse(response.body)
 
       model = fields(config)
       return :invalid if model.nil? # pf: colonnes illisibles → marqueur invisible : on refuse
@@ -214,7 +224,9 @@ class ReferentielDePolynesie::BaserowAPI
     private
 
     def dlnuf_config_from_marqueur(domain_id, model, marqueur, meta_owner)
-      case marqueur['referentiel'].presence&.downcase || 'archive'
+      # pf: clé absente ⇒ archive (contrat §3.2) ; clé présente mais vide ⇒ ambiguë ⇒ :invalid
+      type = marqueur.key?('referentiel') ? marqueur['referentiel'].downcase : 'archive'
+      case type
       when 'archive'
         return nil if meta_owner.blank?
 

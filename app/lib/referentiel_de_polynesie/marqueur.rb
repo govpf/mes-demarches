@@ -8,7 +8,8 @@ class ReferentielDePolynesie::Marqueur
   CONTRATS_CONNUS = ['1'].freeze
   # pf: une ligne qui ressemble à un marqueur (même mal écrite) est candidate ; seule la forme
   # exacte « mes-demarches: » est valide. Une faute de frappe doit refuser, pas désactiver.
-  CANDIDAT = /\A\s*mes-demarches\s*:/i
+  # Variantes couvertes : accent (« démarches »), espace ou souligné, singulier.
+  CANDIDAT = /\A\s*mes[\s_-]*d[eéÉ]marches?\s*:/i
   PREFIXE = /\A\s*mes-demarches:/i
 
   def self.parse(texte)
@@ -26,7 +27,7 @@ class ReferentielDePolynesie::Marqueur
     paires.each do |paire|
       cle, separateur, valeur = paire.partition('=')
       cle = cle.strip.downcase
-      return :invalid if separateur.empty? || cle.empty?
+      return :invalid if separateur.empty? || cle.empty? || resultat.key?(cle) # pf: clé répétée = ambiguë
 
       resultat[cle] = valeur.strip
     end

@@ -346,6 +346,12 @@ describe ReferentielDePolynesie::BaserowAPI do
       it { is_expected.to be_nil }
     end
 
+    context 'avec une clé referentiel vide' do
+      let(:description) { 'mes-demarches: referentiel=; proprietaire=9' }
+
+      it { is_expected.to eq(:invalid) }
+    end
+
     context 'avec un type de référentiel inconnu' do
       let(:description) { 'mes-demarches: referentiel=autre' }
 
@@ -359,15 +365,28 @@ describe ReferentielDePolynesie::BaserowAPI do
       it { is_expected.to eq(:invalid) }
     end
 
-    context 'quand la config est introuvable' do
+    context 'quand la config est introuvable (404)' do
       before do
-        stub_error = instance_double(Typhoeus::Response, success?: false, body: 'not found')
+        stub_error = instance_double(Typhoeus::Response, success?: false, code: 404, body: 'not found')
         allow(Typhoeus).to receive(:get)
           .with("#{base_url}/api/database/rows/table/1/#{domain_id}/", anything)
           .and_return(stub_error)
       end
 
       it { is_expected.to be_nil }
+    end
+
+    context 'quand la table méta est indisponible (timeout, 5xx)' do
+      before do
+        stub_error = instance_double(Typhoeus::Response, success?: false, code: 0, body: '')
+        allow(Typhoeus).to receive(:get)
+          .with("#{base_url}/api/database/rows/table/1/#{domain_id}/", anything)
+          .and_return(stub_error)
+      end
+
+      it 'refuse au lieu de mettre « catalogue » en cache' do
+        expect(subject).to eq(:invalid)
+      end
     end
   end
 
