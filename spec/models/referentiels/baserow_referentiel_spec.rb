@@ -189,4 +189,34 @@ describe Referentiels::BaserowReferentiel do
       expect(referentiel.name).to eq('Mon référentiel')
     end
   end
+
+  describe 'mémorisation du mode DLNUF' do
+    let(:referentiel) { create(:baserow_referentiel, url: 'baserow://24') }
+    let!(:procedure) { create(:procedure, types_de_champ_public: [{ type: :referentiel_de_polynesie, referentiel: }]) }
+
+    it 'ne mémorise rien tant que la démarche est en brouillon' do
+      described_class.memoriser_dlnuf!(24)
+      expect(described_class.dlnuf_vu?(24)).to be(false)
+    end
+
+    it 'mémorise dès que la démarche est publiée, sans écraser la date' do
+      procedure.publish!(procedure.administrateurs.first)
+      described_class.memoriser_dlnuf!(24)
+      date = referentiel.reload.dlnuf_vu_le
+      expect(date).to be_present
+
+      travel(1.day) { described_class.memoriser_dlnuf!('24') }
+      expect(referentiel.reload.dlnuf_vu_le).to eq(date)
+    end
+
+    it 'vaut pour toute la table, quel que soit le référentiel mémorisé' do
+      procedure.publish!(procedure.administrateurs.first)
+      autre = create(:baserow_referentiel, url: 'baserow://24')
+      described_class.memoriser_dlnuf!(24)
+
+      expect(autre.reload.dlnuf_vu_le).to be_nil
+      expect(described_class.dlnuf_vu?('24')).to be(true)
+      expect(described_class.dlnuf_vu?(25)).to be(false)
+    end
+  end
 end

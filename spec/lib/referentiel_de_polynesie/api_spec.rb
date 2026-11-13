@@ -36,6 +36,49 @@ describe ReferentielDePolynesie::API do
     it 'retourne nil pour un domain_id invalide' do
       expect(described_class.dlnuf_config('abc')).to be_nil
     end
+
+    context 'mémorisation (contrat §3.4)' do
+      let(:engine) { ReferentielDePolynesie::BaserowAPI }
+
+      before { allow(Referentiels::BaserowReferentiel).to receive(:memoriser_dlnuf!) }
+
+      it 'mémorise le mode DLNUF et renvoie la config inchangée' do
+        allow(engine).to receive(:dlnuf_config).with('24').and_return(config)
+        expect(described_class.dlnuf_config('24')).to eq(config)
+        expect(Referentiels::BaserowReferentiel).to have_received(:memoriser_dlnuf!).with('24')
+      end
+
+      it 'reste en catalogue si la table n’a jamais été vue en DLNUF' do
+        allow(engine).to receive(:dlnuf_config).with('24').and_return(nil)
+        allow(Referentiels::BaserowReferentiel).to receive(:dlnuf_vu?).with('24').and_return(false)
+        expect(described_class.dlnuf_config('24')).to be_nil
+      end
+
+      it 'refuse et alerte si une table vue en DLNUF ne l’est plus (ou si Baserow ne répond pas)' do
+        allow(engine).to receive(:dlnuf_config).with('24').and_return(nil)
+        allow(Referentiels::BaserowReferentiel).to receive(:dlnuf_vu?).with('24').and_return(true)
+        allow(Sentry).to receive(:capture_message)
+
+        expect(described_class.dlnuf_config('24')).to eq(:invalid)
+        expect(Sentry).to have_received(:capture_message).with('ReferentielDePolynesie: bascule de mode DLNUF', extra: { domain_id: '24' })
+      end
+
+      it 'ne mémorise pas une config invalide' do
+        allow(engine).to receive(:dlnuf_config).with('24').and_return(:invalid)
+        expect(described_class.dlnuf_config('24')).to eq(:invalid)
+        expect(Referentiels::BaserowReferentiel).not_to have_received(:memoriser_dlnuf!)
+      end
+
+      it 'applique la mémorisation après le cache', caching: true do
+        allow(engine).to receive(:dlnuf_config).with('24').and_return(nil)
+        allow(Referentiels::BaserowReferentiel).to receive(:dlnuf_vu?).with('24').and_return(false, true)
+        allow(Sentry).to receive(:capture_message)
+
+        expect(described_class.dlnuf_config('24')).to be_nil
+        expect(described_class.dlnuf_config('24')).to eq(:invalid)
+        expect(engine).to have_received(:dlnuf_config).once
+      end
+    end
   end
 
   describe '.search_with_data' do
