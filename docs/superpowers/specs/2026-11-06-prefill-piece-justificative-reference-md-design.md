@@ -57,34 +57,34 @@ comme si l'usager l'avait téléversée ; elle ne transporte aucun visa ni statu
   `{ field_id:, field_name:, field_type: }`. **Aucun appelant existant ne change.**
 - Le hash gagne une clé `source: :marqueur | :table_meta` (diagnostic, logs).
 
-### 3.2 Repli transitoire
+### 3.2 Deux clés (contrat §3.3, §3.4)
 
-Si aucun marqueur n'est présent, lecture de la colonne méta « Champ propriétaire » comme
-aujourd'hui. Le repli sera retiré une fois le marqueur posé sur toutes les tables DLNUF existantes
-(mesure préalable en prod : nombre de lignes méta avec « Champ propriétaire » renseigné).
-Marqueur présent **et** colonne méta renseignée avec un identifiant différent ⇒ `:invalid` + log.
+Le marqueur **et** la colonne méta « Champ propriétaire » restent tous deux lus : une table est
+DLNUF si l'un **ou** l'autre le déclare, catalogue seulement si aucun. La colonne méta n'est donc
+pas un repli à retirer, c'est la seconde clé. Marqueur DLNUF et colonne méta renseignés avec des
+identifiants différents ⇒ `:invalid` + log. Table méta indisponible (hors 404) ou colonnes
+illisibles ⇒ `:invalid`.
 
-### 3.3 Mémorisation (contrat §3.4)
+Mesure en prod (2026-11-13) : une seule table déclarée DLNUF (référentiel 33, « DJS -
+Associations/Fédérations Sport », table 861, « Champ propriétaire » 9115), aucune démarche
+publiée ne l'utilise. Le marqueur y sera posé à la main.
 
-- Sur `Referentiels::BaserowReferentiel`, dans le jsonb existant (`store_accessor`, sans
-  migration) : `dlnuf_vu_le` (horodatage de la première observation en DLNUF).
-- Posé à la première résolution `dlnuf_config` non nulle pour ce référentiel, **seulement si la
-  démarche est publiée**. Tant qu'elle est en brouillon (phase de test), rien n'est mémorisé :
-  l'administrateur peut corriger un mode choisi par erreur sans blocage.
-- Si `dlnuf_vu_le` est présent et que `dlnuf_config` renvoie `nil` ⇒ traité comme `:invalid`
-  (fail-closed) + `Sentry.capture_message` (bascule de mode).
-- **Aucun contournement par le marqueur Baserow** (contrat §3.4) : il serait posé par le canal
-  même contre lequel la mémorisation protège.
-- Remise à zéro : tâche de maintenance MD ciblant un référentiel (`dlnuf_vu_le` remis à nil,
-  journalisé), jamais automatiquement. Évite de remplacer le champ (nouveau `stable_id`, mapping à
-  refaire, nouvelle révision).
+### 3.3 Pas de mémorisation côté MD
+
+Une mémorisation du mode dans MD (date de première observation en DLNUF, refus si le mode
+disparaît) a été codée puis abandonnée au profit des deux clés : elle demandait un stockage dédié
+pour être robuste (le jsonb du référentiel est remis à zéro quand l'éditeur change de table, et
+elle était indexée sur la ligne méta alors que deux lignes méta peuvent désigner la même table
+Baserow) et une tâche de remise à zéro. Les deux clés couvrent l'erreur d'un seul geste ; les
+conditions d'exploitation du contrat §3.4 (projets distincts, accès administrateur seul, jetons en
+lecture seule sur la table méta) couvrent les jetons et les accès métier.
 
 ### 3.4 Tests PR 0
 
-Analyse du marqueur (cas nominaux, casse, espaces, clés inconnues, deux lignes, version inconnue) ;
-`dlnuf_config` : marqueur seul, méta seule, les deux concordants / discordants, propriétaire
-inexistant ; mémorisation : bascule DLNUF → absent ⇒ refus sur démarche publiée, changement libre sur démarche en brouillon ; tâche de remise à zéro. Specs existantes du DLNUF (#530)
-inchangées et vertes.
+Analyse du marqueur (cas nominaux, casse, espaces, clés inconnues, clé répétée, deux lignes,
+variantes de préfixe, version inconnue) ; `dlnuf_config` : marqueur seul, méta seule, les deux
+concordants / discordants, marqueur archive + méta renseignée (⇒ DLNUF par la méta), propriétaire
+inexistant, table méta indisponible. Specs existantes du DLNUF (#530) vertes.
 
 **Charge : ~0,5–1 j.**
 
@@ -245,7 +245,7 @@ Baserow stubbé (fields avec descriptions marquées, ligne contenant une référ
 
 | Bloc | Charge |
 |---|---|
-| PR 0 — détection DLNUF par marqueur + mémorisation | ~0,5–1 j |
+| PR 0 — détection DLNUF par marqueur (deux clés) | ~0,5–1 j |
 | Type de mapping `piece_justificative` (éditeur, contrôleur, MCP, GraphQL) | ~1 j |
 | Service de préremplissage + branche + `prefilled` du contrôleur PJ | ~0,5–1 j |
 | Tests (unitaires, blob partagé, système) | ~1 j |
@@ -255,7 +255,7 @@ Baserow stubbé (fields avec descriptions marquées, ligne contenant une référ
 
 Côté inspecteur (hors de ce dépôt, cf. contrat §5) : choix archive / DLNUF et marqueurs au schema
 builder ; références et refus des colonnes `file` dans la synchro ; effacement DLNUF (W2) avec
-mémorisation du type. Amendement du devis global à rédiger.
+mémorisation du type.
 
 ## 9. Hors périmètre
 

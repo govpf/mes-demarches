@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Amendé le 2026-11-13 (après exécution) :** la mémorisation (Task 3) et la tâche de remise à zéro (Task 4) ont été retirées au profit de la règle des **deux clés** (contrat §3.3-3.4) : DLNUF si le marqueur ou la colonne méta le déclare, catalogue seulement si aucun. La colonne méta reste donc lue (ce n'est plus un repli). Les Tasks 3 et 4 ci-dessous sont conservées pour l'historique.
+
 **Goal :** Mes-Démarches détecte le mode DLNUF d'un référentiel Baserow à partir du marqueur posé dans la description de la colonne primaire, avec repli transitoire sur la colonne méta « Champ propriétaire » et mémorisation fail-closed du mode une fois la démarche publiée.
 
 **Architecture :** un objet pur `ReferentielDePolynesie::Marqueur` analyse le texte ; `BaserowAPI.dlnuf_config` l'applique à la colonne primaire puis retombe sur la méta ; la façade `API.dlnuf_config` (après son cache) applique la mémorisation stockée sur `Referentiels::BaserowReferentiel`. Les appelants (composant, contrôleur `#search`, champ) ne changent pas : ils reçoivent toujours `nil`, `:invalid` ou `{ field_id:, field_name:, field_type: }` (+ `source:`).

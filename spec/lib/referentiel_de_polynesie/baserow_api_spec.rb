@@ -333,10 +333,10 @@ describe ReferentielDePolynesie::BaserowAPI do
 
       it { is_expected.to be_nil }
 
-      context 'et une méta renseignée (contradiction)' do
+      context 'et une méta renseignée (une seule clé retirée : reste DLNUF)' do
         let(:owner_field_id) { 9 }
 
-        it { is_expected.to eq(:invalid) }
+        it { is_expected.to eq(email_config.merge(source: :table_meta)) }
       end
     end
 

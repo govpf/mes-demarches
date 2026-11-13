@@ -114,9 +114,9 @@ class ReferentielDePolynesie::BaserowAPI
       Typhoeus.get(row_url(ENV['API_BASEROW_CONFIG_TABLE'], row_id), headers: config_database_headers, params: default_params, timeout: TIMEOUT)
     end
 
-    # pf: DLNUF (« Dites-le-nous une fois ») — mode lu d'abord dans le marqueur de table
-    # (description de la colonne primaire, contrat 2026-11-06-contrat-referentiel-dlnuf.md §3),
-    # puis, en repli transitoire, dans la colonne « Champ propriétaire » de la table méta.
+    # pf: DLNUF (« Dites-le-nous une fois ») — deux clés (contrat 2026-11-06-contrat-referentiel-dlnuf.md §3) :
+    # le marqueur de table (description de la colonne primaire) et la colonne « Champ propriétaire »
+    # de la table méta. DLNUF si l'une OU l'autre le déclare ; catalogue seulement si aucune.
     # Retour : nil (catalogue), :invalid (refus) ou { field_id:, field_name:, field_type:, source: }.
     # Fail-closed : toute incohérence donne :invalid, JAMAIS nil (des données personnelles
     # seraient déclassées en liste publique).
@@ -228,10 +228,8 @@ class ReferentielDePolynesie::BaserowAPI
       type = marqueur.key?('referentiel') ? marqueur['referentiel'].downcase : 'archive'
       case type
       when 'archive'
-        return nil if meta_owner.blank?
-
-        Rails.logger.warn("ReferentielDePolynesie: marqueur archive discordant avec le champ propriétaire #{meta_owner} de la table méta (référentiel #{domain_id})")
-        :invalid
+        # pf: deux clés (contrat §3.4) : catalogue seulement si le marqueur ET la méta le disent
+        meta_owner.present? ? owner_config(domain_id, model, meta_owner, source: :table_meta) : nil
       when 'dlnuf'
         owner = marqueur['proprietaire'].to_s
         return :invalid unless owner.match?(/\A\d+\z/)

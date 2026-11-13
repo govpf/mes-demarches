@@ -70,50 +70,63 @@ Règles d'analyse (identiques dans les deux dépôts) :
 
 ### 3.3 Interprétation et règles de sécurité
 
+Côté Mes-Démarches, le mode DLNUF repose sur **deux clés** : le marqueur de table et la colonne
+« Champ propriétaire » de la ligne de la table méta qui déclare le référentiel (§3.4).
+
 | Situation | Synchro (inspecteur) | Mes-Démarches |
 |---|---|---|
-| Pas de marqueur | archive | archive (catalogue)… **sauf** si le champ a déjà été vu en DLNUF → refus (§3.4) |
+| Pas de marqueur | archive | catalogue si la méta n'a pas de « Champ propriétaire », sinon DLNUF (méta) |
 | `referentiel=archive` | archive | idem |
-| `referentiel=DLNUF` valide | DLNUF | DLNUF |
+| `referentiel=DLNUF` valide | DLNUF | DLNUF (le « Champ propriétaire » méta, s'il est renseigné, doit désigner la même colonne, sinon **refus**) |
 | `DLNUF` sans `proprietaire`, ou `proprietaire` ne désignant aucune colonne | refus de synchroniser + alerte | **refus** (jamais de repli en catalogue) |
 | Marqueur invalide | refus + alerte | **refus** |
+| Table méta ou colonnes de la table illisibles | — | **refus** |
 
 **Principe :** l'absence de marqueur vaut `archive`, seul défaut sans effet irréversible côté
 robot (aucun effacement). Côté MD, le défaut dangereux est l'inverse (une table DLNUF lue comme
-un catalogue exposerait toutes ses lignes) : il est couvert par la mémorisation du §3.4.
+un catalogue exposerait toutes ses lignes) : il est couvert par les deux clés du §3.4.
 
-### 3.4 Mémorisation du mode (anti-bascule silencieuse)
+### 3.4 Deux clés côté Mes-Démarches, mémorisation côté synchro
 
-Chaque lecteur mémorise le type vu pour une table et **signale tout changement** :
+**Mes-Démarches : deux clés, pas de mémorisation.** Une table est servie en DLNUF si le marqueur
+**ou** la colonne « Champ propriétaire » de la table méta le déclare ; elle n'est servie en
+catalogue que si **aucune des deux** ne le déclare. Une erreur sur un seul des deux endroits
+(description écrasée, ligne méta modifiée) laisse donc la table protégée. Repasser en catalogue
+demande deux gestes délibérés, dans deux projets Baserow distincts. MD ne mémorise rien : pas de
+stockage supplémentaire, pas de remise à zéro à prévoir.
 
-- **Mes-Démarches** mémorise, **par table** (pour tous les référentiels qui la désignent), qu’elle a été vue en DLNUF. Si le
-  marqueur disparaît ou repasse à `archive` ensuite, MD **refuse** de servir le référentiel
-  (fail-closed) au lieu de basculer en catalogue. Remise à zéro : action explicite d'un
-  administrateur technique.
-- **La synchro** mémorise le type par table :
-  - `DLNUF → archive` (marqueur retiré) : arrêt de l'effacement + **alerte** (l'engagement de
-    durée de vie n'est plus tenu) ;
-  - `archive → DLNUF` sur une table déjà synchronisée : **alerte et effacement suspendu** jusqu'à
-    confirmation explicite de l'exploitant dans l'administration de l'inspecteur. Protège une
-    table d'archive contre un effacement massif par erreur de marqueur.
+Conditions d'exploitation (obligatoires, ce sont elles qui donnent leur valeur aux deux clés) :
 
-**Phase de test : changement de mode libre.** La mémorisation ne commence qu'à l'usage réel :
-côté MD, seulement quand la démarche est **publiée** ; tant qu'elle est en brouillon (en test),
-le marqueur peut être changé librement. Côté synchro, même règle si la démarche source est en
-test. Changer le marqueur ne convertit pas les colonnes. Retour de `DLNUF` à `archive` sur la même
-table :
+- la table méta et les tables DLNUF sont dans des **projets Baserow distincts** ;
+- **accès administrateur seulement** à ces projets, jamais d'accès métier ;
+- **jetons en lecture seule** sur la table méta (dont le jeton de Mes-Démarches) ; aucun autre
+  jeton, celui du robot compris, n'a accès au projet de la table méta ;
+- le marqueur n'est modifiable qu'en session utilisateur : un jeton de base de données ne peut pas
+  changer la description d'une colonne (vérifié sur Baserow 2.0.6).
+
+Limite assumée : un administrateur qui modifie les deux endroits obtient un catalogue. C'est par
+construction une décision prise en connaissance de cause.
+
+**La synchro** mémorise le type par table :
+
+- `DLNUF → archive` (marqueur retiré) : arrêt de l'effacement + **alerte** (l'engagement de durée
+  de vie n'est plus tenu) ;
+- `archive → DLNUF` sur une table déjà synchronisée : **alerte et effacement suspendu** jusqu'à
+  confirmation explicite de l'exploitant dans l'administration de l'inspecteur. Protège une table
+  d'archive contre un effacement massif par erreur de marqueur.
+
+Phase de test : côté synchro, ces règles ne s'appliquent pas tant que la démarche source est en test.
+
+**Retour de `DLNUF` à `archive` sur la même table** (changer le marqueur ne convertit pas les colonnes) :
+
 1. supprimer dans Baserow les colonnes de référence de PJ (colonnes texte marquées) ;
 2. relancer le schema builder en mode `archive` : il **réécrit le marqueur de table**
    (`referentiel=archive`) et recrée les colonnes de PJ manquantes en `file` (les colonnes
    existantes, dont la colonne propriétaire, sont conservées) ;
-3. relancer la synchro depuis le début (remise du curseur de la démarche) pour copier les fichiers
+3. vider le « Champ propriétaire » de la ligne de la table méta (seconde clé) ; tant qu'il reste
+   renseigné, Mes-Démarches continue de servir la table en DLNUF ;
+4. relancer la synchro depuis le début (remise du curseur de la démarche) pour copier les fichiers
    des lignes déjà présentes.
-
-**Pas de contournement par le marqueur.** Aucune valeur du marqueur ne lève la mémorisation : elle
-protège justement contre quelqu'un qui peut modifier la table dans Baserow, et un contournement
-posé par ce même canal rendrait toutes les lignes consultables. La remise à zéro passe par un
-**autre canal**, d'une autre autorité : une tâche de maintenance MD (accès à la production MD
-requis), ou à défaut la reconstruction d'un référentiel archive et d'un nouveau champ.
 
 ## 4. Colonnes de référence de pièce jointe
 
@@ -168,8 +181,8 @@ md:<numero_dossier>:<stable_id>:<row_id>     (pièce dans un bloc répétable)
 
 ### 5.3 Mes-Démarches
 
-- Détermine le mode DLNUF **à partir du marqueur** (§3), avec mémorisation (§3.4). La colonne
-  « Champ propriétaire » de la table méta n'est plus qu'un **repli transitoire** (cf. spec du lot C, PR 0).
+- Détermine le mode DLNUF à partir des **deux clés** (§3.3, §3.4) : le marqueur et la colonne
+  « Champ propriétaire » de la table méta.
 - En DLNUF : restreint recherche et lecture aux lignes du titulaire (comportement existant).
 - Préremplissage de PJ (lot C) : uniquement en DLNUF, uniquement depuis une colonne marquée
   référence ; vérifie le titulaire du dossier source ; tolère les références mortes (ignorées).

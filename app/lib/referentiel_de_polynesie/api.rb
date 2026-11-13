@@ -29,7 +29,7 @@ class ReferentielDePolynesie::API
       cached = Rails.cache.fetch("referentiel_de_polynesie/dlnuf_config/#{domain_id}", expires_in: DLNUF_CONFIG_TTL) do
         engine.dlnuf_config(domain_id) || :none # pf: sentinel — Rails.cache ne mémorise pas nil
       end
-      appliquer_memorisation_dlnuf(domain_id, cached == :none ? nil : cached)
+      cached == :none ? nil : cached
     end
 
     def search(domain_id, term, drop_down_other: false)
@@ -65,26 +65,6 @@ class ReferentielDePolynesie::API
 
     def engine
       @engine ||= ENV['API_BASEROW_URL'].present? ? ReferentielDePolynesie::BaserowAPI : nil
-    end
-
-    private
-
-    # pf: DLNUF — mémorisation anti-bascule (contrat 2026-11-06-contrat-referentiel-dlnuf.md §3.4),
-    # appliquée APRÈS le cache : une table vue en DLNUF sur une démarche publiée qui ne l'est plus
-    # (marqueur retiré, Baserow muet) est refusée au lieu d'être servie en catalogue.
-    def appliquer_memorisation_dlnuf(domain_id, resultat)
-      case resultat
-      when Hash
-        Referentiels::BaserowReferentiel.memoriser_dlnuf!(domain_id)
-        resultat
-      when nil
-        return nil unless Referentiels::BaserowReferentiel.dlnuf_vu?(domain_id)
-
-        Sentry.capture_message('ReferentielDePolynesie: bascule de mode DLNUF', extra: { domain_id: })
-        :invalid
-      else
-        resultat
-      end
     end
   end
 end
