@@ -14,7 +14,7 @@ RSpec.describe NotificationMailer, type: :mailer do
       expect(subject.subject).to include("Votre dossier rempli par le mandataire #{dossier_for_tiers.mandataire_first_name} #{dossier_for_tiers.mandataire_last_name} a été mis à jour")
       expect(subject.to).to eq([dossier_for_tiers.individual.email])
       expect(subject.body).to include("a été déposé le")
-      expect(subject.body).to include("Pour en savoir plus, veuillez vous rapprocher de\r\n<a href=\"mailto:#{dossier_for_tiers.user.email}\">#{dossier_for_tiers.user.email}</a>.")
+      expect(subject.body).to include("Pour en savoir plus, veuillez vous rapprocher de\n<a href=\"mailto:#{dossier_for_tiers.user.email}\">#{dossier_for_tiers.user.email}</a>.")
     end
   end
 
@@ -27,7 +27,7 @@ RSpec.describe NotificationMailer, type: :mailer do
       expect(subject.subject).to include("Votre dossier rempli par le mandataire #{dossier_for_tiers.mandataire_first_name} #{dossier_for_tiers.mandataire_last_name} a été mis à jour")
       expect(subject.to).to eq([dossier_for_tiers.individual.email])
       expect(subject.body).to include("va être réexaminé, la précédente décision sur ce dossier est caduque.")
-      expect(subject.body).to include("Pour en savoir plus, veuillez vous rapprocher de\r\n<a href=\"mailto:#{dossier_for_tiers.user.email}\">#{dossier_for_tiers.user.email}</a>.")
+      expect(subject.body).to include("Pour en savoir plus, veuillez vous rapprocher de\n<a href=\"mailto:#{dossier_for_tiers.user.email}\">#{dossier_for_tiers.user.email}</a>.")
     end
   end
 
@@ -40,7 +40,7 @@ RSpec.describe NotificationMailer, type: :mailer do
       expect(subject.subject).to include("Votre dossier rempli par le mandataire #{dossier_for_tiers.mandataire_first_name} #{dossier_for_tiers.mandataire_last_name} a été mis à jour")
       expect(subject.to).to eq([dossier_for_tiers.individual.email])
       expect(subject.body).to include("a été traité le")
-      expect(subject.body).to include("Pour en savoir plus, veuillez vous rapprocher de\r\n<a href=\"mailto:#{dossier_for_tiers.user.email}\">#{dossier_for_tiers.user.email}</a>.")
+      expect(subject.body).to include("Pour en savoir plus, veuillez vous rapprocher de\n<a href=\"mailto:#{dossier_for_tiers.user.email}\">#{dossier_for_tiers.user.email}</a>.")
     end
   end
 
