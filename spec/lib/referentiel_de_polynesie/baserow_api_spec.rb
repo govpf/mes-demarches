@@ -212,8 +212,11 @@ describe ReferentielDePolynesie::BaserowAPI do
     subject { described_class.dlnuf_config(domain_id) }
 
     let(:owner_field_id) { nil }
+    let(:description) { nil }
     let(:dlnuf_config_response) { config_response.merge('Champ propriétaire' => owner_field_id) }
-    let(:dlnuf_fields_response) { fields_response + [{ 'id' => 9, 'name' => 'Email', 'type' => 'email' }] }
+    let(:primary_field) { { 'id' => 1, 'name' => 'Dossier', 'type' => 'number', 'primary' => true, 'description' => description } }
+    let(:dlnuf_fields_response) { [primary_field] + fields_response + [{ 'id' => 9, 'name' => 'Email', 'type' => 'email' }] }
+    let(:email_config) { { field_id: 9, field_name: 'Email', field_type: 'email' } }
 
     before do
       stub_config = instance_double(Typhoeus::Response, success?: true, body: dlnuf_config_response.to_json)
@@ -227,40 +230,133 @@ describe ReferentielDePolynesie::BaserowAPI do
         .and_return(stub_fields)
     end
 
-    context 'sans colonne « Champ propriétaire » renseignée (catalogue)' do
-      let(:owner_field_id) { nil }
+    context 'sans marqueur' do
+      context 'sans colonne « Champ propriétaire » renseignée (catalogue)' do
+        it { is_expected.to be_nil }
+      end
+
+      context 'avec un champ propriétaire valide (repli sur la table méta)' do
+        let(:owner_field_id) { 9 }
+
+        it { is_expected.to eq(email_config.merge(source: :table_meta)) }
+      end
+
+      context 'avec un id de champ propriétaire mort (champ supprimé)' do
+        let(:owner_field_id) { 999 }
+
+        it 'retourne :invalid (fail-closed, jamais nil qui déclasserait en catalogue)' do
+          expect(subject).to eq(:invalid)
+        end
+      end
+
+      context 'avec un champ propriétaire dont le type ne ressemble pas à un mail' do
+        let(:owner_field_id) { 9 }
+        let(:dlnuf_fields_response) { [primary_field] + fields_response + [{ 'id' => 9, 'name' => 'Quantité', 'type' => 'number' }] }
+
+        it 'retourne quand même la config mais loggue un avertissement de diagnostic' do
+          expect(Rails.logger).to receive(:warn).with(/champ propriétaire/i)
+          expect(subject).to eq({ field_id: 9, field_name: 'Quantité', field_type: 'number', source: :table_meta })
+        end
+      end
+
+      context 'quand les colonnes de la table sont illisibles' do
+        before do
+          stub_error = instance_double(Typhoeus::Response, success?: false, body: 'boom')
+          allow(Typhoeus).to receive(:get)
+            .with("#{base_url}/api/database/fields/table/#{table_id}/", anything)
+            .and_return(stub_error)
+        end
+
+        context 'et la méta vide' do
+          it 'refuse : le marqueur est invisible, on ne déclasse pas en catalogue' do
+            expect(subject).to eq(:invalid)
+          end
+        end
+
+        context 'et la méta renseignée' do
+          let(:owner_field_id) { 9 }
+
+          it { is_expected.to eq(:invalid) }
+        end
+      end
+    end
+
+    context 'avec un marqueur DLNUF' do
+      let(:description) { "Référentiel DLNUF : lignes effacées avec leur dossier.\nmes-demarches: referentiel=DLNUF; proprietaire=9" }
+
+      context 'seul' do
+        it { is_expected.to eq(email_config.merge(source: :marqueur)) }
+      end
+
+      context 'en minuscules' do
+        let(:description) { 'mes-demarches: referentiel=dlnuf; proprietaire=9' }
+
+        it { is_expected.to eq(email_config.merge(source: :marqueur)) }
+      end
+
+      context 'et une méta concordante' do
+        let(:owner_field_id) { 9 }
+
+        it { is_expected.to eq(email_config.merge(source: :marqueur)) }
+      end
+
+      context 'et une méta discordante' do
+        let(:owner_field_id) { 6 }
+
+        it 'refuse et loggue la discordance' do
+          expect(Rails.logger).to receive(:warn).with(/discord/i)
+          expect(subject).to eq(:invalid)
+        end
+      end
+
+      context 'sans propriétaire' do
+        let(:description) { 'mes-demarches: referentiel=DLNUF' }
+
+        it { is_expected.to eq(:invalid) }
+      end
+
+      context 'avec un propriétaire non numérique' do
+        let(:description) { 'mes-demarches: referentiel=DLNUF; proprietaire=abc' }
+
+        it { is_expected.to eq(:invalid) }
+      end
+
+      context 'avec un propriétaire inexistant' do
+        let(:description) { 'mes-demarches: referentiel=DLNUF; proprietaire=999' }
+
+        it { is_expected.to eq(:invalid) }
+      end
+    end
+
+    context 'avec un marqueur archive' do
+      let(:description) { 'mes-demarches: referentiel=archive' }
 
       it { is_expected.to be_nil }
 
-      it 'ne lit pas le modèle de la table' do
-        subject
-        expect(Typhoeus).not_to have_received(:get)
-          .with("#{base_url}/api/database/fields/table/#{table_id}/", anything)
+      context 'et une méta renseignée (contradiction)' do
+        let(:owner_field_id) { 9 }
+
+        it { is_expected.to eq(:invalid) }
       end
     end
 
-    context 'avec un champ propriétaire valide' do
+    context 'avec un marqueur sans clé referentiel (archive par défaut)' do
+      let(:description) { 'mes-demarches: contrat=1' }
+
+      it { is_expected.to be_nil }
+    end
+
+    context 'avec un type de référentiel inconnu' do
+      let(:description) { 'mes-demarches: referentiel=autre' }
+
+      it { is_expected.to eq(:invalid) }
+    end
+
+    context 'avec un marqueur invalide' do
+      let(:description) { 'mes-demarches: contrat=2' }
       let(:owner_field_id) { 9 }
 
-      it { is_expected.to eq({ field_id: 9, field_name: 'Email', field_type: 'email' }) }
-    end
-
-    context 'avec un id de champ propriétaire mort (champ supprimé)' do
-      let(:owner_field_id) { 999 }
-
-      it 'retourne :invalid (fail-closed, jamais nil qui déclasserait en catalogue)' do
-        expect(subject).to eq(:invalid)
-      end
-    end
-
-    context 'avec un champ propriétaire dont le type ne ressemble pas à un mail' do
-      let(:owner_field_id) { 9 }
-      let(:dlnuf_fields_response) { fields_response + [{ 'id' => 9, 'name' => 'Quantité', 'type' => 'number' }] }
-
-      it 'retourne quand même la config mais loggue un avertissement de diagnostic' do
-        expect(Rails.logger).to receive(:warn).with(/champ propriétaire/i)
-        expect(subject).to eq({ field_id: 9, field_name: 'Quantité', field_type: 'number' })
-      end
+      it { is_expected.to eq(:invalid) }
     end
 
     context 'quand la config est introuvable' do
@@ -290,8 +386,8 @@ describe ReferentielDePolynesie::BaserowAPI do
 
     it 'expose les options des colonnes de sélection (id + libellé), [] sinon' do
       fields = described_class.fields({ 'Table' => table_id, 'Token' => 'tok' })
-      expect(fields[1]).to eq(name: 'Nom', type: 'text', select_options: [])
-      expect(fields[12]).to eq(name: 'Catégorie', type: 'single_select', select_options: [{ id: 100, value: 'Semences' }, { id: 101, value: 'Plants' }])
+      expect(fields[1]).to eq(name: 'Nom', type: 'text', select_options: [], description: nil, primary: false)
+      expect(fields[12]).to eq(name: 'Catégorie', type: 'single_select', select_options: [{ id: 100, value: 'Semences' }, { id: 101, value: 'Plants' }], description: nil, primary: false)
     end
   end
 

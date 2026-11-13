@@ -110,25 +110,31 @@ class ReferentielDePolynesie::BaserowAPI
       response.success? ? JSON.parse(response.body) : nil
     end
 
-    # pf: DLNUF (« Dites-le-nous une fois ») — lit la colonne « Champ propriétaire » de la table
-    # méta. Invariant : id renseigné ⟺ mode DLNUF ; vide ⟺ catalogue.
-    # Fail-closed : id renseigné mais champ introuvable → :invalid. Ne JAMAIS retomber sur nil
-    # dans ce cas : des données personnelles seraient déclassées en liste publique.
+    # pf: DLNUF (« Dites-le-nous une fois ») — mode lu d'abord dans le marqueur de table
+    # (description de la colonne primaire, contrat 2026-11-06-contrat-referentiel-dlnuf.md §3),
+    # puis, en repli transitoire, dans la colonne « Champ propriétaire » de la table méta.
+    # Retour : nil (catalogue), :invalid (refus) ou { field_id:, field_name:, field_type:, source: }.
+    # Fail-closed : toute incohérence donne :invalid, JAMAIS nil (des données personnelles
+    # seraient déclassées en liste publique).
     def dlnuf_config(domain_id)
       config = config(domain_id)
       return nil unless config
 
-      owner_field_id = config['Champ propriétaire']
-      return nil if owner_field_id.blank?
+      model = fields(config)
+      return :invalid if model.nil? # pf: colonnes illisibles → marqueur invisible : on refuse
 
-      field = fields(config)&.dig(owner_field_id.to_i)
-      return :invalid if field.nil?
+      meta_owner = config['Champ propriétaire'].presence&.to_s&.strip
+      marqueur = ReferentielDePolynesie::Marqueur.parse(model.values.find { _1[:primary] }&.dig(:description))
 
-      unless field[:type].in?(EMAIL_LIKE_TYPES)
-        Rails.logger.warn("ReferentielDePolynesie: le champ propriétaire #{owner_field_id} (référentiel #{domain_id}) est de type #{field[:type]}, pas un e-mail")
+      case marqueur
+      when :invalid
+        Rails.logger.warn("ReferentielDePolynesie: marqueur de table illisible (référentiel #{domain_id})")
+        :invalid
+      when nil
+        meta_owner.present? ? owner_config(domain_id, model, meta_owner, source: :table_meta) : nil
+      else
+        dlnuf_config_from_marqueur(domain_id, model, marqueur, meta_owner)
       end
-
-      { field_id: owner_field_id.to_i, field_name: field[:name], field_type: field[:type] }
     end
 
     # pf: retourne { id => { name:, type:, select_options: [{ id:, value: }] } } ; select_options
@@ -139,7 +145,8 @@ class ReferentielDePolynesie::BaserowAPI
       if response.success?
         JSON.parse(response.body).to_h do |field|
           options = Array(field['select_options']).map { { id: _1['id'], value: _1['value'] } }
-          [field['id'], { name: field['name'], type: field['type'], select_options: options }]
+          # pf: description + primary portent le marqueur DLNUF (contrat §3)
+          [field['id'], { name: field['name'], type: field['type'], select_options: options, description: field['description'], primary: field['primary'] == true }]
         end
       end
     end
@@ -205,6 +212,39 @@ class ReferentielDePolynesie::BaserowAPI
     end
 
     private
+
+    def dlnuf_config_from_marqueur(domain_id, model, marqueur, meta_owner)
+      case marqueur['referentiel'].presence&.downcase || 'archive'
+      when 'archive'
+        return nil if meta_owner.blank?
+
+        Rails.logger.warn("ReferentielDePolynesie: marqueur archive discordant avec le champ propriétaire #{meta_owner} de la table méta (référentiel #{domain_id})")
+        :invalid
+      when 'dlnuf'
+        owner = marqueur['proprietaire'].to_s
+        return :invalid unless owner.match?(/\A\d+\z/)
+
+        if meta_owner.present? && meta_owner != owner
+          Rails.logger.warn("ReferentielDePolynesie: propriétaire #{owner} du marqueur discordant avec #{meta_owner} de la table méta (référentiel #{domain_id})")
+          return :invalid
+        end
+
+        owner_config(domain_id, model, owner, source: :marqueur)
+      else
+        :invalid
+      end
+    end
+
+    def owner_config(domain_id, model, owner_field_id, source:)
+      field = model[owner_field_id.to_i]
+      return :invalid if field.nil?
+
+      unless field[:type].in?(EMAIL_LIKE_TYPES)
+        Rails.logger.warn("ReferentielDePolynesie: le champ propriétaire #{owner_field_id} (référentiel #{domain_id}) est de type #{field[:type]}, pas un e-mail")
+      end
+
+      { field_id: owner_field_id.to_i, field_name: field[:name], field_type: field[:type], source: }
+    end
 
     def build_exact_match_filter(search_field, term)
       {
