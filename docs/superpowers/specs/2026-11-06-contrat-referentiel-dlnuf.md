@@ -86,7 +86,7 @@ un catalogue exposerait toutes ses lignes) : il est couvert par la mémorisation
 
 Chaque lecteur mémorise le type vu pour une table et **signale tout changement** :
 
-- **Mes-Démarches** mémorise, sur le référentiel configuré, qu'il a été vu en DLNUF. Si le
+- **Mes-Démarches** mémorise, **par table** (pour tous les référentiels qui la désignent), qu’elle a été vue en DLNUF. Si le
   marqueur disparaît ou repasse à `archive` ensuite, MD **refuse** de servir le référentiel
   (fail-closed) au lieu de basculer en catalogue. Remise à zéro : action explicite d'un
   administrateur technique.
