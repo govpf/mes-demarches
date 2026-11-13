@@ -149,4 +149,25 @@ describe FormulaColumnResolver do
       expect(path).to eq(:commune)
     end
   end
+
+  # pf: MES-DEMARCHES-48E — une liste multiple avancée (référentiel) dans la
+  # révision faisait planter l'indexation (columns renvoyait une Column seule),
+  # donc la validation de publication et les pages admin de la démarche en 500.
+  describe 'révision contenant une liste multiple avancée' do
+    let(:referentiel) { create(:csv_referentiel, :with_items) }
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :multiple_drop_down_list, libelle: 'Choix', drop_down_mode: 'advanced', referentiel: },
+        { type: :integer_number, libelle: 'Montant' },
+      ])
+    end
+    let(:revision) { procedure.draft_revision }
+    let(:choix_tdc) { revision.types_de_champ.find { |t| t.libelle == 'Choix' } }
+
+    it 'construit l’index et résout la colonne de la liste' do
+      resolver = described_class.new(revision)
+      column_id = "tdc#{choix_tdc.stable_id}/#{referentiel.headers_with_path.first.second}"
+      expect(resolver.resolve(column_id)).to be_a(Columns::MultipleDropDownColumn)
+    end
+  end
 end
