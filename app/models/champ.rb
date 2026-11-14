@@ -390,6 +390,13 @@ class Champ < ApplicationRecord
     # répétable, depuis le stable_id du bloc parent. Une formule-agrégat dépend
     # du stable_id du BLOC ({tdc<bloc>/sub_<id>} → dep = bloc), donc modifier un
     # sous-champ d'une ligne doit déclencher les formules qui dépendent du bloc.
+    #
+    # pf: même règle pendant le parcours : quand une formule-LIGNE est atteinte
+    # (ex. Coef → Taux racine → Montant de ligne), les agrégats de son bloc
+    # dépendent du bloc, pas d'elle — on suit donc aussi le bloc parent, sinon
+    # l'agrégat n'est jamais recalculé quand la source vient d'hors du bloc.
+    revision = dossier.revision
+    formula_tdcs_by_sid = formula_tdcs.index_by(&:stable_id)
     visited = Set.new
     queue = (dependency_seed_stable_ids).flat_map { |sid| deps_graph[sid].to_a }
     result = []
@@ -398,6 +405,8 @@ class Champ < ApplicationRecord
       visited.add(sid)
       result << sid
       queue.concat(deps_graph[sid].to_a)
+      parent_bloc_sid = revision.parent_of(formula_tdcs_by_sid[sid])&.stable_id
+      queue.concat(deps_graph[parent_bloc_sid].to_a) if parent_bloc_sid
     end
     result
   end

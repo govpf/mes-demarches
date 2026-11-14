@@ -401,6 +401,116 @@ RSpec.describe 'Formule cascade refresh_formulas_after', type: :model do
     end
   end
 
+  # pf: formule-ligne qui lit une formule RACINE (ex. taux calculé hors bloc,
+  # appliqué à chaque ligne), puis agrégat hors bloc. La formule racine est
+  # persistée, la formule-ligne non : la cascade depuis la source de la formule
+  # racine doit aller jusqu'à l'agrégat.
+  describe 'formule-ligne qui lit une formule racine' do
+    let(:procedure) do
+      create(:procedure, :published, types_de_champ_public: [
+        { type: :integer_number, libelle: 'Coef' },
+        { type: :formule, libelle: 'Taux' },
+        {
+          type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+            { type: :integer_number, libelle: 'Prix' },
+            { type: :formule, libelle: 'Montant' },
+          ],
+        },
+        { type: :formule, libelle: 'Total' },
+      ])
+    end
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:revision) { procedure.active_revision }
+    let(:coef_tdc) { revision.types_de_champ.find { _1.libelle == 'Coef' } }
+    let(:taux_tdc) { revision.types_de_champ.find { _1.libelle == 'Taux' } }
+    let(:bloc_tdc) { revision.types_de_champ.find { _1.libelle == 'Lignes' } }
+    let(:prix_tdc) { revision.types_de_champ.find { _1.libelle == 'Prix' } }
+    let(:montant_tdc) { revision.types_de_champ.find { _1.libelle == 'Montant' } }
+    let(:total_tdc) { revision.types_de_champ.find { _1.libelle == 'Total' } }
+
+    before do
+      set_formule_expression(dossier, taux_tdc, "{tdc#{coef_tdc.stable_id}} * 2")
+      set_formule_expression(dossier, montant_tdc, "{tdc#{prix_tdc.stable_id}} * {tdc#{taux_tdc.stable_id}}")
+      set_formule_expression(dossier, total_tdc, "SOMME({tdc#{bloc_tdc.stable_id}/sub_#{montant_tdc.stable_id}})")
+    end
+
+    def set_coef(value)
+      champ = dossier.champ_for_update(coef_tdc, row_id: nil, updated_by: 'test')
+      champ.update!(value: value.to_s)
+      dossier.refresh_formulas_after(champ)
+    end
+
+    def add_row_prix(prix)
+      row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+      champ = dossier.champ_for_update(prix_tdc, row_id:, updated_by: 'test')
+      champ.update!(value: prix.to_s)
+      dossier.refresh_formulas_after(champ)
+    end
+
+    def total_en_base
+      Champ.find_by(dossier_id: dossier.id, stable_id: total_tdc.stable_id, row_id: nil)&.read_attribute(:value)
+    end
+
+    it 'calcule l\'agrégat avec la formule racine fraîchement créée' do
+      set_coef(5)      # Taux 10 (champ formule créé par la cascade)
+      add_row_prix(3)  # Montant 30
+      add_row_prix(4)  # Montant 40
+      expect(total_en_base).to eq('70')
+    end
+
+    it 'recalcule l\'agrégat quand la source de la formule racine change' do
+      set_coef(5)
+      add_row_prix(3)
+      add_row_prix(4)
+      set_coef(10)     # Taux 20 ⇒ Montants 60 et 80 ⇒ Total 140
+      expect(total_en_base).to eq('140')
+    end
+  end
+
+  # pf: révision brouillon (dossier de test d'une démarche non publiée) :
+  # project_champ recalcule chaque formule en mémoire à l'affichage, mais une
+  # formule qui en lit une autre lit sa valeur PERSISTÉE. Si l'admin modifie
+  # l'expression de la formule amont, la formule aval doit refléter la nouvelle
+  # expression sans attendre une saisie sur le dossier.
+  describe 'révision brouillon : formule racine chaînée après modification de l\'expression amont' do
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :integer_number, libelle: 'Montant' },
+        { type: :formule, libelle: 'Double' },
+        { type: :formule, libelle: 'Plus un' },
+      ])
+    end
+    let(:dossier) { create(:dossier, procedure: procedure) }
+    let(:revision) { dossier.revision }
+    let(:montant_tdc) { revision.types_de_champ.find { _1.libelle == 'Montant' } }
+    let(:double_tdc) { revision.types_de_champ.find { _1.libelle == 'Double' } }
+    let(:plus_un_tdc) { revision.types_de_champ.find { _1.libelle == 'Plus un' } }
+
+    before do
+      set_formule_expression(dossier, double_tdc, "{tdc#{montant_tdc.stable_id}} * 2")
+      set_formule_expression(dossier, plus_un_tdc, "{tdc#{double_tdc.stable_id}} + 1")
+      champ = dossier.champ_for_update(montant_tdc, row_id: nil, updated_by: 'test')
+      champ.update!(value: '10')
+      dossier.refresh_formulas_after(champ)
+    end
+
+    def affiche(tdc)
+      Dossier.find(dossier.id).project_champs_public.find { _1.stable_id == tdc.stable_id }.value
+    end
+
+    it 'affiche la formule aval à jour après modification de l\'expression amont' do
+      pending 'refonte « passe accumulante » appliquée à l\'affichage en brouillon ' \
+              '(docs/superpowers/specs/2026-05-28-formule-passe-accumulante-design.md §3 bis)'
+      expect(revision).to be_draft
+      expect(affiche(plus_un_tdc)).to eq('21')
+
+      double_tdc.update!(formule_expression: "{tdc#{montant_tdc.stable_id}} * 3")
+
+      expect(affiche(double_tdc)).to eq('30')
+      expect(affiche(plus_un_tdc)).to eq('31')
+    end
+  end
+
   # pf: la cascade injecte `champ.value` brut dans seed_overrides, ce qui
   # court-circuite le parsing de la colonne :enums — le binding reçoit la
   # sérialisation JSON `'["Bus"]'` et non un Array. Sans reparsing, CONTIENT
