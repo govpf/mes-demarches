@@ -54,4 +54,39 @@ describe Rack::Attack, type: :request do
       end
     end
   end
+
+  context 'verification links' do
+    let(:limit) { 20 }
+    let(:period) { 60 }
+
+    before do
+      limit.times do
+        Rack::Attack.cache.count("verification_links/ip:#{ip}", period)
+      end
+    end
+
+    it "throttle excessive requests on the attestation qrcode" do
+      get "/dossiers/123/qrcode/01234567-89abcdef", headers: { 'X-Forwarded-For': ip }
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+
+    it "throttle excessive requests on the piece justificative download" do
+      get "/champs/123/456/piece_justificative/download/01234567-89abcdef/0", headers: { 'X-Forwarded-For': ip }
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+
+    it "shares the counter between both links, but not with other pages" do
+      get "/users/sign_in", headers: { 'X-Forwarded-For': ip }
+
+      expect(response).not_to have_http_status(:too_many_requests)
+    end
+
+    it "does not throttle another ip" do
+      get "/dossiers/123/qrcode/01234567-89abcdef", headers: { 'X-Forwarded-For': "5.6.7.8" }
+
+      expect(response).not_to have_http_status(:too_many_requests)
+    end
+  end
 end
