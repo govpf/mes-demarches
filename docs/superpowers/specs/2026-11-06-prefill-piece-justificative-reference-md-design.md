@@ -209,7 +209,7 @@ Règles :
 | Sélectionner la ligne d'un autre titulaire | Périmètre DLNUF existant (#530) : recherche filtrée côté serveur, contrôle au dépôt |
 | Forger une référence vers le dossier d'autrui | Étape 4 : même titulaire vérifié dans MD, indépendamment de Baserow |
 | Référentiel catalogue utilisé pour exfiltrer des pièces | Étape 1 + éditeur + contrôleur : PJ uniquement en DLNUF |
-| Bascule silencieuse DLNUF → catalogue | Mémorisation (PR 0, §3.3) : refus |
+| Bascule silencieuse DLNUF → catalogue | Deux clés : marqueur OU table méta (contrat §3.4) |
 | Pièce infectée propagée | Étape 6 : blobs infectés ou en erreur d'intégrité exclus |
 | Titre d'identité réutilisé | Type `titre_identite` exclu en source comme en cible |
 | Pièce d'un dossier supprimé par l'usager | Étape 3 : `visible_by_user` |
