@@ -193,7 +193,7 @@ RSpec.describe UserMailer, type: :mailer do
 
     it 'alerts user of inactivity with correct recipient and message' do
       expect(subject.to).to eq([user.email])
-      expect(subject.body).to have_text("Cela fait plus de deux ans que vous ne vous êtes pas connecté à #{APPLICATION_NAME}\r\navec le compte #{user.email} .")
+      expect(subject.body).to have_text("Cela fait plus de deux ans que vous ne vous êtes pas connecté à #{APPLICATION_NAME}\navec le compte #{user.email} .")
     end
 
     context 'when perform_later is called' do
@@ -212,7 +212,7 @@ RSpec.describe UserMailer, type: :mailer do
     it 'notifies user about procedure closing with detailed message' do
       expect(subject.to).to eq([user.email])
       expect(subject.body).to include("Clôture d&#39;une démarche sur #{APPLICATION_NAME}")
-      expect(subject.body).to include("Bonjour,\r\n<br />saut de ligne")
+      expect(subject.body).to include("Bonjour,\n<br />saut de ligne")
     end
 
     context 'when perform_later is called' do
