@@ -17,7 +17,13 @@ class ReferentielDePolynesie::PrefillPieceJustificative
   end
 
   def call
-    resultat = executer
+    resultat = begin
+      executer
+    rescue StandardError => e
+      # pf: ne jamais casser l'autosave (inline) ni le job (exact_match) pour un préremplissage
+      Sentry.capture_exception(e, extra: { cible_dossier_id: @cible.dossier_id, reference: @reference })
+      :erreur
+    end
     Rails.logger.info("ReferentielDePolynesie::PrefillPieceJustificative #{resultat} (dossier #{@cible.dossier_id}, source #{@source&.id})")
     resultat
   end
@@ -26,6 +32,7 @@ class ReferentielDePolynesie::PrefillPieceJustificative
 
   def executer
     return :non_dlnuf unless ReferentielDePolynesie::API.dlnuf_config(@referentiel_champ.table_id).is_a?(Hash)
+    return :cible_interdite if @cible.type_de_champ.titre_identite_nature? # jamais un titre d'identité en cible
     return remplacer([]) if @reference.empty?
 
     match = REFERENCE.match(@reference)
@@ -54,10 +61,16 @@ class ReferentielDePolynesie::PrefillPieceJustificative
 
   def blobs_source(stable_id, row_id)
     tdc = @source.revision.types_de_champ.find { _1.stable_id == stable_id }
-    return [] if tdc.nil? || tdc.type_champ != TYPE_PJ # jamais un titre_identite
+    return [] if tdc.nil? || tdc.type_champ != TYPE_PJ || tdc.titre_identite_nature? # jamais un titre d'identité
+    return [] if tdc.private? # jamais une annotation privée (pièce de l'administration)
     return [] if tdc.child?(@source.revision) != row_id.present? # référence incohérente avec la structure
 
-    @source.project_champ(tdc, row_id:).piece_justificative_file.blobs.reject(&:virus_scanner_error?)
+    cible_tdc = @cible.type_de_champ
+    @source.project_champ(tdc, row_id:).piece_justificative_file.blobs.reject do |blob|
+      blob.virus_scanner_error? ||
+        cible_tdc.allowed_content_types.exclude?(blob.content_type) || # formats acceptés par la cible
+        blob.byte_size > cible_tdc.max_file_size_bytes
+    end
   end
 
   # Idempotence (spec §5.3) : on ne remplace que si la cible est vide ou préremplie.

@@ -331,6 +331,9 @@ class Champ < ApplicationRecord
     self.external_id = champ.external_id
     self.value_json = champ.value_json
     self.data = champ.data
+    # pf: lot C DLNUF — garder le caractère prérempli dans le flux brouillon de l'usager, sinon une
+    # pièce préremplie devient « manuelle » et n'est plus remplacée au changement de ligne
+    self.prefilled = champ.prefilled
 
     self.geo_areas = champ.geo_areas.map(&:dup)
 

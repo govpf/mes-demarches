@@ -44,7 +44,7 @@ class ReferentielDePolynesie::MappingPieceJustificative
     if opts['display_usager'] == '1' || opts['display_instructeur'] == '1'
       erreurs << "La colonne « #{colonne} » contient des références de pièces justificatives : elle ne peut pas être affichée."
     end
-    if cible && cible.type_champ != TYPE
+    if cible && (cible.type_champ != TYPE || cible.titre_identite_nature?)
       erreurs << "La colonne « #{colonne} » ne peut préremplir qu’un champ pièce justificative (« #{cible.libelle} » n’en est pas un)."
     elsif cible && @revision.parent_of(cible) && @revision.parent_of(cible) != @revision.parent_of(@tdc)
       erreurs << "Le champ « #{cible.libelle} » est dans un bloc répétable : il ne peut être prérempli que par un référentiel situé dans la même ligne de ce bloc."

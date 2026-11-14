@@ -26,7 +26,7 @@
 
 ## Review Focus
 
-1. **Référentiel désélectionné ou ligne sans référence** : la cible préremplie doit être vidée, et une cible remplie à la main ne doit pas être touchée. → Task 3, tests « référence vide ».
+1. **Ligne sans référence** (le cas « référentiel désélectionné » suit le comportement upstream : `data=` vide ne propage rien, les préremplissages ne sont pas vidés, texte comme PJ ; décision de la relecture finale) : la cible préremplie doit être vidée, et une cible remplie à la main ne doit pas être touchée. → Task 3, tests « référence vide ».
 2. **Dossier source déposé puis supprimé par l'usager**, y compris un dossier terminé encore visible de l'administration : aucun rattachement. → Task 3, test « source cachée par l'usager (terminée) ».
 3. **Titulaire sans compte (`user` nil) côté source ou cible** : arrêt sans exception. → Task 3.
 4. **PJ cible dans un bloc répétable alors que le référentiel est à la racine** : le chemin upstream (`update_repetition_prefillable_champs`) ajouterait une ligne au bloc à chaque sélection. Hors périmètre (spec §9) : refusé par la règle serveur. → Task 2, règle 5.

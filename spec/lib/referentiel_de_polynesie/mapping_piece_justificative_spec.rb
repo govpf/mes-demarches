@@ -6,6 +6,7 @@ describe ReferentielDePolynesie::MappingPieceJustificative do
       { type: :referentiel_de_polynesie, libelle: 'Association', table_id: '24' },
       { type: :piece_justificative, libelle: 'Statuts' },
       { type: :titre_identite, libelle: 'Identité' },
+      { type: :piece_justificative, libelle: 'Pièce d’identité', nature: 'TITRE_IDENTITE' },
       { type: :text, libelle: 'Nom' },
       { type: :repetition, libelle: 'Membres', children: [{ type: :piece_justificative, libelle: 'Pièce du membre' }] },
     ])
@@ -45,6 +46,7 @@ describe ReferentielDePolynesie::MappingPieceJustificative do
   it 'règle 4 : refuse une référence vers autre chose qu’une PJ' do
     expect(erreurs('$.Statuts' => pj(tdc.('Nom').stable_id))).not_to be_empty
     expect(erreurs('$.Statuts' => pj(tdc.('Identité').stable_id))).not_to be_empty
+    expect(erreurs('$.Statuts' => pj(tdc.('Pièce d’identité').stable_id))).not_to be_empty
   end
 
   it 'règle 5 : refuse une PJ dans un bloc répétable quand le référentiel est à la racine' do
