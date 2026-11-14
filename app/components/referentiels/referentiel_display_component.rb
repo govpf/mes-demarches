@@ -2,7 +2,8 @@
 
 class Referentiels::ReferentielDisplayComponent < Referentiels::MappingFormBase
   def display_mapping
-    type_de_champ.referentiel_mapping_displayable || {}
+    # pf: lot C DLNUF — une référence de pièce justificative n'est jamais affichée
+    (type_de_champ.referentiel_mapping_displayable || {}).reject { |_jsonpath, opts| opts[:type].to_s == 'piece_justificative' }
   end
 
   def display_tag_for(jsonpath, attribute_name)

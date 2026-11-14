@@ -38,6 +38,20 @@ RSpec.describe Referentiels::ReferentielDisplayComponent, type: :component do
         }
       end
 
+      context 'with a piece_justificative entry' do
+        let(:referentiel_mapping) do
+          {
+            "$.Statuts" => { "type" => "piece_justificative", "example_value" => "md:1:2", "libelle" => "Statuts", "prefill" => "0" },
+            "$.jsonpath" => { "type" => "string", "example_value" => "valeur", "libelle" => "Nom affiché" },
+          }
+        end
+
+        it 'never offers to display a reference' do
+          expect(subject).to have_text('$.jsonpath')
+          expect(subject).not_to have_text('$.Statuts')
+        end
+      end
+
       context 'when the field is public' do
         it 'renders the table headers' do
           expect(subject).to have_selector('th', text: 'Propriété')

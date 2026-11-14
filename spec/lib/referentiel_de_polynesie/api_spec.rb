@@ -38,6 +38,38 @@ describe ReferentielDePolynesie::API do
     end
   end
 
+  describe '.colonnes_reference_pj' do
+    let(:fields) do
+      {
+        1 => { name: 'Statuts', description: 'mes-demarches: reference=piece_justificative' },
+        2 => { name: 'Nom', description: nil },
+        3 => { name: 'RIB', description: 'mes-demarches: reference=autre' },
+        4 => { name: 'Bilan', description: "Bilan annuel\nMES-DEMARCHES: Reference=Piece_Justificative" },
+        5 => { name: 'Cassée', description: 'mes-demarches: reference' },
+      }
+    end
+
+    before { allow(described_class).to receive(:table_fields).with('24').and_return(fields) }
+
+    it 'liste les colonnes marquées d’une table DLNUF' do
+      allow(described_class).to receive(:dlnuf_config).with('24').and_return({ field_id: 9 })
+      expect(described_class.colonnes_reference_pj('24')).to eq(['Statuts', 'Bilan'])
+    end
+
+    it 'ne liste rien hors DLNUF ou sur une configuration invalide' do
+      [nil, :invalid].each do |config|
+        allow(described_class).to receive(:dlnuf_config).with('24').and_return(config)
+        expect(described_class.colonnes_reference_pj('24')).to eq([])
+      end
+    end
+
+    it 'ne liste rien si les colonnes sont illisibles' do
+      allow(described_class).to receive(:dlnuf_config).with('24').and_return({ field_id: 9 })
+      allow(described_class).to receive(:table_fields).with('24').and_return(nil)
+      expect(described_class.colonnes_reference_pj('24')).to eq([])
+    end
+  end
+
   describe '.search_with_data' do
     it 'transmet les scopes au moteur' do
       scopes = [{ field_id: 9, type: 'equal', value: 'a@b.pf' }]
