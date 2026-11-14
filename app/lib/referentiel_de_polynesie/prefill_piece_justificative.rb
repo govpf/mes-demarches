@@ -17,18 +17,20 @@ class ReferentielDePolynesie::PrefillPieceJustificative
   end
 
   def call
-    resultat = begin
-      executer
-               rescue StandardError => e
-                 # pf: ne jamais casser l'autosave (inline) ni le job (exact_match) pour un préremplissage
-                 Sentry.capture_exception(e, extra: { cible_dossier_id: @cible.dossier_id, reference: @reference })
-                 :erreur
-    end
+    resultat = executer_sans_lever
     Rails.logger.info("ReferentielDePolynesie::PrefillPieceJustificative #{resultat} (dossier #{@cible.dossier_id}, source #{@source&.id})")
     resultat
   end
 
   private
+
+  # pf: ne jamais casser l'autosave (inline) ni le job (exact_match) pour un préremplissage
+  def executer_sans_lever
+    executer
+  rescue StandardError => e
+    Sentry.capture_exception(e, extra: { cible_dossier_id: @cible.dossier_id, reference: @reference })
+    :erreur
+  end
 
   def executer
     return :non_dlnuf unless ReferentielDePolynesie::API.dlnuf_config(@referentiel_champ.table_id).is_a?(Hash)
