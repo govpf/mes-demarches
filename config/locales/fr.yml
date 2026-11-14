@@ -46,6 +46,7 @@ fr:
     date: Date
     datetime: Date et heure
     array: Liste à choix multiple
+    piece_justificative: Pièce justificative
     number: numéro
     file: le dossier
     email_suggest:

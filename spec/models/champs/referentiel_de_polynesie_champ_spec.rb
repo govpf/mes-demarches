@@ -237,6 +237,60 @@ describe Champs::ReferentielDePolynesieChamp, type: :model do
     end
   end
 
+  # pf: lot C DLNUF — une pièce justificative se rattache par référence, elle ne s'affecte pas
+  describe 'préremplissage d’une pièce justificative' do
+    let(:pj_stable_id) { 501 }
+    let(:texte_stable_id) { 502 }
+    let(:mapping) do
+      {
+        '$.Statuts' => { 'type' => 'piece_justificative', 'prefill' => '1', 'prefill_stable_id' => pj_stable_id.to_s },
+        '$.Nom' => { 'type' => 'string', 'prefill' => '1', 'prefill_stable_id' => texte_stable_id.to_s },
+      }
+    end
+    let(:types_de_champ_public) do
+      [
+        { type: :referentiel_de_polynesie, table_id:, referentiel_mapping: mapping },
+        { type: :piece_justificative, libelle: 'Statuts', stable_id: pj_stable_id },
+        { type: :text, libelle: 'Nom', stable_id: texte_stable_id },
+      ]
+    end
+    let(:service) { instance_double(ReferentielDePolynesie::PrefillPieceJustificative, call: :rattache) }
+
+    before { allow(ReferentielDePolynesie::PrefillPieceJustificative).to receive(:new).and_return(service) }
+
+    it 'délègue la PJ au service et laisse le chemin upstream pour le texte' do
+      champ.send(:propagate_prefill, { 'Statuts' => 'md:12:34', 'Nom' => 'Manuia' })
+
+      expect(ReferentielDePolynesie::PrefillPieceJustificative).to have_received(:new)
+        .with(referentiel_champ: champ, cible: having_attributes(stable_id: pj_stable_id), reference: 'md:12:34')
+      expect(service).to have_received(:call)
+      expect(dossier.project_champs_public.find { _1.stable_id == texte_stable_id }.value).to eq('Manuia')
+    end
+
+    context 'référentiel et PJ dans la même ligne d’un bloc répétable' do
+      let(:types_de_champ_public) do
+        [
+          {
+            type: :repetition, libelle: 'Membres', children: [
+              { type: :referentiel_de_polynesie, table_id:, referentiel_mapping: mapping.slice('$.Statuts') },
+              { type: :piece_justificative, libelle: 'Statuts', stable_id: pj_stable_id },
+            ],
+          },
+        ]
+      end
+      let(:repetition) { dossier.revision.types_de_champ.find(&:repetition?) }
+      let(:row_id) { dossier.repetition_row_ids(repetition).first }
+      let(:champ) { dossier.project_champ(dossier.revision.types_de_champ.find(&:referentiel_de_polynesie?), row_id:) }
+
+      it 'appelle le service sur la PJ de la même ligne' do
+        champ.send(:propagate_prefill, { 'Statuts' => 'md:12:34' })
+
+        expect(ReferentielDePolynesie::PrefillPieceJustificative).to have_received(:new)
+          .with(referentiel_champ: champ, cible: having_attributes(stable_id: pj_stable_id, row_id:), reference: 'md:12:34')
+      end
+    end
+  end
+
   describe '#fetch_external_data' do
     let(:external_id) { '24:123' }
 

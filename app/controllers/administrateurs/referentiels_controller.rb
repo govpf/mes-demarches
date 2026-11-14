@@ -45,7 +45,12 @@ module Administrateurs
     end
 
     def update_mapping_type_de_champ
-      if @type_de_champ.update(referentiel_mapping: @type_de_champ.safe_referentiel_mapping.deep_merge(referentiel_mapping_params))
+      mapping = @type_de_champ.safe_referentiel_mapping.deep_merge(referentiel_mapping_params)
+      if (erreurs = erreurs_mapping_piece_justificative(mapping)).any? # pf: lot C DLNUF
+        return redirect_to mapping_type_de_champ_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel), flash: { alert: erreurs.join(' ') }
+      end
+
+      if @type_de_champ.update(referentiel_mapping: mapping)
         redirect_to prefill_and_display_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel), flash: { notice: "La configuration du mapping a bien été enregistrée" }
       else
         redirect_to mapping_type_de_champ_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel), flash: { alert: "Une erreur est survenue" }
@@ -58,6 +63,9 @@ module Administrateurs
       # sans ce garde-fou, `require(:referentiel_mapping)` lèverait ParameterMissing
       if params.dig(:type_de_champ, :referentiel_mapping).present?
         attributes[:referentiel_mapping] = @type_de_champ.safe_referentiel_mapping.deep_merge(referentiel_mapping_params)
+        if (erreurs = erreurs_mapping_piece_justificative(attributes[:referentiel_mapping])).any? # pf: lot C DLNUF
+          return redirect_to prefill_and_display_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel), flash: { alert: erreurs.join(' ') }
+        end
       end
       # pf: cascade — le filtre contextuel est enregistré avec le mapping (même formulaire, panneau 3)
       attributes[:referentiel_filter_form] = referentiel_filter_params if referentiel_filter_params
@@ -110,6 +118,13 @@ module Administrateurs
         component = Referentiels::NewFormComponent.new(referentiel:, type_de_champ: @type_de_champ, procedure: @procedure)
         render turbo_stream: turbo_stream.replace(component.id, component)
       end
+    end
+
+    # pf: lot C DLNUF — règle serveur du mapping pièce justificative (ne pas se fier au formulaire)
+    def erreurs_mapping_piece_justificative(mapping)
+      return [] unless @type_de_champ.referentiel_de_polynesie?
+
+      ReferentielDePolynesie::MappingPieceJustificative.erreurs(type_de_champ: @type_de_champ, mapping:, revision: @procedure.draft_revision)
     end
 
     def referentiel_mapping_params

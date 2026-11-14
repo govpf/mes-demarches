@@ -88,6 +88,9 @@ class Champs::PieceJustificativeController < Champs::ChampController
 
     ActiveStorage::Attachment.transaction do
       @champ.piece_justificative_file.attach(params[:blob_signed_id])
+      # pf: lot C DLNUF — un fichier ajouté par l'usager : le champ n'est plus « prérempli », une
+      # nouvelle sélection dans le référentiel ne doit plus le remplacer
+      @champ.prefilled = false
       context = @champ.public? ? :champs_public_value : :champs_private_value
       save_succeed = @champ.save(context:)
     end

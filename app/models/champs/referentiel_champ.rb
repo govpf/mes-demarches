@@ -235,7 +235,12 @@ class Champs::ReferentielChamp < Champ
   def update_prefillable_champ(type_de_champ:, raw_value:, row_id: nil)
     prefill_champ = dossier.champ_for_update(type_de_champ, row_id:, updated_by: :api)
 
-    prefill_champ.update(cast_value_for_type_de_champ(raw_value, type_de_champ))
+    # pf: lot C DLNUF — une pièce justificative se rattache (référence MD), elle ne s'affecte pas
+    if type_de_champ.type_champ == TypeDeChamp.type_champs.fetch(:piece_justificative)
+      ReferentielDePolynesie::PrefillPieceJustificative.new(referentiel_champ: self, cible: prefill_champ, reference: raw_value).call
+    else
+      prefill_champ.update(cast_value_for_type_de_champ(raw_value, type_de_champ))
+    end
   end
 
   def rewrap_selected_object_in_datasource(data)

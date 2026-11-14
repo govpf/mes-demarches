@@ -12,5 +12,6 @@ RSpec.describe 'Canari MAPPING_TYPE_TO_TYPE_DE_CHAMP' do
     expect(subject[:integer_number]).to include('integer_number')
     expect(subject[:boolean]).to include('yes_no', 'checkbox')
     expect(subject[:string]).to include('text')
+    expect(subject[:piece_justificative]).to eq(['piece_justificative']) # pf: lot C DLNUF
   end
 end

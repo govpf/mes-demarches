@@ -59,6 +59,11 @@ class Referentiels::BaserowReferentiel < Referentiel
     @baserow_config ||= ReferentielDePolynesie::API.config(table_id)
   end
 
+  # pf: lot C DLNUF — colonnes de référence de PJ d'une table DLNUF, au format jsonpath du mapping
+  def jsonpaths_reference_pj
+    @jsonpaths_reference_pj ||= ReferentielDePolynesie::API.colonnes_reference_pj(table_id).map { "$.#{_1}" }
+  end
+
   # pf: toutes les colonnes de la table (façade avec cache court). Les colonnes méta « Champs usager »
   # et « Champs instructeur » ne sont plus lues : l’affichage passe par referentiel_mapping.
   def headers

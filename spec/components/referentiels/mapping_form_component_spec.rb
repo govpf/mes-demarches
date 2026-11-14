@@ -7,6 +7,30 @@ RSpec.describe Referentiels::MappingFormComponent, type: :component do
   let(:type_de_champ) { procedure.draft_revision.types_de_champ_public.first }
   let(:referentiel) { create(:api_referentiel, :exact_match) }
 
+  describe 'colonne de référence de pièce justificative (DLNUF)' do
+    let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, referentiel: }] }
+    let(:referentiel) do
+      create(:baserow_referentiel, url: 'baserow://24',
+        last_response: { 'status' => 200, 'body' => { 'Statuts' => 'md:12:34', 'Nom' => 'Manuia' } })
+    end
+
+    before do
+      allow(ReferentielDePolynesie::API).to receive(:colonnes_reference_pj).with('24').and_return(['Statuts'])
+      render_inline(component)
+    end
+
+    it 'impose le type pièce justificative sur la colonne marquée' do
+      expect(page).not_to have_selector("select[name='type_de_champ[referentiel_mapping][$.Statuts][type]']")
+      expect(page).to have_selector("input[type='hidden'][name='type_de_champ[referentiel_mapping][$.Statuts][type]'][value='piece_justificative']", visible: false)
+      expect(page).to have_text('Pièce justificative')
+    end
+
+    it 'ne propose pas ce type sur une autre colonne' do
+      expect(page).to have_selector("select[name='type_de_champ[referentiel_mapping][$.Nom][type]']")
+      expect(page).not_to have_selector("select[name='type_de_champ[referentiel_mapping][$.Nom][type]'] option[value='piece_justificative']")
+    end
+  end
+
   describe 'render' do
     delegate :url_helpers, to: :routes
     delegate :routes, to: :application
