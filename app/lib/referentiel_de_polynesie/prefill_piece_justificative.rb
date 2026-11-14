@@ -19,10 +19,10 @@ class ReferentielDePolynesie::PrefillPieceJustificative
   def call
     resultat = begin
       executer
-    rescue StandardError => e
-      # pf: ne jamais casser l'autosave (inline) ni le job (exact_match) pour un préremplissage
-      Sentry.capture_exception(e, extra: { cible_dossier_id: @cible.dossier_id, reference: @reference })
-      :erreur
+               rescue StandardError => e
+                 # pf: ne jamais casser l'autosave (inline) ni le job (exact_match) pour un préremplissage
+                 Sentry.capture_exception(e, extra: { cible_dossier_id: @cible.dossier_id, reference: @reference })
+                 :erreur
     end
     Rails.logger.info("ReferentielDePolynesie::PrefillPieceJustificative #{resultat} (dossier #{@cible.dossier_id}, source #{@source&.id})")
     resultat
