@@ -22,6 +22,7 @@ RSpec.describe Mcp::ReferentielMappingService do
     allow(ReferentielDePolynesie::API).to receive(:engine).and_return(engine)
     allow(engine).to receive(:config).with('24').and_return({ 'Table' => '24', 'Token' => 't' })
     allow(engine).to receive(:fields).and_return(baserow_fields)
+    allow(engine).to receive(:dlnuf_config).and_return(nil) # pf: lot C — catalogue par défaut
     # pf: baserow_type_to_mapping_type est une méthode de classe, appelée directement sur
     # ReferentielDePolynesie::BaserowAPI (pas via engine) — pas de stub nécessaire, l'implémentation réelle
     # est de la logique pure (pas de réseau).
@@ -211,6 +212,50 @@ RSpec.describe Mcp::ReferentielMappingService do
         described_class.new(ref_prive).configurer!([{ colonne: 'RaisonSociale', prefill_stable_id: annotation_cible.stable_id.to_s }])
         expect(ref_prive.reload.safe_referentiel_mapping['$.RaisonSociale']['prefill_stable_id']).to eq(annotation_cible.stable_id.to_s)
       end
+    end
+  end
+
+  # pf: lot C DLNUF — colonnes de référence de pièce justificative
+  describe 'colonne de référence de pièce justificative' do
+    let(:procedure) do
+      create(:procedure, types_de_champ_public: [
+        { type: :referentiel_de_polynesie, libelle: 'Entreprise', table_id: '24' },
+        { type: :text, libelle: 'Raison sociale cible' },
+        { type: :piece_justificative, libelle: 'Statuts cible' },
+      ])
+    end
+    let(:baserow_fields) { { 1 => { name: 'RaisonSociale', type: 'text' }, 3 => { name: 'Statuts', type: 'text' } } }
+    let(:cible_pj) { draft.types_de_champ.find { _1.libelle == 'Statuts cible' } }
+    let(:colonnes_ref) { ['Statuts'] }
+
+    before { allow(ReferentielDePolynesie::API).to receive(:colonnes_reference_pj).with('24').and_return(colonnes_ref) }
+
+    it 'expose le type piece_justificative pour une colonne de référence d’une table DLNUF' do
+      expect(service.colonnes).to include({ nom: 'Statuts', type_mapping: 'piece_justificative' })
+      expect(described_class.colonnes_pour_table('24')).to include({ nom: 'Statuts', type_mapping: 'piece_justificative' })
+    end
+
+    context 'hors DLNUF' do
+      let(:colonnes_ref) { [] }
+
+      it 'reste une colonne texte' do
+        expect(service.colonnes).to include({ nom: 'Statuts', type_mapping: 'string' })
+      end
+    end
+
+    it 'pose une référence vers une PJ' do
+      service.configurer!([{ colonne: 'Statuts', prefill_stable_id: cible_pj.stable_id.to_s }])
+      expect(referentiel_tdc.reload.safe_referentiel_mapping['$.Statuts']).to include('type' => 'piece_justificative', 'prefill' => '1')
+    end
+
+    it 'refuse l’affichage d’une référence' do
+      expect { service.configurer!([{ colonne: 'Statuts', display_usager: true }]) }
+        .to raise_error(described_class::CibleInvalide, /affichée/)
+    end
+
+    it 'refuse une colonne texte vers une PJ' do
+      expect { service.configurer!([{ colonne: 'RaisonSociale', prefill_stable_id: cible_pj.stable_id.to_s }]) }
+        .to raise_error(described_class::CibleInvalide)
     end
   end
 end

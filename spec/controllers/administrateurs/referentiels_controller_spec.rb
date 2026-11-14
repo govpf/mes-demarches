@@ -624,4 +624,48 @@ describe Administrateurs::ReferentielsController, type: :controller do
       end
     end
   end
+
+  # pf: lot C DLNUF — règle serveur du mapping pièce justificative
+  describe 'mapping pièce justificative (DLNUF)' do
+    let(:stable_id) { 1 }
+    let(:types_de_champ_public) do
+      [
+        { type: :referentiel_de_polynesie, stable_id:, table_id: '24' },
+        { type: :text, stable_id: 2, libelle: 'Nom' },
+        { type: :piece_justificative, stable_id: 3, libelle: 'Statuts' },
+      ]
+    end
+    let(:type_de_champ) { procedure.draft_revision.types_de_champ.find { _1.stable_id == stable_id } }
+    let(:referentiel) { create(:baserow_referentiel, url: 'baserow://24', types_de_champ: [type_de_champ]) }
+
+    before { allow(ReferentielDePolynesie::API).to receive(:colonnes_reference_pj).with('24').and_return(['Statuts']) }
+
+    it 'update_mapping_type_de_champ refuse une option d’affichage sur une référence' do
+      patch :update_mapping_type_de_champ, params: {
+        procedure_id: procedure.id, stable_id:, id: referentiel.id,
+        type_de_champ: { referentiel_mapping: { '$.Statuts' => { type: 'piece_justificative', display_usager: '1' } } },
+      }
+      expect(response).to redirect_to(mapping_type_de_champ_admin_procedure_referentiel_path(procedure, stable_id, referentiel))
+      expect(flash[:alert]).to include('ne peut pas être affichée')
+      expect(type_de_champ.reload.safe_referentiel_mapping).to be_empty
+    end
+
+    it 'update_prefill_and_display_type_de_champ refuse une colonne texte vers une PJ' do
+      patch :update_prefill_and_display_type_de_champ, params: {
+        procedure_id: procedure.id, stable_id:, id: referentiel.id,
+        type_de_champ: { referentiel_mapping: { '$.Nom' => { type: 'string', prefill: '1', prefill_stable_id: '3' } } },
+      }
+      expect(response).to redirect_to(prefill_and_display_admin_procedure_referentiel_path(procedure, stable_id, referentiel))
+      expect(flash[:alert]).to include('« Statuts »')
+      expect(type_de_champ.reload.safe_referentiel_mapping).to be_empty
+    end
+
+    it 'accepte une référence vers une PJ' do
+      patch :update_prefill_and_display_type_de_champ, params: {
+        procedure_id: procedure.id, stable_id:, id: referentiel.id,
+        type_de_champ: { referentiel_mapping: { '$.Statuts' => { type: 'piece_justificative', prefill: '1', prefill_stable_id: '3' } } },
+      }
+      expect(type_de_champ.reload.safe_referentiel_mapping.dig('$.Statuts', 'prefill_stable_id')).to eq('3')
+    end
+  end
 end
