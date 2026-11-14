@@ -44,6 +44,19 @@ class Rack::Attack
     end
   end
 
+  # pf: liens de vérification (QR code d'attestation, pièce justificative tamponnée)
+  # consultables par un tiers ; l'usage légitime se compte en quelques requêtes.
+  VERIFICATION_LINK_PATHS = [
+    %r{\A/dossiers/\d+/qrcode/},
+    %r{\A/champs/\d+/\d+/piece_justificative/download/},
+  ].freeze
+
+  throttle('verification_links/ip', limit: ENV.fetch('RACK_ATTACK_VERIFICATION_LINKS_LIMIT', 20).to_i, period: 1.minute) do |req|
+    if req.get? && rack_attack_enabled? && VERIFICATION_LINK_PATHS.any? { req.path.match?(_1) }
+      req.remote_ip
+    end
+  end
+
   Rack::Attack.safelist('allow trusted ips') do |req|
     IPService.ip_trusted?(req.remote_ip)
   end
