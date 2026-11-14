@@ -176,7 +176,13 @@ md:<numero_dossier>:<stable_id>:<row_id>     (pièce dans un bloc répétable)
   - pour un champ PJ, écrit la **référence** (§4.2) dans la colonne marquée — **aucun
     téléversement de fichier** ;
   - **refuse** d'écrire dans une colonne `file` (erreur + alerte) ;
-  - **efface** la ligne quand le dossier MD est supprimé (flux `deletedDossiers`).
+  - **efface** la ligne quand le dossier MD est supprimé, **par l'administration ou par l'usager** :
+    - dossier détruit : flux `deletedDossiers` ;
+    - dossier en construction supprimé par l'usager : flux `pendingDeletedDossiers` ;
+    - dossier terminé supprimé par l'usager : il reste visible de l'administration (et dans le flux
+      `dossiers`) jusqu'à sa destruction, mais son champ `dateSuppressionParUsager` est renseigné ;
+      la ligne est effacée dès que ce champ l'est. L'usager ne voit plus ce dossier dans MD : ses
+      données ne doivent plus lui être reproposées.
 - En archive : comportement actuel inchangé (copie des fichiers, pas d'effacement).
 
 ### 5.3 Mes-Démarches
