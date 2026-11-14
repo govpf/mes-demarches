@@ -243,6 +243,21 @@ describe Champs::PieceJustificativeController, type: :controller do
       }.compact, format: :turbo_stream
     end
 
+    # pf: lot C DLNUF — un fichier ajouté par l'usager n'est plus « prérempli » : une nouvelle
+    # sélection dans le référentiel ne doit pas l'écraser
+    context 'when the champ was prefilled' do
+      let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
+
+      before do
+        dossier.champ_for_update(champ.type_de_champ, updated_by: :api).update!(prefilled: true)
+      end
+
+      it 'resets prefilled after the user adds a file' do
+        subject
+        expect(Champ.find_by(dossier_id: dossier.id, stable_id: champ.stable_id).prefilled).to be(false)
+      end
+    end
+
     context 'when the file is valid and then champ use external_data' do
       let(:file) { fixture_file_upload('spec/fixtures/files/piece_justificative_0.pdf', 'application/pdf') }
 
