@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 describe Rack::Attack, type: :request do
+  include Devise::Test::IntegrationHelpers
+
   let(:limit) { 30 }
   let(:period) { 15 }
   let(:ip) { "1.2.3.4" }
@@ -87,6 +89,59 @@ describe Rack::Attack, type: :request do
       get "/dossiers/123/qrcode/01234567-89abcdef", headers: { 'X-Forwarded-For': "5.6.7.8" }
 
       expect(response).not_to have_http_status(:too_many_requests)
+    end
+  end
+
+  context 'verification links ban' do
+    let(:path) { "/dossiers/123/qrcode/01234567-89abcdef" }
+
+    before do
+      VerificationLinkAccessConcern::MAX_FAILURES.times do
+        Rack::Attack::Fail2Ban.filter(VerificationLinkAccessConcern.ban_key(ip), maxretry: VerificationLinkAccessConcern::MAX_FAILURES, findtime: 600, bantime: 3600) { true }
+      end
+    end
+
+    it "blocks an ip banned after too many wrong tokens" do
+      get path, headers: { 'X-Forwarded-For': ip }
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "does not block the banned ip elsewhere" do
+      get "/users/sign_in", headers: { 'X-Forwarded-For': ip }
+
+      expect(response).not_to have_http_status(:forbidden)
+    end
+
+    it "does not block another ip" do
+      get path, headers: { 'X-Forwarded-For': "5.6.7.8" }
+
+      expect(response).not_to have_http_status(:forbidden)
+    end
+  end
+
+  context 'verification links with wrong tokens' do
+    let(:dossier) { create(:dossier, :with_attestation_acceptation) }
+    let(:wrong_path) { "/dossiers/#{dossier.id}/qrcode/01234567-89abcdef" }
+
+    before { sign_in(create(:user)) }
+
+    it "bans the ip after too many wrong tokens, even for a valid link" do
+      VerificationLinkAccessConcern::MAX_FAILURES.times do
+        get wrong_path, headers: { 'X-Forwarded-For': ip }
+        expect(response).to have_http_status(:ok)
+      end
+
+      get "/dossiers/#{dossier.id}/qrcode/#{dossier.verification_link_token}", headers: { 'X-Forwarded-For': ip }
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "does not count valid links as failures" do
+      (VerificationLinkAccessConcern::MAX_FAILURES + 1).times do
+        get "/dossiers/#{dossier.id}/qrcode/#{dossier.verification_link_token}", headers: { 'X-Forwarded-For': ip }
+        expect(response).to have_http_status(:ok)
+      end
     end
   end
 end

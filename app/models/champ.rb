@@ -85,7 +85,7 @@ class Champ < ApplicationRecord
     :RIB?,
     to: :type_de_champ
 
-  include DateEncodingConcern
+  include VerificationLinkConcern
 
   # pf champ
   delegate :accredited_user_list, :table_id, to: :type_de_champ
@@ -451,6 +451,16 @@ class Champ < ApplicationRecord
     (dossier.project_champs_public_all + dossier.project_champs_private_all).filter do |champ|
       champ.stable_id.in?(dependent_sids) && (row_id.nil? || champ.row_id.nil? || champ.row_id == row_id)
     end
+  end
+
+  # pf: ressource couverte par le lien de vérification d'une pièce justificative
+  def verification_link_resource
+    ['pj', dossier_id, stable_id, row_id]
+  end
+
+  # pf: un lien de pièce justificative peut être émis dès le dépôt (e-mails, messages)
+  def verification_link_first_emitted_at
+    dossier.depose_at
   end
 
   private

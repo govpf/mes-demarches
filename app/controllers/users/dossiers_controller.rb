@@ -6,6 +6,7 @@ module Users
     include TurboChampsConcern
     include LockableConcern
     include ProConnectSessionConcern
+    include VerificationLinkAccessConcern
 
     layout 'procedure_context', only: [:identite, :update_identite, :siret, :update_siret]
 
@@ -130,7 +131,7 @@ module Users
     end
 
     def qrcode
-      if dossier&.match_encoded_date?(:created_at, params[:created_at]) && dossier&.attestation&.pdf&.attached?
+      if verification_link_granted?(dossier, params[:created_at]) && dossier.attestation&.pdf&.attached?
         attestation_template = dossier.attestation_acceptation_template
         if attestation_template&.activated
           @attestation = attestation_template.render_attributes_for(dossier: dossier)

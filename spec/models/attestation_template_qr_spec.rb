@@ -37,8 +37,6 @@ describe AttestationTemplate, '#generate_qrcode_svg' do
     let(:dossier) { create(:dossier, :accepte, procedure: procedure) }
 
     before do
-      # Mock pour éviter les problèmes d'encoded_date
-      allow(dossier).to receive(:encoded_date).with(:created_at).and_return('test-date')
       allow(attestation_template).to receive(:qrcode_dossier_url).and_return('http://test.com/qr')
     end
 

@@ -304,7 +304,7 @@ class AttestationTemplate < ApplicationRecord
       attributes.merge(
         title: replace_tags(title, dossier, escape: false),
         body: replace_tags(body, dossier, escape: false),
-        qrcode: dossier.created_at ? qrcode_dossier_url(dossier, created_at: dossier.encoded_date(:created_at)) : nil
+        qrcode: dossier.created_at ? qrcode_dossier_url(dossier, created_at: dossier.verification_link_token) : nil
       )
     else
       attributes.merge(
@@ -328,7 +328,7 @@ class AttestationTemplate < ApplicationRecord
 
       attributes.merge(
         body:,
-        qrcode: qrcode_dossier_url(dossier, created_at: dossier.encoded_date(:created_at))
+        qrcode: qrcode_dossier_url(dossier, created_at: dossier.verification_link_token)
       ).merge(base_attributes)
     else
       attributes.merge(
@@ -378,7 +378,7 @@ class AttestationTemplate < ApplicationRecord
     signature = attributes.fetch(:signature)
 
     # pf: génération QR code comme dans le controller v2s
-    qrcode_url = qrcode_dossier_url(dossier, created_at: dossier.encoded_date(:created_at))
+    qrcode_url = qrcode_dossier_url(dossier, created_at: dossier.verification_link_token)
     qrcode_svg = qrcode_url ? generate_qrcode_svg(qrcode_url) : nil
 
     html = ApplicationController.render(
