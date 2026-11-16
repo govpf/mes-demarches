@@ -67,7 +67,7 @@ class VerificationLinkToken
 
     def digest(key, resource)
       hmac = OpenSSL::HMAC.digest('SHA256', key, resource.map(&:to_s).join(':'))
-      Base64.urlsafe_encode64(hmac.byteslice(0, DIGEST_BYTES), padding: false)
+      [hmac.byteslice(0, DIGEST_BYTES)].pack('m0').tr('+/', '-_').delete('=')
     end
 
     def configured_keys
