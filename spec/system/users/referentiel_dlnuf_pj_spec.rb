@@ -53,7 +53,9 @@ describe 'Référentiel DLNUF — préremplissage des pièces justificatives', j
   scenario 'un fichier ajouté par l’usager n’est pas remplacé par une sélection' do
     log_in
     find_field('Statuts').attach_file(Rails.root.join('spec/fixtures/files/RIB.pdf'))
-    expect(page).to have_text('RIB.pdf')
+    # attendre la fin du dépôt et du réaffichage du champ avant d'ouvrir la liste du référentiel
+    expect(page).to have_button('Supprimer', title: 'Supprimer le fichier RIB.pdf')
+    wait_for_autosave
 
     find_field('Mon association').click
     find('.fr-menu__item', text: 'Association Manuia').click
