@@ -24,50 +24,6 @@
       "note": ""
     },
     {
-      "warning_type": "Cross-Site Scripting",
-      "warning_code": 2,
-      "fingerprint": "26f504696b074d18ef3f5568dc8f6a46d1283a67fe37822498fa25d0409664ab",
-      "check_name": "CrossSiteScripting",
-      "message": "Unescaped model attribute",
-      "file": "app/views/users/dossiers/_merci.html.haml",
-      "line": 34,
-      "link": "https://brakemanscanner.org/docs/warning_types/cross_site_scripting",
-      "code": "current_user.dossiers.includes(:procedure).find(params[:id]).procedure.monavis_embed_html_source(\"site\")",
-      "render_path": [
-        {
-          "type": "controller",
-          "class": "Users::DossiersController",
-          "method": "merci",
-          "line": 336,
-          "file": "app/controllers/users/dossiers_controller.rb",
-          "rendered": {
-            "name": "users/dossiers/merci",
-            "file": "app/views/users/dossiers/merci.html.haml"
-          }
-        },
-        {
-          "type": "template",
-          "name": "users/dossiers/merci",
-          "line": 6,
-          "file": "app/views/users/dossiers/merci.html.haml",
-          "rendered": {
-            "name": "users/dossiers/_merci",
-            "file": "app/views/users/dossiers/_merci.html.haml"
-          }
-        }
-      ],
-      "location": {
-        "type": "template",
-        "template": "users/dossiers/_merci"
-      },
-      "user_input": "current_user.dossiers.includes(:procedure)",
-      "confidence": "Weak",
-      "cwe_id": [
-        79
-      ],
-      "note": ""
-    },
-    {
       "warning_type": "SQL Injection",
       "warning_code": 0,
       "fingerprint": "2a921e7bd4cf2de55bf58db10d05d316c4355c639c72c2cd4d7488cbc78a39d8",
