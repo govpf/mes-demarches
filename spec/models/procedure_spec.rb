@@ -433,6 +433,32 @@ describe Procedure do
         let(:procedure) { build(:procedure, monavis_embed: monavis_ywh_pgm5381_46) }
         it { is_expected.to eq(["Le code MonAvis contient un attribut interdit : onerror"]) }
       end
+
+      context 'Monavis embed code with new design (march 26) button Thème clair' do
+       monavis_blanc = <<-MSG
+        <a href="https://jedonnemonavis.numerique.gouv.fr/Demarches/4079?button=4509" target='_blank' rel="noopener noreferrer" title="Je donne mon avis - nouvelle fenêtre">
+
+          <img src="https://jedonnemonavis.numerique.gouv.fr/static/bouton-bleu-clair.svg" alt="Je donne mon avis" />
+
+          </a>
+        MSG
+
+       let(:procedure) { build(:procedure, monavis_embed: monavis_blanc) }
+       it { is_expected.to eq([]) }
+     end
+
+      context 'Monavis embed code with new design (march 26) button Thème sombre' do
+        monavis_blanc = <<-MSG
+        <a href="https://jedonnemonavis.numerique.gouv.fr/Demarches/4079?button=4509" target='_blank' rel="noopener noreferrer" title="Je donne mon avis - nouvelle fenêtre">
+
+          <img src="https://jedonnemonavis.numerique.gouv.fr/static/bouton-bleu-sombre.svg" alt="Je donne mon avis" />
+
+        </a>
+        MSG
+
+        let(:procedure) { build(:procedure, monavis_embed: monavis_blanc) }
+        it { is_expected.to eq([]) }
+      end
     end
 
     describe 'duree de conservation dans ds' do

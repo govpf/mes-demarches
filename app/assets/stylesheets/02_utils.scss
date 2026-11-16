@@ -30,6 +30,10 @@
   border: none;
 }
 
+.inline-block {
+  display: inline-block;
+}
+
 // text
 .text-center,
 .center {
@@ -110,6 +114,12 @@
 // display
 .hidden {
   display: none !important;
+}
+
+// the DSFR only sets [data-fr-theme] on <html>
+[data-fr-theme='dark'] .hidden-on-dark-theme,
+:root:not([data-fr-theme='dark']) .hidden-on-light-theme {
+  display: none;
 }
 
 .visible-on-previous-hover {

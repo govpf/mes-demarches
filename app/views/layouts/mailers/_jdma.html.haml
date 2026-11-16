@@ -1,10 +1,13 @@
-= vertical_margin(50)
+= vertical_margin(20)
 
-%div{ align: "center" }
-  %p
-    %strong Aidez-nous à améliorer ce service !
-    %br
-    Donnez-nous votre avis, cela ne prend que 2 minutes.
-  != @jdma_html
+.darkmode-7{ style: 'background-color: #F5F5FE; padding: 20px;' }
+  %p{ style: 'margin: 0 0 8px' }
+    %strong= t('jdma.title')
+  %p{ style: 'margin: 0 0 16px' }= t('jdma.body')
+  %p{ style: 'margin: 0 0 16px' }
+    = link_to @jdma_link, **external_link_attributes do
+      = t('jdma.email_link')
+      != ' <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style="fill:currentColor;filter:none;vertical-align:middle;display:inline-block"><path d="m16.172 11-5.364-5.364 1.414-1.414L20 12l-7.778 7.778-1.414-1.414L16.172 13H4v-2h12.172Z"/></svg>'
+  = image_tag('mailer/logo-services-plus.png', height: 39, width: 121, style: 'display:block; vertical-align: middle', alt: 'Services Publics +')
 
 = vertical_margin(20)

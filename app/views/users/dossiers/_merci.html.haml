@@ -27,9 +27,4 @@
     %hr.fr-hr
       = link_to t('views.users.dossiers.merci.submit_dossier'), commencer_url(procedure.path), class: 'fr-btn fr-btn--secondary fr-mt-2w'
 
-      - if procedure.monavis_embed
-        .monavis
-          %h2.fr-mt-5w.fr-mb-1w.fr-text--lg
-            = t('views.users.dossiers.merci.jdma_l1')
-          %p= t('views.users.dossiers.merci.jdma_l2')
-          != procedure.monavis_embed_html_source("site")
+      = render Dossiers::JdmaButtonComponent.new(procedure:)

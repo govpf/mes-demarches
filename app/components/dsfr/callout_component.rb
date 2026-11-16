@@ -28,6 +28,8 @@ class Dsfr::CalloutComponent < ApplicationComponent
       "fr-callout--brown-caramel"
     when :success
       "fr-callout--green-emeraude"
+    when :blue_ecume
+      "fr-callout--blue-ecume"
     when :neutral
       # default
     else

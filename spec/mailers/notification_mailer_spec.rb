@@ -112,6 +112,90 @@ RSpec.describe NotificationMailer, type: :mailer do
     end
   end
 
+  describe 'JDMA button' do
+    let(:monavis_embed) do
+      '<a href="https://jedonnemonavis.numerique.gouv.fr/Demarches/123?nd_source=button&key=abc"><img src="https://jedonnemonavis.numerique.gouv.fr/static/bouton-bleu-clair.svg" /></a>'
+    end
+    let(:procedure) { create(:simple_procedure, :with_service, monavis_embed:) }
+    let(:body) { (mail.html_part || mail).body }
+
+    context 'en_construction (accusé de réception)' do
+      before { stub_request(:post, WEASYPRINT_URL).to_return(body: '%PDF-1.4 fake') }
+
+      let(:dossier) { create(:dossier, :en_construction, :with_individual, user: user, procedure:) }
+
+      subject(:mail) { described_class.send_en_construction_notification(dossier) }
+
+      it 'includes the JDMA feedback link with source=email and the Services Publics + logo' do
+        expect(body).to include('nd_source=email')
+        expect(body).to include('Je donne mon avis sur cette démarche')
+        expect(body).to include('logo-services-plus')
+      end
+    end
+
+    context 'on a decision email without a procedure embed' do
+      let(:monavis_embed) { nil }
+      let(:dossier) { create(:dossier, :accepte, :with_individual, user: user, procedure:) }
+
+      subject(:mail) { described_class.send_accepte_notification(dossier) }
+
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('SERVICES_PUBLICS_PLUS_URL').and_return(instance_wide_url)
+      end
+
+      context 'with the instance-wide url configured' do
+        let(:instance_wide_url) { 'https://www.plus.transformation.gouv.fr/experience' }
+
+        it 'falls back to the instance-wide feedback link' do
+          expect(body).to include('Comment s’est passée cette démarche ?')
+          expect(body).to include(instance_wide_url)
+        end
+      end
+
+      context 'without the instance-wide url' do
+        let(:instance_wide_url) { nil }
+
+        it 'omits the feedback block' do
+          expect(body).not_to include('Comment s’est passée cette démarche ?')
+        end
+      end
+    end
+
+    context 'on the receipt email without a procedure embed' do
+      let(:monavis_embed) { nil }
+      let(:dossier) { create(:dossier, :en_construction, :with_individual, user: user, procedure:) }
+
+      subject(:mail) { described_class.send_en_construction_notification(dossier) }
+
+      before do
+        stub_request(:post, WEASYPRINT_URL).to_return(body: '%PDF-1.4 fake')
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('SERVICES_PUBLICS_PLUS_URL').and_return('https://www.plus.transformation.gouv.fr/experience')
+      end
+
+      it 'omits the feedback block rather than falling back' do
+        expect(body).not_to include('Comment s’est passée cette démarche ?')
+      end
+    end
+
+    context 'with both the procedure embed and the instance-wide url' do
+      let(:dossier) { create(:dossier, :accepte, :with_individual, user: user, procedure:) }
+
+      subject(:mail) { described_class.send_accepte_notification(dossier) }
+
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('SERVICES_PUBLICS_PLUS_URL').and_return('https://www.plus.transformation.gouv.fr/experience')
+      end
+
+      it 'gives priority to the procedure link' do
+        expect(body).to include('nd_source=email')
+        expect(body).not_to include('plus.transformation.gouv.fr')
+      end
+    end
+  end
+
   describe 'send_en_instruction_notification' do
     let(:dossier) { create(:dossier, :en_instruction, :with_individual, :with_service, user: user, procedure:) }
     let(:email_template) { create(:received_mail, subject: 'Email subject', body: 'Your dossier was processed. Thanks.', procedure:) }

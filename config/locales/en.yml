@@ -84,6 +84,11 @@ en:
       zero: No result
       one: 1 result
       other: <slot name="count"></slot> results
+  jdma:
+    title: How did this procedure go?
+    body: Give your feedback in 2 minutes on how this procedure went and share your experience to help improve the quality of procedures.
+    email_link: I give my feedback on this procedure
+    alt: Give my feedback
   layouts:
     commencer:
       no_procedure:
@@ -506,8 +511,6 @@ en:
           download_attestation: Download your attestation
           acces_dossier: Access your file
           submit_dossier: Submit an other file
-          jdma_l1: Help us improve this service!
-          jdma_l2: Give us your feedback, it only takes 2 minutes.
         show:
           header:
             summary_html: 'Follow-up<span class="fr-hidden fr-unhidden-sm"> on your file</span>'
