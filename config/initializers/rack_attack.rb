@@ -57,6 +57,12 @@ class Rack::Attack
     end
   end
 
+  # pf: adresse bannie après une série de jetons erronés (cf. VerificationLinkAccessConcern)
+  blocklist('verification_links/ban') do |req|
+    rack_attack_enabled? && VERIFICATION_LINK_PATHS.any? { req.path.match?(_1) } &&
+      Rack::Attack::Fail2Ban.banned?(VerificationLinkAccessConcern.ban_key(req.remote_ip))
+  end
+
   Rack::Attack.safelist('allow trusted ips') do |req|
     IPService.ip_trusted?(req.remote_ip)
   end

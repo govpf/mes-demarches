@@ -93,7 +93,7 @@ describe ChampPresentations::PieceJustificativePresentation do
     let(:champ) { double('champ', dossier_id: 456, stable_id: 789, row_id: nil) }
 
     before do
-      allow(champ).to receive(:encoded_date).with(:created_at).and_return('abc123')
+      allow(champ).to receive(:verification_link_token).and_return('abc123')
       allow(Rails.application.routes.url_helpers).to receive(:champs_piece_justificative_download_url)
         .with({ dossier_id: 456, stable_id: 789, h: 'abc123', i: 0, row_id: nil })
         .and_return('https://permanent.url/download?h=abc123')
@@ -139,7 +139,7 @@ describe ChampPresentations::PieceJustificativePresentation do
 
       it 'accepte paramètres champ et index' do
         champ = double('champ', dossier_id: 999, stable_id: 888, row_id: nil)
-        allow(champ).to receive(:encoded_date).with(:created_at).and_return('test123')
+        allow(champ).to receive(:verification_link_token).and_return('test123')
         allow(Rails.application.routes.url_helpers).to receive(:champs_piece_justificative_download_url)
           .and_return('https://test.com/download')
 

@@ -138,6 +138,38 @@ describe Champs::PieceJustificativeController, type: :controller do
           before { Flipper.enable(:qrcoded_pdf, procedure) }
           it_behaves_like "he can't download pdf"
         end
+
+        context 'with the legacy format on a dossier submitted after the cutoff,' do
+          before do
+            dossier.update_columns(depose_at: 1.day.ago)
+            allow(VerificationLinkToken).to receive(:legacy_until).and_return(1.week.ago)
+          end
+          it_behaves_like "he can't download pdf"
+        end
+
+        context 'with the legacy format on a dossier submitted before the cutoff,' do
+          before do
+            dossier.update_columns(depose_at: 1.month.ago)
+            allow(VerificationLinkToken).to receive(:legacy_until).and_return(1.week.ago)
+          end
+          it_behaves_like "he can download original pdf"
+        end
+
+        context 'with a signed token,' do
+          let(:params) { { dossier_id: dossier.id, stable_id: annotation.stable_id, h: annotation.reload.verification_link_token, i: 0 } }
+          it_behaves_like "he can download original pdf"
+        end
+
+        context 'with the signed token of another champ,' do
+          let(:other_champ) { create(:dossier, :with_populated_annotations).project_champs_private.first }
+          let(:params) { { dossier_id: dossier.id, stable_id: annotation.stable_id, h: other_champ.verification_link_token, i: 0 } }
+          it_behaves_like "he can't download pdf"
+        end
+
+        context 'with a forged token,' do
+          let(:params) { { dossier_id: dossier.id, stable_id: annotation.stable_id, h: "k0_#{'A' * 22}", i: 0 } }
+          it_behaves_like "he can't download pdf"
+        end
       end
     end
 

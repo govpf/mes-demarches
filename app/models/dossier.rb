@@ -7,7 +7,7 @@ class Dossier < ApplicationRecord
   include DossierCorrectableConcern
   include DossierPendingResponseConcern
   include DossierFilteringConcern
-  include DateEncodingConcern
+  include VerificationLinkConcern
   include DossierPrefillableConcern
   include DossierRebaseConcern
   include DossierSearchableConcern
@@ -1181,6 +1181,16 @@ class Dossier < ApplicationRecord
         champ.fetch_later!
       end
     end
+  end
+
+  # pf: ressource couverte par le lien de vérification de l'attestation (QR code)
+  def verification_link_resource
+    ['qrcode', id]
+  end
+
+  # pf: le QR code n'existe qu'avec l'attestation, émise au traitement du dossier
+  def verification_link_first_emitted_at
+    processed_at
   end
 
   private

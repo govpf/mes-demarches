@@ -25,7 +25,7 @@ class TypesDeChamp::PieceJustificativeTypeDeChamp < TypesDeChamp::TypeDeChampBas
 
   def download_url(champ, index)
     Rails.application.routes.url_helpers.champs_piece_justificative_download_url(
-      { dossier_id: champ.dossier_id, stable_id: champ.stable_id, h: champ.encoded_date(:created_at), i: index, row_id: champ.row_id }
+      { dossier_id: champ.dossier_id, stable_id: champ.stable_id, h: champ.verification_link_token, i: index, row_id: champ.row_id }
     )
   end
 

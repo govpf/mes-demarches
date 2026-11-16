@@ -167,9 +167,49 @@ describe Users::DossiersController, type: :controller do
         before { sign_in(another_user) }
         after { sign_in(user) }
 
+        # pf: ancien format (date de création encodée), encore servi pour les documents déjà émis
         it 'shows attestation as HTML' do
           get :qrcode, params: { id: dossier.id, created_at: dossier.encoded_date(:created_at) }
           expect(response).to render_template(:qrcode)
+          expect(assigns(:attestation)).to be_present
+        end
+
+        it 'does not show the attestation in legacy format when the dossier was processed after the cutoff' do
+          dossier.update_columns(created_at: 1.month.ago, processed_at: 1.day.ago)
+          allow(VerificationLinkToken).to receive(:legacy_until).and_return(1.week.ago)
+
+          get :qrcode, params: { id: dossier.id, created_at: dossier.encoded_date(:created_at) }
+          expect(assigns(:attestation)).to be_nil
+
+          get :qrcode, params: { id: dossier.id, created_at: dossier.verification_link_token }
+          expect(assigns(:attestation)).to be_present
+        end
+
+        it 'still shows the attestation in legacy format when the dossier was processed before the cutoff' do
+          dossier.update_columns(processed_at: 1.month.ago)
+          allow(VerificationLinkToken).to receive(:legacy_until).and_return(1.week.ago)
+
+          get :qrcode, params: { id: dossier.id, created_at: dossier.encoded_date(:created_at) }
+          expect(assigns(:attestation)).to be_present
+        end
+
+        it 'shows attestation as HTML with a signed token' do
+          get :qrcode, params: { id: dossier.id, created_at: dossier.verification_link_token }
+          expect(response).to render_template(:qrcode)
+          expect(assigns(:attestation)).to be_present
+        end
+
+        it 'does not show the attestation with the signed token of another dossier' do
+          other_dossier = create(:dossier, :with_attestation_acceptation)
+          get :qrcode, params: { id: dossier.id, created_at: other_dossier.verification_link_token }
+          expect(response).to render_template(:qrcode)
+          expect(assigns(:attestation)).to be_nil
+        end
+
+        it 'does not show the attestation with a wrong date' do
+          get :qrcode, params: { id: dossier.id, created_at: '01234567-89abcdef' }
+          expect(response).to render_template(:qrcode)
+          expect(assigns(:attestation)).to be_nil
         end
       end
     end
