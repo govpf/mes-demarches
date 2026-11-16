@@ -96,20 +96,37 @@ class Referentiels::APIReferentiel < Referentiel
     ].all?
   end
 
+  # pf: reprise manuelle du correctif upstream c6c3275169. Sa version s'appuie sur l'URL TipTap,
+  # que nous n'avons pas encore : on applique les mêmes règles à notre URL à paramètre {id}.
+  #   - https obligatoire
+  #   - domaine autorisé par égalité ou sous-domaine, plus par simple inclusion de chaîne
+  # Le correctif upstream 8029aadd80 (paramètre dans le nom de domaine) est sans objet ici :
+  # une URL dont {id} touche le nom de domaine est déjà refusée comme invalide.
   def url_allowed?
     return if url.blank?
 
     uri = Addressable::URI.parse(url)
-    return if uri.tld == "gouv.fr" && uri.domain != "beta.gouv.fr"
-    allowed_domains = ENV.fetch('ALLOWED_API_DOMAINS_FROM_FRONTEND', '').split(',')
-    if allowed_domains.none? { |allowed_domain| uri.host && allowed_domain.include?(uri.host) }
-      errors.add(:url, :not_allowed, contact_email: CONTACT_EMAIL)
+
+    errors.add(:url, :https_required) if uri.scheme != 'https'
+
+    unless uri.tld == "gouv.fr" && uri.domain != "beta.gouv.fr"
+      if uri.host.blank? || allowed_hosts.none? { uri.host == _1 || uri.host.end_with?(".#{_1}") }
+        errors.add(:url, :not_allowed, contact_email: CONTACT_EMAIL)
+      end
     end
-  rescue URI::InvalidURIError, PublicSuffix::DomainInvalid
+  rescue Addressable::URI::InvalidURIError, URI::InvalidURIError, PublicSuffix::DomainInvalid
     errors.add(:url, :invalid_format)
   end
 
   private
+
+  def allowed_hosts
+    ENV.fetch('ALLOWED_API_DOMAINS_FROM_FRONTEND', '').split(',').filter_map do |entry|
+      Addressable::URI.parse(entry.strip).host
+    rescue Addressable::URI::InvalidURIError
+      nil
+    end
+  end
 
   def name_as_uuid # should be uniq, using the url was an idea but not unique
     self.name = SecureRandom.uuid

@@ -5,6 +5,7 @@ fr:
         referentiels/api_referentiel:
           attributes:
             url:
+              https_required: "doit commencer par https://"
               invalid_format: "n'est pas au format d'une URL, saisissez une URL valide ex https://api_1.ext/"
               not_allowed: "doit être autorisée par notre équipe. Veuillez nous contacter par mail (%{contact_email}) et nous indiquer l'URL et la documentation de l'API que vous souhaitez intégrer."
     models:

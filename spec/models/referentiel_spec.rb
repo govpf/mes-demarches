@@ -51,6 +51,61 @@ describe Referentiel do
             end
           end
 
+          # pf: reprise manuelle du correctif upstream c6c3275169
+          context 'when the URL only contains an allowed domain as a substring' do
+            let(:url) { "https://api.gouv/resource" }
+
+            it 'adds an error' do
+              referentiel.validate
+              expect(referentiel.errors.details[:url].map { _1[:error] }).to include(:not_allowed)
+            end
+          end
+
+          context 'when an allowed domain is only a suffix of the host name' do
+            let(:url) { "https://eviltabular-api.data.gouv.fr.example.com/resource/{id}" }
+
+            it 'adds an error' do
+              referentiel.validate
+              expect(referentiel.errors.details[:url].map { _1[:error] }).to include(:not_allowed)
+            end
+          end
+
+          context 'when the URL is a subdomain of an allowed domain' do
+            let(:url) { "https://v2.api.apprentissage.beta.gouv.fr/resource/{id}" }
+
+            it 'does not add an error' do
+              referentiel.validate
+              expect(referentiel.errors[:url]).to be_empty
+            end
+          end
+
+          context 'when the URL is not in https' do
+            let(:url) { "http://tabular-api.data.gouv.fr/resource/{id}" }
+
+            it 'adds an error' do
+              referentiel.validate
+              expect(referentiel.errors.details[:url].map { _1[:error] }).to eq([:https_required])
+            end
+          end
+
+          context 'when the {id} parameter extends the domain name' do
+            let(:url) { "https://tabular-api.data.gouv.fr{id}" }
+
+            it 'is refused as an invalid URL' do
+              referentiel.validate
+              expect(referentiel.errors.details[:url].map { _1[:error] }).to include(:invalid_format)
+            end
+          end
+
+          context 'when the {id} parameter comes after the domain name' do
+            let(:url) { "https://tabular-api.data.gouv.fr/api/resources/{id}?page=1" }
+
+            it 'does not add an error' do
+              referentiel.validate
+              expect(referentiel.errors[:url]).to be_empty
+            end
+          end
+
           context 'when the URL is invalid' do
             let(:url) { "invalid_url" }
 

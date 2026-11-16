@@ -154,6 +154,46 @@ describe Users::ProfilController, type: :controller do
           expect(flash.alert).to include('contactez le support')
         end
       end
+
+      context 'when the requested email is on a domain that only matches a legit suffix without an `@` boundary' do
+        let(:requested_email) { 'admin@evilgouv.fr' }
+
+        it 'rejects the email change' do
+          expect(user.unconfirmed_email).to be_nil
+          expect(response).to redirect_to(profil_path)
+          expect(flash.alert).to include('contactez le support')
+        end
+      end
+    end
+
+    context 'when the user has an administrateur role but no instructeur role' do
+      let(:administrateur_email) { 'administrateur_email@a.com' }
+      let!(:user) { create(:administrateur, email: administrateur_email, instructeur: nil).user }
+
+      before do
+        patch :update_email, params: { user: { email: requested_email } }
+        user.reload
+      end
+
+      context 'when the requested email is allowed' do
+        let(:requested_email) { 'legit@gouv.fr' }
+
+        it do
+          expect(user.unconfirmed_email).to eq('legit@gouv.fr')
+          expect(response).to redirect_to(profil_path)
+          expect(flash.notice).to eq(I18n.t('devise.registrations.update_needs_confirmation'))
+        end
+      end
+
+      context 'when the requested email is not allowed' do
+        let(:requested_email) { 'weird@gmail.com' }
+
+        it do
+          expect(user.unconfirmed_email).to be_nil
+          expect(response).to redirect_to(profil_path)
+          expect(flash.alert).to include('contactez le support')
+        end
+      end
     end
   end
 
