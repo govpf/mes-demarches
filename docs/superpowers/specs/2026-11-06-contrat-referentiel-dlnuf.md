@@ -173,6 +173,11 @@ md:<numero_dossier>:<stable_id>:<row_id>     (pièce dans un bloc répétable)
 - Lit le marqueur à chaque passage (cache court autorisé) et applique le §3.3 et le §3.4.
 - En DLNUF :
   - écrit l'e-mail du **titulaire** du dossier, en minuscules, dans la colonne `proprietaire` ;
+  - ne recopie que des **champs publics** (saisis par l'usager) : jamais d'annotation privée, ni en
+    valeur ni en référence de PJ. Une annotation privée d'un service ne doit pas pouvoir être
+    reproposée à l'usager, ni transférée vers un autre service. Un besoin d'annotations partagées
+    demandera une analyse dédiée (Mes-Démarches exclut de toute façon une annotation privée comme
+    source de PJ) ;
   - pour un champ PJ, écrit la **référence** (§4.2) dans la colonne marquée — **aucun
     téléversement de fichier** ;
   - **refuse** d'écrire dans une colonne `file` (erreur + alerte) ;

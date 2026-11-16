@@ -23,6 +23,7 @@ RSpec.describe 'Query referentielColonnes', type: :graphql do
   before do
     allow(ReferentielDePolynesie::API).to receive(:engine).and_return(engine)
     allow(engine).to receive(:config).with('24').and_return({ 'Table' => '24', 'Token' => 't' })
+    allow(engine).to receive(:dlnuf_config).and_return(nil) # pf: lot C — catalogue par défaut
     allow(engine).to receive(:fields).and_return({
       1 => { name: 'RaisonSociale', type: 'text' },
       2 => { name: 'Effectif', type: 'number', number_decimal_places: 0 },

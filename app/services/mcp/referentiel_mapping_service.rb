@@ -38,7 +38,12 @@ module Mcp
     end
 
     def self.colonnes_pour_table(table_id)
-      raw_fields_for(table_id).map { |_id, f| { nom: f[:name] || f['name'], type_mapping: ReferentielDePolynesie::BaserowAPI.baserow_type_to_mapping_type(f) } }
+      # pf: lot C DLNUF — colonne de référence de PJ (table DLNUF + colonne marquée)
+      references = ReferentielDePolynesie::API.colonnes_reference_pj(table_id)
+      raw_fields_for(table_id).map do |_id, f|
+        nom = f[:name] || f['name']
+        { nom:, type_mapping: references.include?(nom) ? 'piece_justificative' : ReferentielDePolynesie::BaserowAPI.baserow_type_to_mapping_type(f) }
+      end
     end
 
     # pf: liste les tables Baserow disponibles (référentiels actifs) — délègue à la méthode de classe
@@ -120,7 +125,12 @@ module Mcp
       end
 
       cleaned = prune_disparues(@tdc.safe_referentiel_mapping, cols_by_name.keys)
-      @tdc.update!(referentiel_mapping: cleaned.deep_merge(nouvelles))
+      mapping = cleaned.deep_merge(nouvelles)
+      # pf: lot C DLNUF — même règle serveur que l'éditeur web
+      erreurs = ReferentielDePolynesie::MappingPieceJustificative.erreurs(type_de_champ: @tdc, mapping:, revision: @draft)
+      raise CibleInvalide, erreurs.first if erreurs.any?
+
+      @tdc.update!(referentiel_mapping: mapping)
       @tdc
     end
 
@@ -136,6 +146,9 @@ module Mcp
 
     # pf: baserow_type_to_mapping_type est une méthode de classe sur BaserowAPI
     def mapping_type_for(field)
+      # pf: lot C DLNUF — colonne de référence de PJ (table DLNUF + colonne marquée)
+      return 'piece_justificative' if ReferentielDePolynesie::API.colonnes_reference_pj(@tdc.table_id).include?(field[:name] || field['name'])
+
       ReferentielDePolynesie::BaserowAPI.baserow_type_to_mapping_type(field)
     end
 

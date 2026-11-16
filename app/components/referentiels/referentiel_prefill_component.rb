@@ -15,6 +15,7 @@ class Referentiels::ReferentielPrefillComponent < Referentiels::MappingFormBase
     Referentiels::MappingFormComponent::TYPES[:date] => %w[date],
     Referentiels::MappingFormComponent::TYPES[:datetime] => %w[datetime],
     Referentiels::MappingFormComponent::TYPES[:array] => %w[multiple_drop_down_list],
+    Referentiels::MappingFormComponent::TYPES[:piece_justificative] => %w[piece_justificative], # pf: lot C DLNUF (jamais titre_identite)
   }.freeze
 
   PUBLIC_FIELDS_GROUP = "Champs"

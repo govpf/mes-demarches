@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 class Referentiels::MappingFormComponent < Referentiels::MappingFormBase
-  TYPES = [:string, :decimal_number, :integer_number, :boolean, :date, :datetime, :array].index_by(&:itself).freeze
+  # pf: lot C DLNUF — :piece_justificative, imposé sur les colonnes de référence (jamais proposé ailleurs)
+  TYPES = [:string, :decimal_number, :integer_number, :boolean, :date, :datetime, :array, :piece_justificative].index_by(&:itself).freeze
+  SELECTABLE_TYPES = TYPES.except(:piece_justificative).freeze # pf: lot C DLNUF
 
   def last_request_keys
     JSONPathUtil.hash_to_jsonpath(referentiel.last_response_body)
@@ -18,9 +20,14 @@ class Referentiels::MappingFormComponent < Referentiels::MappingFormBase
   end
 
   def cast_tag(jsonpath, value)
+    # pf: lot C DLNUF — type imposé sur une colonne de référence de pièce justificative
+    if referentiel.jsonpaths_reference_pj.include?(jsonpath)
+      return safe_join([hidden_field_tag(attribute_name(jsonpath, "type"), TYPES[:piece_justificative]), t("utils.piece_justificative")])
+    end
+
     select_tag(
       attribute_name(jsonpath, "type"),
-      options_for_select(self.class::TYPES.values.map { [t("utils.#{it}"), it] }, lookup_existing_value(jsonpath, "type") || value_to_type(value, jsonpath)),
+      options_for_select(self.class::SELECTABLE_TYPES.values.map { [t("utils.#{it}"), it] }, lookup_existing_value(jsonpath, "type") || value_to_type(value, jsonpath)),
       class: "fr-select"
     )
   end

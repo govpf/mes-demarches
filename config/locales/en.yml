@@ -56,6 +56,7 @@ en:
     date: Date
     datetime: Date and time
     array: List of simple elements
+    piece_justificative: Supporting document
     number: number
     file: file
 

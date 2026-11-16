@@ -53,6 +53,18 @@ class ReferentielDePolynesie::API
       cached == :none ? nil : cached
     end
 
+    # pf: lot C DLNUF — colonnes de référence de pièce justificative (contrat §4.1) : colonnes dont
+    # la description porte « mes-demarches: reference=piece_justificative », et SEULEMENT pour une
+    # table DLNUF. Hors DLNUF (catalogue, :invalid, Baserow muet) : aucune, donc aucune cible PJ.
+    def colonnes_reference_pj(domain_id)
+      return [] unless dlnuf_config(domain_id).is_a?(Hash)
+
+      Hash(table_fields(domain_id)).values.filter_map do |field|
+        marqueur = ReferentielDePolynesie::Marqueur.parse(field[:description])
+        field[:name] if marqueur.is_a?(Hash) && marqueur['reference'].to_s.casecmp?('piece_justificative')
+      end
+    end
+
     def fetch_row(external_id)
       table, id = external_id.split(':')
       engine&.fetch_row(table, id) || {}
