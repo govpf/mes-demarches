@@ -218,7 +218,8 @@ Aucun appel réseau, aucune URL externe manipulée : pas de surface SSRF.
 
 ## 7. Tests
 
-**Unitaires (service)** : référence vide / illisible / dossier inexistant / caché / brouillon /
+**Unitaires (service)** : référence vide / illisible / dossier inexistant / caché par l'usager
+(y compris un dossier **terminé**, que l'administration voit encore) / brouillon /
 autre titulaire (+ message Sentry) / champ source absent / `titre_identite` / blob infecté exclu ;
 rattachement de plusieurs fichiers ; `prefilled` posé ; idempotence (cible vide, préremplie,
 remplie à la main).
