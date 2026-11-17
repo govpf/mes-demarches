@@ -390,6 +390,52 @@ describe ReferentielDePolynesie::BaserowAPI do
     end
   end
 
+  describe '.dlnuf_raison_invalide' do
+    subject { described_class.dlnuf_raison_invalide(domain_id) }
+
+    let(:owner_field_id) { nil }
+    let(:description) { nil }
+    let(:primary_field) { { 'id' => 1, 'name' => 'Dossier', 'type' => 'number', 'primary' => true, 'description' => description } }
+
+    before do
+      stub_config = instance_double(Typhoeus::Response, success?: true, body: config_response.merge('Champ propriétaire' => owner_field_id).to_json)
+      allow(Typhoeus).to receive(:get).with("#{base_url}/api/database/rows/table/1/#{domain_id}/", anything).and_return(stub_config)
+      stub_fields = instance_double(Typhoeus::Response, success?: true, body: ([primary_field] + fields_response + [{ 'id' => 9, 'name' => 'Email', 'type' => 'email' }]).to_json)
+      allow(Typhoeus).to receive(:get).with("#{base_url}/api/database/fields/table/#{table_id}/", anything).and_return(stub_fields)
+    end
+
+    context 'configuration valide' do
+      let(:description) { 'mes-demarches: referentiel=DLNUF; proprietaire=9' }
+
+      it { is_expected.to be_nil }
+    end
+
+    context 'catalogue' do
+      it { is_expected.to be_nil }
+    end
+
+    context 'propriétaire discordant entre marqueur et table méta' do
+      let(:description) { 'mes-demarches: referentiel=DLNUF; proprietaire=9' }
+      let(:owner_field_id) { 6 }
+
+      it 'nomme les deux colonnes' do
+        expect(subject).to include('9', '« Email »', '6', '« Code »')
+      end
+    end
+
+    context 'propriétaire inexistant' do
+      let(:description) { 'mes-demarches: referentiel=DLNUF; proprietaire=999' }
+
+      it { is_expected.to include('999') }
+    end
+
+    context 'marqueur illisible' do
+      let(:description) { 'mes-demarches: contrat=2' }
+
+      it { is_expected.to include('marqueur') }
+    end
+  end
+
   describe '.fields' do
     let(:fields_response) do
       [

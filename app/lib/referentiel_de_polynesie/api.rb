@@ -53,6 +53,13 @@ class ReferentielDePolynesie::API
       cached == :none ? nil : cached
     end
 
+    # pf: éditeur — raison d'une configuration DLNUF invalide (nil si valide ou catalogue), sans cache
+    def dlnuf_raison_invalide(domain_id)
+      return nil if domain_id.to_i <= 0 || engine.nil?
+
+      engine.dlnuf_raison_invalide(domain_id)
+    end
+
     # pf: lot C DLNUF — colonnes de référence de pièce justificative (contrat §4.1) : colonnes dont
     # la description porte « mes-demarches: reference=piece_justificative », et SEULEMENT pour une
     # table DLNUF. Hors DLNUF (catalogue, :invalid, Baserow muet) : aucune, donc aucune cible PJ.

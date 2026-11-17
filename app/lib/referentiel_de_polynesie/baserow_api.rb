@@ -5,6 +5,9 @@ class ReferentielDePolynesie::BaserowAPI
   # pf: types Baserow plausibles pour un champ e-mail propriétaire (diagnostic, pas un blocage)
   EMAIL_LIKE_TYPES = ['email', 'text', 'formula'].freeze
 
+  # pf: DLNUF — incohérence de configuration ; le message s'adresse à l'administrateur
+  class ConfigDlnufInvalide < StandardError; end
+
   class << self
     def search(domain_id, term, drop_down_other: false)
       config = config(domain_id)
@@ -121,30 +124,19 @@ class ReferentielDePolynesie::BaserowAPI
     # Fail-closed : toute incohérence donne :invalid, JAMAIS nil (des données personnelles
     # seraient déclassées en liste publique).
     def dlnuf_config(domain_id)
-      response = config_response(domain_id)
-      unless response.success?
-        return nil if response.code == 404 # pf: ligne méta inexistante : rien à servir
+      analyser_dlnuf(domain_id)
+    rescue ConfigDlnufInvalide => e
+      Rails.logger.warn("ReferentielDePolynesie: configuration DLNUF invalide (référentiel #{domain_id}) : #{e.message}")
+      :invalid
+    end
 
-        return :invalid # pf: panne passagère (timeout, 5xx) : refuser, sinon « catalogue » serait mis en cache
-      end
-
-      config = JSON.parse(response.body)
-
-      model = fields(config)
-      return :invalid if model.nil? # pf: colonnes illisibles → marqueur invisible : on refuse
-
-      meta_owner = config['Champ propriétaire'].presence&.to_s&.strip
-      marqueur = ReferentielDePolynesie::Marqueur.parse(model.values.find { _1[:primary] }&.dig(:description))
-
-      case marqueur
-      when :invalid
-        Rails.logger.warn("ReferentielDePolynesie: marqueur de table illisible (référentiel #{domain_id})")
-        :invalid
-      when nil
-        meta_owner.present? ? owner_config(domain_id, model, meta_owner, source: :table_meta) : nil
-      else
-        dlnuf_config_from_marqueur(domain_id, model, marqueur, meta_owner)
-      end
+    # pf: pour l'éditeur (administrateur) : raison lisible d'une configuration DLNUF invalide, nil sinon.
+    # Sans cache : appelée à l'affichage de la configuration seulement.
+    def dlnuf_raison_invalide(domain_id)
+      analyser_dlnuf(domain_id)
+      nil
+    rescue ConfigDlnufInvalide => e
+      e.message
     end
 
     # pf: retourne { id => { name:, type:, select_options: [{ id:, value: }] } } ; select_options
@@ -223,6 +215,34 @@ class ReferentielDePolynesie::BaserowAPI
 
     private
 
+    def analyser_dlnuf(domain_id)
+      response = config_response(domain_id)
+      unless response.success?
+        return nil if response.code == 404 # pf: ligne méta inexistante : rien à servir
+
+        # pf: panne passagère (timeout, 5xx) : refuser, sinon « catalogue » serait mis en cache
+        raise ConfigDlnufInvalide, "la table méta de Baserow ne répond pas (HTTP #{response.code})"
+      end
+
+      config = JSON.parse(response.body)
+
+      model = fields(config)
+      # pf: colonnes illisibles → marqueur invisible : on refuse
+      raise ConfigDlnufInvalide, 'les colonnes de la table Baserow sont illisibles' if model.nil?
+
+      meta_owner = config['Champ propriétaire'].presence&.to_s&.strip
+      marqueur = ReferentielDePolynesie::Marqueur.parse(model.values.find { _1[:primary] }&.dig(:description))
+
+      case marqueur
+      when :invalid
+        raise ConfigDlnufInvalide, 'le marqueur « mes-demarches: » de la colonne primaire est illisible'
+      when nil
+        meta_owner.present? ? owner_config(domain_id, model, meta_owner, source: :table_meta) : nil
+      else
+        dlnuf_config_from_marqueur(domain_id, model, marqueur, meta_owner)
+      end
+    end
+
     def dlnuf_config_from_marqueur(domain_id, model, marqueur, meta_owner)
       # pf: clé absente ⇒ archive (contrat §3.2) ; clé présente mais vide ⇒ ambiguë ⇒ :invalid
       type = marqueur.key?('referentiel') ? marqueur['referentiel'].downcase : 'archive'
@@ -232,22 +252,28 @@ class ReferentielDePolynesie::BaserowAPI
         meta_owner.present? ? owner_config(domain_id, model, meta_owner, source: :table_meta) : nil
       when 'dlnuf'
         owner = marqueur['proprietaire'].to_s
-        return :invalid unless owner.match?(/\A\d+\z/)
+        unless owner.match?(/\A\d+\z/)
+          raise ConfigDlnufInvalide, 'le marqueur DLNUF ne désigne pas la colonne propriétaire (clé « proprietaire= » suivie de son identifiant)'
+        end
 
         if meta_owner.present? && meta_owner != owner
-          Rails.logger.warn("ReferentielDePolynesie: propriétaire #{owner} du marqueur discordant avec #{meta_owner} de la table méta (référentiel #{domain_id})")
-          return :invalid
+          raise ConfigDlnufInvalide, "la colonne propriétaire du marqueur (#{owner} #{nom_colonne(model, owner)}) est discordante avec le « Champ propriétaire » de la table méta (#{meta_owner} #{nom_colonne(model, meta_owner)})"
         end
 
         owner_config(domain_id, model, owner, source: :marqueur)
       else
-        :invalid
+        raise ConfigDlnufInvalide, "type de référentiel inconnu dans le marqueur : « #{marqueur['referentiel']} » (attendu : DLNUF ou archive)"
       end
+    end
+
+    def nom_colonne(model, field_id)
+      name = model[field_id.to_i]&.dig(:name)
+      name ? "« #{name} »" : '(colonne inexistante)'
     end
 
     def owner_config(domain_id, model, owner_field_id, source:)
       field = model[owner_field_id.to_i]
-      return :invalid if field.nil?
+      raise ConfigDlnufInvalide, "la colonne propriétaire #{owner_field_id} n’existe pas dans la table" if field.nil?
 
       unless field[:type].in?(EMAIL_LIKE_TYPES)
         Rails.logger.warn("ReferentielDePolynesie: le champ propriétaire #{owner_field_id} (référentiel #{domain_id}) est de type #{field[:type]}, pas un e-mail")

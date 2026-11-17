@@ -7,6 +7,24 @@ RSpec.describe Referentiels::MappingFormComponent, type: :component do
   let(:type_de_champ) { procedure.draft_revision.types_de_champ_public.first }
   let(:referentiel) { create(:api_referentiel, :exact_match) }
 
+  describe 'configuration DLNUF invalide' do
+    let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, referentiel: }] }
+    let(:referentiel) do
+      create(:baserow_referentiel, url: 'baserow://24', last_response: { 'status' => 200, 'body' => { 'Nom' => 'Manuia' } })
+    end
+    let(:raison) { 'la colonne propriétaire du marqueur (11965) est discordante' }
+
+    before do
+      allow(ReferentielDePolynesie::API).to receive(:colonnes_reference_pj).with('24').and_return([])
+      allow(ReferentielDePolynesie::API).to receive(:dlnuf_raison_invalide).with('24').and_return(raison)
+      render_inline(component)
+    end
+
+    it 'alerte l’administrateur avec la raison' do
+      expect(page).to have_selector('.fr-alert--error', text: raison)
+    end
+  end
+
   describe 'colonne de référence de pièce justificative (DLNUF)' do
     let(:types_de_champ_public) { [{ type: :referentiel_de_polynesie, referentiel: }] }
     let(:referentiel) do
@@ -16,6 +34,7 @@ RSpec.describe Referentiels::MappingFormComponent, type: :component do
 
     before do
       allow(ReferentielDePolynesie::API).to receive(:colonnes_reference_pj).with('24').and_return(['Statuts'])
+      allow(ReferentielDePolynesie::API).to receive(:dlnuf_raison_invalide).with('24').and_return(nil)
       render_inline(component)
     end
 
@@ -23,6 +42,10 @@ RSpec.describe Referentiels::MappingFormComponent, type: :component do
       expect(page).not_to have_selector("select[name='type_de_champ[referentiel_mapping][$.Statuts][type]']")
       expect(page).to have_selector("input[type='hidden'][name='type_de_champ[referentiel_mapping][$.Statuts][type]'][value='piece_justificative']", visible: false)
       expect(page).to have_text('Pièce justificative')
+    end
+
+    it 'n’affiche pas d’alerte quand la configuration est valide' do
+      expect(page).to have_no_selector('.fr-alert--error')
     end
 
     it 'ne propose pas ce type sur une autre colonne' do
