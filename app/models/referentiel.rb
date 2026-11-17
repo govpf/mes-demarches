@@ -26,6 +26,11 @@ class Referentiel < ApplicationRecord
     items.to_set { _1.value(path) if _1.value(value_path).present? }.compact.sort.map { [_1, _1] }
   end
 
+  # pf: DLNUF — raison d'une configuration invalide, affichée dans l'éditeur (aucune hors Baserow)
+  def dlnuf_raison_invalide
+    nil
+  end
+
   # pf: lot C DLNUF — jsonpaths des colonnes de référence de pièce justificative (aucune hors Baserow)
   def jsonpaths_reference_pj
     []

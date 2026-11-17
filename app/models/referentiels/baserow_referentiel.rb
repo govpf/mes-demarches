@@ -59,6 +59,13 @@ class Referentiels::BaserowReferentiel < Referentiel
     @baserow_config ||= ReferentielDePolynesie::API.config(table_id)
   end
 
+  # pf: DLNUF — raison d'une configuration invalide (alerte de l'éditeur)
+  def dlnuf_raison_invalide
+    return @dlnuf_raison_invalide if defined?(@dlnuf_raison_invalide)
+
+    @dlnuf_raison_invalide = ReferentielDePolynesie::API.dlnuf_raison_invalide(table_id)
+  end
+
   # pf: lot C DLNUF — colonnes de référence de PJ d'une table DLNUF, au format jsonpath du mapping
   def jsonpaths_reference_pj
     @jsonpaths_reference_pj ||= ReferentielDePolynesie::API.colonnes_reference_pj(table_id).map { "$.#{_1}" }

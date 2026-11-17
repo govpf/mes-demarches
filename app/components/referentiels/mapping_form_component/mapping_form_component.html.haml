@@ -1,4 +1,9 @@
 = form_with(model: @type_de_champ, url: update_mapping_type_de_champ_admin_procedure_referentiel_path(@procedure, @type_de_champ.stable_id, @referentiel)) do |f|
+  -# pf: DLNUF — configuration invalide : l'usager verrait une erreur, autant le dire ici
+  - if (raison = referentiel.dlnuf_raison_invalide)
+    .fr-alert.fr-alert--error.fr-mb-3w
+      %h3.fr-alert__title Configuration DLNUF invalide
+      %p= "Ce référentiel sera refusé aux usagers tant que ce point n’est pas corrigé dans Baserow : #{raison}."
   %div{ class: bordered_container_class_names }
     = render Referentiels::ResponseRendererComponent.new(referentiel:)
 
