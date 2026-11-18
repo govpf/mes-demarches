@@ -8,6 +8,10 @@ Rails.application.config.active_storage.variant_processor = :mini_magick
 # (dimensions, duration, etc.) and it generates unnecessary AnalyzeJob executions
 Rails.application.config.active_storage.analyzers = []
 
+# pf: aucun aperçu vidéo n'est proposé et ffmpeg n'est pas installé dans l'image :
+# on retire le prévisualiseur plutôt que de dépendre de l'absence de l'outil.
+Rails.application.config.active_storage.previewers.delete ActiveStorage::Previewer::VideoPreviewer
+
 ActiveSupport.on_load(:active_storage_blob) do
   include BlobImageProcessorConcern
   include BlobVirusScannerConcern
