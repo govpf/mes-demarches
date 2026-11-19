@@ -3,13 +3,31 @@
 Rails.application.config.active_storage.service_urls_expire_in = 1.hour
 
 Rails.application.config.active_storage.variant_processor = :mini_magick
-Rails.application.config.active_storage.analyzers.delete ActiveStorage::Analyzer::ImageAnalyzer
-Rails.application.config.active_storage.analyzers.delete ActiveStorage::Analyzer::VideoAnalyzer
+
+# Disable automatic blob analysis - we don't use the extracted metadata
+# (dimensions, duration, etc.) and it generates unnecessary AnalyzeJob executions
+Rails.application.config.active_storage.analyzers = []
+
+# pf: aucun aperçu vidéo n'est proposé et ffmpeg n'est pas installé dans l'image :
+# on retire le prévisualiseur plutôt que de dépendre de l'absence de l'outil.
+Rails.application.config.active_storage.previewers.delete ActiveStorage::Previewer::VideoPreviewer
 
 ActiveSupport.on_load(:active_storage_blob) do
   include BlobImageProcessorConcern
   include BlobVirusScannerConcern
   include BlobSignedIdConcern
+
+  # With analyzers disabled, ActiveStorage falls back to NullAnalyzer whose
+  # `analyze_later? == false`, so `analyze_blob_later` (after_create_commit on
+  # Attachment) ends up calling `blob.update! metadata: ...` synchronously.
+  # Under contention (e.g. a batch op where N workers attach the same blob),
+  # those UPDATEs serialize on the same row and hit PG statement_timeout.
+  # Pre-marking the blob as analyzed at INSERT time short-circuits the
+  # `unless blob.analyzed?` guard in `Attachment#analyze_blob_later`, so no
+  # extra UPDATE is ever issued.
+  before_create do
+    self.metadata = metadata.merge("analyzed" => true)
+  end
 
   ActiveStorage::Blob.class_eval do
     def purge_later
