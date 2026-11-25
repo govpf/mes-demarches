@@ -381,12 +381,11 @@ describe Expired::DossiersDeletionService do
       let!(:dossier) { create(:dossier, :en_construction, :followed, procedure: procedure, en_construction_close_to_expiration_notice_sent_at: (warning_period + 4.days).ago) }
       let!(:instructeur) { dossier.followers_instructeurs.first }
       let!(:administrateur) { dossier.procedure.administrateurs.first }
-      let!(:assign_to) { AssignTo.find_or_create_by(instructeur: instructeur, groupe_instructeur: dossier.groupe_instructeur) }
+      let!(:instructeur_procedure) { create(:instructeurs_procedure, instructeur:, procedure: dossier.procedure, deletion_email_notifications_enabled: false) }
 
       before do
         # Assigner l'admin au groupe pour qu'il soit notifié selon la logique upstream
         AssignTo.find_or_create_by(instructeur: administrateur.instructeur, groupe_instructeur: dossier.groupe_instructeur)
-        assign_to.update!(deletion_email_notifications_enabled: false)
         service.delete_expired_en_construction_and_notify
       end
 

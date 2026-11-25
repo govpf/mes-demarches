@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_25_123737) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_25_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_buffercache"
   enable_extension "pg_stat_statements"
@@ -885,6 +885,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_25_123737) do
   create_table "instructeurs_procedures", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "daily_email_summary", default: false, null: false
+    t.boolean "deletion_email_notifications_enabled", default: true, null: false
     t.string "display_annotation_instructeur_notifications", default: "followed", null: false
     t.string "display_attente_avis_notifications", default: "followed", null: false
     t.string "display_attente_correction_notifications", default: "followed", null: false

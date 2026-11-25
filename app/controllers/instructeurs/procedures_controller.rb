@@ -274,16 +274,12 @@ module Instructeurs
 
     def notification_preferences
       @procedure = procedure
-      # pf: la préférence « e-mail de suppression automatique » reste portée par assign_tos
-      @assign_to = assign_tos.first
       @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
     end
 
     def update_email_notifications
       instructeur_procedure = InstructeursProcedure.find_by!(procedure_id:, instructeur: current_instructeur)
       instructeur_procedure.update!(email_notification_params)
-      # pf: préférence PF de suppression automatique, toujours stockée sur assign_tos
-      assign_tos.each { _1.update!(deletion_email_params) } if deletion_email_params.present?
 
       flash.notice = t('instructeurs.procedures.email_preferences.flash_notice')
       redirect_to instructeur_procedure_path(procedure)
@@ -419,12 +415,8 @@ module Instructeurs
 
     def email_notification_params
       params.require(:instructeurs_procedure)
-        .permit(:instant_email_new_dossier, :instant_email_new_message, :instant_email_new_expert_avis, :daily_email_summary, :weekly_email_summary)
-    end
-
-    # pf: seul le flag PF de suppression automatique transite encore par assign_to
-    def deletion_email_params
-      params.fetch(:assign_to, {}).permit(:deletion_email_notifications_enabled)
+        .permit(:instant_email_new_dossier, :instant_email_new_message, :instant_email_new_expert_avis, :daily_email_summary, :weekly_email_summary,
+          :deletion_email_notifications_enabled) # pf: préférence PF de suppression automatique
     end
 
     def assign_tos

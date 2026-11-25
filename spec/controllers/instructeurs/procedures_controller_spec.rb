@@ -770,22 +770,19 @@ describe Instructeurs::ProceduresController, type: :controller do
         end
       end
 
+      # pf: préférence PF de suppression automatique, portée par instructeurs_procedures
       context 'when updating deletion_email_notifications_enabled' do
-        let(:assign_to) { instructeur.assign_to.joins(:groupe_instructeur).find_by(groupe_instructeurs: { procedure: procedure }) }
         let!(:instructeur_procedure) { create(:instructeurs_procedure, instructeur:, procedure:) }
 
         before do
           patch :update_email_notifications, params: {
             procedure_id: procedure.id,
-            instructeurs_procedure: { daily_email_summary: true },
-            assign_to: { deletion_email_notifications_enabled: false },
+            instructeurs_procedure: { deletion_email_notifications_enabled: false },
           }
         end
 
-        # pf: le flag de suppression automatique reste porté par assign_tos
         it 'updates the setting' do
-          expect(assign_to.reload.deletion_email_notifications_enabled).to eq(false)
-          expect(instructeur_procedure.reload.daily_email_summary).to eq(true)
+          expect(instructeur_procedure.reload.deletion_email_notifications_enabled).to eq(false)
         end
       end
     end

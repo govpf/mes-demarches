@@ -175,12 +175,12 @@ class Expired::DossiersDeletionService < Expired::MailRateLimiter
       )
       .to_a
 
-    # pf: précharger tous les AssignTo en une seule requête pour éviter N+1
-    assign_tos_by_key = preload_assign_tos(dossier_list)
+    # pf: précharger les refus de notification en une seule requête pour éviter N+1
+    opted_out_keys = preload_deletion_email_opt_outs(dossier_list)
 
     dossier_list
       .each_with_object(Hash.new { |h, k| h[k] = Set.new }) do |dossier, h|
-        instructeurs_with_notifications = instructeurs_to_notify(dossier, assign_tos_by_key)
+        instructeurs_with_notifications = instructeurs_to_notify(dossier, opted_out_keys)
         instructeurs_with_notifications.each { |instructeur| h[instructeur.email] << dossier }
       end
       .transform_values(&:to_a)
@@ -197,20 +197,21 @@ class Expired::DossiersDeletionService < Expired::MailRateLimiter
 
   private
 
-  # pf: précharge tous les AssignTo nécessaires en une seule requête
-  def preload_assign_tos(dossier_list)
+  # pf: couples [instructeur_id, procedure_id] ayant coupé l'e-mail de suppression automatique
+  def preload_deletion_email_opt_outs(dossier_list)
     instructeur_ids = dossier_list.flat_map do |d|
       (d.followers_instructeurs + d.procedure.administrateurs.map(&:instructeur).compact).map(&:id)
     end.uniq
-    groupe_instructeur_ids = dossier_list.map(&:groupe_instructeur_id).uniq
+    procedure_ids = dossier_list.map { _1.procedure.id }.uniq
 
-    AssignTo
-      .where(instructeur_id: instructeur_ids, groupe_instructeur_id: groupe_instructeur_ids)
-      .index_by { |at| [at.instructeur_id, at.groupe_instructeur_id] }
+    InstructeursProcedure
+      .where(instructeur_id: instructeur_ids, procedure_id: procedure_ids, deletion_email_notifications_enabled: false)
+      .pluck(:instructeur_id, :procedure_id)
+      .to_set
   end
 
   # pf: filtre les instructeurs qui ont activé les notifications de suppression
-  def instructeurs_to_notify(dossier, assign_tos_by_key)
+  def instructeurs_to_notify(dossier, opted_out_keys)
     # Logique upstream : followers + admins qui sont instructeurs dans au moins un groupe
     all_instructeurs = dossier.followers_instructeurs.to_a
 
@@ -223,11 +224,9 @@ class Expired::DossiersDeletionService < Expired::MailRateLimiter
       end
     end
 
-    # pf: Filtrer par préférence de notification
-    all_instructeurs.uniq.filter do |instructeur|
-      assign_to = assign_tos_by_key[[instructeur.id, dossier.groupe_instructeur_id]]
-      # Si pas d'assign_to ou si notifications activées
-      assign_to.nil? || assign_to.deletion_email_notifications_enabled
+    # pf: Filtrer par préférence de notification (notifié par défaut, y compris sans ligne instructeurs_procedures)
+    all_instructeurs.uniq.reject do |instructeur|
+      opted_out_keys.include?([instructeur.id, dossier.procedure.id])
     end
   end
 end

@@ -9,6 +9,10 @@ class AssignTo < ApplicationRecord
     "weekly_email_notifications_enabled",
   ]
 
+  # pf: préférence déplacée sur instructeurs_procedures (migration 20261125090000),
+  # colonne à supprimer dans une PR ultérieure
+  self.ignored_columns += ["deletion_email_notifications_enabled"]
+
   belongs_to :instructeur, optional: false
   belongs_to :groupe_instructeur, optional: false
   has_one :procedure_presentation, dependent: :destroy
