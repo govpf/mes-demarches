@@ -5,7 +5,7 @@ module Instructeurs
     include InstructeurProcedureConcern
     include ProConnectSessionConcern
 
-    before_action :ensure_ownership!, except: [:index, :order_positions, :update_order_positions, :select_procedure]
+    before_action :ensure_ownership!, except: [:index, :counters, :synthese, :order_positions, :update_order_positions, :select_procedure]
     before_action :ensure_not_super_admin!, only: [:download_export, :exports]
     after_action :mark_latest_revision_as_seen, only: [:history]
 
@@ -26,47 +26,61 @@ module Instructeurs
       # .uniq is much more faster than a distinct on a joint column
       procedures_dossiers_en_cours = dossiers.joins(:revision).en_cours.pluck(ProcedureRevision.arel_table[:procedure_id]).uniq
 
-      @procedures = all_procedures.order(closed_at: :desc, unpublished_at: :desc, published_at: :desc, created_at: :desc)
+      @all_procedures = all_procedures.order(closed_at: :desc, unpublished_at: :desc, published_at: :desc, created_at: :desc)
       publiees_or_closes_with_dossiers_en_cours = all_procedures_for_listing.publiees.or(all_procedures.closes.where(id: procedures_dossiers_en_cours))
       ensure_instructeur_procedures_for(publiees_or_closes_with_dossiers_en_cours)
-      @all_procedures_en_cours = publiees_or_closes_with_dossiers_en_cours.order_by_position_for(current_instructeur)
-      @procedures_en_cours = @all_procedures_en_cours.page(params[:page]).per(ITEMS_PER_PAGE)
       closes_with_no_dossier_en_cours = all_procedures.closes.excluding(all_procedures.closes.where(id: procedures_dossiers_en_cours))
-      @procedures_closes = closes_with_no_dossier_en_cours.order(created_at: :desc).page(params[:page]).per(ITEMS_PER_PAGE)
-      @procedures_draft = all_procedures_for_listing.brouillons.order(created_at: :desc).page(params[:page]).per(ITEMS_PER_PAGE)
+
       @procedures_en_cours_count = publiees_or_closes_with_dossiers_en_cours.count
       @procedures_draft_count = all_procedures_for_listing.brouillons.count
       @procedures_closes_count = closes_with_no_dossier_en_cours.count
 
-      @dossiers_count_per_procedure = dossiers.by_statut('tous').group('groupe_instructeurs.procedure_id').reorder(nil).count
-      @dossiers_a_suivre_count_per_procedure = dossiers.by_statut('a-suivre').group('groupe_instructeurs.procedure_id').reorder(nil).count
-      @dossiers_termines_count_per_procedure = dossiers.by_statut('traites').group('groupe_instructeurs.procedure_id').reorder(nil).count
-      @dossiers_expirant_count_per_procedure = dossiers.by_statut('expirant').group('groupe_instructeurs.procedure_id').count
+      @statut = params[:statut].presence || 'en-cours'
+      @procedures = collection_scope_for_statut(
+        @statut,
+        publiees_or_closes_with_dossiers_en_cours,
+        all_procedures_for_listing.brouillons,
+        closes_with_no_dossier_en_cours
+      ).includes(:procedure_paths)
 
-      groupe_ids = current_instructeur.groupe_instructeurs.pluck(:id)
-      @followed_dossiers_count_per_procedure = current_instructeur
-        .followed_dossiers
-        .joins(:groupe_instructeur)
+      if current_administrateur.present?
+        @procedures = @procedures.includes(:administrateurs_procedures)
+      end
+    end
+
+    def counters
+      all_procedures = current_instructeur.procedures.kept
+      procedures_dossiers_en_cours = current_instructeur.dossiers
+        .joins(groupe_instructeur: :procedure)
+        .where(procedures: { hidden_at: nil })
+        .joins(:revision)
         .en_cours
-        .where(groupe_instructeur_id: groupe_ids)
-        .visible_by_administration
-        .group('groupe_instructeurs.procedure_id')
-        .reorder(nil)
-        .count
+        .pluck(ProcedureRevision.arel_table[:procedure_id])
+        .uniq
 
-      @all_dossiers_counts = {
-        'a-suivre' => @dossiers_a_suivre_count_per_procedure.sum { |_, v| v },
-        'suivis' => @followed_dossiers_count_per_procedure.sum { |_, v| v },
-        'traites' => @dossiers_termines_count_per_procedure.sum { |_, v| v },
-        'tous' => @dossiers_count_per_procedure.sum { |_, v| v },
-        'expirant' => @dossiers_expirant_count_per_procedure.sum { |_, v| v },
-      }
+      @statut = params[:statut].presence || 'en-cours'
+      publiees_or_closes_with_dossiers_en_cours = all_procedures.publiees.or(all_procedures.closes.where(id: procedures_dossiers_en_cours))
+      closes_with_no_dossier_en_cours = all_procedures.closes.excluding(all_procedures.closes.where(id: procedures_dossiers_en_cours))
 
-      @procedure_ids_with_notifications = DossierNotification.notifications_sticker_for_instructeur_procedures(groupe_ids, current_instructeur)
-      @notifications_counts_per_procedure = DossierNotification.notifications_counts_for_instructeur_procedures(groupe_ids, current_instructeur)
+      @procedures = collection_scope_for_statut(@statut,
+                                                publiees_or_closes_with_dossiers_en_cours,
+                                                all_procedures.brouillons,
+                                                closes_with_no_dossier_en_cours)
 
-      @statut = params[:statut]
-      @statut.blank? ? @statut = 'en-cours' : @statut = params[:statut]
+      @counters = InstructeursProceduresCountersService.new(
+        procedures: all_procedures,
+        instructeur: current_instructeur
+      ).call
+
+      @procedure_ids_with_notifications = DossierNotification.notifications_sticker_for_instructeur_procedures(@counters.groupes_instructeurs_ids, current_instructeur)
+      @notifications_counts_per_procedure = DossierNotification.notifications_counts_for_instructeur_procedures(@counters.groupes_instructeurs_ids, current_instructeur)
+    end
+
+    def synthese
+      @counters = InstructeursProceduresCountersService.new(
+        procedures: current_instructeur.procedures.kept,
+        instructeur: current_instructeur
+      ).call
     end
 
     def order_positions
@@ -260,17 +274,16 @@ module Instructeurs
 
     def notification_preferences
       @procedure = procedure
+      # pf: la préférence « e-mail de suppression automatique » reste portée par assign_tos
       @assign_to = assign_tos.first
       @instructeur_procedure = find_or_create_instructeur_procedure(@procedure)
     end
 
     def update_email_notifications
-      # TODO: remove assign_tos update when the transfer on instructeurs_procedure is done
-      assign_tos.each do |assign_to|
-        assign_to.update!(assign_to_params)
-      end
       instructeur_procedure = InstructeursProcedure.find_by!(procedure_id:, instructeur: current_instructeur)
       instructeur_procedure.update!(email_notification_params)
+      # pf: préférence PF de suppression automatique, toujours stockée sur assign_tos
+      assign_tos.each { _1.update!(deletion_email_params) } if deletion_email_params.present?
 
       flash.notice = t('instructeurs.procedures.email_preferences.flash_notice')
       redirect_to instructeur_procedure_path(procedure)
@@ -404,15 +417,14 @@ module Instructeurs
       end
     end
 
-    def assign_to_params
-      # TODO: remove method when the transfer on instructeurs_procedure is done
-      params.require(:assign_to)
-        .permit(:instant_expert_avis_email_notifications_enabled, :instant_email_dossier_notifications_enabled, :instant_email_message_notifications_enabled, :daily_email_notifications_enabled, :weekly_email_notifications_enabled, :deletion_email_notifications_enabled)
+    def email_notification_params
+      params.require(:instructeurs_procedure)
+        .permit(:instant_email_new_dossier, :instant_email_new_message, :instant_email_new_expert_avis, :daily_email_summary, :weekly_email_summary)
     end
 
-    def email_notification_params
-      # TODO : take params of instructeurs_procedure from the form for the transfer
-      InstructeursProcedure::EMAIL_COLUMNS.transform_values { |column| assign_to_params[column] }
+    # pf: seul le flag PF de suppression automatique transite encore par assign_to
+    def deletion_email_params
+      params.fetch(:assign_to, {}).permit(:deletion_email_notifications_enabled)
     end
 
     def assign_tos
@@ -544,6 +556,22 @@ module Instructeurs
       cache = Cache::ProcedureDossierPagination.new(procedure_presentation:, statut:)
 
       cache.save_context(ids: @filtered_sorted_paginated_ids, incoming_page: params[:page])
+    end
+
+    def collection_scope_for_statut(statut, publiees_or_closes_with_dossiers_en_cours, procedures_draft, closes_with_no_dossier_en_cours)
+      scope = case statut
+      when 'en-cours'
+        publiees_or_closes_with_dossiers_en_cours.order_by_position_for(current_instructeur)
+      when 'brouillons'
+        procedures_draft.order(created_at: :desc)
+      when 'archivees'
+        closes_with_no_dossier_en_cours.order(created_at: :desc)
+      end
+
+      scope
+        .page(params[:page])
+        .per(ITEMS_PER_PAGE)
+        .strict_loading!
     end
 
     def badge_notification_params

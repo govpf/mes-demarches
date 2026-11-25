@@ -15,7 +15,7 @@ class Dossiers::EditFooterComponent < ApplicationComponent
   end
 
   def show_for_user?
-    !annotation?
+    controller.is_a?(Users::DossiersController)
   end
 
   def annotation?

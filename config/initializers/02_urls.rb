@@ -26,13 +26,14 @@ S3_ENDPOINT_URL = ENV.fetch("S3_ENDPOINT", "")
 # External services URLs
 WEBINAIRE_URL = "https://app.livestorm.co/demarches-simplifiees"
 INSCRIPTION_WEBINAIRE_URL = "https://bbb-dinum-scalelite.visio.education.fr/playback/presentation/2.3/cbb6e43626fa1b67755d9fb05ecf5e7f3be50d48-1675342730585"
-DEMO_VIDEO_URL = "https://webinaire.bbb-dinum-scalelite.visio.education.fr/playback/presentation/2.3/f7e68599a24f8d6cf38430076f989a53612cbd3f-1712231936831"
 CALENDLY_URL = "https://calendly.com/demarches-simplifiees/accompagnement-administrateur-demarches-simplifiees-fr"
 
 FR_SITE = 'demarches-simplifiees.fr'
 FR_DOC_URL = "https://doc.#{FR_SITE}"
 DOC_URL = ENV.fetch("DOC_URL", "https://mes-demarches.gitbook.io/documentation")
 DOC_NOUVEAUTES_URL = [DOC_URL, "nouveautes"].join("/")
+# pf: la documentation PF n'a pas l'ancre de démonstration upstream, on garde la vidéo existante
+DEMO_VIDEO_URL = "https://webinaire.bbb-dinum-scalelite.visio.education.fr/playback/presentation/2.3/f7e68599a24f8d6cf38430076f989a53612cbd3f-1712231936831"
 ADMINISTRATEUR_TUTORIAL_URL = [DOC_URL, "dematerialiser-un-formulaire-1", "tutoriels", "dematerialiser-formulaire"].join("/")
 INSTRUCTEUR_TUTORIAL_URL = [DOC_URL, "dematerialiser-un-formulaire-1", "tutoriels"].join("/")
 CADRE_JURIDIQUE_URL = [ADMINISTRATEUR_TUTORIAL_URL, "cadre-juridique"].join("#") # TODO version polynésie

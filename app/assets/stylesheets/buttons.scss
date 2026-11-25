@@ -215,10 +215,6 @@
   z-index: 11;
   list-style: none;
 
-  a:not(.fr-notice__link) {
-    background-image: none; // remove DSFR underline
-  }
-
   &.left-aligned {
     left: 0;
     right: unset;
@@ -364,6 +360,7 @@ ul.dropdown-items {
       padding: $default-padding;
       text-align: left;
       align-items: baseline;
+      background-image: none;
     }
 
     .icon {

@@ -16,4 +16,8 @@ class Siret
     # pf: also strip hyphens since Tahiti numbers may be formatted as "123456-789"
     self.siret = siret.gsub(/[[:space:]-]/, "") if siret.present?
   end
+
+  def to_siren
+    siret[0..8]
+  end
 end

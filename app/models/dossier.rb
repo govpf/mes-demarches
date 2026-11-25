@@ -48,7 +48,7 @@ class Dossier < ApplicationRecord
 
   has_many :champs, dependent: :destroy
   has_many :commentaires, inverse_of: :dossier, dependent: :destroy
-  has_many :commentaires_chronological, -> { chronological }, class_name: 'Commentaire', inverse_of: false
+  has_many :commentaires_chronological, -> { chronological }, class_name: 'Commentaire', inverse_of: :dossier
   has_many :preloaded_commentaires, -> { includes(:dossier_correction, :dossier_pending_response, piece_jointe_attachments: :blob).order(created_at: :desc) }, class_name: 'Commentaire', inverse_of: :dossier
 
   has_many :invites, dependent: :destroy
@@ -542,6 +542,7 @@ class Dossier < ApplicationRecord
 
   def can_terminer?
     return false if any_etablissement_as_degraded_mode?
+    return false if any_annotations_privees_with_errors?
 
     true
   end
@@ -619,6 +620,12 @@ class Dossier < ApplicationRecord
     return true if filled_champs_public.any? { _1.etablissement&.as_degraded_mode? }
 
     false
+  end
+
+  def any_annotations_privees_with_errors?
+    validate(:champs_private_value)
+    check_mandatory_and_visible_champs_private
+    errors.any?
   end
 
   def messagerie_available?
@@ -990,12 +997,21 @@ class Dossier < ApplicationRecord
     traitements.any?(&:termine?)
   end
 
-  def check_mandatory_and_visible_champs
-    project_champs_public.filter(&:visible?).each do |champ|
+  def check_mandatory_and_visible_champs_public
+    check_mandatory_and_visible_champs_for(project_champs_public)
+  end
+
+  def check_mandatory_and_visible_champs_private
+    check_mandatory_and_visible_champs_for(project_champs_private)
+  end
+
+  def check_mandatory_and_visible_champs_for(collection)
+    collection.filter(&:visible?).each do |champ|
       if champ.mandatory_blank?
         error = champ.errors.add(:value, :missing)
         errors.import(error)
       end
+
       if champ.repetition?
         champ.rows.each do |champs|
           champs.filter(&:visible?).filter(&:mandatory_blank?).each do |champ|

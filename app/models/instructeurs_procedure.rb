@@ -25,15 +25,6 @@ class InstructeursProcedure < ApplicationRecord
     attente_reponse: 'display_attente_reponse_notifications',
   }.freeze
 
-  # TODO: remove when the transfer on instructeurs_procedures is done
-  EMAIL_COLUMNS = {
-    daily_email_summary: :daily_email_notifications_enabled,
-    weekly_email_summary: :weekly_email_notifications_enabled,
-    instant_email_new_dossier: :instant_email_dossier_notifications_enabled,
-    instant_email_new_message: :instant_email_message_notifications_enabled,
-    instant_email_new_expert_avis: :instant_expert_avis_email_notifications_enabled,
-  }.freeze
-
   belongs_to :instructeur
   belongs_to :procedure
 
@@ -53,6 +44,29 @@ class InstructeursProcedure < ApplicationRecord
         InstructeursProcedure.where(procedure_id:, instructeur:).update(position:)
       end
     end
+  end
+
+  # pf: nombre de jours sans consultation au-delà duquel un instructeur est considéré inactif sur une démarche
+  MIN_INACTIVE_DAYS = 40
+
+  # pf: coupe l'e-mail instantané « nouveau dossier » des instructeurs inactifs sur une démarche.
+  # Porté depuis AssignTo quand upstream a déplacé les préférences e-mail vers instructeurs_procedures.
+  def self.cancel_instant_email_new_dossier_for_inactive_instructeurs
+    stale = where(instant_email_new_dossier: true, updated_at: ...MIN_INACTIVE_DAYS.days.ago)
+
+    # l'instructeur a suivi des dossiers de la démarche mais n'en a consulté aucun depuis MIN_INACTIVE_DAYS
+    seen_long_ago = stale
+      .joins(instructeur: { all_follows: { dossier: :revision } })
+      .where("procedure_revisions.procedure_id = instructeurs_procedures.procedure_id")
+      .group("instructeurs_procedures.id")
+      .having('max(greatest(follows.demande_seen_at, follows.messagerie_seen_at, follows.annotations_privees_seen_at, follows.avis_seen_at)) < ?', MIN_INACTIVE_DAYS.days.ago)
+    where(id: seen_long_ago.select(:id)).update_all(instant_email_new_dossier: false)
+
+    # l'instructeur n'a jamais suivi le moindre dossier
+    never_followed = stale
+      .left_outer_joins(instructeur: :all_follows)
+      .where(follows: { id: nil })
+    where(id: never_followed.select(:id)).update_all(instant_email_new_dossier: false)
   end
 
   def notification_preferences

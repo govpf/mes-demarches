@@ -166,7 +166,7 @@ class TypesDeChampEditor::ChampComponent < ApplicationComponent
     # pf: Un champ formule est calculé par le système, jamais saisi par
     # l'usager — la notion d'obligatoire n'a pas de sens. C'est à la SOURCE
     # référencée d'être marquée obligatoire si nécessaire.
-    type_de_champ.public? && !type_de_champ.non_fillable? && !type_de_champ.formule?
+    !type_de_champ.non_fillable? && !type_de_champ.formule?
   end
 
   def type_de_champ_path

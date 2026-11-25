@@ -188,4 +188,59 @@ RSpec.describe InstructeursProcedure, type: :model do
       end
     end
   end
+
+  # pf: coupure de l'e-mail « nouveau dossier » pour les instructeurs inactifs
+  describe '.cancel_instant_email_new_dossier_for_inactive_instructeurs' do
+    let(:period) { InstructeursProcedure::MIN_INACTIVE_DAYS + 1 }
+    let(:procedure) { create(:procedure) }
+    let(:instructeur) { create(:instructeur) }
+    let(:updated_at) { period.days.ago }
+    let!(:instructeurs_procedure) { create(:instructeurs_procedure, procedure:, instructeur:, updated_at:) }
+
+    subject do
+      described_class.cancel_instant_email_new_dossier_for_inactive_instructeurs
+      instructeurs_procedure.reload.instant_email_new_dossier
+    end
+
+    context 'when the instructeur never followed a dossier' do
+      it { is_expected.to eq(false) }
+
+      context 'when the preferences were updated recently' do
+        let(:updated_at) { 1.day.ago }
+
+        it { is_expected.to eq(true) }
+      end
+    end
+
+    context 'when the instructeur followed dossiers of the procedure' do
+      let(:dossier) { create(:dossier, :en_construction, procedure:) }
+      let(:seen_at) { period.days.ago }
+
+      before do
+        instructeur.follow(dossier)
+        instructeur.follows.first.update(demande_seen_at: seen_at, annotations_privees_seen_at: seen_at, avis_seen_at: seen_at, messagerie_seen_at: seen_at)
+      end
+
+      context 'when none was seen for a long time' do
+        it { is_expected.to eq(false) }
+      end
+
+      context 'when one was seen recently' do
+        let(:seen_at) { 1.day.ago }
+
+        it { is_expected.to eq(true) }
+      end
+
+      context 'when the only recent activity is on another procedure' do
+        let(:other_dossier) { create(:dossier, :en_construction) }
+
+        before do
+          instructeur.follow(other_dossier)
+          instructeur.follows.find_by(dossier: other_dossier).update(demande_seen_at: 1.day.ago)
+        end
+
+        it { is_expected.to eq(false) }
+      end
+    end
+  end
 end

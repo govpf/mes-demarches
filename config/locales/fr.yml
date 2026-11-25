@@ -461,7 +461,6 @@ fr:
         follow_file: Suivre
         stop_follow: Ne plus suivre
         no_file: Aucun dossier
-        dossier_synthesis: Synthèse des dossiers
         passer_en_instruction_blocked_by_pending_correction: |
           Le passage en instruction est impossible tant que le dossier est en attente de correction.
           Si nécessaire, l’instructeur ayant demandé la correction peut supprimer le message correspondant.
@@ -1074,6 +1073,10 @@ fr:
         title: "Version d’origine"
         notice: "Vous consultez le dossier tel qu’il a été déposé par l’usager. Le formulaire a évolué depuis : certains champs affichés ici ne font plus partie de la démarche."
         back: "Revenir au dossier"
+      aasm_error_annotations: Les annotations privées ne sont pas remplis correctement, il n’est pas possible de passer le dossier en %{state}. <a href="%{url}">Modifier les annotations</a>.
+      alert_error_annotations: Les annotations privées n'ont pas été renseignées correctement et sont nécessaire pour apporter une décision sur le dossier.
+      alert_error_annotations_link: Compléter les annotations privées
+      alert_unspecified_attestation_champs: 'Attention, les valeurs suivantes n’ont pas été renseignées mais sont nécessaires pour pouvoir envoyer une attestation valide :'
     procedure_presentation:
       customize_filters:
         exit_customization: "Quitter la personnalisation"
