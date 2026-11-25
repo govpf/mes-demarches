@@ -15,7 +15,9 @@ class Dossiers::EditFooterComponent < ApplicationComponent
   end
 
   def show_for_user?
-    controller.is_a?(Users::DossiersController)
+    # pf: backport upstream 7cf02f14ab (2026-02-10) — le critère par contrôleur de #12471 masquait
+    # « Déposer les modifications » après l'ajout d'une pièce jointe (Champs::PieceJustificativeController)
+    !annotation?
   end
 
   def annotation?
