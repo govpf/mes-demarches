@@ -175,6 +175,9 @@ describe 'shared/dossiers/edit', type: :view do
     let(:dossier) { create(:dossier, procedure:) }
 
     before do
+      # pf: depuis upstream #12471 le pied de page ne s'affiche que sous Users::DossiersController,
+      # ce que le contrôleur d'une spec de vue n'est pas
+      allow_any_instance_of(Dossiers::EditFooterComponent).to receive(:show_for_user?).and_return(true)
       dossier.revision.update!(
         ineligibilite_enabled: true,
         ineligibilite_message: 'non éligible',
