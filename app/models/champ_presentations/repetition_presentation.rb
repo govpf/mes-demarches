@@ -86,11 +86,19 @@ class ChampPresentations::RepetitionPresentation < ChampPresentations::BasePrese
     }
   end
 
-  # pf: filtre pour garder seulement les champs fillables dans chaque ligne
+  # pf: filtre pour garder seulement les champs fillables dans chaque ligne,
+  # et écarte les lignes où rien n'a été saisi (ligne ajoutée puis laissée vide)
   def filter_fillable_champs
     rows.map do |row_champs|
       row_champs.filter { |champ| champ.type_de_champ.fillable? }
-    end.reject(&:empty?) # Supprime les lignes vides
+    end.reject { |row_champs| row_champs.empty? || row_without_input?(row_champs) }
+  end
+
+  # pf: un champ formule est calculé, il ne compte pas comme une saisie ;
+  # une ligne faite uniquement de formules est conservée
+  def row_without_input?(row_champs)
+    input_champs = row_champs.reject { |champ| champ.type_de_champ.formule? }
+    input_champs.any? && input_champs.all?(&:blank?)
   end
 
   # pf: génère le format liste original

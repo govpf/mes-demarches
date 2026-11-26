@@ -130,12 +130,38 @@ describe ChampPresentations::RepetitionPresentation do
       let(:representation_with_headers) { described_class.new("Test", champ_with_headers.rows) }
 
       it 'génère tableau avec seulement les champs fillables' do
+        nom = champ_with_headers.rows.first.find { _1.type_de_champ.fillable? }
+        dossier_with_headers.champ_for_update(nom.type_de_champ, row_id: nom.row_id, updated_by: 'test').update(value: "ruby")
         result = representation_with_headers.to_tiptap_node
         # pf: toujours tableau maintenant, avec seulement les champs fillables filtrés
         expect(result[:type]).to eq("table")
         # Une seule colonne "nom" (header_section filtré)
         expect(result[:content].first[:content].size).to eq(1)
         expect(result[:content].first[:content].first[:content].first[:content].first[:text]).to eq("nom")
+      end
+    end
+
+    # pf: une ligne ajoutée mais jamais remplie ne doit pas produire une ligne vide dans l'attestation
+    context 'avec une ligne laissée entièrement vide' do
+      before { champ_repetition.add_row(updated_by: 'test') }
+
+      it 'écarte la ligne vide et garde les lignes partiellement remplies' do
+        expect(champ_repetition.rows.size).to eq(4)
+        data_rows = representation.to_tiptap_node[:content].drop(1)
+        noms = data_rows.map { _1[:content].first[:content].first[:content].first[:text] }
+        expect(noms).to eq(["ruby", "js", "rust"])
+        expect(representation.to_s.scan('<tr>').size).to eq(4)
+      end
+    end
+
+    context 'avec uniquement des lignes vides' do
+      let(:dossier_vide) { create(:dossier, procedure:) }
+      let(:representation_vide) { described_class.new(libelle, dossier_vide.project_champs_public.first.rows) }
+
+      it "ne rend aucun tableau" do
+        expect(dossier_vide.project_champs_public.first.rows.size).to eq(1)
+        expect(representation_vide.to_tiptap_node).to eq({ type: 'paragraph', content: [] })
+        expect(representation_vide.to_s).to eq('')
       end
     end
 

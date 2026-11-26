@@ -654,5 +654,30 @@ describe DossierRebaseConcern do
         it { expect { subject }.not_to change { Champ.count } }
       end
     end
+
+    # pf: au rebase comme à la création, seule une annotation répétable obligatoire reçoit une première ligne
+    context 'when private repetitions are added' do
+      let!(:procedure) { create(:procedure, :published, types_de_champ_public: [{ type: :text }]) }
+      let!(:dossier) { create(:dossier, procedure:) }
+
+      before do
+        [['annotation facultative', false], ['annotation obligatoire', true]].each do |libelle, mandatory|
+          repetition = procedure.draft_revision.add_type_de_champ(type_champ: :repetition, libelle:, private: true)
+          # une annotation est toujours créée facultative, l'administrateur la rend obligatoire ensuite
+          repetition.update!(mandatory:)
+          procedure.draft_revision.add_type_de_champ(type_champ: :text, libelle: 'enfant', private: true, parent_stable_id: repetition.stable_id)
+        end
+        procedure.publish_revision!(procedure.administrateurs.first)
+        dossier.reload.rebase!
+      end
+
+      def row_count(libelle) = dossier.reload.project_champs_private.find { _1.libelle == libelle }.row_ids.size
+
+      it 'creates a first row only for the mandatory one' do
+        expect(dossier.revision).to eq(procedure.published_revision)
+        expect(row_count('annotation facultative')).to eq(0)
+        expect(row_count('annotation obligatoire')).to eq(1)
+      end
+    end
   end
 end

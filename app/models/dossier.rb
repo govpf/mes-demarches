@@ -1219,7 +1219,9 @@ class Dossier < ApplicationRecord
   def build_default_champs_for(types_de_champ)
     self.champs << types_de_champ.filter(&:fillable?).filter_map do |type_de_champ|
       if type_de_champ.repetition?
-        if type_de_champ.private? || type_de_champ.mandatory?
+        # pf: une première ligne n'est créée que pour un bloc obligatoire, annotation privée comprise
+        # (upstream en crée toujours une pour les annotations, d'où une ligne vide dans les attestations)
+        if type_de_champ.mandatory?
           type_de_champ.build_champ(dossier: self, row_id: ULID.generate)
         end
       else
