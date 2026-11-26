@@ -302,6 +302,34 @@ RSpec.describe Mutations::DossierModifierAnnotations, type: :graphql do
       end
     end
 
+    # pf: une formule hors bloc qui lit une autre formule hors bloc jamais calculée
+    # (constante : aucune source ne la déclenche) la lisait vide, donc 0. Cas réel :
+    # plafond d'indemnisation constant + MIN({Montant estimé}, {Plafond}), le montant
+    # estimé étant écrit par un robot via cette mutation.
+    context 'with a formula reading a constant formula never computed' do
+      let(:types_de_champ_private) do
+        [
+          { type: :integer_number, libelle: 'Montant estimé', stable_id: 601 },
+          { type: :formule, libelle: 'Plafond', stable_id: 602, formule_expression: '1000000' },
+          { type: :formule, libelle: 'Montant plafonné', stable_id: 603, formule_expression: 'MIN({tdc601}, {tdc602})' },
+          { type: :formule, libelle: 'Indemnisation', stable_id: 604, formule_expression: 'ENTIER(MIN(2500000, SOMME({tdc603})))' },
+        ]
+      end
+      let(:annotation) { champs_private.find(&:integer_number?) }
+      let(:value) { { integerNumber: 875 } }
+
+      # la factory donne une valeur factice aux champs formule : on revient à l'état « jamais calculé »
+      before { dossier.champs.where(stable_id: [602, 603, 604]).update_all(value: nil) }
+
+      it 'computes the formulas that read the constant formula' do
+        expect(data.dig(:dossierModifierAnnotations, :errors)).to be_nil
+
+        formules = dossier.reload.champs.where(stream: Champ::MAIN_STREAM).index_by(&:stable_id)
+        expect(formules[603].value).to eq('875')
+        expect(formules[604].value).to eq('875')
+      end
+    end
+
     context 'with multiple annotations' do
       let(:types_de_champ_private) do
         [

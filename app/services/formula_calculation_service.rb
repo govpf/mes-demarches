@@ -664,6 +664,17 @@ class FormulaCalculationService
 
       champ = find_champ_by_stable_id_and_row(column.stable_id, @row_id)
 
+      # pf: référence à une formule RACINE jamais calculée : Champ absent, ou
+      # présent sans valeur (formule constante ou ajoutée à la révision après la
+      # création du dossier, qu'aucune source n'a déclenchée). Une cascade ciblée
+      # (refresh_formulas_after) ne la recalcule pas : sans ce repli on lisait
+      # nil → 0 (ex. MIN({Montant}, {Plafond}) = 0). On la calcule à la volée,
+      # comme pour une formule-ligne.
+      if path == :value && (champ.nil? || champ.read_attribute(:value).blank?) &&
+          (root_formula = unmaterialized_root_formula_champ(column.stable_id))
+        return column.value(root_formula)
+      end
+
       if champ.nil?
         return nil
       end
@@ -766,6 +777,20 @@ class FormulaCalculationService
     case type
     when :date, :datetime then nil
     else 0
+    end
+  end
+
+  # pf: Champ in-memory portant la valeur calculée de la formule racine
+  # `stable_id`, ou nil si `stable_id` n'est pas une formule hors répétition.
+  # Les overrides (keyés par stable_id, sans ambiguïté hors répétition) sont
+  # propagés pour garder la transitivité. Pas de récursion infinie : une formule
+  # ne référence que des champs qui la précèdent (forward_reference).
+  def unmaterialized_root_formula_champ(stable_id)
+    tdc = @revision.types_de_champ.find { |t| t.stable_id == stable_id }
+    return nil unless tdc&.formule? && !tdc.child?(@revision)
+
+    tdc.build_champ(dossier: @dossier, row_id: nil, stream: @dossier.stream).tap do |champ|
+      champ.value = self.class.new(@dossier, locale: @locale, value_overrides: @value_overrides).compute_value(champ)
     end
   end
 

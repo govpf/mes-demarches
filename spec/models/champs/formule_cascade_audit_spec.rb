@@ -557,4 +557,72 @@ RSpec.describe 'Formule cascade refresh_formulas_after', type: :model do
       expect(find_champ(dossier, mode_tdc).reload.read_attribute(:value)).to eq('Autre')
     end
   end
+
+  # ----------------------------------------------------------------------
+  # Scénario : formule racine qui lit une formule racine jamais calculée
+  # ----------------------------------------------------------------------
+  # pf: une formule constante (ex. un plafond) n'a aucune source : la cascade
+  # ciblée de refresh_formulas_after ne la recalcule jamais. Une formule aval
+  # qui la référence la lisait vide → 0 (MIN({Montant}, {Plafond}) = 0), jusqu'à
+  # un recalcul global du dossier. Le service la calcule désormais à la volée.
+  describe 'formule racine lisant une formule racine constante jamais calculée' do
+    let(:procedure) do
+      create(:procedure, :published,
+             types_de_champ_private: [
+               { type: :integer_number, libelle: 'Montant estimé' },
+               { type: :formule, libelle: 'Plafond' },
+               { type: :formule, libelle: 'Montant plafonné' },
+               { type: :formule, libelle: 'Indemnisation' },
+             ])
+    end
+    let(:tdcs) { procedure.active_revision.types_de_champ_private.index_by(&:libelle) }
+
+    def valeur(dossier, libelle)
+      Dossier.find(dossier.id).champs.find { _1.stable_id == tdcs[libelle].stable_id }&.read_attribute(:value)
+    end
+
+    def modifie_montant_estime(dossier, value)
+      fresh = Dossier.find(dossier.id)
+      champ = fresh.project_champs_private.find { _1.stable_id == tdcs['Montant estimé'].stable_id }
+      champ.update!(value:)
+      fresh.refresh_formulas_after(champ)
+    end
+
+    before do
+      tdcs['Plafond'].update!(formule_expression: '1000000')
+      tdcs['Montant plafonné'].update!(formule_expression: "MIN({tdc#{tdcs['Montant estimé'].stable_id}}, {tdc#{tdcs['Plafond'].stable_id}})")
+      tdcs['Indemnisation'].update!(formule_expression: "ENTIER(MIN(2500000, SOMME({tdc#{tdcs['Montant plafonné'].stable_id}})))")
+    end
+
+    context 'quand le champ de la formule constante existe sans valeur' do
+      let(:dossier) { create(:dossier, :en_construction, :with_populated_annotations, procedure:) }
+
+      # la factory donne une valeur factice aux champs formule : on revient à l'état « jamais calculé »
+      before { dossier.champs.where(stable_id: tdcs.values.filter(&:formule?).map(&:stable_id)).update_all(value: nil) }
+
+      it 'calcule les formules aval avec la valeur de la constante' do
+        modifie_montant_estime(dossier, '875')
+
+        expect(valeur(dossier, 'Montant plafonné')).to eq('875')
+        expect(valeur(dossier, 'Indemnisation')).to eq('875')
+      end
+
+      it 'applique le plafond quand le montant le dépasse' do
+        modifie_montant_estime(dossier, '3000000')
+
+        expect(valeur(dossier, 'Montant plafonné')).to eq('1000000')
+      end
+    end
+
+    context "quand le champ de la formule constante n'existe pas" do
+      let(:dossier) { create(:dossier, :en_construction, procedure:) }
+
+      it 'calcule les formules aval avec la valeur de la constante' do
+        Dossier.find(dossier.id).champs.where(stable_id: tdcs['Plafond'].stable_id).destroy_all
+        modifie_montant_estime(dossier, '875')
+
+        expect(valeur(dossier, 'Montant plafonné')).to eq('875')
+      end
+    end
+  end
 end
