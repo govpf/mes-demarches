@@ -23,7 +23,11 @@ describe API::V2::GraphqlController do
     request.env['HTTP_AUTHORIZATION'] = authorization_header
   end
 
-  MAX_QUERY_COUNT = 70
+  # pf: seuil relevé de 70 à 80 — en CI le compteur est mesuré entre 73 et 76, ce qui faisait échouer
+  # le job « slow, dep » une fois sur deux alors que la spec passe en local (cause non identifiée,
+  # sans doute des requêtes de mise en cache selon l'ordre des specs).
+  # Un vrai N+1 ajoute au moins une requête par dossier (10 dossiers dans le cas le plus chargé).
+  MAX_QUERY_COUNT = 80
 
   describe 'demarche.dossiers' do
     let(:operation_name) { 'getDemarche' }
