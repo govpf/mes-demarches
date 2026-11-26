@@ -370,6 +370,35 @@ describe Dossier, type: :model do
 
     subject { dossier }
 
+    # pf: une première ligne de bloc répétable n'est créée que si le bloc est obligatoire,
+    # annotation privée comprise
+    describe 'default repetition rows' do
+      let(:procedure) do
+        create(:procedure,
+          types_de_champ_public: [
+            { type: :repetition, libelle: 'public facultatif', mandatory: false, children: [{ type: :text }] },
+            { type: :repetition, libelle: 'public obligatoire', mandatory: true, children: [{ type: :text }] },
+          ],
+          types_de_champ_private: [
+            { type: :repetition, libelle: 'annotation facultative', mandatory: false, children: [{ type: :text }] },
+            { type: :repetition, libelle: 'annotation obligatoire', mandatory: true, children: [{ type: :text }] },
+          ])
+      end
+      let(:dossier) { create(:dossier, procedure:) }
+
+      def row_count(libelle)
+        champ = (dossier.project_champs_public + dossier.project_champs_private).find { _1.libelle == libelle }
+        champ.row_ids.size
+      end
+
+      it 'creates a first row only for mandatory repetitions' do
+        expect(row_count('public facultatif')).to eq(0)
+        expect(row_count('public obligatoire')).to eq(1)
+        expect(row_count('annotation facultative')).to eq(0)
+        expect(row_count('annotation obligatoire')).to eq(1)
+      end
+    end
+
     describe '#build_default_values' do
       let(:dossier) { build(:dossier, procedure: procedure, user: user) }
 

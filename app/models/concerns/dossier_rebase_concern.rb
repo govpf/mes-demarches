@@ -46,9 +46,10 @@ module DossierRebaseConcern
     champs.where(stable_id: updated_stable_ids).update_all(rebased_at: Time.zone.now)
 
     # add rows for new repetitions
+    # pf: seulement pour les blocs obligatoires, annotation privée comprise (cf. Dossier#build_default_champs_for)
     target_revision
       .types_de_champ
-      .filter { _1.repetition? && _1.stable_id.in?(added_stable_ids) && (_1.mandatory? || _1.private?) }
+      .filter { _1.repetition? && _1.stable_id.in?(added_stable_ids) && _1.mandatory? }
       .each do |type_de_champ|
         self.champs << type_de_champ.build_champ(row_id: ULID.generate, rebased_at: Time.zone.now)
       end
