@@ -47,12 +47,29 @@ describe 'Ordre de calcul des formules entre niveaux', js: true do
       fill_in('Coef', with: '3')
       wait_for_autosave
 
-      wait_until { montant_value == '60' }
+      # affichés à l'écran sans rechargement de la page
+      within('.editable-champ', text: 'Taux') do
+        expect(page).to have_css('[role=status]', exact_text: '6')
+      end
+      # le champ le plus profond portant l'étiquette est celui de la ligne
+      within(all('.editable-champ', text: 'Montant').last) do
+        expect(page).to have_css('[role=status]', exact_text: '60')
+      end
+      # garde-fou : valeurs persistées en base
       expect(taux_value).to eq('6')
       expect(montant_value).to eq('60')
-      # affichés sans rechargement de la page
-      expect(page).to have_text('60')
     end
+
+    private
+
+    # pf: lecture directe en DB (project_champs est mémoïsé)
+    def value_in_db(tdc, row_id: nil)
+      Champ.where(dossier_id: dossier.id, stable_id: tdc.stable_id, row_id:)
+        .first&.read_attribute(:value)
+    end
+
+    def taux_value = value_in_db(taux_tdc)
+    def montant_value = value_in_db(montant_tdc, row_id:)
   end
 
   context 'annotation privée en tête qui lit une formule publique' do
@@ -87,6 +104,10 @@ describe 'Ordre de calcul des formules entre niveaux', js: true do
       fill_in('Source', with: '10')
       wait_for_autosave
 
+      # avant le dépôt (qui peut tout recalculer) : l'annotation est déjà à jour
+      wait_until { plus_un_value == '21' }
+      expect(plus_un_value).to eq('21')
+
       click_on 'Déposer le dossier'
       expect(page).to have_content('Merci')
       log_out
@@ -95,19 +116,15 @@ describe 'Ordre de calcul des formules entre niveaux', js: true do
       visit instructeur_dossier_path(procedure, dossier)
       click_on 'Annotations privées'
       within('.editable-champ', text: 'Plus un') do
-        expect(page).to have_text('21')
+        expect(page).to have_css('[role=status]', exact_text: '21')
       end
     end
+
+    private
+
+    def plus_un_value
+      Champ.where(dossier_id: dossier.id, stable_id: plus_un_tdc.stable_id, row_id: nil, stream: Champ::MAIN_STREAM)
+        .first&.read_attribute(:value)
+    end
   end
-
-  private
-
-  # pf: lecture directe en DB (project_champs est mémoïsé)
-  def value_in_db(tdc, row_id: nil)
-    Champ.where(dossier_id: dossier.id, stable_id: tdc.stable_id, row_id:)
-      .first&.read_attribute(:value)
-  end
-
-  def taux_value = value_in_db(taux_tdc)
-  def montant_value = value_in_db(montant_tdc, row_id:)
 end
