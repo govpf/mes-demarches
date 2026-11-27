@@ -2,7 +2,8 @@
 
 # pf: unique analyse des références {…} d'une expression de formule.
 # Formes reconnues : {tdcN}, {tdcN/chemin}, {tdcN/sub_M} et {colonne_systeme}.
-# Le format hérité {123} n'est pas une référence de champ (stable_id nil).
+# Le format hérité {123} n'est pas reconnu comme champ par Ref (stable_id nil), mais
+# reste traité par les branches héritées de FormulaCalculationService jusqu'à la PR 2.
 module FormulaReferences
   PATTERN = /\{([^}]+)\}/
   CHAMP_PATTERN = %r{\Atdc(\d+)(?:/(.*))?\z}m

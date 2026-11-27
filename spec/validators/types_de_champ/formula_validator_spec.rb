@@ -21,6 +21,21 @@ RSpec.describe TypesDeChamp::FormulaValidator do
     end
   end
 
+  context 'with a reference having surrounding spaces' do
+    let(:types) { [{ type: :integer_number, libelle: 'Montant' }, { type: :formule, libelle: 'Calcul' }] }
+
+    before do
+      formule_tdc = procedure.draft_revision.types_de_champ_public.find(&:formule?)
+      montant_tdc = procedure.draft_revision.types_de_champ_public.find(&:integer_number?)
+      formule_tdc.update_column(:options, { 'formule_expression' => "{ tdc#{montant_tdc.stable_id} } * 2" })
+    end
+
+    it 'ne produit pas d’erreur « Colonne inconnue » (le calcul strippe déjà les références)' do
+      subject
+      expect(procedure.errors.full_messages.join).not_to include('Colonne inconnue')
+    end
+  end
+
   context 'with a formula referencing an unknown column' do
     let(:types) { [{ type: :formule, libelle: 'Calcul' }] }
 

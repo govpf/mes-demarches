@@ -16,6 +16,15 @@ describe FormulaReferences do
       expect(described_class.scan('{123}').first.stable_id).to be_nil
     end
 
+    it 'traite les cas limites {tdc5/}, {tdc5/sub_x} et {tdc5abc}' do
+      refs = described_class.scan('{tdc5/} {tdc5/sub_x} {tdc5abc}')
+      expect(refs.map(&:to_h)).to eq([
+        { raw: 'tdc5/', stable_id: 5, sub_stable_id: nil, path: '' },
+        { raw: 'tdc5/sub_x', stable_id: 5, sub_stable_id: nil, path: 'sub_x' },
+        { raw: 'tdc5abc', stable_id: nil, sub_stable_id: nil, path: nil },
+      ])
+    end
+
     it 'renvoie [] pour nil et pour une expression sans accolades' do
       expect(described_class.scan(nil)).to eq([])
       expect(described_class.scan('1 + 1')).to eq([])
