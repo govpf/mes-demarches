@@ -397,8 +397,6 @@ class Champ < ApplicationRecord
     dossier.depose_at
   end
 
-  private
-
   class NotImplemented < ::StandardError
     def initialize(method)
       super(":#{method} not implemented")

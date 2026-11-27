@@ -150,6 +150,15 @@ describe TypesDeChamp::FormuleTypeDeChamp do
       expect(formule_tdc.errors[:formule_expression]).to be_present
     end
 
+    # pf: l'analyse unique voit une référence avec espaces de bord ({ tdcN }),
+    # que l'ancienne extraction ignorait : elle est désormais contrôlée.
+    it 'rejects a forward reference written with surrounding spaces' do
+      formule_tdc.formule_expression = "{ tdc#{source2_tdc.stable_id} } + 1"
+      expect(formule_tdc).not_to be_valid
+      expect(formule_tdc.errors.of_kind?(:formule_expression, :forward_reference)).to be(true)
+      expect(formule_tdc.formule_deps['champs']).to eq([source2_tdc.stable_id])
+    end
+
     it 'accepts a formula referencing only system columns' do
       formule_tdc.formule_expression = "ANNEE({dossier_depose_at})"
       expect(formule_tdc).to be_valid
@@ -540,6 +549,14 @@ describe TypesDeChamp::FormuleTypeDeChamp do
 
       it 'stores the stable_id in champs, no other keys' do
         expect(deps).to eq('champs' => [42])
+      end
+    end
+
+    context 'with the legacy {123} format' do
+      let(:expression) { '{123} + 1' }
+
+      it "n'inscrit plus le format hérité {123} dans formule_deps" do
+        expect(deps['champs']).to eq([])
       end
     end
 

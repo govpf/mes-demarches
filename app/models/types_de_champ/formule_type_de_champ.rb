@@ -189,9 +189,9 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     # référence d'origine) pour que l'analyse de l'AST puisse remonter au TDC
     # référencé (cf. détection de condition non booléenne ci-dessous).
     ref_map = {}
-    testable = expression.gsub(/\{([^}]+)\}/) do
+    testable = FormulaReferences.gsub(expression) do |ref, _match|
       placeholder = "__ref_#{ref_map.size + 1}__"
-      ref_map[placeholder] = Regexp.last_match(1).strip
+      ref_map[placeholder] = ref.raw
       placeholder
     end
     calculator = FormulaCalculationService.new_calculator
@@ -276,29 +276,18 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   end
 
   def find_referenced_tdc(ref, revision)
-    # Supporte les formats {tdc123}, {tdc123/path}, {123} (legacy)
-    stable_id = case ref
-    when /^tdc(\d+)/ then Regexp.last_match(1).to_i
-    when /^\d+$/ then ref.to_i
-    end
-    return nil if stable_id.nil?
+    # Supporte les formats {tdc123} et {tdc123/path}
+    match = /^tdc(\d+)/.match(ref)
+    return nil if match.nil?
+
+    stable_id = match[1].to_i
     revision.types_de_champ.find { |t| t.stable_id == stable_id }
   end
 
   # pf: Détecte si l'expression du TDC en cours de save introduit un cycle
-  # dans le graphe des dépendances entre formules. BFS depuis les références
-  # directes du TDC courant ; chaque formule référencée est expansée via sa
-  # formule_expression stockée. Si on revient sur le stable_id du TDC
-  # courant, c'est un cycle.
-  #
-  # Cas couverts :
-  # - Auto-référence : `{Self}` directement dans sa propre formule
-  # - Cycle indirect : A → B → A
-  # - Cycle long : A → B → C → ... → A
-  # Cas non-cycle :
-  # - DAG sans retour
-  # - Référence à un champ non-formule (terminal de la traversée)
-  # - Référence à un champ système (ignoré par extract_dependent_stable_ids)
+  # dans le graphe des dépendances entre formules. Le parcours est porté par
+  # FormulaDependencyGraph, qui reçoit l'expression en cours de validation
+  # (et non celle, éventuellement périmée, de la révision en mémoire).
   def circular_reference?
     current_id = @type_de_champ.stable_id
     return false if current_id.nil?
@@ -306,34 +295,7 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     revision = @type_de_champ.revisions.last
     return false if revision.nil?
 
-    # pf: snapshot des TDCs de la révision indexés par stable_id, pour
-    # éviter un find linéaire à chaque expansion.
-    tdcs_by_stable_id = revision.types_de_champ.index_by(&:stable_id)
-
-    visited = Set.new
-    queue = extract_dependent_stable_ids(@type_de_champ.formule_expression)
-
-    until queue.empty?
-      next_id = queue.shift
-      return true if next_id == current_id
-      next if visited.include?(next_id)
-
-      visited.add(next_id)
-      next_tdc = tdcs_by_stable_id[next_id]
-      next unless next_tdc&.formule?
-
-      queue.concat(extract_dependent_stable_ids(next_tdc.formule_expression))
-    end
-
-    false
-  end
-
-  # pf: Extrait les stable_ids référencés dans une expression au format stocké
-  # ({tdc123} ou {tdc123/path}). Les colonnes système ({dossier_number}, etc.)
-  # sont ignorées — elles ne sont jamais des formules donc jamais source de cycle.
-  def extract_dependent_stable_ids(expression)
-    return [] if expression.blank?
-    expression.scan(/\{tdc(\d+)/).map { |m| m[0].to_i }
+    revision.formula_graph.circular_reference?(current_id, @type_de_champ.formule_expression)
   end
 
   # pf: Vrai si l'expression référence un stable_id qui n'est pas dans la
@@ -350,40 +312,20 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     revision = @type_de_champ.revisions.last
     return false if revision.nil?
 
-    coordinate = revision.coordinate_for(@type_de_champ)
-    return false if coordinate.nil?
-
-    allowed_stable_ids = coordinate.available_columns_for_formula
-      .filter_map { |col| col.stable_id if col.is_a?(Columns::ChampColumn) }
-      .to_set
-
-    # pf: Les TDC repetition n'apparaissent pas dans available_columns_for_formula
-    # (repetition.columns retourne les columns des sous-TDC, pas du bloc). Pour
-    # les formules-agrégat ({tdc<bloc>}, {tdc<bloc>/sub_<id>}), on autorise les
-    # blocs agrégables (cf. aggregable_repetition_types_de_champ).
-    allowed_stable_ids.merge(coordinate.aggregable_repetition_types_de_champ.map(&:stable_id))
-
-    extract_dependent_stable_ids(@type_de_champ.formule_expression)
-      .any? { |dep_id| !allowed_stable_ids.include?(dep_id) }
+    revision.formula_graph.forward_reference?(@type_de_champ.stable_id, @type_de_champ.formule_expression)
   end
 
   # pf: Construit le Hash formule_deps depuis l'expression brute (regex).
   # has_clock est absent ici — il est ajoute separement via l'AST Dentaku
   # dans validate_expression, apres construction de l'AST.
   # Convention : seules les cles vraies sont presentes (sauf 'champs' toujours la).
-  # Supporte les deux formats : {tdc123} (format courant) et {123} (ancien format
-  # de compatibilite ascendante), ainsi que le chemin optionnel {tdc123/path}.
-  FORMULE_DEPS_TDC_PATTERN = /\{tdc(\d+)(?:\/[^}]+)?\}/
-  FORMULE_DEPS_LEGACY_PATTERN = /\{(\d+)\}/
+  # Les références {tdc123} et {tdc123/path} sont analysées par FormulaReferences.
 
   def compute_formule_deps_from_expression(expression)
     deps = {}
 
     expr_str = expression.to_s
-    tdc_ids = expr_str.scan(FORMULE_DEPS_TDC_PATTERN).map { |m| m[0].to_i }
-    legacy_ids = expr_str.scan(FORMULE_DEPS_LEGACY_PATTERN).map { |m| m[0].to_i }
-    champs = (tdc_ids + legacy_ids).uniq.sort
-    deps['champs'] = champs
+    deps['champs'] = FormulaReferences.stable_ids(expr_str)
 
     # pf: déclencheurs déclarés par colonne dans FormulaSystemColumns
     deps['has_state'] = true if FormulaSystemColumns.references_trigger?(expr_str, :state)
