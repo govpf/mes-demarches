@@ -224,6 +224,11 @@ Pour le SIRET au niveau dossier (formulaire d'identité d'entreprise, pas de
 Champ source identifiable), on déclenche un recalcul global via
 `dossier.compute_formulas_in_order` (cf. `Etablissement#update_champ_value_json!`).
 
+Ordre de calcul et dépendants : le graphe de la révision (`revision.formula_graph`)
+est la seule source de l'ordre de calcul et des dépendants (public, chaque bloc déplié
+à sa place, puis privé). Toute nouvelle analyse de `{…}` passe par `FormulaReferences`.
+Les recalculs par drapeau (état, horloge, identité) incluent l'aval des formules touchées.
+
 Si tu ajoutes un nouveau flux qui modifie un champ source, **ajoute l'appel
 explicite** + une spec d'intégration qui vérifie que la formule dépendante
 est à jour. La spec de non-régression de référence est dans
