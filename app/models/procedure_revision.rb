@@ -225,16 +225,6 @@ class ProcedureRevision < ApplicationRecord
     end
   end
 
-  def dependent_formulas(tdc)
-    stable_id = tdc.stable_id
-
-    (tdc.public? ? types_de_champ_public : types_de_champ_private).filter do |other_tdc|
-      next if !other_tdc.formule?
-
-      (other_tdc.formule_deps&.[]('champs') || []).include?(stable_id)
-    end
-  end
-
   # Estimated duration to fill the form, in seconds.
   #
   # If the revision is locked (i.e. published), the result is cached (because type de champs can no longer be mutated).
@@ -247,6 +237,9 @@ class ProcedureRevision < ApplicationRecord
   def coordinate_for(tdc)
     revision_types_de_champ.find { _1.stable_id == tdc.stable_id }
   end
+
+  # pf: graphe de dépendances des formules (FormulaDependencyGraph)
+  def formula_graph = FormulaDependencyGraph.new(self)
 
   def carte?
     types_de_champ_public.any?(&:carte?)
