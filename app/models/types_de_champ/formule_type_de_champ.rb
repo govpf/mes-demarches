@@ -127,8 +127,8 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     # pf: Calcul des deps structurées (étape D). has_clock est absent ici car
     # il necessite l'AST Dentaku — il est ajoute plus bas apres construction
     # de l'AST. Les autres cles (champs, has_state, has_identite) sont
-    # calculees via regex sur l'expression brute, ce qui est sans risque car
-    # les tokens {…} ne peuvent pas apparaitre dans des litteraux Dentaku.
+    # calculees par FormulaReferences sur l'expression brute, ce qui est sans
+    # risque car les tokens {…} ne peuvent pas apparaitre dans des litteraux Dentaku.
     raw_expression = @type_de_champ.formule_expression
     @type_de_champ.formule_deps = compute_formule_deps_from_expression(raw_expression)
 
@@ -253,6 +253,7 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   # le type de sortie est celui du champ référencé. Retourne nil si l'expression
   # n'est pas de cette forme (l'AST Dentaku prendra alors le relais).
   def infer_output_type_from_reference(expression)
+    # pf: ce motif teste la FORME de l'expression entière (une seule référence nue), pas une extraction de références : il reste donc hors FormulaReferences.
     return nil unless expression.strip.match?(/\A\{[^}]+\}\z/)
 
     ref = expression.strip[1..-2].strip
@@ -301,11 +302,10 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
   # pf: Vrai si l'expression référence un stable_id qui n'est pas dans la
   # liste de colonnes autorisées (= TDC situés à une position antérieure ;
   # pour une formule dans un bloc, inclut aussi les siblings antérieurs de
-  # la même ligne et les parents hors bloc). Implémenté en réutilisant
-  # available_columns_for_formula plutôt qu'en réécrivant la logique de
-  # position : garantit que la règle backend est exactement celle de
-  # l'autocomplete frontend (même cas répétition, même cas annotation
-  # privée référençant des champs publics).
+  # la même ligne et les parents hors bloc). Porté par FormulaDependencyGraph,
+  # qui s'appuie sur la règle de visibilité FormulaReferenceScope : la même
+  # règle que celle des variables proposées par l'éditeur (même cas
+  # répétition, même cas annotation privée référençant des champs publics).
   def forward_reference?
     return false if @type_de_champ.stable_id.nil?
 
@@ -315,7 +315,7 @@ class TypesDeChamp::FormuleTypeDeChamp < TypesDeChamp::TypeDeChampBase
     revision.formula_graph.forward_reference?(@type_de_champ.stable_id, @type_de_champ.formule_expression)
   end
 
-  # pf: Construit le Hash formule_deps depuis l'expression brute (regex).
+  # pf: Construit le Hash formule_deps depuis l'expression brute (FormulaReferences).
   # has_clock est absent ici — il est ajoute separement via l'AST Dentaku
   # dans validate_expression, apres construction de l'AST.
   # Convention : seules les cles vraies sont presentes (sauf 'champs' toujours la).

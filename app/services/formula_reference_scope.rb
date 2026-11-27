@@ -121,5 +121,5 @@ class FormulaReferenceScope
   private
 
   delegate :revision, :procedure, :position, :parent, :private?, :in_repetition?,
-    :parent_type_de_champ, :upper_coordinates, :type_de_champ, to: :@coordinate
+    :parent_type_de_champ, :upper_coordinates, :type_de_champ, to: :@coordinate, private: true
 end

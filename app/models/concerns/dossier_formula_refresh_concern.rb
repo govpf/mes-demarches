@@ -205,7 +205,7 @@ module DossierFormulaRefreshConcern
   # explicite à refresh_formulas_after (par les controllers / mutations /
   # services) qui prend le relais.
   def compute_initial_formulas
-    return unless revision&.types_de_champ&.any?(&:formule?)
+    return unless revision&.formula_graph&.any_formula?
     compute_formulas_in_order
   rescue StandardError => e
     Rails.logger.error("[InitialFormulas] dossier=#{id} error=#{e.class}: #{e.message}")
@@ -262,7 +262,12 @@ module DossierFormulaRefreshConcern
     graph.formula_types_de_champ(only: stable_ids).each do |tdc|
       formule_champs_for_tdc(tdc).each do |champ|
         new_value = service.compute_value(champ)
-        overrides[tdc.stable_id] = new_value
+        # pf: pas d'override pour une formule-ligne (valeur propre à chaque
+        # ligne) : le service relit sa valeur dans la ligne de la formule qui la lit.
+        overrides[tdc.stable_id] = new_value unless graph.node(tdc.stable_id).level == :row
+        # pf: formule sans champ en base (ex. jamais matérialisée) : rien à écrire.
+        next unless champ.persisted?
+
         champ.update_column(:value, new_value) if champ.value != new_value
       rescue StandardError => e
         Rails.logger.error("[FormulaRefresh] dossier=#{id} champ=#{champ.id} error=#{e.class}: #{e.message}")

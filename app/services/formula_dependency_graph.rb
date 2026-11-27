@@ -79,9 +79,13 @@ class FormulaDependencyGraph
     end
   end
 
+  # Avec private_only, le résultat est refiltré sur les formules privées : le
+  # périmètre ne dépend pas de la règle de visibilité (une formule publique
+  # ne lit pas une formule privée).
   def flagged_with_downstream(flag, private_only: false)
     flagged = flagged(flag, private_only:)
-    in_order(flagged.to_set + downstream_of(flagged))
+    result = in_order(flagged.to_set + downstream_of(flagged))
+    private_only ? result.filter { @nodes[_1].type_de_champ.private? } : result
   end
 
   # Vrai si `expression`, placée sur la formule `stable_id`, la fait dépendre

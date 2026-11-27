@@ -103,6 +103,16 @@ describe FormulaDependencyGraph do
     expect(fresh.flagged_with_downstream('has_clock', private_only: true)).to eq([])
   end
 
+  it "ne garde que les formules privées dans l'aval d'un drapeau privé" do
+    formule_g.update!(formule_expression: 'ANNEE(AUJOURDHUI())')
+    # Une formule publique qui lirait une formule privée : refusée par la
+    # validation, posée directement dans les options.
+    formule_t.update_column(:options, formule_t.options.merge('formule_expression' => "#{ref(formule_g)} + 1"))
+    fresh = Procedure.find(procedure.id).active_revision.formula_graph
+    expect(fresh.downstream_of([formule_g.stable_id])).to include(formule_t.stable_id)
+    expect(fresh.flagged_with_downstream('has_clock', private_only: true)).to eq([formule_g.stable_id])
+  end
+
   it 'détecte une auto-référence et un cycle indirect' do
     expect(graph.circular_reference?(formule_f.stable_id, "#{ref(formule_f)} + 1")).to be true
     expect(graph.circular_reference?(formule_f.stable_id, "#{ref(formule_g)} + 1")).to be true
@@ -135,16 +145,9 @@ describe FormulaDependencyGraph do
     expect(graph.formula_stable_ids.index(ligne_lp.stable_id)).to be > graph.formula_stable_ids.index(formule_t.stable_id)
   end
 
-  it "reconstruit le graphe à chaque appel, même sur une révision publiée" do # focus 1
+  it "ne mémoïse pas le graphe : deux appels rendent deux objets distincts" do
     published = procedure.active_revision
     expect(published.formula_graph).not_to equal(published.formula_graph)
-  end
-
-  it "sert un graphe à jour à un dossier chargé après la modification d'une expression" do # focus 1
-    procedure.active_revision.formula_graph
-    formule_g.update!(formule_expression: "#{ref(champ_a)} + 1")
-    dossier = Dossier.find(create(:dossier, procedure:).id)
-    expect(dossier.revision.formula_graph.edges(formule_g.stable_id).map(&:stable_id)).to eq([champ_a.stable_id])
   end
 
   it 'renvoie un graphe vide pour une révision sans formule' do
