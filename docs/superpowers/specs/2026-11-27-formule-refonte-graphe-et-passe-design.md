@@ -106,7 +106,10 @@ Deux raisons d'agir maintenant :
 
 ### 6.1 Le graphe (un par révision)
 
-Objet PF, construit une fois par révision et mémoïsé sur l'instance de révision. Il porte :
+Objet PF, obtenu par `revision.formula_graph`. Il n'est **pas mémoïsé** sur la révision (décision prise à
+l'implémentation de la PR 1) : les specs partagent l'instance de révision entre la démarche et le dossier,
+et un graphe gardé en mémoire deviendrait périmé dès qu'une expression change. Chaque opération le construit
+une fois et le garde en variable locale ; la passe de la PR 2 tiendra le sien pour sa durée de vie. Il porte :
 
 - **l'analyse des références** : la seule fonction qui découpe une expression en références
   (`{tdcN}`, `{tdcN/chemin}`, `{tdcBloc/sub_N}`, colonnes système). Les six analyses
@@ -124,8 +127,8 @@ Objet PF, construit une fois par révision et mémoïsé sur l'instance de révi
 - **la validation structurelle** : cycle et référence vers l'avant. La règle de visibilité reste
   **strictement** celle d'aujourd'hui (`available_columns_for_formula` : champs remplissables, frères
   précédents de la même ligne, racine avant le bloc, tout le public pour une annotation, blocs agrégeables).
-  Son code déménage dans le graphe ; le fichier upstream ne garde qu'une ligne de délégation, utilisée par
-  l'éditeur. Aucune expression acceptée aujourd'hui ne doit être refusée, ni l'inverse (choix de Claude).
+  Son code déménage dans un objet PF à part, `FormulaReferenceScope`, que le graphe utilise ; le fichier
+  upstream ne garde que des lignes de délégation, utilisées par l'éditeur. Aucune expression acceptée aujourd'hui ne doit être refusée, ni l'inverse (choix de Claude).
   Le format hérité `{N}` n'est pas reconnu par l'analyse : plus aucune expression ne l'utilise (§ 6.5).
 
 `formule_deps` (stocké dans les options du type de champ) reste la donnée enregistrée : le job de nuit s'en
@@ -258,6 +261,9 @@ production le 2026-11-27 ne trouve aucune expression à ce format.
   upstream en a besoin. `circular_reference?` et `forward_reference?` s'appuient sur le graphe.
 - `TurboChampsConcern` demande au graphe la liste des formules à rafraîchir (D11).
 - Aucune migration, aucun changement de stockage.
+- Limite connue, levée par la PR 2 : dans un recalcul par drapeau, l'accumulateur reste indexé par
+  `stable_id` seul. Une formule-ligne qui lit une autre formule-ligne à drapeau de la même ligne peut donc
+  recevoir la valeur d'une autre ligne (avant la PR 1, elle n'était pas recalculée du tout).
 - **Pas de tâche de rattrapage en PR 1** (décision de clautier, 2026-11-27) : les valeurs déjà fausses en
   base à cause de D1 et D3 ne se corrigent qu'au prochain déclencheur. Les formules sont encore peu
   nombreuses et le périmètre est maîtrisé ; une correction ponctuelle se fait à la main si un cas remonte.
