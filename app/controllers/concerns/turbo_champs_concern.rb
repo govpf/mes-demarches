@@ -13,7 +13,7 @@ module TurboChampsConcern
 
     # pf: Add all dependent formula champs (transitive: A → B → C)
     updated_champs = champs.filter { _1.public_id.in?(params.keys) }
-    to_update += updated_champs.flat_map(&:all_dependent_formula_champs).uniq
+    to_update += updated_champs.flat_map { _1.dossier.formula_champs_downstream_of(_1) }.uniq
     # pf: cascade référentiel — re-rendre les référentiels dont le pilote vient de changer
     to_update += updated_champs.flat_map(&:dependent_referentiel_filter_champs).uniq(&:public_id)
     to_show, to_hide = champs.filter { it.conditional? || it.child? }

@@ -180,7 +180,7 @@ describe 'Identification d’une entreprise, numéro Tahiti ou SIRET', js: true 
       # cette seconde écriture, plus tardive dans le flux, qui porte la
       # donnée lue par la formule.
       formule_champ.type_de_champ.update!(formule_expression: "{tdc#{siret_champ.stable_id}/entreprise_raison_sociale}")
-      raise "graphe de dépendance formule vide" if siret_champ.dependent_formula_stable_ids.empty?
+      raise "graphe de dépendance formule vide" if dossier.revision.formula_graph.downstream_of([siret_champ.stable_id]).empty?
 
       stub_request(:get, %r{#{Regexp.quote(API_ISPF_URL)}/etablissements/Entreprise})
         .to_return(body: pf_etablissements_body, status: 200)

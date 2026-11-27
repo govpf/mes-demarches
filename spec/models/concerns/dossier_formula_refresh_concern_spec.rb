@@ -10,6 +10,19 @@ describe DossierFormulaRefreshConcern do
   let(:dossier) { create(:dossier, :with_populated_champs, :en_construction, procedure: procedure) }
   let(:formule_champ) { dossier.project_champs_private[0] }
 
+  def set_expression(tdc, expression)
+    expr, _ = FormulaExpressionService.convert_to_stable_ids(expression, revision)
+    tdc.update!(formule_expression: expr)
+  end
+
+  def fresh_dossier = Dossier.find(dossier.id)
+
+  def value_of(tdc)
+    fresh_dossier.champs
+      .find { _1.stable_id == tdc.stable_id && _1.row_id.nil? && _1.stream == Champ::MAIN_STREAM }
+      &.read_attribute(:value)
+  end
+
   before do
     formule_tdc = revision.types_de_champ.find(&:formule?)
     expr, _ = FormulaExpressionService.convert_to_stable_ids('AUJOURDHUI() - {dossier_en_instruction_at}', revision)
@@ -133,6 +146,92 @@ describe DossierFormulaRefreshConcern do
       initial_value = formule_champ.reload.value
       dossier.update!(hidden_by_user_at: Time.zone.now)
       expect(formule_champ.reload.value).to eq(initial_value)
+    end
+  end
+
+  # pf: une formule à drapeau (horloge, état, identité) recalculée hors cascade
+  # doit entraîner les formules qui la lisent, dans l'ordre du graphe (D3).
+  describe 'aval des formules à drapeau' do
+    let(:procedure) {
+      create(:procedure, :published, types_de_champ_private: [
+        { type: :formule, libelle: 'A' },
+        { type: :formule, libelle: 'B' },
+      ])
+    }
+    let(:dossier) { create(:dossier, :en_construction, procedure:) }
+    let(:a_tdc) { revision.types_de_champ.find { _1.libelle == 'A' } }
+    let(:b_tdc) { revision.types_de_champ.find { _1.libelle == 'B' } }
+
+    before do
+      set_expression(b_tdc, '{A} + 1')
+      dossier.compute_formulas_in_order
+    end
+
+    it 'horloge : B suit A après le recalcul de nuit' do
+      set_expression(a_tdc, 'ANNEE(AUJOURDHUI())')
+      travel_to(Time.zone.local(2026, 6, 15, 12)) { fresh_dossier.compute_formulas_in_order }
+      travel_to(Time.zone.local(2027, 1, 2, 12)) { fresh_dossier.refresh_clock_dependent_formulas(scope: :private_only) }
+      expect(value_of(b_tdc)).to eq('2028')
+    end
+
+    it "état : B suit A après un changement d'horodatage" do
+      set_expression(a_tdc, 'ANNEE({dossier_en_instruction_at})')
+      dossier.update_column(:en_instruction_at, Time.zone.local(2026, 6, 15, 12))
+      fresh_dossier.compute_formulas_in_order
+      dossier.update_column(:en_instruction_at, Time.zone.local(2030, 6, 15, 12))
+      fresh_dossier.refresh_state_dependent_formulas
+      expect(value_of(b_tdc)).to eq('2031')
+    end
+
+    context 'démarche pour particulier' do
+      let(:procedure) {
+        create(:procedure, :published, :for_individual, types_de_champ_private: [
+          { type: :formule, libelle: 'A' },
+          { type: :formule, libelle: 'B' },
+        ])
+      }
+      let(:dossier) { create(:dossier, :with_individual, :en_construction, procedure:) }
+
+      it "identité : B suit A après un changement d'identité" do
+        set_expression(a_tdc, 'CONCATENER("Bonjour ", {individual_last_name})')
+        set_expression(b_tdc, 'CONCATENER({A}, " !")')
+        fresh_dossier.compute_formulas_in_order
+        dossier.individual.update!(nom: 'Martin')
+        fresh_dossier.refresh_formulas_with_identite_dependents
+        expect(value_of(b_tdc)).to eq('Bonjour MARTIN !')
+      end
+    end
+  end
+
+  # pf: les formules privées ne s'écrivent que sur main : une source modifiée sur
+  # le tampon usager ne les recalcule pas (elles le seront à la fusion du tampon).
+  describe 'source sur le tampon usager' do
+    let(:procedure) {
+      create(:procedure, :published,
+             types_de_champ_public: [
+               { type: :integer_number, libelle: 'Source' },
+               { type: :formule, libelle: 'Double' },
+             ],
+             types_de_champ_private: [
+               { type: :formule, libelle: 'Plus un' },
+             ])
+    }
+    let(:dossier) { create(:dossier, :en_construction, :with_populated_champs, :with_populated_annotations, procedure:) }
+    let(:source_tdc) { revision.types_de_champ.find { _1.libelle == 'Source' } }
+    let(:double_tdc) { revision.types_de_champ.find { _1.libelle == 'Double' } }
+    let(:plus_un_tdc) { revision.types_de_champ.find { _1.libelle == 'Plus un' } }
+
+    before do
+      set_expression(double_tdc, '{Source} * 2')
+      set_expression(plus_un_tdc, '{Double} + 1')
+      fresh_dossier.compute_formulas_in_order
+    end
+
+    it 'les formules privées en aval ne sont pas recalculées' do
+      expect(value_of(plus_un_tdc)).to be_present
+      champ = dossier.with_update_stream(dossier.user) { dossier.champ_for_update(source_tdc, row_id: nil, updated_by: 'test') }
+      champ.update!(value: '10')
+      expect { dossier.refresh_formulas_after(champ) }.not_to change { value_of(plus_un_tdc) }
     end
   end
 end
