@@ -68,7 +68,7 @@ class FormulaSystemColumns
 
     # L'expression référence-t-elle une colonne système de ce déclencheur ?
     def references_trigger?(expression, trigger)
-      expression.to_s.scan(/\{([^}]+)\}/).any? { |(ref)| trigger(ref.strip) == trigger }
+      FormulaReferences.scan(expression).any? { trigger(_1.raw) == trigger }
     end
 
     # { identifiant de formule => Column } pour les colonnes de la procédure.
