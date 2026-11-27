@@ -10,6 +10,11 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-27-formule-refonte-graphe-et-passe-design.md` (§ 6.1, § 7 « PR 1 », § 8 « Nouveaux, PR 1 »). À lire avant de commencer.
 
+> **Écarts décidés à l'exécution (2026-11-27)** — ils priment sur le texte ci-dessous : `formula_graph` n'est
+> pas mémoïsé (tâche 3 et Review Focus 1 caducs sur ce point) ; `circular_reference?` ne suit que les
+> `stable_id` ; les tests D1 tournent sur un dossier en brouillon ; la tâche 6 s'arrête au commit. Voir le
+> § 6.1 et le § 7 du design doc.
+
 ## Global Constraints
 
 - Branche `feature/formule-graphe-unique`, créée depuis `devpf` à jour (qui contient la PR #642). PR vers `devpf`, merge simple (pas de squash), `gh pr create --repo govpf/mes-demarches`.

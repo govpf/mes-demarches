@@ -108,8 +108,10 @@ Deux raisons d'agir maintenant :
 
 Objet PF, obtenu par `revision.formula_graph`. Il n'est **pas mémoïsé** sur la révision (décision prise à
 l'implémentation de la PR 1) : les specs partagent l'instance de révision entre la démarche et le dossier,
-et un graphe gardé en mémoire deviendrait périmé dès qu'une expression change. Chaque opération le construit
-une fois et le garde en variable locale ; la passe de la PR 2 tiendra le sien pour sa durée de vie. Il porte :
+et un graphe gardé en mémoire deviendrait périmé dès qu'une expression change. Chaque méthode appelante le
+construit et le garde en variable locale : deux à trois constructions par enregistrement d'un champ, sans
+requête SQL une fois les types de champ de la révision chargés. La passe de la PR 2 tiendra le sien pour sa
+durée de vie. Il porte :
 
 - **l'analyse des références** : la seule fonction qui découpe une expression en références
   (`{tdcN}`, `{tdcN/chemin}`, `{tdcBloc/sub_N}`, colonnes système). Les six analyses
@@ -261,9 +263,14 @@ production le 2026-11-27 ne trouve aucune expression à ce format.
   upstream en a besoin. `circular_reference?` et `forward_reference?` s'appuient sur le graphe.
 - `TurboChampsConcern` demande au graphe la liste des formules à rafraîchir (D11).
 - Aucune migration, aucun changement de stockage.
-- Limite connue, levée par la PR 2 : dans un recalcul par drapeau, l'accumulateur reste indexé par
-  `stable_id` seul. Une formule-ligne qui lit une autre formule-ligne à drapeau de la même ligne peut donc
-  recevoir la valeur d'une autre ligne (avant la PR 1, elle n'était pas recalculée du tout).
+- Dans un recalcul par drapeau, l'accumulateur (indexé par `stable_id` seul) n'est pas alimenté pour les
+  formules-ligne : une formule-ligne qui en lit une autre repasse par le calcul par ligne du service. La
+  même limite subsiste dans `compute_formulas_in_order` jusqu'à la passe de la PR 2.
+- À reprendre en PR 2 : `formule_deps['champs']` n'est plus lu par aucun code Ruby depuis que le graphe lit
+  l'expression ; seuls les drapeaux de `formule_deps` servent encore (dont la requête SQL du job de nuit).
+- Écarts assumés sur des formes que l'éditeur ne produit jamais : une référence écrite avec des espaces de
+  bord (`{ tdcN }`) est désormais vue par l'analyse (donc refusée si elle pointe vers l'avant) ; `{tdcNabc}`
+  et une accolade non fermée ne sont plus prises pour une référence au champ N.
 - **Pas de tâche de rattrapage en PR 1** (décision de clautier, 2026-11-27) : les valeurs déjà fausses en
   base à cause de D1 et D3 ne se corrigent qu'au prochain déclencheur. Les formules sont encore peu
   nombreuses et le périmètre est maîtrisé ; une correction ponctuelle se fait à la main si un cas remonte.
