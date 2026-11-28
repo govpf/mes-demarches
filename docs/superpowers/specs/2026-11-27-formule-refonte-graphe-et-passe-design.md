@@ -98,8 +98,8 @@ Deux raisons d'agir maintenant :
 
 | Approche | Principe | Verdict |
 |---|---|---|
-| 1. Le champ lit la passe | `Champs::FormuleChamp#value` (fichier PF) renvoie la valeur en base si elle est figée, sinon interroge la passe du dossier. | Écartée (clautier, 2026-11-27) : lire `.value` déclencherait un calcul, ce qui est implicite ; aucune ligne dans `project_champ`, donc aucun conflit pour signaler qu'upstream a changé la projection. |
-| **2. Accroche dans `project_champ`** | Une ligne taguée `# pf:` en fin de méthode pose sur le champ projeté la valeur calculée par la passe. | **Retenue** (clautier, 2026-11-27). Explicite, au même endroit qu'aujourd'hui, et le conflit de merge sert de capteur quand upstream réécrit la méthode. Limite assumée, identique à l'existant : seuls les champs obtenus par `project_champ` reçoivent la valeur non figée. |
+| **1. Le champ lit la passe** | `Champs::FormuleChamp#value` (fichier PF) renvoie la valeur en base si elle est figée, sinon interroge la passe du dossier. | **Retenue** (clautier, 2026-11-27, après avoir envisagé l'option 2). Aucune ligne dans `project_champ` ; tout lecteur est servi quel que soit le chemin par lequel il a obtenu le champ. Coût : lire `.value` peut déclencher un calcul, ce qui est implicite ; les lectures par `read_attribute(:value)` sont à revoir une par une. |
+| 2. Accroche dans `project_champ` | Une ligne taguée `# pf:` en fin de méthode pose sur le champ projeté la valeur calculée par la passe. | Écartée : c'est la méthode qu'upstream réécrit ; ne sert que les champs obtenus par `project_champ`. |
 | 3. Tout enregistrer, même en brouillon | Plus aucun calcul à l'affichage. | Écartée : impose une passe à chaque modification de la démarche, donc de nouvelles accroches côté administrateur. |
 
 ## 6. Conception
@@ -182,34 +182,35 @@ changé (`update_columns` de `value` et `updated_at`, comme aujourd'hui).
 Ce que la passe supprime : `value_overrides` et `seed_overrides`, `refresh_formulas_matching`,
 `formule_champs_for_tdc`, `compute_line_formula_value`, `line_formula_champ`, la branche #642 de
 `extract_column_value`, `all_champs`, le garde `Thread.current[:dossier_champs_formule_recomputing]`, le bloc
-PF de `project_champ` (remplacé par une ligne d'accroche, § 6.3),
-`Champs::FormuleChamp#compute_value_from_formula`.
+PF de `project_champ`, `Champs::FormuleChamp#compute_value_from_formula`.
 
 ### 6.3 Lecture de la valeur
 
-Le bloc PF d'une trentaine de lignes de `project_champ` est remplacé par **une ligne d'accroche taguée
-`# pf:`**, placée là où la méthode rend le champ projeté. Elle appelle une méthode PF qui, pour un champ
-formule :
+`Champs::FormuleChamp#value` (fichier PF) :
 
-- ne fait rien quand la valeur est **figée**, c'est-à-dire quand le champ est enregistré et que la révision
-  du dossier n'est pas un brouillon ;
-- sinon pose sur le champ, en mémoire et sans enregistrer, la valeur fournie par `dossier.formula_pass`, qui
-  calcule une fois par requête ;
-- ne fait rien sur le flux en lecture seule `user:history` (vue « version d'origine ») : la valeur reste
-  celle de la base (choix de Claude).
+- renvoie la valeur en base quand elle est **figée**, c'est-à-dire quand le champ est enregistré et que la
+  révision du dossier n'est pas un brouillon ;
+- sinon interroge `dossier.formula_pass`, qui calcule en mémoire une fois par requête : le premier appel
+  calcule toutes les formules du dossier dans l'ordre du graphe, les suivants sont des lectures de
+  l'accumulateur ;
+- sur le flux en lecture seule `user:history` (vue « version d'origine »), renvoie toujours la valeur en base
+  (choix de Claude).
 
-`Champs::FormuleChamp#value` n'est pas surchargée : lire une valeur ne déclenche jamais de calcul. La passe
-lit ses sources par `champs_on_stream` et ses formules amont dans l'accumulateur, jamais par
-`project_champ` : l'accroche ne peut donc pas se rappeler elle-même et le garde `Thread.current` disparaît.
+Le bloc PF de `project_champ` disparaît entièrement : aucune ligne formule ne reste dans cette méthode, que
+la réécriture upstream peut donc remplacer sans conflit.
 
-Limite assumée, identique au comportement actuel : un lecteur qui obtient un champ formule sans passer par
-`project_champ` (parcours direct de `dossier.champs`) lit la valeur en base. Sur une révision publiée, la
-base est à jour puisque tout y est enregistré ; l'écart ne peut donc concerner que les dossiers de test sur
-révision brouillon.
+`value` est lu partout (`blank?`, `ChampColumn` donc exports, GraphQL, balises d'attestation, conditions) :
+c'est voulu, tous ces lecteurs reçoivent la même valeur. La passe lit ses sources par `champs_on_stream` et
+ses formules amont dans l'accumulateur, jamais par `value` d'un champ formule : pas de rappel sur elle-même,
+et le garde `Thread.current` disparaît.
 
-À l'arrivée de la réécriture upstream de `project_champ` (champs construits mémoïsés), la ligne entrera en
-conflit : elle est à replacer au point où le champ construit est rendu, et une spec la couvre pour que sa
-perte casse un test.
+Les lectures qui contournent `.value` sont à revoir une par une (décision clautier) :
+`read_attribute(:value)` dans `FormuleTypeDeChamp#champ_value` et `#champ_value_for_export`, et dans le
+moteur lui-même quand il compare l'ancienne et la nouvelle valeur avant d'écrire (là, la lecture brute est
+voulue).
+
+La passe mémorisée est jetée quand un champ source change en cours de requête (enregistrement puis
+réaffichage Turbo) ; ce point est traité explicitement dans le plan de la PR 2, avec une spec.
 
 Conséquence attendue : le test `pending` « révision brouillon : formule racine chaînée après modification de
 l'expression amont » de `spec/models/champs/formule_cascade_audit_spec.rb` passe.
@@ -279,7 +280,7 @@ production le 2026-11-27 ne trouve aucune expression à ce format.
 
 - La passe (§ 6.2), la lecture de la valeur (§ 6.3), la règle des dossiers terminés (§ 6.4), le découpage du
   service (§ 6.5).
-- Suppression des contournements ; le bloc de `project_champ` est réduit à une ligne d'accroche (§ 6.3).
+- Suppression des contournements et du bloc de `project_champ`.
 - Tâche de maintenance de rattrapage, exécutée au déploiement : crée **uniquement les champs formule-ligne
   manquants** des dossiers existants, sans relancer de passe complète (les formules racine figées ne sont pas
   réécrites). Elle couvre tous les états sur révision publiée ; les dossiers de test sur révision brouillon
