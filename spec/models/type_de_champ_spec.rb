@@ -956,16 +956,18 @@ describe TypeDeChamp do
         expect(champs_for(formule_tdc)).to contain_exactly(123, 456)
       end
 
-      it 'supports old format {123} (backward compatibility)' do
+      # pf: le format hérité {123} n'est plus reconnu comme une référence de champ
+      # (aucune expression de production ne l'utilise) — cf. FormulaReferences.
+      it 'ignores old format {123}' do
         formule_tdc.formule_expression = '{123} + {456}'
 
-        expect(champs_for(formule_tdc)).to contain_exactly(123, 456)
+        expect(champs_for(formule_tdc)).to be_empty
       end
 
-      it 'supports mixed format {123} + {tdc456}' do
+      it 'keeps only {tdc456} in mixed format {123} + {tdc456}' do
         formule_tdc.formule_expression = '{123} + {tdc456}'
 
-        expect(champs_for(formule_tdc)).to contain_exactly(123, 456)
+        expect(champs_for(formule_tdc)).to contain_exactly(456)
       end
 
       it 'ignores system columns {dossier_number}' do
