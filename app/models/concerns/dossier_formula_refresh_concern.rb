@@ -35,21 +35,20 @@ module DossierFormulaRefreshConcern
   # pf: Recalcule les formules avec formule_deps['has_state'] = true après une transition d'état.
   # Appelée depuis les callbacks after_commit_passer_en_* de Dossier.
   def refresh_state_dependent_formulas
-    refresh_formulas_matching { |tdc| tdc.formule_deps&.[]('has_state') }
+    refresh_flagged_formulas('has_state')
   end
 
   # pf: Recalcule les formules qui référencent l'identité du déclarant
   # (champs {individual_*} ou {entreprise_*}). Appelé explicitement par les
   # controllers après modification de l'identité — pas de callback AR sur
   # Individual/Etablissement pour respecter la convention "cascade explicite"
-  # documentée dans CLAUDE.md.
+  # documentée dans CLAUDE.md. Les formules qui lisent ces formules (aval)
+  # sont recalculées avec elles.
   def refresh_formulas_with_identite_dependents
-    matching = revision.types_de_champ.filter do |tdc|
-      tdc.formule? && tdc.formule_deps&.[]('has_identite')
-    end
+    matching = revision.formula_graph.flagged_with_downstream('has_identite')
     return if matching.empty?
 
-    compute_formulas_in_order(only: matching.map(&:stable_id).to_set)
+    compute_formulas_in_order(only: matching.to_set)
   end
 
   # pf: Recalcule les formules avec formule_deps['has_clock'] = true selon le scope fourni.
@@ -57,10 +56,7 @@ module DossierFormulaRefreshConcern
   # scope: :private_only → annotations privées uniquement (pour dossiers
   # actifs déposés, où les formules publiques sont figées)
   def refresh_clock_dependent_formulas(scope: :all)
-    refresh_formulas_matching do |tdc|
-      next false unless tdc.formule_deps&.[]('has_clock')
-      scope == :private_only ? tdc.private? : true
-    end
+    refresh_flagged_formulas('has_clock', private_only: scope == :private_only)
   end
 
   # pf: Recalcule les formules dépendant d'un champ source qui vient d'être
@@ -81,21 +77,21 @@ module DossierFormulaRefreshConcern
   # SIRET ou aux mises à jour de colonnes référentielles.
   def refresh_formulas_after(champ)
     return unless champ&.stable_id
+    graph = revision.formula_graph
     # pf: Court-circuit rapide — si la révision n'a aucune formule, rien à faire.
-    return unless revision.types_de_champ.any?(&:formule?)
+    return unless graph.any_formula?
     # pf: Les champs formule eux-mêmes ne déclenchent pas de recalcul (anti-boucle)
     return if champ.type_de_champ.formule?
 
-    # pf: Pré-calcul des stable_ids transitivement dépendants via le graphe
-    # pur des types_de_champ (pas d'accès à project_champs).
-    dependent_stable_ids = champ.dependent_formula_stable_ids
+    # pf: formules transitivement dépendantes, dans l'ordre de calcul du graphe
+    # (pas d'accès à project_champs).
+    dependent_stable_ids = graph.downstream_of([champ.stable_id])
     # pf: Filtre privacy — les formules privées ne peuvent être écrites que sur
     # main (cf. check_valid_stream_on_write?). Quand la source est sur
     # user:buffer, on skip les formules privées : elles seront recalculées au
     # moment où les changements sont committés vers main (dépôt / instruction).
     if champ.stream != Champ::MAIN_STREAM && dependent_stable_ids.any?
-      formula_tdcs_by_sid = revision.types_de_champ.filter(&:formule?).index_by(&:stable_id)
-      dependent_stable_ids = dependent_stable_ids.reject { |sid| formula_tdcs_by_sid[sid]&.private? }
+      dependent_stable_ids = dependent_stable_ids.reject { |sid| graph.node(sid).type_de_champ.private? }
     end
     return if dependent_stable_ids.empty?
 
@@ -117,10 +113,12 @@ module DossierFormulaRefreshConcern
   end
 
   # pf: Méthode unique de recalcul des formules d'un dossier dans l'ordre
-  # topologique. Utilise l'invariant "position TDC = ordre topologique" (cf.
-  # TypesDeChamp::FormuleTypeDeChamp#forward_reference?) : itérer les TDC
-  # formule dans l'ordre des positions garantit qu'au moment où on calcule
-  # une formule, toutes ses sources et formules amont sont déjà résolues.
+  # topologique. L'ordre vient du graphe de dépendances de la révision
+  # (FormulaDependencyGraph) : formules publiques dans l'ordre des positions,
+  # chaque bloc déplié à sa place, puis annotations privées selon la même
+  # logique. La règle de visibilité des références (FormulaReferenceScope)
+  # garantit qu'au moment où on calcule une formule, toutes ses sources et
+  # formules amont sont déjà résolues.
   #
   # Les valeurs calculées sont accumulées dans `value_overrides` et lues par
   # le service au calcul suivant — pas de relecture BDD par formule.
@@ -149,8 +147,7 @@ module DossierFormulaRefreshConcern
   # les valeurs initiales et toutes les formules calculées. Permet à
   # l'appelant d'enchaîner sans réinterroger la BDD.
   def compute_formulas_in_order(seed_overrides: {}, only: nil, persist: true, create_missing: true, row_id: nil, system_write: false)
-    formula_tdcs = revision.types_de_champ.filter(&:formule?)
-    formula_tdcs = formula_tdcs.filter { |tdc| only.include?(tdc.stable_id) } if only
+    formula_tdcs = revision.formula_graph.formula_types_de_champ(only: only)
     return seed_overrides.dup if formula_tdcs.empty?
 
     overrides = seed_overrides.dup
@@ -208,10 +205,32 @@ module DossierFormulaRefreshConcern
   # explicite à refresh_formulas_after (par les controllers / mutations /
   # services) qui prend le relais.
   def compute_initial_formulas
-    return unless revision&.types_de_champ&.any?(&:formule?)
+    return unless revision&.formula_graph&.any_formula?
     compute_formulas_in_order
   rescue StandardError => e
     Rails.logger.error("[InitialFormulas] dossier=#{id} error=#{e.class}: #{e.message}")
+  end
+
+  # pf: Champs formule à re-rendre (Turbo) après la modification de `champ`,
+  # dans l'ordre de calcul. Dans un bloc répétable, limités à la ligne de
+  # `champ` plus les champs hors bloc.
+  def formula_champs_downstream_of(champ)
+    ordered_formula_sids = revision.formula_graph.downstream_of([champ.stable_id])
+    return [] if ordered_formula_sids.empty?
+
+    all_champs = project_champs_public_all + project_champs_private_all
+
+    ordered_formula_sids.flat_map do |sid|
+      all_champs.filter do |formula_champ|
+        next false unless formula_champ.stable_id == sid
+
+        if champ.row_id.present?
+          formula_champ.row_id == champ.row_id || formula_champ.row_id.nil?
+        else
+          true
+        end
+      end
+    end.uniq(&:public_id)
   end
 
   private
@@ -223,23 +242,32 @@ module DossierFormulaRefreshConcern
   end
 
   def has_state_dependent_formula?
-    revision&.types_de_champ&.any? { |tdc| tdc.formule? && tdc.formule_deps&.[]('has_state') }
+    revision.present? && revision.formula_graph.flagged('has_state').any?
   end
 
-  # pf: Boucle générique de recalcul. Utilise update_column pour éviter de
-  # déclencher les callbacks (pas de cascade parasite, pas de re-store via
-  # store_computed_value). Si un dossier contient une formule qui dépend
-  # d'une autre formule recalculée ici, l'ordre de revision garantit la
-  # cohérence : les types_de_champ sont ordonnés par position et les
-  # formules ne peuvent référencer que des champs qui précèdent.
-  def refresh_formulas_matching(&block)
-    service = FormulaCalculationService.new(self)
-    matching_tdcs = revision.types_de_champ.filter { |tdc| tdc.formule? && yield(tdc) }
-    return if matching_tdcs.empty?
+  # pf: Recalcul des formules portant le drapeau `flag` (has_clock,
+  # has_state) et des formules qui les lisent (aval), dans l'ordre du graphe.
+  # Chaque valeur calculée est ajoutée à `overrides`, que le service lit par
+  # référence : l'aval lit la valeur fraîche de son amont. Utilise
+  # update_column pour éviter de déclencher les callbacks (pas de cascade
+  # parasite, pas de re-store via store_computed_value).
+  def refresh_flagged_formulas(flag, private_only: false)
+    graph = revision.formula_graph
+    stable_ids = graph.flagged_with_downstream(flag, private_only:)
+    return if stable_ids.empty?
 
-    matching_tdcs.each do |tdc|
+    overrides = {}
+    service = FormulaCalculationService.new(self, value_overrides: overrides)
+
+    graph.formula_types_de_champ(only: stable_ids).each do |tdc|
       formule_champs_for_tdc(tdc).each do |champ|
         new_value = service.compute_value(champ)
+        # pf: pas d'override pour une formule-ligne (valeur propre à chaque
+        # ligne) : le service relit sa valeur dans la ligne de la formule qui la lit.
+        overrides[tdc.stable_id] = new_value unless graph.node(tdc.stable_id).level == :row
+        # pf: formule sans champ en base (ex. jamais matérialisée) : rien à écrire.
+        next unless champ.persisted?
+
         champ.update_column(:value, new_value) if champ.value != new_value
       rescue StandardError => e
         Rails.logger.error("[FormulaRefresh] dossier=#{id} champ=#{champ.id} error=#{e.class}: #{e.message}")

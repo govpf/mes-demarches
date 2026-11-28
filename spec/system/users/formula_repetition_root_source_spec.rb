@@ -4,7 +4,7 @@
 #   Taux = Coef × 2 (racine), Montant = Prix × Taux (ligne), Total = SOMME(Montant).
 # Modifier Coef (hors bloc) doit recalculer le Total : l'agrégat dépend du bloc,
 # pas de la formule-ligne, et la cascade doit suivre le bloc parent de la
-# formule-ligne atteinte (Champ#dependent_formula_stable_ids).
+# formule-ligne atteinte (FormulaDependencyGraph#downstream_of).
 describe 'Agrégat d’une formule-ligne dépendant d’une formule racine', js: true do
   let(:password) { SECURE_PASSWORD }
   let!(:user) { create(:user, password: password) }

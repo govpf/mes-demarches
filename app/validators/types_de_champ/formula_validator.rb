@@ -59,7 +59,7 @@ class TypesDeChamp::FormulaValidator < ActiveModel::EachValidator
       .compact
 
     # Extract all references {tdc456}, {dossier_number}, {tdc456/commune}
-    referenced_ids = tdc.formule_expression.scan(/\{([^}]+)\}/).map(&:first)
+    referenced_ids = FormulaReferences.scan(tdc.formule_expression).map(&:raw)
 
     # pf: stable_ids des blocs répétables agrégables (cf. aggregable_repetition_types_de_champ).
     allowed_bloc_sids = coordinate.aggregable_repetition_types_de_champ.map(&:stable_id).to_set

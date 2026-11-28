@@ -368,75 +368,6 @@ class Champ < ApplicationRecord
     dossier.update_columns(attributes)
   end
 
-  # pf: Formules directement dépendantes de ce champ (1 niveau)
-  def dependent_formula_champs
-    dependent_formula_champs_from(dossier.project_champs_public_all + dossier.project_champs_private_all)
-  end
-
-  # pf: stable_ids des formules transitivement dépendantes de ce champ.
-  # Pure résolution de graphe sur les types_de_champ (metadata) — n'accède
-  # PAS aux champs du dossier, donc ne déclenche pas project_champs.
-  # Utilisé par Dossier#refresh_formulas_after pour passer une liste de
-  # stable_ids à compute_formulas_in_order, qui ira chercher les Champs
-  # lui-même via formule_champs_for_tdc.
-  def dependent_formula_stable_ids
-    formula_tdcs = dossier.revision.types_de_champ.filter(&:formule?)
-    return [] if formula_tdcs.empty?
-
-    # stable_id source → [stable_ids des formules qui en dépendent]
-    deps_graph = Hash.new { |h, k| h[k] = Set.new }
-    formula_tdcs.each do |tdc|
-      (tdc.formule_deps&.[]('champs') || []).each { |dep_sid| deps_graph[dep_sid].add(tdc.stable_id) }
-    end
-
-    # pf: BFS topologique depuis self.stable_id ET, si ce champ est dans un bloc
-    # répétable, depuis le stable_id du bloc parent. Une formule-agrégat dépend
-    # du stable_id du BLOC ({tdc<bloc>/sub_<id>} → dep = bloc), donc modifier un
-    # sous-champ d'une ligne doit déclencher les formules qui dépendent du bloc.
-    #
-    # pf: même règle pendant le parcours : quand une formule-LIGNE est atteinte
-    # (ex. Coef → Taux racine → Montant de ligne), les agrégats de son bloc
-    # dépendent du bloc, pas d'elle — on suit donc aussi le bloc parent, sinon
-    # l'agrégat n'est jamais recalculé quand la source vient d'hors du bloc.
-    revision = dossier.revision
-    formula_tdcs_by_sid = formula_tdcs.index_by(&:stable_id)
-    visited = Set.new
-    queue = (dependency_seed_stable_ids).flat_map { |sid| deps_graph[sid].to_a }
-    result = []
-    while (sid = queue.shift)
-      next if visited.include?(sid)
-      visited.add(sid)
-      result << sid
-      queue.concat(deps_graph[sid].to_a)
-      parent_bloc_sid = revision.parent_of(formula_tdcs_by_sid[sid])&.stable_id
-      queue.concat(deps_graph[parent_bloc_sid].to_a) if parent_bloc_sid
-    end
-    result
-  end
-
-  # pf: Toutes les formules dépendantes (transitivité : A → B → C) résolues
-  # en Champs concrets. Utilisé par TurboChampsConcern qui a besoin des
-  # instances pour le rendu Turbo. Pour la cascade pure (calcul + persistence),
-  # préférer dependent_formula_stable_ids qui évite project_champs.
-  def all_dependent_formula_champs
-    ordered_formula_sids = dependent_formula_stable_ids
-    return [] if ordered_formula_sids.empty?
-
-    all_champs = dossier.project_champs_public_all + dossier.project_champs_private_all
-
-    ordered_formula_sids.flat_map do |sid|
-      all_champs.filter do |champ|
-        next false unless champ.stable_id == sid
-
-        if row_id.present?
-          champ.row_id == row_id || champ.row_id.nil?
-        else
-          true
-        end
-      end
-    end.uniq(&:public_id)
-  end
-
   # pf: cascade référentiel — champs referentiel_de_polynesie dont ce champ est le pilote
   # (options['referentiel_filter']['pilot_column_id'] = "type_de_champ/<stable_id>", éventuellement
   # suivi d'un chemin dérivé "-$.x" ou ".path"). Dans un bloc, seuls ceux de la même ligne ;
@@ -464,33 +395,6 @@ class Champ < ApplicationRecord
   # pf: un lien de pièce justificative peut être émis dès le dépôt (e-mails, messages)
   def verification_link_first_emitted_at
     dossier.depose_at
-  end
-
-  private
-
-  # pf: stable_ids "sources" qui doivent déclencher une cascade de formules
-  # quand ce champ change : lui-même, plus le bloc répétable parent le cas
-  # échéant (granularité bloc des formules-agrégat — cf. dependent_formula_stable_ids).
-  def dependency_seed_stable_ids
-    seeds = [stable_id]
-    parent_bloc_sid = dossier.revision.parent_of(type_de_champ)&.stable_id
-    seeds << parent_bloc_sid if parent_bloc_sid
-    seeds
-  end
-
-  def dependent_formula_champs_from(all_champs)
-    source_sids = dependency_seed_stable_ids
-    all_champs.filter do |formula_champ|
-      next false if formula_champ.stable_id.nil?
-      deps = formula_champ.type_de_champ.formule_deps&.[]('champs') || []
-      next false unless formula_champ.formule? && (deps & source_sids).any?
-
-      if row_id.present?
-        formula_champ.row_id == row_id || formula_champ.row_id.nil?
-      else
-        true
-      end
-    end
   end
 
   class NotImplemented < ::StandardError

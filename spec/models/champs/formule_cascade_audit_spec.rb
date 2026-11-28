@@ -625,4 +625,100 @@ RSpec.describe 'Formule cascade refresh_formulas_after', type: :model do
       end
     end
   end
+
+  # ----------------------------------------------------------------------
+  # Scénario : ordre de calcul entre niveaux (D1)
+  # ----------------------------------------------------------------------
+  # pf: l'ordre de calcul vient du graphe de dépendances (public, chaque bloc
+  # déplié à sa place, puis privé) et non plus des positions brutes, qui
+  # mélangent les niveaux : une annotation privée en position 0 ou une
+  # formule-ligne en tête de son bloc passaient avant la formule qu'elles lisent.
+  #
+  # Dossier en brouillon : en construction, une source publique s'écrit sur le
+  # tampon usager et les annotations privées ne sont pas recalculées (cf.
+  # check_valid_stream_on_write?).
+  describe "ordre de calcul entre niveaux (graphe)" do
+    def value_of(tdc, row_id: nil)
+      dossier.reload.champs
+        .find { _1.stable_id == tdc.stable_id && _1.row_id == row_id && _1.stream == Champ::MAIN_STREAM }
+        &.read_attribute(:value)
+    end
+
+    context 'annotation privée en première position qui lit une formule publique placée plus bas' do
+      let(:procedure) do
+        create(:procedure, :published,
+               types_de_champ_public: [
+                 { type: :integer_number, libelle: 'Source' },
+                 { type: :formule, libelle: 'Double' },
+               ],
+               types_de_champ_private: [
+                 { type: :formule, libelle: 'Plus un' },
+               ])
+      end
+      let(:revision) { procedure.active_revision }
+      let(:source_tdc) { revision.types_de_champ.find { _1.libelle == 'Source' } }
+      let(:double_tdc) { revision.types_de_champ.find { _1.libelle == 'Double' } }
+      let(:plus_un_tdc) { revision.types_de_champ.find { _1.libelle == 'Plus un' } }
+      let(:dossier) { create(:dossier, procedure:) }
+
+      before do
+        double_tdc.update!(formule_expression: "{tdc#{source_tdc.stable_id}} * 2")
+        plus_un_tdc.update!(formule_expression: "{tdc#{double_tdc.stable_id}} + 1")
+      end
+
+      def set_source(value)
+        champ = dossier.champ_for_update(source_tdc, row_id: nil, updated_by: 'test')
+        champ.update!(value: value.to_s)
+        dossier.refresh_formulas_after(champ)
+      end
+
+      it "recalcule l'annotation après la formule publique qu'elle lit" do
+        set_source(5)
+        set_source(10)
+        expect(value_of(double_tdc)).to eq('20')
+        expect(value_of(plus_un_tdc)).to eq('21')
+      end
+    end
+
+    context 'formule-ligne placée en tête de son bloc qui lit une formule racine' do
+      let(:procedure) do
+        create(:procedure, :published, types_de_champ_public: [
+          { type: :integer_number, libelle: 'Coef' },
+          { type: :formule, libelle: 'Taux' },
+          {
+            type: :repetition, libelle: 'Lignes', mandatory: false, children: [
+              { type: :formule, libelle: 'Montant' },
+              { type: :integer_number, libelle: 'Prix' },
+            ],
+          },
+        ])
+      end
+      let(:revision) { procedure.active_revision }
+      let(:coef_tdc) { revision.types_de_champ.find { _1.libelle == 'Coef' } }
+      let(:taux_tdc) { revision.types_de_champ.find { _1.libelle == 'Taux' } }
+      let(:bloc_tdc) { revision.types_de_champ.find { _1.libelle == 'Lignes' } }
+      let(:montant_tdc) { revision.types_de_champ.find { _1.libelle == 'Montant' } }
+      let(:dossier) { create(:dossier, procedure:) }
+      let!(:row_id) do
+        taux_tdc.update!(formule_expression: "{tdc#{coef_tdc.stable_id}} * 2")
+        montant_tdc.update!(formule_expression: "{tdc#{taux_tdc.stable_id}} * 10")
+        row_id = dossier.repetition_add_row(bloc_tdc, updated_by: 'test')
+        dossier.champ_for_update(montant_tdc, row_id:, updated_by: 'test').save!
+        row_id
+      end
+
+      def set_coef(value)
+        champ = dossier.champ_for_update(coef_tdc, row_id: nil, updated_by: 'test')
+        champ.update!(value: value.to_s)
+        dossier.refresh_formulas_after(champ)
+      end
+
+      it "recalcule la formule-ligne après la formule racine qu'elle lit" do
+        set_coef(1)
+        set_coef(3)
+        expect(value_of(taux_tdc)).to eq('6')
+        expect(value_of(montant_tdc, row_id:)).to eq('60')
+      end
+    end
+  end
 end

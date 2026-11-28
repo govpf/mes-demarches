@@ -6,8 +6,8 @@ class FormulaExpressionService
       return ['', []] if expression.blank?
 
       dependencies = []
-      stable_expr = expression.gsub(/\{([^}]+)\}/) do |match|
-        libelle = $1.strip
+      stable_expr = FormulaReferences.gsub(expression) do |ref, match|
+        libelle = ref.raw
         tdc = find_type_de_champ_by_libelle(libelle, revision)
 
         if tdc
@@ -32,8 +32,8 @@ class FormulaExpressionService
       return '' if stable_expression.blank?
 
       # pf: Support both new format ({tdc123}, {tdc123/path}) and old format ({123})
-      stable_expression.gsub(/\{([^}]+)\}/) do |match|
-        ref = $1.strip
+      FormulaReferences.gsub(stable_expression) do |reference, match|
+        ref = reference.raw
 
         # New format: {tdc123} or {tdc123/path}
         if ref.match?(/^tdc(\d+)(\/.*)?/)

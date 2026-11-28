@@ -445,8 +445,8 @@ class FormulaCalculationService
   def resolve_field_references(expression)
     # Old method kept for backward compatibility
     # Replace {stable_id} patterns with actual values
-    expression.gsub(/\{([^}]+)\}/) do |_match|
-      stable_id_str = $1.strip
+    FormulaReferences.gsub(expression) do |ref, _match|
+      stable_id_str = ref.raw
 
       # Try to parse as stable_id (integer), fallback to label for backward compatibility
       if /^\d+$/.match?(stable_id_str)
@@ -469,8 +469,8 @@ class FormulaCalculationService
   def resolve_column_references(expression)
     # New method using FormulaColumnResolver for column-based formulas
     # Supports: {tdc456}, {dossier_number}, {tdc456/date_de_naissance}, etc.
-    expression.gsub(/\{([^}]+)\}/) do |_match|
-      reference = $1.strip
+    FormulaReferences.gsub(expression) do |ref, _match|
+      reference = ref.raw
 
       # For backward compatibility: if it's a plain number, treat as stable_id
       if /^\d+$/.match?(reference)
