@@ -14,6 +14,28 @@ end
 
 Playwright::Connection.prepend(PlaywrightPatch)
 
+# pf: Chrome 158+ refuse l'origine '*' que Capybara 3.40 passe à Storage.clearDataForOrigin à la fin
+# de chaque exemple (ChromeDriver#reset!) : « invalid argument: * is not a valid URL ». Une seule spec
+# `chrome: true` suffit alors à faire échouer tous les exemples suivants du lot.
+# Repli repris du correctif proposé à Capybara (teamcapybara/capybara#2865, PR #2868, non publié) :
+# vider tous les cookies, puis le stockage local de l'application testée.
+# À supprimer avec le pilote Selenium (upstream : « Remove Selenium/Chrome test infrastructure »).
+module CapybaraChrome158ResetPatch
+  def execute_cdp(cmd, params = {})
+    super
+  rescue Selenium::WebDriver::Error::InvalidArgumentError
+    raise unless cmd == 'Storage.clearDataForOrigin' && params[:origin] == '*'
+
+    super('Network.clearBrowserCookies')
+    origin = Capybara.current_session.server&.base_url
+    if origin && params[:storageTypes].to_s.include?('local_storage')
+      super('Storage.clearDataForOrigin', origin:, storageTypes: 'local_storage')
+    end
+  end
+end
+
+Capybara::Selenium::Driver::ChromeDriver.prepend(CapybaraChrome158ResetPatch)
+
 def setup_driver(app, download_path, options)
   Capybara::Selenium::Driver.new(app, browser: :chrome, options:).tap do |driver|
     if ENV['MAKE_IT_SLOW'].present?
